@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Matrix4, PerspectiveCamera } from 'three';
-import { boxModeOf, convexHull, pickInRect, rectOf, segmentTouchesRect } from '../src/input/boxSelect';
+import { boxModeOf, clipBounds, convexHull, pickInRect, rectOf, segmentTouchesRect } from '../src/input/boxSelect';
 import type { BoxMode, PixelRect } from '../src/input/boxSelect';
 
 // A camera at z = 10 looking down -z at a 200 x 100 pixel canvas. Boxes are given in world units; at distance 10 with a
@@ -111,5 +111,47 @@ describe('box select: the drag', () => {
   it('builds the rectangle whichever way it is dragged', () => {
     expect(rectOf(50, 70, 10, 20)).toEqual({ x0: 10, y0: 20, x1: 50, y1: 70 });
     expect(rectOf(10, 20, 50, 70)).toEqual({ x0: 10, y0: 20, x1: 50, y1: 70 });
+  });
+});
+
+describe('box select: section clipping', () => {
+  const whole: PixelRect = { x0: 0, y0: 0, x1: W, y1: H };
+  // A section box around x in [-3, 3]: planes keep the inside.
+  const sbox = [
+    { normal: [1, 0, 0], point: [-3, 0, 0] }, { normal: [-1, 0, 0], point: [3, 0, 0] },
+    { normal: [0, 1, 0], point: [0, -9, 0] }, { normal: [0, -1, 0], point: [0, 9, 0] },
+    { normal: [0, 0, 1], point: [0, 0, -9] }, { normal: [0, 0, -1], point: [0, 0, 9] },
+  ];
+  const boxes: Box[] = [cube(0, 0), cube(8, 0), cube(-8, 0), cube(3.5, 0)]; // inside, outside right, outside left, straddling the +x face
+  const pickClip = (clip: Array<{ normal: number[]; point: number[] }> | null, rect: PixelRect, mode: BoxMode): number[] => {
+    const cam = viewProj();
+    return pickInRect({ count: boxes.length, boundsOf: (i) => boxes[i], eligible: () => true, viewProj: cam.m, width: W, height: H, rect, mode, nearW: cam.near, clip });
+  };
+  it('without a section every element is picked', () => {
+    expect(pickClip(null, whole, 'crossing')).toEqual([0, 1, 2, 3]);
+  });
+  it('elements wholly outside the section box are not picked, in both modes', () => {
+    expect(pickClip(sbox, whole, 'crossing')).toEqual([0, 3]);
+    expect(pickClip(sbox, whole, 'window')).toEqual([0, 3]);
+  });
+  it('elements on the removed side of a single plane are not picked', () => {
+    // Keeps x >= 1: the cube at -8 and the one at 0 (x from -1 to 1, touching only x = 1) go; 8 and 3.5 stay.
+    expect(pickClip([{ normal: [1, 0, 0], point: [1, 0, 0] }], whole, 'crossing')).toEqual([0, 1, 3]);
+  });
+  it('an oblique plane culls what lies wholly behind it', () => {
+    // Keeps x + y >= 6: the cube at 3.5 reaches 4.5 + 1 = 5.5 and goes, the one at 8 stays (the cube at 0 and -8 go too).
+    const s = Math.SQRT1_2;
+    expect(pickClip([{ normal: [s, s, 0], point: [6, 0, 0] }], whole, 'crossing')).toEqual([1]);
+  });
+  it('the bounds are trimmed to the visible part for a plane parallel to an axis', () => {
+    const out: number[] = [];
+    expect(clipBounds([2.5, -1, -1, 4.5, 1, 1], [{ n: [-1, 0, 0], w: 3, axis: 0 }], out)).toBe(true);
+    expect(out).toEqual([2.5, -1, -1, 3, 1, 1]);
+    expect(clipBounds([3.5, -1, -1, 4.5, 1, 1], [{ n: [-1, 0, 0], w: 3, axis: 0 }], out)).toBe(false);
+  });
+  it('a window around the visible part of a cut element picks it, one around the removed part does not', () => {
+    // The cube at 3.5 spans x 2.5..4.5; the box keeps x <= 3, so the part drawn is x 2.5..3: pixels 100 + 5x = 112.5..115.
+    expect(pickClip(sbox, { x0: 105, y0: 30, x1: 120, y1: 70 }, 'window')).toEqual([3]);
+    expect(pickClip(null, { x0: 105, y0: 30, x1: 120, y1: 70 }, 'window')).toEqual([]);
   });
 });

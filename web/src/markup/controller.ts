@@ -16,7 +16,11 @@ import type { BcfSnapshotView, Vec3 } from '../bcf/model';
 import { attachGuids, cloneAttachment, describeAttachment, isSpatial, viewLockState } from '../bcf/attach';
 import type { AttachDescription, Attachment, LockState, ViewLockMode } from '../bcf/attach';
 import { OcclusionCache, VIEWLOCK_MODES, viewLockSetting } from '../bcf/attach';
+import { loadedIdentity, modelLabel, scopeOf, splitByScope } from './scope';
+import type { OtherGroup, ScopeInfo } from './scope';
 import { cameraRay } from '../measure/geometry';
+import type { ResolveOptions } from './reprojectScene';
+import type { SurfaceData } from '../bcf/attach';
 import { findHint, fractionInput, inferAttachment, projectRegion, projectSurface, projectSurfaceData, screenInput } from './attachScene';
 import { currentMeasurements } from '../measure/current';
 import type { Measurement } from '../measure/maths';
@@ -205,7 +209,8 @@ export class MarkupController {
   private readonly histories = new Map<string, History<SetState>>();
   private readonly listeners = new Set<(quiet: boolean) => void>();
   readonly geo: BcfController;
-  private identity: { key: object; id: ModelIdentity } | null = null;
+  /** Sets of another model that the user opened on purpose: shown until the model changes. */
+  private readonly peeked = new Set<string>();
   /** Throttled "behind other geometry" test for the live view (the PDF and snapshots test directly). */
   readonly behindCache = new OcclusionCache(
     (p) => this.geo.occluded(p),
@@ -247,8 +252,10 @@ export class MarkupController {
     return this.author.trim() || 'unknown';
   }
 
+  /** The active set. A set of another model is never active (nothing of it is drawn) unless it was opened on purpose. */
   get active(): MarkupSet | null {
-    return this.sets.find((s) => s.id === this.activeId) ?? null;
+    const s = this.sets.find((x) => x.id === this.activeId) ?? null;
+    return s && this.inScope(s) ? s : null;
   }
   get(id: string): MarkupSet | undefined {
     return this.sets.find((s) => s.id === id);
@@ -305,23 +312,77 @@ export class MarkupController {
     return this.geo.shift;
   }
   modelIdentity(): ModelIdentity {
-    const loaded = this.app.loaded;
-    if (!loaded) return modelIdentity(this.app.modelName, 0, []);
-    if (this.identity?.key !== loaded) {
-      const els = this.app.controller.model.elements;
-      this.identity = { key: loaded, id: modelIdentity(this.app.modelName, els.length, els.map((e) => e.globalId).filter((g): g is string => !!g)) };
-    }
-    return this.identity.id;
+    return loadedIdentity(this.app as never) ?? modelIdentity(this.app.modelName, 0, []);
+  }
+
+  // ---------------------------------------------------------------- which model a set belongs to (scope.ts)
+
+  /** The scope of a set against the loaded model: same, revised (flagged), unknown (tagged) or another model (hidden). */
+  scopeOf(set: MarkupSet): ScopeInfo {
+    return scopeOf(set.model, this.loaded ? this.modelIdentity() : null);
+  }
+  /** True when the set is listed and drawn now: its model matches, is a revision, is unknown, or it was opened on purpose. */
+  inScope(set: MarkupSet): boolean {
+    return this.scopeOf(set).visible || this.peeked.has(set.id);
+  }
+  /** The sets of the loaded model (same, revised, unknown) and those opened on purpose, with their scope. */
+  visibleSets(): Array<{ set: MarkupSet; scope: ScopeInfo }> {
+    return splitByScope(this.sets, (s) => s.model, this.loaded ? this.modelIdentity() : null, (s) => this.peeked.has(s.id)).here.map((h) => ({ set: h.item, scope: h.scope }));
+  }
+  /** The sets of other models, grouped per model: hidden, nothing of them is drawn. */
+  otherModels(): Array<OtherGroup<MarkupSet>> {
+    return splitByScope(this.sets, (s) => s.model, this.loaded ? this.modelIdentity() : null, (s) => this.peeked.has(s.id)).other;
+  }
+  /** Number of sets of other models. */
+  get otherCount(): number {
+    return this.otherModels().reduce((n, g) => n + g.items.length, 0);
+  }
+  /** Open a set of another model on purpose: it becomes the active set (until the model changes). Its view is not restored. */
+  openOther(id: string): boolean {
+    const set = this.get(id);
+    if (!set) return false;
+    this.cancelDrawing?.();
+    this.peeked.add(id);
+    this.activeId = id;
+    this.selected = null;
+    this.setStatus(`"${set.title}" was made on ${set.model ? `"${set.model.name}"` : 'another model'}; its markups may not fit this model. Move to this model to re-attach them`);
+    return true;
+  }
+  /**
+   * Re-bind a set to the loaded model and run the attachment migration again: shapes without an attachment (older files) are
+   * projected onto this model; targets this model lacks show detached (view-locked). Returns the counts.
+   */
+  moveToModel(id: string): { migrated: number; attached: number; detached: number } | null {
+    const set = this.get(id);
+    if (!set || !this.loaded) return null;
+    set.model = { ...this.modelIdentity() };
+    this.peeked.delete(id);
+    this.geo.resolver.reset();
+    const r = this.migrateSet(set);
+    set.updated = nowIso();
+    const detached = set.markups.filter((m) => this.describe(m, set).detached).length;
+    this.setStatus(`"${set.title}" now belongs to ${modelLabel(set.model)}${detached ? `; ${detached} markup${detached === 1 ? '' : 's'} could not attach and show${detached === 1 ? 's' : ''} view-locked` : ''}`);
+    return { ...r, detached };
   }
   hasGuid(g: string): boolean {
     return this.app.controller.model.byGlobalId.has(g);
   }
 
   onModel(): void {
-    // The sets belong to the model that was open when they were made; they stay in the list (a different model shows a warning on restore).
-    this.identity = null;
+    // Sets belong to the model they were made on. The ones of another model stay in the session but are hidden: not active, not
+    // drawn, listed under "Other models". Nothing opened on purpose carries over.
+    this.peeked.clear();
     this.tinted = null;
+    this.geo.resolver.reset();
+    this.behindCache.clear();
     this.cancelDrawing?.();
+    this.pickLink = null;
+    this.attachMenuOpen = null;
+    const cur = this.sets.find((s) => s.id === this.activeId);
+    if (!cur || !this.inScope(cur)) {
+      this.activeId = null;
+      this.selected = null;
+    } else if (this.selected && !cur.markups.some((m) => m.id === this.selected)) this.selected = null;
     this.emit();
   }
 
@@ -352,7 +413,7 @@ export class MarkupController {
     const now = nowIso();
     const set: MarkupSet = {
       id: newMarkupId('s'), title: t, author: this.who, created: now, updated: now,
-      view, camera: this.liveCamera(), markups: [], nextNumber: 1,
+      view, camera: this.liveCamera(), markups: [], nextNumber: 1, model: { ...this.modelIdentity() },
     };
     const thumb = captureThumb(this.app);
     if (thumb) set.thumb = thumb;
@@ -780,16 +841,25 @@ export class MarkupController {
     return { migrated, attached };
   }
 
-  /** The words of the chip of a markup. */
-  describe(m: Markup): AttachDescription {
-    const att = attachmentOf(m);
-    const missing = this.loaded ? attachGuids(att).filter((g) => !this.hasGuid(g)) : [];
-    return describeAttachment(att, { classOf: (g) => this.geo.classOf(g), missing });
+  /** The surface data to draw for a set's outline: re-projected onto reshaped elements, null when it cannot land (detached). Cached per model load. */
+  resolveSurface(s: SurfaceData, set?: MarkupSet): SurfaceData | null {
+    const o: ResolveOptions = { revised: !!set && this.scopeOf(set).match === 'revised' };
+    if (set) o.fallbackDir = set.camera.direction;
+    return this.geo.resolver.resolve(s, o);
   }
 
-  /** True when an attached markup lost an element: it shows view-locked and the panel says "detached". */
-  detached(m: Markup): boolean {
-    return this.describe(m).detached;
+  /** The words of the chip of a markup. `set`: the set it is in (found when absent). */
+  describe(m: Markup, set?: MarkupSet): AttachDescription {
+    const att = attachmentOf(m);
+    const missing = this.loaded ? attachGuids(att).filter((g) => !this.hasGuid(g)) : [];
+    const owner = set ?? this.sets.find((s) => s.markups.includes(m));
+    const lost = this.loaded && missing.length === 0 && !!att.surface && isSpatial(att) && this.resolveSurface(att.surface, owner) === null;
+    return describeAttachment(att, { classOf: (g) => this.geo.classOf(g), missing, surfaceLost: lost, revised: !!owner && this.scopeOf(owner).match === 'revised' });
+  }
+
+  /** True when an attached markup lost an element or its surface: it shows view-locked and the panel says "detached". */
+  detached(m: Markup, set?: MarkupSet): boolean {
+    return this.describe(m, set).detached;
   }
 
   /**
@@ -970,6 +1040,7 @@ export class MarkupController {
       element: (g) => this.geo.elementFrame(g),
       hidden: (g) => this.geo.elementHidden(g),
       shapeView: set.camera,
+      resolveSurface: (s) => this.resolveSurface(s, set),
       ...extra,
     };
   }
@@ -1096,7 +1167,8 @@ export class MarkupController {
   }
 
   private pick(ids?: readonly string[]): MarkupSet[] {
-    return ids ? ids.map((i) => this.get(i)).filter((s): s is MarkupSet => !!s) : [...this.sets];
+    // Default: the sets of the loaded model; the ones of other models are listed apart and are not exported unless asked for by id.
+    return ids ? ids.map((i) => this.get(i)).filter((s): s is MarkupSet => !!s) : this.sets.filter((s) => this.inScope(s));
   }
 
   /**
@@ -1166,31 +1238,42 @@ export class MarkupController {
       this.setStatus(e);
       return empty(e);
     }
-    const cmp = compareModels(p.model, this.modelIdentity());
+    // Each set says which model it was made on. Sets of this model, a revision or no model are shown; sets of another model are
+    // kept, hidden, under "Other models" (open them there, or Move to this model).
+    const now = this.modelIdentity();
+    const matches = p.sets.map((s) => compareModels(s.model ?? undefined, now));
+    const rank: Record<ModelMatch, number> = { same: 0, unknown: 1, revised: 2, different: 3 };
+    const match = matches.reduce<ModelMatch>((w, m) => (rank[m.match] > rank[w] ? m.match : w), 'same');
     const warnings: string[] = [];
-    if (cmp.message) warnings.push(cmp.message);
+    for (const msg of new Set(matches.map((m) => m.message).filter(Boolean))) warnings.push(msg);
+    const hidden = p.sets.filter((_s, i) => matches[i]!.match === 'different');
+    if (hidden.length) warnings.push(`${hidden.length === 1 ? 'This set is' : `These ${hidden.length} sets are`} listed under Other models and not drawn on this model. Open ${hidden.length === 1 ? 'it' : 'them'} there, or Move to this model.`);
+    if (matches.some((m) => m.match === 'unknown')) warnings.push('The file does not name its model; the markup is shown on this one, tagged model unknown.');
+    const shown = p.sets.filter((_s, i) => matches[i]!.match !== 'different');
     const unknown = new Set<string>();
     for (const s of p.sets) for (const g of referencedGuids(s)) if (!this.hasGuid(g)) unknown.add(g);
-    if (unknown.size) warnings.push(`${unknown.size} element${unknown.size === 1 ? '' : 's'} named in the markup ${unknown.size === 1 ? 'is' : 'are'} not in this model; their markups and view parts are left out or stay where they were drawn.`);
+    if (unknown.size && shown.length) warnings.push(`${unknown.size} element${unknown.size === 1 ? '' : 's'} named in the markup ${unknown.size === 1 ? 'is' : 'are'} not in this model; their markups and view parts are left out or stay where they were drawn.`);
     if (p.bad.length) warnings.push(`${p.bad.length} item${p.bad.length === 1 ? '' : 's'} in the file could not be read.`);
     // Shapes from a document made before attachments: attached when they project cleanly on this model, else view-locked.
+    // (Sets of another model are migrated when they are moved to this model.)
     let migrated = 0;
     let nowAttached = 0;
-    for (const set of p.sets) {
-      const r = this.migrateSet(set, { keepLocked: cmp.match === 'different' });
+    for (const set of shown) {
+      const r = this.migrateSet(set);
       migrated += r.migrated;
       nowAttached += r.attached;
     }
     if (migrated) warnings.push(`${nowAttached} of ${migrated} older shape${migrated === 1 ? '' : 's'} could be attached to the model; the others stay view-locked.`);
     const merged = mergeSets(this.sets, p.sets);
     this.sets = merged.sets;
+    this.geo.resolver.reset();
     for (const s of p.sets) if (!this.histories.has(s.id)) this.histories.set(s.id, new History());
-    const first = p.sets[0]!;
     const rep: ImportReport = {
       ok: true, sets: p.sets.length, markups: p.sets.reduce((a, s) => a + s.markups.length, 0), added: merged.added, replaced: merged.replaced,
-      unknownGuids: unknown.size, match: cmp.match, warnings, skipped: p.bad,
+      unknownGuids: unknown.size, match, warnings, skipped: p.bad,
     };
-    if (o.restore !== false) {
+    const first = shown[0];
+    if (o.restore !== false && first) {
       this.activeId = first.id;
       this.selected = null;
       this.views.restoreView(first.view, { animate: false });
@@ -1314,8 +1397,10 @@ export class MarkupController {
 
   // ---------------------------------------------------------------- summary for scripts
 
-  list(): Array<{ id: string; title: string; markups: number; open: number; resolved: number; active: boolean }> {
-    return this.sets.map((s) => ({ id: s.id, title: s.title, ...setCounts(s), markups: s.markups.length, active: s.id === this.activeId }));
+  /** The sets of the loaded model (same, revised, unknown), with their scope. `all`: also the sets of other models. */
+  list(o: { all?: boolean } = {}): Array<{ id: string; title: string; markups: number; open: number; resolved: number; active: boolean; scope: ModelMatch; model: string }> {
+    const sets = o.all ? this.sets : this.sets.filter((s) => this.inScope(s));
+    return sets.map((s) => ({ id: s.id, title: s.title, ...setCounts(s), markups: s.markups.length, active: s.id === this.activeId && this.inScope(s), scope: this.scopeOf(s).match, model: s.model?.name ?? '' }));
   }
 }
 

@@ -62,6 +62,13 @@ const CSS = `
 .mk-empty { color: var(--mk-dim); padding: 10px; text-align: center; }
 .mk-lbl { color: var(--mk-dim); font-size: 10.5px; display: flex; flex-direction: column; gap: 2px; }
 .mk-small { font-size: 11px; color: var(--mk-dim); }
+.mk-tag { display: inline-block; font-size: 10px; padding: 0 6px; border-radius: 8px; line-height: 15px; border: 1px solid var(--mk-line); color: #ffd37a; background: #4a3a12; width: fit-content; }
+.mk-other { border: 1px solid var(--mk-line); border-radius: 5px; }
+.mk-other > summary { cursor: pointer; padding: 6px 8px; font-weight: 600; color: var(--mk-dim); }
+.mk-other[open] > summary { border-bottom: 1px solid var(--mk-line); }
+.mk-other-model { padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--mk-line); }
+.mk-other-model:last-child { border-bottom: 0; }
+.mk-other-set { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
 `;
 
 function ensureStyles(): void {
@@ -163,6 +170,7 @@ export function buildDrawer(container: HTMLElement, c: MarkupController, view: M
   const status = statusLine(c.status);
   status.classList.add('mk-status');
   let recorded: string | null = null; // the markup whose text edit already has a history entry
+  let otherOpen = false; // the "Other models" group is collapsed until the user opens it
 
   const render = (): void => {
     const focus = document.activeElement as HTMLElement | null;
@@ -178,20 +186,54 @@ export function buildDrawer(container: HTMLElement, c: MarkupController, view: M
       button('Open file', () => pickMarkupFile(c), { title: 'Open a markup PDF or JSON file. You can also drop it on the page.' }),
     );
     root.appendChild(bar);
-    if (c.sets.length) {
+    const here = c.visibleSets();
+    if (here.length) {
       const grid = el('div', 'mk-sets');
-      for (const s of c.sets) {
-        const card = el('button', `mk-set${s.id === c.activeId ? ' sel' : ''}`, { type: 'button', 'data-set': s.id, title: `${s.title}: restore the view` });
+      for (const { set: s, scope } of here) {
+        const card = el('button', `mk-set${s.id === c.activeId ? ' sel' : ''}`, { type: 'button', 'data-set': s.id, 'data-scope': scope.match, title: `${s.title}: restore the view${scope.note ? `. ${scope.note}` : ''}` });
         if (s.thumb) card.appendChild(el('img', undefined, { src: s.thumb, alt: '', draggable: 'false' }));
         else card.appendChild(el('div', 'mk-nothumb', undefined, 'no picture'));
         card.appendChild(el('div', 'mk-set-t', undefined, s.title));
         const cn = setCounts(s);
         card.appendChild(el('div', 'mk-set-c', undefined, `${cn.total} markup${cn.total === 1 ? '' : 's'}${cn.total ? `, ${cn.open} open` : ''}`));
+        if (scope.tag) card.appendChild(el('div', 'mk-tag', { 'data-scope-tag': scope.match }, scope.tag));
         card.addEventListener('click', () => void c.select(s.id));
         grid.appendChild(card);
       }
       root.appendChild(grid);
-    } else root.appendChild(el('div', 'mk-empty', undefined, 'No markup set yet. Frame the view you want to mark up, then press New set from view.'));
+    } else root.appendChild(el('div', 'mk-empty', undefined, c.sets.length ? 'No markup set for this model yet. Frame the view you want to mark up, then press New set from view.' : 'No markup set yet. Frame the view you want to mark up, then press New set from view.'));
+
+    // ---- sets of other models: hidden, listed apart
+    const other = c.otherModels();
+    if (other.length) {
+      const n = other.reduce((a, g) => a + g.items.length, 0);
+      const det = el('details', 'mk-other', { 'data-other-models': String(n) });
+      det.open = otherOpen;
+      det.addEventListener('toggle', () => { otherOpen = det.open; });
+      det.appendChild(el('summary', undefined, undefined, `Other models (${n})`));
+      for (const g of other) {
+        const box = el('div', 'mk-other-model', { 'data-model': g.key });
+        box.appendChild(el('div', 'mk-small', undefined, `Made on ${g.label}. Hidden on this model.`));
+        for (const s of g.items) {
+          const cn = setCounts(s);
+          const line = el('div', 'mk-other-set', { 'data-other-set': s.id });
+          line.appendChild(el('div', 'mk-set-t', undefined, `${s.title} (${cn.total} markup${cn.total === 1 ? '' : 's'})`));
+          const del = button('Delete set', () => {
+            if (del.dataset['arm'] === '1') c.deleteSet(s.id);
+            else { del.dataset['arm'] = '1'; del.textContent = 'Click again to delete'; setTimeout(() => { del.dataset['arm'] = ''; del.textContent = 'Delete set'; }, 2500); }
+          }, { title: 'Remove this set from the session' });
+          del.setAttribute('data-act', 'other-delete');
+          const open = button('Open', () => { c.openOther(s.id); }, { title: 'Show this set on this model. It may not fit: its targets are not here.' });
+          open.setAttribute('data-act', 'other-open');
+          const move = button('Move to this model', () => { c.moveToModel(s.id); }, { title: 'Make this set belong to the loaded model and attach its shapes again. Shapes whose targets are missing show view-locked.' });
+          move.setAttribute('data-act', 'other-move');
+          line.appendChild(row(open, move, del));
+          box.appendChild(line);
+        }
+        det.appendChild(box);
+      }
+      root.appendChild(det);
+    }
 
     // ---- the active set
     if (set) {
@@ -220,7 +262,7 @@ export function buildDrawer(container: HTMLElement, c: MarkupController, view: M
         fileBtn('Export JSON', () => c.downloadJson([set.id]), { title: 'The markup as a JSON file. Drop it on the viewer to restore the view and the markups.' }),
       ));
       root.appendChild(row(
-        ...(c.sets.length > 1 ? [fileBtn('PDF of all sets', () => c.downloadPdf(), { title: 'One PDF with every set' })] : []),
+        ...(here.length > 1 ? [fileBtn('PDF of all sets', () => c.downloadPdf(), { title: 'One PDF with every set' })] : []),
         pageSel.root,
         resSel.root,
       ));
@@ -338,7 +380,10 @@ export function buildDrawer(container: HTMLElement, c: MarkupController, view: M
     x.addEventListener('click', (e) => { e.stopPropagation(); c.remove(m.id); });
     head.append(st, x);
     item.appendChild(head);
-    if (c.detached(m)) item.appendChild(el('div', 'mk-small', { 'data-detached': '1' }, 'Detached: an element it was attached to is not in this model. Shown view-locked.'));
+    if (c.detached(m, c.active ?? undefined)) {
+      const revised = !!c.active && c.scopeOf(c.active).match === 'revised';
+      item.appendChild(el('div', 'mk-small', { 'data-detached': '1' }, `Detached: an element it was attached to is missing or changed in this model. Shown view-locked.${revised ? ' The model is a revision: this may already be designed.' : ''}`));
+    }
     const text = el('input', 'mk-in mk-it', { type: 'text', placeholder: 'Text', 'aria-label': `Text of markup ${m.number}`, 'data-keep': `t-${m.id}`, 'data-field': 'text' });
     text.value = m.text;
     text.addEventListener('click', (e) => e.stopPropagation());

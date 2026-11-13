@@ -5,6 +5,8 @@
 //   - the chip's Change menu re-attaches (view-locked), and Undo brings the old attachment back;
 //   - the same shapes still draw in both pointer modes (Arrow and Hand);
 //   - the BCF export carries the target in the viewpoint selection and the outline as 3D <Lines>;
+//   - a section cut: a cloud drawn on the interior seen through the cut attaches to it and not to the removed exterior wall, is not
+//     dimmed by it, and a box select skips elements outside a section box;
 //   - phone layout; zero console errors.
 // Screenshots: bench/markup-attach-authored.png, markup-attach-orbited.png, markup-viewlocked-pin.png.
 // Usage: SMOKE_PORT=5703 node bench/smoke-markup-attach.mjs
@@ -306,6 +308,83 @@ try {
     const camB = await cam();
     check(`${mode} pointer mode: a rectangle draws and the orbit stays`, after === before + 1 && dist3(camA.p, camB.p) < 1e-6, `${before} -> ${after}`);
     await page.click('#markup-drawer [data-tool-id=select]');
+  }
+
+  // ------------------------------------------------------------------ part 5b: a section cut (docs-features/markup.md, "Section cuts")
+  // A vertical plane cuts the house; the camera looks in from the removed side. A cloud drawn on what is seen through the cut
+  // attaches to that interior surface and not to the exterior wall that the plane removed; the outline is not dimmed (the
+  // removed wall does not occlude it); and a box over the whole view does not pick elements outside a section box.
+  {
+    await page.evaluate(() => { window.__xrayMarkup.setTool('select'); window.__xrayToolbar.open('markup'); });
+    const sc = await page.evaluate(() => {
+      const app = window.__xray.app;
+      const r = app.renderer;
+      const els = app.controller.model.elements.filter((e) => e.bounds);
+      const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+      for (const e of els) for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], e.bounds[a]); hi[a] = Math.max(hi[a], e.bounds[a + 3]); }
+      const c = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+      const diag = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+      window.__cinematic?.cancelFlight?.();
+      r.camera.position.set(c[0] - diag * 0.9, c[1] + 0.6, c[2] + 0.4);
+      r.controls.target.set(c[0], c[1] + 0.3, c[2]);
+      r.camera.near = 0.1;
+      r.camera.updateProjectionMatrix();
+      r.controls.update();
+      r.setClipPlanes(null);
+      app.controller.settle();
+      const outer = r.pick(0, 0);
+      const outerAt = outer == null ? null : r.lastPickDistance;
+      // Keep x >= c[0]: the plane removes the west half of the house, the camera looks in from the removed side.
+      r.setClipPlanes([{ normal: [1, 0, 0], point: [c[0], c[1], c[2]] }], { cap: true });
+      app.controller.settle();
+      const inner = r.pick(0, 0);
+      const innerAt = inner == null ? null : r.lastPickDistance;
+      const guid = (id) => (id == null ? null : app.controller.model.elements[id].globalId);
+      return { c, lo, hi, outer, outerAt, inner, innerAt, outerGuid: guid(outer), innerGuid: guid(inner), camX: r.camera.position.x };
+    });
+    console.log('section scenario', JSON.stringify({ ...sc, c: undefined, lo: undefined, hi: undefined }));
+    await page.waitForTimeout(400);
+    check('section scenario: the plane removes the exterior wall in front, a different element is seen through the cut', sc.outer != null && sc.inner != null && sc.outer !== sc.inner && sc.camX + sc.outerAt < sc.c[0] && sc.camX + sc.innerAt > sc.c[0] - 1e-3, `outer ${sc.outer} at ${sc.outerAt?.toFixed(1)}, inner ${sc.inner} at ${sc.innerAt?.toFixed(1)}`);
+    const sset = await page.evaluate(() => window.__xrayMarkup.create('Section cut').id);
+    const cs = await page.evaluate(() => { const cv = window.__xray.app.canvas; return { w: cv.clientWidth, h: cv.clientHeight }; });
+    const sm = await page.evaluate(([w, h]) => window.__xrayMarkup.add({ kind: 'cloud', points: [[w * 0.5 - 40, h * 0.5 - 28], [w * 0.5 + 40, h * 0.5 + 28]] }), [cs.w, cs.h]);
+    await page.waitForTimeout(500);
+    const sa = await attachOf(sm.id);
+    const guids = sa?.attach.surface?.guids ?? [];
+    check('section cut: a cloud on the interior seen through the cut attaches to it, not to the removed exterior wall', sa?.attach.kind === 'surface' && guids.includes(sc.innerGuid) && !guids.includes(sc.outerGuid), `${sa?.attach.kind} ${JSON.stringify(guids)} inner ${sc.innerGuid} outer ${sc.outerGuid}`);
+    const sdim = await page.evaluate((id) => document.querySelector(`[data-mk="${id}"]`)?.getAttribute('data-behind') ?? null, sm.id);
+    check('section cut: the removed wall does not hide the outline (not dimmed)', sdim === null, String(sdim));
+    // Without the cut the same outline, seen from the same camera, is behind the exterior wall.
+    await page.evaluate(() => window.__xray.app.renderer.setClipPlanes(null));
+    await page.waitForTimeout(700);
+    const sdim2 = await page.evaluate((id) => document.querySelector(`[data-mk="${id}"]`)?.getAttribute('data-behind') ?? null, sm.id);
+    check('section cut: with the cut off the exterior wall hides it again (dimmed)', sdim2 === '1', String(sdim2));
+    // A box over the whole view with a section box: nothing outside the box is picked.
+    const bx = await page.evaluate(async () => {
+      const raf = () => new Promise((x) => requestAnimationFrame(x));
+      const app = window.__xray.app;
+      const api = window.__xrayPointer;
+      const cv = app.canvas.getBoundingClientRect();
+      const rect = { x0: 0, y0: 0, x1: cv.width, y1: cv.height };
+      const els = app.controller.model.elements;
+      const all = api.pick(rect, 'crossing');
+      const xs = all.map((i) => (els[i].bounds[0] + els[i].bounds[3]) / 2).sort((a, b) => a - b);
+      const mid = xs[Math.floor(xs.length / 2)];
+      const sec = window.__xraySection;
+      const lo = [-1e3, -1e3, -1e3], hi = [1e3, 1e3, 1e3];
+      lo[0] = mid;
+      sec.set({ box: { enabled: true, min: lo, max: hi } });
+      await raf();
+      await raf();
+      const planes = app.renderer.getClipPlanes()?.length ?? 0;
+      const cut = api.pick(rect, 'crossing');
+      const outside = cut.filter((i) => els[i].bounds[3] < mid - 1e-6);
+      const keptAll = all.filter((i) => els[i].bounds[3] >= mid - 1e-6);
+      sec.clear();
+      return { planes, all: all.length, cut: cut.length, outside: outside.length, expected: keptAll.length };
+    });
+    check('section box: a box select over the whole view skips elements outside the section box', bx.cut < bx.all && bx.outside === 0 && bx.cut === bx.expected, JSON.stringify(bx));
+    await page.evaluate(() => { window.__xraySection.clear(); window.__xray.app.renderer.setClipPlanes(null); });
   }
 
   // ------------------------------------------------------------------ part 6: phone

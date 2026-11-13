@@ -263,6 +263,7 @@ export class BcfMarkupView {
       units: this.c.units, element: (g) => this.c.elementFrame(g), hidden: (g) => this.c.elementHidden(g), shapeView: view,
       ...(lock ? { lock } : {}),
       behind: (k, pts) => this.occ.behind(k, pts),
+      resolveSurface: (s) => this.c.resolveSurface(s, vis?.topic, view),
     };
   }
 

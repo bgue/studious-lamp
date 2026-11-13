@@ -20,7 +20,21 @@ declare global {
     __xrayBcf?: {
       /** Open a .bcf / .bcfzip. Replaces the loaded topics unless `merge` is true. */
       load(src: File | Blob | ArrayBuffer | Uint8Array, opts?: { merge?: boolean }): Promise<BcfProject>;
+      /** Every topic of the session, whatever model it belongs to (the live array). */
       readonly topics: BcfTopic[];
+      /** The topics of the loaded model (same, revised or unknown model), and those opened on purpose from another model: what the drawer lists. */
+      readonly currentTopics: BcfTopic[];
+      /** The topics of other models (hidden: no pin or annotation is drawn), grouped per model. */
+      otherModels(): Array<{ model: string; elementCount: number; topics: Array<{ guid: string; title: string }> }>;
+      /** The scope of a topic against the loaded model: `same`, `revised`, `unknown` or `different`. */
+      scopeOf(topicGuid: string): import('../markup/model').ModelMatch | null;
+      /** Show a topic of another model on purpose (until the model changes). */
+      openOther(topicGuid: string): boolean;
+      /** Make a topic belong to the loaded model. */
+      moveToModel(topicGuid: string): boolean;
+      deleteTopic(topicGuid: string): boolean;
+      /** What the last file opened said about the model of its topics. */
+      readonly lastImport: { different: number; revised: number; unknown: number; message: string } | null;
       readonly status: string;
       applyViewpoint(topicGuid: string, viewpointGuid?: string): ApplyReport;
       /** Undo the applied viewpoint (hides, colours, clip planes); `quiet` leaves the status line alone. */
@@ -141,6 +155,20 @@ export const bcfPlugin: AppPlugin = {
       load: (src, opts) => c.load(src, opts),
       get topics() {
         return c.topics;
+      },
+      get currentTopics() {
+        return c.currentTopics;
+      },
+      otherModels: () => c.otherModels().map((g) => ({ model: g.model.name, elementCount: g.model.elementCount, topics: g.items.map((t) => ({ guid: t.guid, title: t.title })) })),
+      scopeOf: (g) => {
+        const t = c.topic(g);
+        return t ? c.scopeOf(t).match : null;
+      },
+      openOther: (g) => c.openOther(g),
+      moveToModel: (g) => c.moveToModel(g),
+      deleteTopic: (g) => c.deleteTopic(g),
+      get lastImport() {
+        return c.lastImport ? { ...c.lastImport } : null;
       },
       get status() {
         return c.status;

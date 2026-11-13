@@ -30,13 +30,26 @@ export interface SurfacePoint {
   p: Vec3;
   /** Offset of the point from the element's bounds centre (IFC frame), like BcfAnchor.local: follows the element. */
   l?: Vec3;
+  /** Unit normal of the surface at the point (IFC frame, facing the authoring camera): re-projection casts back along it. */
+  n?: Vec3;
+  /** How far the point was lifted off the surface along `n` (m). */
+  g?: number;
 }
+
+/** Axis aligned bounds in the IFC frame: min x, y, z, max x, y, z. */
+export type Box6 = [number, number, number, number, number, number];
 
 export interface SurfaceData {
   guids: string[];
   /** The drawn path, densified: the outline of a closed shape, the points of an open one. */
   pts: SurfacePoint[];
   closed: boolean;
+  /**
+   * Fingerprint of the targets when the outline was projected: the bounds (IFC frame) of each element of `guids`, null where
+   * unknown. A model revision that changes them makes the viewer project the points onto the current surface again
+   * (src/bcf/reproject.ts). Absent in older data.
+   */
+  fp?: Array<Box6 | null>;
 }
 
 export interface Attachment {
@@ -105,6 +118,16 @@ const guidArr = (v: unknown, max = 500): string[] => (Array.isArray(v) ? v.filte
 export const MAX_SURFACE_POINTS = 2000;
 export const MAX_LINES = 4000;
 
+function box6(v: unknown): Box6 | null {
+  return Array.isArray(v) && v.length === 6 && v.every(isNum) ? [v[0] as number, v[1] as number, v[2] as number, v[3] as number, v[4] as number, v[5] as number] : null;
+}
+/** The stored bounds fingerprint, or undefined when it is absent or does not match the element list. */
+function box6List(v: unknown, n: number): Array<Box6 | null> | undefined {
+  if (!Array.isArray(v) || v.length !== n) return undefined;
+  const out = v.map(box6);
+  return out.some((b) => b) ? out : undefined;
+}
+
 /** A stored attachment, cleaned; undefined when it is not usable (the shape is then view-locked). */
 export function cleanAttachment(v: unknown): Attachment | undefined {
   if (!isObj(v) || !isAttachKind(v['kind'])) return undefined;
@@ -124,9 +147,16 @@ export function cleanAttachment(v: unknown): Attachment | undefined {
       const sp: SurfacePoint = { e: Math.floor(e), p: pp };
       const l = vec(p['l']);
       if (l) sp.l = l;
+      const n = vec(p['n']);
+      if (n) sp.n = n;
+      if (isNum(p['g'])) sp.g = p['g'];
       pts.push(sp);
     }
-    if (pts.length >= 2) a.surface = { guids: sg, pts, closed: s['closed'] === true };
+    if (pts.length >= 2) {
+      a.surface = { guids: sg, pts, closed: s['closed'] === true };
+      const fp = box6List(s['fp'], sg.length);
+      if (fp) a.surface.fp = fp;
+    }
   }
   const m = v['measurement'];
   if (isObj(m)) {
@@ -197,9 +227,11 @@ export interface AttachDescription {
  * The words of the attachment chip. `classOf` names the IFC class of a GlobalId (so "2 pipes" and not "2 elements").
  * `missing`: GlobalIds that the loaded model does not have: the shape is detached and shown view-locked.
  */
-export function describeAttachment(a: Attachment | undefined, o: { classOf?: (guid: string) => string | undefined; missing?: readonly string[]; spatialOnly?: boolean } = {}): AttachDescription {
+export function describeAttachment(a: Attachment | undefined, o: { classOf?: (guid: string) => string | undefined; missing?: readonly string[]; spatialOnly?: boolean; surfaceLost?: boolean; revised?: boolean } = {}): AttachDescription {
   if (!a || a.kind === 'none') return { attached: false, text: 'View-locked', detached: false };
-  if ((o.missing?.length ?? 0) > 0) return { attached: false, text: `Detached, ${plural(o.missing!.length, 'element')} missing. View-locked`, detached: true };
+  const design = o.revised ? ' The model is a revision: this may already be designed.' : '';
+  if (o.surfaceLost && (o.missing?.length ?? 0) === 0) return { attached: false, text: `Detached, its surface changed in this model. View-locked.${design}`, detached: true };
+  if ((o.missing?.length ?? 0) > 0) return { attached: false, text: `Detached, ${plural(o.missing!.length, 'element')} missing. View-locked${o.revised ? '.' : ''}${design}`, detached: true };
   switch (a.kind) {
     case 'elements':
     case 'surface': {
@@ -350,10 +382,24 @@ export function pickSamples<T>(pts: readonly T[], n: number = BEHIND_SAMPLES): T
  */
 export function mostlyHidden(samples: readonly Vec3[], occluded: ((p: Vec3) => boolean) | undefined): boolean {
   if (!occluded || !samples.length) return false;
+  const n = samples.length;
   let hidden = 0;
-  for (const p of samples) if (occluded(p)) hidden++;
-  return hidden / samples.length > BEHIND_SHARE;
+  let seen = 0;
+  for (const p of samples) {
+    if (occluded(p)) hidden++;
+    seen++;
+    // The answer is decided once the rest cannot change it: enough hidden already, or too many visible to reach the share.
+    if (hidden / n > BEHIND_SHARE) return true;
+    if ((hidden + (n - seen)) / n <= BEHIND_SHARE) return false;
+  }
+  return hidden / n > BEHIND_SHARE;
 }
+
+/**
+ * What besides the camera changes the answer of the occlusion test: the viewer sets it (the section planes in force and whether a
+ * view mode cuts), so switching a section on or off re-tests the outlines although the camera has not moved.
+ */
+export const occlusionWorld: { stamp: () => string } = { stamp: () => '' };
 
 /**
  * Throttled `mostlyHidden` for the live view: the answer of a key is kept while the camera (camKey) is unchanged, and is
@@ -363,26 +409,48 @@ export function mostlyHidden(samples: readonly Vec3[], occluded: ((p: Vec3) => b
 export class OcclusionCache {
   private readonly m = new Map<string, { cam: string; val: boolean; t: number }>();
   private timer: ReturnType<typeof setTimeout> | null = null;
+  /** Samples tested since the last microtask (one draw pass). */
+  private spent = 0;
+  private readonly counted: (p: Vec3) => boolean;
+  /**
+   * `budget`: at most this many sample rays are cast for refreshing stale answers in one draw pass; the other outlines keep their
+   * last answer for a frame and are refreshed by the next pass (`redraw` is called), so a camera move never costs one frame the
+   * rays of every outline at once. An outline never tested before is always tested at once.
+   */
   constructor(
-    private readonly occluded: (p: Vec3) => boolean,
+    occluded: (p: Vec3) => boolean,
     private readonly camKey: () => string,
     private readonly redraw: () => void,
     private readonly interval = 150,
     private readonly now: () => number = () => Date.now(),
-  ) {}
+    private readonly budget = 96,
+  ) {
+    this.counted = (p) => {
+      if (this.spent++ === 0) queueMicrotask(() => { this.spent = 0; });
+      return occluded(p);
+    };
+  }
 
   behind(key: string, samples: readonly Vec3[]): boolean {
-    const cam = this.camKey();
+    const cam = `${this.camKey()}#${occlusionWorld.stamp()}`;
     const e = this.m.get(key);
     if (e && e.cam === cam) return e.val;
     const t = this.now();
     if (e && t - e.t < this.interval) {
-      if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.redraw(); }, this.interval - (t - e.t) + 5);
+      this.later(this.interval - (t - e.t) + 5);
       return e.val;
     }
-    const val = mostlyHidden(samples, this.occluded);
+    if (e && this.spent >= this.budget) {
+      this.later(16);
+      return e.val;
+    }
+    const val = mostlyHidden(samples, this.counted);
     this.m.set(key, { cam, val, t });
     return val;
+  }
+
+  private later(ms: number): void {
+    if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.redraw(); }, ms);
   }
 
   clear(): void {

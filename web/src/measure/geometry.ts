@@ -30,16 +30,18 @@ export function triangleVertices(g: MergedGeometry, faceIndex: number): [V3, V3,
 
 /**
  * First surface under a ray, skipping hidden elements (the ray continues behind them). Both sides of triangles count.
- * `skip(id)` returns true for elements to ignore (user-hidden, fully transparent).
+ * `skip(id, point)` returns true for elements to ignore (user-hidden, fully transparent) or a hit point that is cut away (a view
+ * mode). `range` limits the ray to distances in [near, far] (the part of it inside a section: src/bcf/clipRay.ts).
  */
-export function firstSurfaceHit(g: MergedGeometry, ray: Ray, skip: (id: number) => boolean, maxSkips = 256): SurfaceHit | null {
+export function firstSurfaceHit(g: MergedGeometry, ray: Ray, skip: (id: number, point: Vector3) => boolean, maxSkips = 256, range?: { near: number; far: number }): SurfaceHit | null {
   const bvh = g.bvh;
-  let near = 0;
+  let near = range?.near ?? 0;
+  const far = range?.far ?? Infinity;
   for (let i = 0; i < maxSkips; i++) {
-    const hit = bvh.raycastFirst(ray, DoubleSide, near, Infinity);
+    const hit = bvh.raycastFirst(ray, DoubleSide, near, far);
     if (!hit || hit.faceIndex == null) return null;
     const id = g.elementOfTriangle(hit.faceIndex);
-    if (id >= 0 && !skip(id)) {
+    if (id >= 0 && !skip(id, hit.point)) {
       return { point: hit.point.clone(), element: id, faceIndex: hit.faceIndex, distance: hit.distance, triangle: triangleVertices(g, hit.faceIndex) };
     }
     near = hit.distance + 1e-4;

@@ -100,6 +100,7 @@ function pickIds(app: ViewerApp, rect: PixelRect, boxMode: BoxMode): number[] {
     rect,
     mode: boxMode,
     nearW: camera.near,
+    clip: app.renderer.getClipPlanes?.() ?? null,
   });
 }
 

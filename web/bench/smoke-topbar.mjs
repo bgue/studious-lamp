@@ -432,7 +432,9 @@ try {
   await page.evaluate(() => window.__xrayToolbar.close());
   // the dock opened on the phone starts below the bar too
   await page.evaluate(() => document.querySelector('#dock .dk-toggle')?.click());
-  await sleep(500);
+  // The dock opens with a width transition; it only advances on rendered frames, and a software-rendered frame of the model can
+  // take longer than a fixed sleep (the check read 28 px or 58 px mid-way). Wait for the open width instead of a time.
+  await page.waitForFunction(() => document.getElementById('dock').getBoundingClientRect().width > 100, null, { timeout: 15000 }).catch(() => undefined);
   const DK = await page.evaluate(() => { const b = document.getElementById('dock').getBoundingClientRect(); const t = document.getElementById('xray-topbar').getBoundingClientRect(); return { dockTop: b.top, dockW: b.width, barBottom: t.bottom }; });
   check('phone: the open dock starts below the bar', DK.dockTop >= DK.barBottom - 0.5 && DK.dockW > 100, JSON.stringify(DK));
   await shot(page, 'phone-dock');

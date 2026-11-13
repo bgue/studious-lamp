@@ -7,7 +7,7 @@
 
 import { dirIfcToViewer, ifcToViewer } from './model';
 import { attachGuids, isSpatial, mostlyHidden, pickSamples, regionCorners, regionEdges } from './attach';
-import type { LockState } from './attach';
+import type { LockState, SurfaceData } from './attach';
 import type { BcfAnchor, BcfAnnotation, BcfAnnotationType, BcfCamera, BcfPin, BcfShape, BcfSnapshotView, Vec3 } from './model';
 import { formatLength } from '../measure/maths';
 import type { Units } from '../measure/maths';
@@ -228,6 +228,12 @@ export interface LayoutContext {
   shapeDirect?: boolean;
   /** Colours of an annotation's box and leader, replacing the BCF defaults (the markup tool colours by its palette). */
   style?: (a: BcfAnnotation) => { stroke: string; fill: string; text: string } | undefined;
+  /**
+   * The surface data to draw for a stored surface outline: the points projected onto the current surfaces when a revised model
+   * reshaped the elements (src/bcf/reproject.ts), or null when the outline cannot land any more (detached: shown view-locked).
+   * Absent: the stored data.
+   */
+  resolveSurface?: (s: SurfaceData) => SurfaceData | null;
 }
 
 const add3 = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -336,16 +342,18 @@ function attachedSegments(a: BcfAnnotation, ctx: LayoutContext): { segs: number[
     return segs.length ? { segs, path: null, closed: false, samples: [] } : null;
   }
   if (att.surface) {
+    const sd = ctx.resolveSurface ? ctx.resolveSurface(att.surface) : att.surface;
+    if (!sd) return null; // detached: its surface no longer fits the model, shown view-locked
     const path: number[] = [];
     const world: Vec3[] = [];
-    for (const sp of att.surface.pts) {
-      const w = anchorPoint({ point: sp.p, elementGuid: att.surface.guids[sp.e], local: sp.l }, ctx).p;
+    for (const sp of sd.pts) {
+      const w = anchorPoint({ point: sp.p, elementGuid: sd.guids[sp.e], local: sp.l }, ctx).p;
       const q = proj(w);
       if (!q.front) return null;
       path.push(q.x, q.y);
       world.push(w);
     }
-    return { segs: [], path, closed: att.surface.closed, samples: pickSamples(world) };
+    return { segs: [], path, closed: sd.closed, samples: pickSamples(world) };
   }
   return null;
 }

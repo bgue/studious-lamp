@@ -120,6 +120,11 @@ export interface MarkupSet {
   nextNumber: number;
   /** data:image/jpeg thumbnail. */
   thumb?: string;
+  /**
+   * The model the set was made on (see scope.ts). Absent or null: unknown (a file that names no model); the set is then shown
+   * on any model, tagged "model unknown". Sets of another model are hidden while a different model is loaded.
+   */
+  model?: ModelIdentity | null;
 }
 
 export interface ModelIdentity {
@@ -415,6 +420,8 @@ export function sanitizeSet(raw: unknown): SanitizedSet | string {
     markups: [],
     nextNumber: 1,
   };
+  // The model of the set: absent in older files (the document's model is used), null or unreadable: unknown.
+  if ('model' in raw) set.model = cleanIdentity(raw['model']) ?? null;
   const thumb = str(raw['thumb'], 400000);
   if (thumb && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(thumb)) set.thumb = thumb;
   const bad: string[] = [];
@@ -451,7 +458,7 @@ export interface ParsedMarkupDoc {
   error?: string;
 }
 
-function cleanIdentity(v: unknown): ModelIdentity | undefined {
+export function cleanIdentity(v: unknown): ModelIdentity | undefined {
   if (!isObj(v)) return undefined;
   const name = str(v['name'], 400);
   if (name === undefined || !isNum(v['elementCount'])) return undefined;
@@ -488,6 +495,7 @@ export function parseMarkupDoc(input: unknown): ParsedMarkupDoc {
     const s = sanitizeSet(r);
     if (typeof s === 'string') out.bad.push(s);
     else {
+      if (s.set.model === undefined && model) s.set.model = model;
       out.sets.push(s.set);
       out.bad.push(...s.bad);
     }
@@ -510,6 +518,8 @@ export function buildMarkupDoc(model: ModelIdentity, sets: readonly MarkupSet[],
       const c = cloneSet(s);
       delete c.view.thumb;
       if (!o.withThumbs) delete c.thumb;
+      // Each set says which model it was made on (null: unknown), so a file with sets of several models stays correct.
+      c.model = s.model ?? null;
       return c;
     }),
   };

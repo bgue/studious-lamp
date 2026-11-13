@@ -72,7 +72,7 @@ export function findHint(path: ReadonlyArray<number>, closed: boolean, src: Hint
 function baseInput(geo: BcfController, kind: string, shape: { path: number[]; closed: boolean }, rayAt: InferInput['rayAt']): InferInput {
   return {
     kind, path: shape.path, closed: shape.closed, rayAt, probe: (r) => geo.castRay(r),
-    guidOf: (id) => geo.guidOfId(id), centreOf: (id) => geo.centreOfId(id), shift: geo.shift,
+    guidOf: (id) => geo.guidOfId(id), centreOf: (id) => geo.centreOfId(id), boundsOf: (id) => geo.boundsOfId(id), shift: geo.shift,
   };
 }
 

@@ -15,17 +15,24 @@ import type { BcfAnnotation, BcfAnnotationType, BcfComment, BcfMeasureLink, BcfP
 import { defaultOffset, drawOps, layoutSnapshot, shapeFraction, shapePointWorld, snapshotCamera, snapshotProjector, snapshotScale } from './annotate';
 import type { Ctx2D, LayoutContext } from './annotate';
 import type { ProbeHit, Ray3 } from './surface';
-import { cloneAttachment as cloneAttach, viewLockSetting, viewLockState } from './attach';
+import { cloneAttachment as cloneAttach, occlusionWorld, viewLockSetting, viewLockState } from './attach';
 import type { Attachment, LockState } from './attach';
 import { dirIfcToViewer } from './model';
 import { fractionInput, inferAttachment, screenInput } from '../markup/attachScene';
 import type { BcfMarkupView } from './pins';
+import { loadedIdentity, scopeOf, splitByScope } from '../markup/scope';
+import type { ModelIdentity, OtherGroup, ScopeInfo } from '../markup/scope';
+import { SurfaceResolver } from '../markup/reprojectScene';
+import type { ResolveOptions } from '../markup/reprojectScene';
+import type { SurfaceData } from './attach';
 import { annotationGuids, cloneAnnotation, markupSelectionOf, needsBurn } from './sidecar';
 import { cameraRay, firstSurfaceHit } from '../measure/geometry';
 import { currentMeasureUnits } from '../measure/current';
 import { formatLength } from '../measure/maths';
 import type { Measurement } from '../measure/maths';
 import { Ray, Vector3 } from 'three';
+import { castClipped, clipInterval, keptPoint, unitPlanes } from './clipRay';
+import type { ClipCast, Plane, RangeProbe } from './clipRay';
 
 type PlaneLike = { normal: Vec3 | { x: number; y: number; z: number }; point: Vec3 | { x: number; y: number; z: number } };
 interface ClipApi {
@@ -33,6 +40,13 @@ interface ClipApi {
   getClipPlanes?(): PlaneLike[] | null | undefined;
   /** Bumped by every setClipPlanes (renderer.ts); lets clear leave planes alone that someone set after us. */
   clipVersion?: number;
+  /** Section caps are painted now (renderer.ts). */
+  clipCapsDrawn?: boolean;
+  /** A view mode (behind cut, peel) may cut surface hits away; viewModeCut says whether it does for a hit. */
+  viewModeCuts?: boolean;
+  viewModeCut?(id: number, point: Vector3): boolean;
+  /** Per-element closed-solid flags (1 = closed): section caps are painted for these only. */
+  closedFlags?: Uint8Array;
 }
 
 const v3 = (v: Vec3 | { x: number; y: number; z: number }): Vec3 => (Array.isArray(v) ? [v[0], v[1], v[2]] : [(v as { x: number }).x, (v as { y: number }).y, (v as { z: number }).z]);
@@ -164,8 +178,17 @@ export class BcfController {
   markupRev = 0;
   /** The live markup view (pins.ts), set by it; the topic dialog starts pin placement through it. */
   markup: BcfMarkupView | null = null;
+  /** Re-projection of surface outlines onto reshaped elements, cached per model load. */
+  readonly resolver: SurfaceResolver;
+  /** Topics of another model that the user opened on purpose: shown until the model changes. */
+  private readonly peeked = new Set<string>();
+  /** What the last file import found about the model of its topics (the drawer warns with it). */
+  lastImport: { different: number; revised: number; unknown: number; message: string } | null = null;
 
   constructor(readonly app: ViewerApp) {
+    this.resolver = new SurfaceResolver(app);
+    // The occlusion cache of the live view is keyed on the camera: a section or a view mode changes what hides what as well.
+    occlusionWorld.stamp = () => { const a = this.clipApi(); return `${a.clipVersion ?? 0}|${a.viewModeCuts ? 1 : 0}`; };
     const s = storage();
     try {
       this.author = s?.getItem('xray.bcf.author') ?? '';
@@ -205,9 +228,86 @@ export class BcfController {
       /* ignore */
     }
   }
+  /** Every topic of the session, whatever model it belongs to (the live array). The panels use `currentTopics`. */
   get topics(): BcfTopic[] {
     return this.project.topics;
   }
+  /** The topics of the loaded model (same, revised or unknown), and those opened on purpose from another model. */
+  get currentTopics(): BcfTopic[] {
+    return this.project.topics.filter((t) => this.inScope(t));
+  }
+
+  // ---------------------------------------------------------------- which model a topic belongs to (markup/scope.ts)
+
+  /** The identity of the loaded model, null while none is loaded. */
+  modelIdentity(): ModelIdentity | null {
+    return loadedIdentity(this.app as never);
+  }
+  scopeOf(t: BcfTopic): ScopeInfo {
+    return scopeOf(t.model, this.modelIdentity());
+  }
+  /** True when the topic is listed and drawn now: its model matches, is a revision, is unknown, or it was opened on purpose. */
+  inScope(t: BcfTopic): boolean {
+    return this.scopeOf(t).visible || this.peeked.has(t.guid);
+  }
+  /** The topics of other models, grouped per model (hidden: no pin, no annotation, no viewpoint is drawn). */
+  otherModels(): Array<OtherGroup<BcfTopic>> {
+    return splitByScope(this.project.topics, (t) => t.model, this.modelIdentity(), (t) => this.peeked.has(t.guid)).other;
+  }
+  /** Open a topic of another model on purpose: it is listed with the current ones and can apply its viewpoint (until the model changes). */
+  openOther(guid: string): boolean {
+    const t = this.topic(guid);
+    if (!t) return false;
+    this.peeked.add(guid);
+    this.selectedTopic = guid;
+    this.markupRev++;
+    this.setStatus(`"${t.title}" was made on ${t.model ? `"${t.model.name}"` : 'another model'}; its viewpoint and markup may not fit this model`);
+    return true;
+  }
+  /** Re-bind a topic to the loaded model. Its annotations whose targets are missing show detached (view-locked). */
+  moveToModel(guid: string): boolean {
+    const t = this.topic(guid);
+    const id = this.modelIdentity();
+    if (!t || !id) return false;
+    t.model = { ...id };
+    this.peeked.delete(guid);
+    this.resolver.reset();
+    this.markupChanged(t);
+    let detached = 0;
+    for (const r of t.viewpoints) for (const a of r.annotations ?? []) if (this.annotationDetached(a, r, t)) detached++;
+    this.setStatus(`"${t.title}" now belongs to this model${detached ? `; ${detached} annotation${detached === 1 ? '' : 's'} could not attach and show view-locked` : ''}`);
+    return true;
+  }
+  /** Delete a topic (any model's). */
+  deleteTopic(guid: string): boolean {
+    const i = this.project.topics.findIndex((t) => t.guid === guid);
+    if (i < 0) return false;
+    const [gone] = this.project.topics.splice(i, 1);
+    this.peeked.delete(guid);
+    if (this.applied?.topic === guid) this.clearViewpoint(true);
+    if (this.selectedTopic === guid) this.selectedTopic = null;
+    this.dirty = true;
+    this.markupRev++;
+    this.setStatus(`Topic "${gone!.title}" deleted`);
+    return true;
+  }
+
+  /** The model a surface outline of `topic` is drawn on: re-projected onto reshaped elements, null when detached. */
+  resolveSurface(s: SurfaceData, topic?: BcfTopic, view?: BcfSnapshotView | null): SurfaceData | null {
+    const o: ResolveOptions = { revised: !!topic && this.scopeOf(topic).match === 'revised' };
+    if (view) o.fallbackDir = view.direction;
+    return this.resolver.resolve(s, o);
+  }
+
+  /** True when an annotation's surface outline cannot follow the current model: a target is missing or the surface no longer fits. */
+  annotationDetached(a: BcfAnnotation, ref?: BcfViewpointRef, topic?: BcfTopic): boolean {
+    const att = a.attach;
+    if (!att?.surface || !this.app.loaded) return false;
+    if (att.surface.guids.some((g) => this.model.byGlobalId.get(g) === undefined)) return true;
+    const t = topic ?? this.project.topics.find((x) => x.viewpoints.some((v) => v.annotations?.includes(a)));
+    return this.resolveSurface(att.surface, t, ref ? this.shapeView(ref) : null) === null;
+  }
+
   topic(guid: string): BcfTopic | undefined {
     return this.project.topics.find((t) => t.guid === guid);
   }
@@ -240,6 +340,10 @@ export class BcfController {
     return unionBox(ids.map((i) => this.model.elements[i]!.bounds as Box6));
   }
 
+  boundsOfId(id: number): readonly number[] | null {
+    return this.model?.elements[id]?.bounds ?? null;
+  }
+
   onModel(): void {
     // The renderer state, the hide set and the clip planes were replaced with the model.
     this.hides.clear();
@@ -247,6 +351,13 @@ export class BcfController {
     this.clipOwned = false;
     this.applied = null;
     this.boundsFor = null;
+    // Topics belong to the model they were made on: the ones of another model stay in the session but are hidden (no pin, no
+    // annotation, not listed with the current topics). Nothing opened on purpose carries over.
+    this.peeked.clear();
+    this.resolver.reset();
+    const sel = this.selectedTopic ? this.topic(this.selectedTopic) : undefined;
+    if (!sel || !this.inScope(sel)) this.selectedTopic = null;
+    this.markupRev++;
     this.emit();
   }
 
@@ -270,6 +381,7 @@ export class BcfController {
       throw e;
     }
     const merge = opts.merge === true;
+    this.lastImport = this.importScope(p.topics);
     if (merge) {
       const have = new Set(this.project.topics.map((t) => t.guid));
       for (const t of p.topics) {
@@ -282,17 +394,46 @@ export class BcfController {
       }
     } else {
       this.clearViewpoint(true);
+      // Topics of other models are not "the loaded topics": opening a file leaves them in the session (hidden).
+      const incoming = new Set(p.topics.map((t) => t.guid));
+      const hidden = this.project.topics.filter((t) => !this.inScope(t) && !incoming.has(t.guid));
       this.project = p;
+      this.project.topics = [...p.topics, ...hidden];
       this.dirty = false;
       this.selectedTopic = null;
     }
     this.assignPinNumbers();
     const n = p.topics.length;
     const vps = p.topics.reduce((s, t) => s + t.viewpoints.length, 0);
-    this.setStatus(`BCF ${p.versionId}: ${n} topic${n === 1 ? '' : 's'}, ${vps} viewpoint${vps === 1 ? '' : 's'}${p.warnings.length ? `, ${p.warnings.length} warning${p.warnings.length === 1 ? '' : 's'}` : ''}`);
-    if (p.topics.length && !this.selectedTopic) this.selectedTopic = p.topics[0]!.guid;
+    const warn = this.lastImport?.message ? `. Warning: ${this.lastImport.message}` : '';
+    this.setStatus(`BCF ${p.versionId}: ${n} topic${n === 1 ? '' : 's'}, ${vps} viewpoint${vps === 1 ? '' : 's'}${p.warnings.length ? `, ${p.warnings.length} warning${p.warnings.length === 1 ? '' : 's'}` : ''}${warn}`);
+    const first = p.topics.find((t) => this.inScope(t));
+    if (first && !this.selectedTopic) this.selectedTopic = first.guid;
     this.emit();
     return p;
+  }
+
+  /**
+   * What a file's topics say about their model, against the loaded one: a warning when some were made on another model (they
+   * are listed under "Other models" and not drawn), a revision, or name none (shown, tagged "model unknown").
+   */
+  private importScope(topics: readonly BcfTopic[]): NonNullable<BcfController['lastImport']> {
+    const r = { different: 0, revised: 0, unknown: 0, message: '' };
+    if (!this.app.loaded) return r;
+    const names = new Set<string>();
+    for (const t of topics) {
+      const m = this.scopeOf(t).match;
+      if (m === 'different') { r.different++; names.add(t.model?.name ?? '?'); }
+      else if (m === 'revised') r.revised++;
+      else if (m === 'unknown') r.unknown++;
+    }
+    const words: string[] = [];
+    const nt = (n: number): string => `${n} topic${n === 1 ? '' : 's'}`;
+    if (r.different) words.push(`${nt(r.different)} ${r.different === 1 ? 'was' : 'were'} made on another model (${[...names].join(', ')}); ${r.different === 1 ? 'it is' : 'they are'} listed under Other models and not drawn here. Open ${r.different === 1 ? 'it' : 'them'} there, or Move to this model.`);
+    if (r.revised) words.push(`${nt(r.revised)} ${r.revised === 1 ? 'was' : 'were'} made on an earlier revision of this model; targets that no longer fit are detached.`);
+    if (r.unknown) words.push(`${nt(r.unknown)} name${r.unknown === 1 ? 's' : ''} no model and ${r.unknown === 1 ? 'is' : 'are'} shown here, tagged model unknown.`);
+    r.message = words.join(' ');
+    return r;
   }
 
   // ---------------------------------------------------------------- viewpoints: apply and clear
@@ -351,6 +492,7 @@ export class BcfController {
   applyViewpoint(topicGuid: string, viewpointGuid?: string): ApplyReport {
     const topic = this.topic(topicGuid);
     if (!topic) return this.fail(`No topic ${topicGuid}`);
+    if (!this.inScope(topic)) return this.fail(`"${topic.title}" was made on another model. Open it from Other models, or Move to this model.`);
     const ref = viewpointGuid ? topic.viewpoints.find((v) => v.guid === viewpointGuid) : topic.viewpoints.find((v) => v.data);
     if (!ref) return this.fail(viewpointGuid ? `No viewpoint ${viewpointGuid} in this topic` : 'This topic has no viewpoint');
     if (!ref.data) return this.fail(ref.problem ?? 'The viewpoint file could not be read');
@@ -556,6 +698,8 @@ export class BcfController {
     if (o.dueDate) t.dueDate = o.dueDate;
     const file = this.app.modelName;
     if (file) t.headerFiles.push({ filename: file, date: now, isExternal: true });
+    const id = this.modelIdentity();
+    if (id) t.model = { ...id };
     return t;
   }
 
@@ -797,9 +941,9 @@ export class BcfController {
     if (!this.pinsVisible) return [];
     if (!this.drawers) {
       const active = this.applied?.topic;
-      return active ? this.project.topics.filter((t) => t.pin && t.guid === active) : [];
+      return active ? this.project.topics.filter((t) => t.pin && t.guid === active && this.inScope(t)) : [];
     }
-    return this.project.topics.filter((t) => t.pin && (!this.pinFilter || this.pinFilter(t) || t.guid === this.selectedTopic));
+    return this.project.topics.filter((t) => t.pin && this.inScope(t) && (!this.pinFilter || this.pinFilter(t) || t.guid === this.selectedTopic));
   }
 
   private lastDefaultPinElement: string | undefined;
@@ -844,17 +988,35 @@ export class BcfController {
     const r = ray instanceof Ray ? ray : new Ray(new Vector3(...ray.o), new Vector3(...ray.d));
     const hides = this.app.controller.settings.overrides.userHides;
     const alpha = this.app.renderer.state.alpha;
-    const hit = firstSurfaceHit(loaded.geometry, r, (id) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA)
-      ?? firstSurfaceHit(loaded.geometry, r, (id) => hides.has(id) || (alpha[id] ?? 1) < 0);
-    if (!hit) return null;
-    const [a, b, c] = hit.triangle;
-    const u: Vec3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-    const w: Vec3 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-    let n: Vec3 = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
-    const l = Math.hypot(n[0], n[1], n[2]) || 1;
-    n = [n[0] / l, n[1] / l, n[2] / l];
-    if (n[0] * r.direction.x + n[1] * r.direction.y + n[2] * r.direction.z > 0) n = [-n[0], -n[1], -n[2]];
-    return { point: [hit.point.x, hit.point.y, hit.point.z], normal: n, element: hit.element, distance: hit.distance };
+    const api = this.clipApi();
+    const vm = api.viewModeCuts === true && !!api.viewModeCut;
+    const cut = (id: number, p: Vector3): boolean => vm && api.viewModeCut!(id, p);
+    const range: RangeProbe = (_ray, near, far) => {
+      const hit = firstSurfaceHit(loaded.geometry, r, (id, p) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA || cut(id, p), 256, { near, far })
+        ?? firstSurfaceHit(loaded.geometry, r, (id, p) => hides.has(id) || (alpha[id] ?? 1) < 0 || cut(id, p), 256, { near, far });
+      if (!hit) return null;
+      const [a, b, c] = hit.triangle;
+      const u: Vec3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      const w: Vec3 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      const n: Vec3 = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+      const l = Math.hypot(n[0], n[1], n[2]) || 1;
+      return { point: [hit.point.x, hit.point.y, hit.point.z], normal: [n[0] / l, n[1] / l, n[2] / l], element: hit.element, distance: hit.distance };
+    };
+    const planes = this.clipPlanesNow();
+    const clip: ClipCast | null = planes.length ? { planes, caps: api.clipCapsDrawn === true, closed: (id) => api.closedFlags?.[id] === 1 } : null;
+    return castClipped({ o: [r.origin.x, r.origin.y, r.origin.z], d: [r.direction.x, r.direction.y, r.direction.z] }, range, clip);
+  }
+
+  private clipCache: { version: number | undefined; planes: Plane[] } | null = null;
+  /** The active section planes (unit normals, viewer frame): section planes, the section box, BCF clipping. Cached by the renderer's clipVersion. */
+  private clipPlanesNow(): Plane[] {
+    const api = this.clipApi();
+    if (typeof api.getClipPlanes !== 'function') return [];
+    const v = api.clipVersion;
+    if (v !== undefined && this.clipCache && this.clipCache.version === v) return this.clipCache.planes;
+    const planes = unitPlanes((api.getClipPlanes() ?? []).map((p) => ({ normal: v3(p.normal), point: v3(p.point) })));
+    this.clipCache = { version: v, planes };
+    return planes;
   }
 
   /** True when the element is hidden by the user, isolated away, or fully transparent: markup attached to it shows dimmed. */
@@ -917,11 +1079,25 @@ export class BcfController {
     const d = Math.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2]);
     if (d < 1e-6) return false;
     this.ray.origin.set(e[0], e[1], e[2]);
-    this.ray.direction.copy(new Vector3(p[0] - e[0], p[1] - e[1], p[2] - e[2]).multiplyScalar(1 / d));
+    this.ray.direction.set((p[0] - e[0]) / d, (p[1] - e[1]) / d, (p[2] - e[2]) / d);
     const hides = this.app.controller.settings.overrides.userHides;
     const alpha = this.app.renderer.state.alpha;
-    const skip = seeThrough ?? ((id: number) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA);
-    const hit = firstSurfaceHit(loaded.geometry, this.ray, skip, 64);
+    const api = this.clipApi();
+    // Geometry that a section or a view mode cuts away does not hide anything; a point that is itself cut away is not tested.
+    const planes = this.clipPlanesNow();
+    let near = 0;
+    let far = Infinity;
+    if (planes.length) {
+      if (!keptPoint(planes, p)) return false;
+      const iv = clipInterval(planes, [e[0], e[1], e[2]], [this.ray.direction.x, this.ray.direction.y, this.ray.direction.z], d);
+      if (!iv) return false;
+      near = iv.near;
+      far = iv.far;
+    }
+    const vm = api.viewModeCuts === true && !!api.viewModeCut;
+    const base = seeThrough ?? ((id: number) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA);
+    const skip = vm ? (id: number, pt: Vector3): boolean => base(id) || api.viewModeCut!(id, pt) : (id: number): boolean => base(id);
+    const hit = firstSurfaceHit(loaded.geometry, this.ray, skip, 64, { near, far });
     return !!hit && hit.distance < d - Math.max(0.03, d * 0.003);
   }
 
@@ -1006,6 +1182,7 @@ export class BcfController {
   visibleAnnotations(): { topic: BcfTopic; ref: BcfViewpointRef; list: BcfAnnotation[] } | null {
     if (!this.applied) return null;
     const t = this.topic(this.applied.topic);
+    if (t && !this.inScope(t)) return null; // another model: nothing of it is drawn
     const r = t?.viewpoints.find((v) => v.guid === this.applied!.viewpoint);
     return t && r ? { topic: t, ref: r, list: r.annotations ?? [] } : null;
   }
@@ -1223,6 +1400,7 @@ export class BcfController {
       // Anchors follow their element's bounds centre (a revised model), not the explode offsets of the live view.
       element: (g) => this.elementFrame(g, false),
       ...(ref.snapshotView ? { shapeDirect: true } : { shapeView: this.shapeView(ref) }),
+      resolveSurface: (s) => this.resolveSurface(s, t, view),
     };
     const ops = layoutSnapshot(t.pin ? { pin: t.pin, label: String(this.pinNumber(t)) } : null, ref.annotations ?? [], ctx);
     if (!ops.length) return null;

@@ -207,7 +207,9 @@ export function layoutMarkupFull(m: Markup, ctx: LayoutContext, opts: MarkupLayo
   // the model) it is shown view-locked instead of moving.
   const spatial = !ctx.shapeDirect && isSpatial(att);
   const missing = spatial ? missingGuids(att!, ctx) : [];
-  const use3d = spatial && missing.length === 0;
+  // A revised model reshaped the elements: the outline is projected onto the current surface, or detached when it cannot land.
+  const surf = spatial && att!.surface && ctx.resolveSurface ? ctx.resolveSurface(att!.surface) : att?.surface;
+  const use3d = spatial && missing.length === 0 && surf !== null;
   const tint = use3d && attachGuids(att).some((g) => ctx.hidden?.(g)) ? 0.35 : 1;
   // View-locked (or detached) shapes follow the view-lock rule when the live view passes one; attached ones never fade.
   const lockHere = !use3d && !ctx.shapeDirect ? lock : undefined;
@@ -243,7 +245,7 @@ export function layoutMarkupFull(m: Markup, ctx: LayoutContext, opts: MarkupLayo
     });
     closed = true; fillable = true;
   } else if (use3d && att!.surface) {
-    const wp = surfaceWorld(att!.surface, ctx);
+    const wp = surfaceWorld(surf ?? att!.surface, ctx);
     samples = pickSamples(wp);
     px = projectWorld(wp, ctx);
     closed = CLOSED_KINDS.includes(m.kind);

@@ -41,6 +41,51 @@ export interface BoxQuery {
   mode: BoxMode;
   /** Clip-space w of the near plane (the camera's near distance for a perspective camera). Default 1e-4. */
   nearW?: number;
+  /**
+   * Active section planes (unit normal pointing to the KEPT half-space, any point on the plane): the section plane, the six
+   * planes of a section box, BCF clipping. An element whose bounds lie wholly on the removed side of a plane is not picked, and
+   * a plane parallel to an axis (the section box) trims the bounds to the part that is drawn, so a window around the visible part
+   * of a wall that the box cuts picks it. Oblique planes only cull.
+   */
+  clip?: ReadonlyArray<{ normal: ArrayLike<number>; point: ArrayLike<number> }> | null;
+}
+
+/** Planes as [nx, ny, nz, w] with a point kept when n . p + w >= 0, and which axis a plane is parallel to (-1: oblique). */
+export function clipRows(clip: BoxQuery['clip']): Array<{ n: [number, number, number]; w: number; axis: number }> {
+  const rows: Array<{ n: [number, number, number]; w: number; axis: number }> = [];
+  for (const p of clip ?? []) {
+    const l = Math.hypot(p.normal[0]!, p.normal[1]!, p.normal[2]!);
+    if (!(l > 1e-9)) continue;
+    const n: [number, number, number] = [p.normal[0]! / l, p.normal[1]! / l, p.normal[2]! / l];
+    const w = -(n[0] * p.point[0]! + n[1] * p.point[1]! + n[2] * p.point[2]!);
+    let axis = -1;
+    for (let a = 0; a < 3; a++) if (Math.abs(n[a]!) > 1 - 1e-9) axis = a;
+    rows.push({ n, w, axis });
+  }
+  return rows;
+}
+
+/**
+ * The bounds of an element inside the kept region, written into `out` (6 numbers); false when nothing of them is kept. Exact for
+ * axis-parallel planes, a conservative cull for oblique ones.
+ */
+export function clipBounds(b: ArrayLike<number>, rows: ReturnType<typeof clipRows>, out: number[]): boolean {
+  for (let i = 0; i < 6; i++) out[i] = b[i]!;
+  for (const r of rows) {
+    if (r.axis >= 0) {
+      const a = r.axis;
+      const s = r.n[a]!;
+      // Kept: s * x + w >= 0.
+      const edge = -r.w / s;
+      if (s > 0) { if (out[a + 3]! < edge) return false; if (out[a]! < edge) out[a] = edge; }
+      else { if (out[a]! > edge) return false; if (out[a + 3]! > edge) out[a + 3] = edge; }
+      continue;
+    }
+    // Largest value of n . p over the box: the corner furthest to the kept side.
+    const best = (r.n[0]! > 0 ? r.n[0]! * out[3]! : r.n[0]! * out[0]!) + (r.n[1]! > 0 ? r.n[1]! * out[4]! : r.n[1]! * out[1]!) + (r.n[2]! > 0 ? r.n[2]! * out[5]! : r.n[2]! * out[2]!) + r.w;
+    if (best < 0) return false;
+  }
+  return true;
 }
 
 type P2 = [number, number];
@@ -56,9 +101,15 @@ export function pickInRect(q: BoxQuery): number[] {
   const cw: number[] = new Array(8);
   const px: number[] = new Array(8);
   const py: number[] = new Array(8);
+  const rows = clipRows(q.clip);
+  const clipped: number[] = new Array(6);
   for (let id = 0; id < q.count; id++) {
-    const b = q.boundsOf(id);
+    let b = q.boundsOf(id);
     if (!b || !q.eligible(id)) continue;
+    if (rows.length) {
+      if (!clipBounds(b, rows, clipped)) continue;
+      b = clipped;
+    }
     let front = 0;
     for (let i = 0; i < 8; i++) {
       const x = i & 1 ? b[3]! : b[0]!;

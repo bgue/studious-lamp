@@ -223,10 +223,25 @@ const state = (page) => page.evaluate(() => {
   await page.waitForTimeout(3500);
   const act1 = await page.evaluate(() => ({ a: window.__xrayPresets.active(), list: window.__xrayPresets.list().filter((p) => p.active).map((p) => p.id) }));
   check(`restoring the view marks preset "${pid}" active`, act1.a === pid, JSON.stringify(act1));
-  await page.evaluate(() => window.__xrayViews.restore('plain', { animate: false }));
+  // A view saved without any preset active. The "plain" view of the setup above is not one: since the top bar (docs-features/topbar.md,
+  // "At start ... the bar marks coordination") the app starts with `coordination` marked active, so a view saved at the start records
+  // that preset and restoring it marks it active again by design (views.ts restoreView -> markActive). A changed setting clears the mark.
+  await page.evaluate(() => { window.__xray.app.settings.sightlines.gamma = 1.3; });
+  await page.waitForTimeout(2600);
+  check('a setting change cleared the mark before the view without a preset is saved', (await page.evaluate(() => window.__xrayPresets.active())) === null);
+  await page.evaluate(() => window.__xrayViews.save('unmarked view'));
+  const upv = await page.evaluate(() => window.__xrayViews.get('unmarked view').preset ?? null);
+  check('a view saved with no preset active records none', upv === null, `view.preset ${upv}`);
+  await page.evaluate((id) => window.__xrayPresets.apply(id), other);
+  await page.waitForTimeout(2600);
+  await page.evaluate(() => window.__xrayViews.restore('unmarked view', { animate: false }));
   await page.waitForTimeout(3500);
   const act2 = await page.evaluate(() => window.__xrayPresets.active());
   check('restoring a view without a preset (different settings) clears the mark', act2 === null, `active ${act2}`);
+  await page.evaluate(() => window.__xrayViews.restore('plain', { animate: false }));
+  await page.waitForTimeout(1500);
+  const act3 = await page.evaluate(() => window.__xrayPresets.active());
+  check('restoring the "plain" view saved at the start marks the boot preset (coordination) again', act3 === 'coordination', `active ${act3}`);
   check('no console errors', errors.length === 0, errors.slice(0, 5).join(' | '));
   } finally { await browser.close(); }
 }

@@ -41,7 +41,7 @@ A shape is stored as fractions of the set camera's view plus the depth of a plan
 | `attach.kind` | What it is |
 | --- | --- |
 | `elements` | A list of GlobalIds. The user's outline is projected onto them (when it projects cleanly) and they get the selection tint while the markup is selected. |
-| `surface` | The outline's points were projected onto model surfaces. Each point is `{ e, p, l }`: the element (index into `guids`), the IFC point, and its offset from the element's bounds centre (the `anchorPoint` element-frame mechanism: it follows the element in an exploded view or a revised model). The IFC point is the fallback when the element has no frame. |
+| `surface` | The outline's points were projected onto model surfaces. Each point is `{ e, p, l, n?, g? }`: the element (index into `guids`), the IFC point, its offset from the element's bounds centre (the `anchorPoint` element-frame mechanism: it follows the element in an exploded view or a revised model), and optionally the surface normal and lift. `fp` (bounds of the targets) lets a revised model project the points again onto reshaped elements, see "Reshaped elements". The IFC point is the fallback when the element has no frame. |
 | `measurement` | A measurement link (`BcfMeasureLink`, the one a callout uses). |
 | `penetration` | The pair of GlobalIds `{ mep, host }` of a penetration of the penetrations tool (its row ids change with every analysis, the pair is stable). |
 | `region` | A 3D box (`min`, `max`, IFC frame, axis aligned) fitted to the depth range of the geometry inside the outline. Drawn as a revision-cloud-style box (scalloped edges) in 3D, correct from any angle. |
@@ -83,7 +83,40 @@ The selected markup shows a chip in the panel (inside its detail) and on the can
 
 ### Older documents
 
-A document from before attachments has no `attach` on its shapes. When it is opened, each such shape is projected from its set camera with the same inference: clean gives an attachment, else `{ kind: 'none' }` with the original fractions untouched. A document made on a different model is not migrated (all view-locked). The schema string stays `xray-markup-set/1`: `attach` is an optional field that older viewers ignore, and every shape written now carries one. Update view with `Shapes stay: on the screen` makes shapes view-locked (their fractions stay and the target would be elsewhere); `on the model` keeps attachments and re-bases the fractions as before. Moving an attached shape projects it again at its new place.
+A document from before attachments has no `attach` on its shapes. When it is opened, each such shape is projected from its set camera with the same inference: clean gives an attachment, else `{ kind: 'none' }` with the original fractions untouched. A document made on a different model is not migrated until its sets are moved to the loaded model (they are hidden under `Other models`; see "Which model an item belongs to"). The schema string stays `xray-markup-set/1`: `attach` is an optional field that older viewers ignore, and every shape written now carries one. Update view with `Shapes stay: on the screen` makes shapes view-locked (their fractions stay and the target would be elsewhere); `on the model` keeps attachments and re-bases the fractions as before. Moving an attached shape projects it again at its new place.
+
+## Which model an item belongs to
+
+Every markup set belongs to the model it was made on: `set.model` is a model identity (`name`, `elementCount`, `guidCount`, `guidHash`, see `ModelIdentity` in `src/markup/model.ts`; the same shape as the document's `model`). The rules are pure and tested (`src/markup/scope.ts`, `tests/markup-scope.test.ts`) and shared with the BCF topics ([bcf.md](bcf.md)). On every model change (the `onModel` hook of the plugins, which runs for the Sample Projects menu, the file loader and drops alike) each set is compared with the loaded model by `compareModels`:
+
+| Result | What the viewer does |
+| --- | --- |
+| `same` | Listed with the current sets and drawn. |
+| `revised` (same name, other elements: a new revision) | Listed and drawn, tagged `revised model`. Attachments are checked against the new elements (see "Reshaped elements"): targets that moved or changed are followed, targets that no longer fit are detached (view-locked) and flagged `Detached ... The model is a revision: this may already be designed`. |
+| `unknown` (a file that names no model) | Listed and drawn, tagged `model unknown`. |
+| `different` | Hidden: not active, nothing of it on the overlay or the model (no outline, pin, tint, highlight), not in the sets grid, not exported by default. |
+
+- **Panel.** The Sets grid lists the sets of the loaded model only. A collapsed `Other models (n)` group (`details[data-other-models]`) below it lists the others, grouped per model (`Made on fzk-haus (82 elements). Hidden on this model.`). Per set: `Open` (shows it on purpose, until the model changes; it stays marked as another model and its targets are not here), `Move to this model` and `Delete set` (two clicks).
+- **Move to this model** sets `set.model` to the loaded model and runs the attachment migration again: shapes without an `attach` (older files) are inferred on this model, targets this model lacks show detached (view-locked, nothing is deleted); the status line says how many. Undo does not cover it (it is a change of ownership, not of the set's contents).
+- **Persistence.** Sets are session data (no browser storage, see Limitations), so there is nothing to restore into another model's view. The JSON and PDF carry `model` on each set (`null` when unknown) next to the document's `model`; a file from before this field gives its sets the document's model, and a file with neither is `unknown`. If sets are ever stored in the browser they must be keyed by that identity and must not be restored into a different model.
+- **Import.** `Open file` / drop / `importJson` compares each set's model with the loaded one. Sets of another model are kept under `Other models`, their view is not restored, and the report and the status line warn (`ImportReport.match` is the worst result, `warnings` say where the sets went). The same warning is shown as a message on screen as for a revised model. Older shapes are migrated only for the sets that are shown (the others when they are moved).
+- **Federated loads.** Several IFC files opened together are federated into one model of the viewer (one name `file:<first> +N more`, one element list, `GlobalId` clashes renamed with `~N`). An item belongs to that federation as a whole, with the identity of the whole; there is no per-file ownership. Opening the same files again gives the same identity (`same`), opening one file of them alone is `different` (another name).
+- **Scripting.** `list()` returns the sets of the loaded model, each with `scope` (`same`, `revised`, `unknown`, `different`) and `model` (name); `list({ all: true })` also the hidden ones. `otherModels()` groups the hidden sets per model; `openOther(id)`, `moveToModel(id)` (returns `{ migrated, attached, detached }`) and `deleteSet(id)` do what the panel buttons do.
+
+## Reshaped elements: following a revision
+
+A `surface` outline stores each point with the element it landed on and its offset from that element's bounds centre (`l`). That follows an element that a revised model **moves**; an element that is **reshaped** (a longer wall, a re-routed pipe) has a new centre and the outline would float off the surface. So a surface outline also stores, additively (all optional, older files without them still read and draw as before):
+
+- `pts[].n`: the unit surface normal at the point (IFC frame, facing the authoring camera) and `pts[].g`: how far it was lifted off the surface (m);
+- `fp`: the bounds of each target element (`guids` order, IFC frame, `[minx, miny, minz, maxx, maxy, maxz]`) at attach time.
+
+When a set or an annotation is drawn on a model whose identity is `revised`, or whose element bounds differ from `fp` (also on `same`: a re-export with the same GlobalIds), the outline is projected again (`src/bcf/reproject.ts`, pure; the per-element BVHs of the model back it, `src/markup/reprojectScene.ts`):
+
+1. **Expected place** (needs `fp`). Per axis: a side of the bounds that did not move keeps the point where it was (a wall lengthened at one end keeps the outline where it was drawn); both sides moved by the same amount move the point with them (a moved element); anything else stretches the point with the bounds. Without `fp` the old rigid follow (current bounds centre plus `l`) is tried first, then the stored IFC point `p`.
+2. **Landing.** A ray is cast from a tolerance above the point along the stored normal (the authoring camera direction for data without `n`) onto the triangles of that element only; a miss falls back to the nearest point of its triangles. The point lands when it ends within the tolerance of where it was expected: 3 percent of the element diagonal, between 5 cm and 30 cm, plus the lift. It is placed on the surface again at its lift.
+3. **Detached.** When more than 30 percent of the points cannot land, or an element is gone, or it moved further than max(3 m, 1.5 x its old diagonal) (it counts as replaced, so a markup does not chase it across the building), the outline is detached: drawn view-locked (the near-view rule, then the pin) and flagged in the chip and the panel, never floating. Up to 30 percent of the points that cannot land stay where they were expected.
+
+The result is cached per model load and per outline (`SurfaceResolver`): nothing is cast again per frame, the cache is dropped when another model loads or an item is moved to the model. The stored data is not changed (go back to the original revision and the outline is as it was); PDF pages and BCF snapshot burn-ins use the same re-projection. Thresholds are in `REPROJECT` (reproject.ts).
 
 ## View behaviour when the camera moves
 
@@ -114,6 +147,7 @@ Every page has a footer with the set title and `Page n of N`. The PDF attaches t
     "view": { "...": "a saved view (xray-views/1 shape): camera, selection, hides, clip, exploded, preset, params" },
     "camera": { "position": [x, y, z], "direction": [..], "up": [..], "fov": 45, "aspect": 1.6 },
     "nextNumber": 4,
+    "model": { "name": "fzk-haus", "elementCount": 107, "guidCount": 107, "guidHash": "<16 hex digits>" },
     "markups": [
       { "id": "m...", "number": 1, "kind": "cloud", "colour": "red", "weight": 2, "fill": false, "text": "Clash", "status": "open",
         "shape": { "points": [[0.2, 0.2], [0.5, 0.4]], "depth": 12.3 }, "author": "...", "created": "...",
@@ -123,13 +157,13 @@ Every page has a footer with the set title and `Page n of N`. The PDF attaches t
 ```
 
 - `camera` and every `anchor` are in the IFC frame (metres, Z up) like the BCF side file; shape points are fractions of the view of `camera` (x right, y down) at `depth` metres. `view.camera` is the viewer-frame camera that `Restore view` uses. The saved view leaves out `classify`, `bcf`, keys and the other sections views never store, so a file holds no endpoint or secret (checked by the smoke).
-- Model identity: `guidHash` is a 64-bit hash (two FNV-1a runs) of the sorted GlobalId list. On import the viewer compares it with the loaded model: `same`, `revised` (same file name, other elements), `different`, `unknown` (file without identity).
+- Model identity: `guidHash` is a 64-bit hash (two FNV-1a runs) of the sorted GlobalId list. On import the viewer compares it with the loaded model: `same`, `revised` (same file name, other elements), `different`, `unknown` (file without identity). The document's `model` is the model of the file; each set also carries its own `model` (`null`: unknown), so a file with sets of several models stays correct. See "Which model an item belongs to".
 - Kinds: `cloud` (2 points: box; 3 or more: closed outline), `rect`, `ellipse`, `highlightBox` (2 opposite corners, or 4 corners as a quad after `Update view` from a rotated camera), `line`, `arrow` (2 points), `polyline`, `polygon`, `highlight`, `pen`, and the anchored `text`, `callout`, `pointer`, `measure`.
 - Versioning: `xray-markup-set/1` is read; a newer major version is refused with a message. Unknown fields are dropped, ids and numbers are filled in, a markup that cannot be read is skipped and listed (`bad`), never silently.
 
 ## Getting back to the marked-up view
 
-Open the same model, then drop the PDF or the JSON on the page (a lone `.pdf` or `.json` dropped on the viewer is a markup file; models are `.ifc` / `.glb`), or `Open file` in the drawer. The view comes back (camera, section, hides, colours, selection, preset) and the first set is active with all its markups. The status line and `window.__xrayMarkup.importJson()` report: sets and markups opened; `unknownGuids` (GlobalIds of anchors, linked measurements or the view that the model lacks: the markups stay at their stored 3D points, view parts for missing elements are skipped and counted); `match` and a warning for a revised or different model. A set with an id already in the session is replaced, others are added with a unique title. A PDF not made by this tool, or one re-saved by another tool into object streams, says it carries no markup data; use the JSON.
+Open the same model, then drop the PDF or the JSON on the page (a lone `.pdf` or `.json` dropped on the viewer is a markup file; models are `.ifc` / `.glb`), or `Open file` in the drawer. The view comes back (camera, section, hides, colours, selection, preset) and the first set is active with all its markups. The status line and `window.__xrayMarkup.importJson()` report: sets and markups opened; `unknownGuids` (GlobalIds of anchors, linked measurements or the view that the model lacks: the markups stay at their stored 3D points, view parts for missing elements are skipped and counted); `match` and a warning for a revised or different model. Sets made on another model are kept under `Other models` and not restored (see "Which model an item belongs to"). A set with an id already in the session is replaced, others are added with a unique title. A PDF not made by this tool, or one re-saved by another tool into object streams, says it carries no markup data; use the JSON.
 
 ## Convert to BCF topic
 
@@ -151,6 +185,8 @@ m.restore(set.id, { animate: false });  await m.toBcf(set.id, markupId?);
 m.updateView(set.id, { keep: 'model' | 'screen' });                // { shapes, moved, kept }; undoable with m.undo()
 m.pdfResolution = 300;  (await m.exportPdf({ resolution: 150 })).info;  // { resolution, pictureWidth, pictureHeight, note, ms }
 m.list(); m.get(id); m.hitTest(x, y); m.away; m.page = 'Letter';
+m.list({ all: true });  m.otherModels();                           // sets of other models (hidden): scope, model name; grouped per model
+m.openOther(id); m.moveToModel(id) /* { migrated, attached, detached } */; m.deleteSet(id);
 ```
 
 The saved views plugin gained `capture()`, `restoreView(view)` and `shareUrlFor(view)` (a view object that is not in the Views list); `window.__xrayBcf` is used for the conversion.
@@ -159,18 +195,19 @@ The saved views plugin gained `capture()`, `restoreView(view)` and `shareUrlFor(
 
 - `src/markup/model.ts` (types, JSON document, identity, sanitising), `geometry.ts` (scallops, ellipse, simplify, hit distances), `layout.ts` (draw operations; reuses `layoutAnnotation`, `shapePointWorld`, `shapeFraction`), `history.ts` (undo stack), `pdf.ts`, `report.ts`, `controller.ts`, `view.ts` (overlay layer, pointer and key input), `ui.ts` (drawer, drop), plugin `src/plugins/markup.ts`. `annotate.ts` gained a `style` override and a `blend` operation (multiply) for the highlighter.
 - Tests: `tests/markup-pdf.test.ts` (structure, xref offsets, stream lengths, escaping, embedded file round trip, Flate), `markup-report.test.ts`, `markup-model.test.ts` (schema round trip, mismatch, identity), `markup-geometry.test.ts` (scallops), `markup-history.test.ts`.
+- Model scope and revisions: `tests/markup-scope.test.ts` (the decision per `compareModels` result, the `Other models` grouping, set and topic identity in the files, both controllers on a model change), `tests/markup-reproject.test.ts` (a box lengthened, thickened, moved, removed and moved far away; 30 percent rule; fallback normals; the cache); smoke `SMOKE_PORT=5707 node bench/smoke-markup-scope.mjs` (items on fzk-haus, building shows no old pin or shape and `Other models (1)`, back on fzk-haus they are drawn, Move to this model, Open, a file made on another model, a different IFC from the file loader, Delete, zero console errors).
 - Attachments: `tests/markup-attach.test.ts` (inference on a synthetic scene of boxes, local-frame follow, the fade and pin rule, migration, BCF Lines, Components and side file round trip); smoke `SMOKE_PORT=5703 node bench/smoke-markup-attach.mjs` (cloud around an element attached and still on it after a 60 degree orbit, view-locked cloud faded at 15 and a pin at 60 degrees, the pin flies back, Change and Undo, BCF Lines and selection, both pointer modes, phone). Screenshots `bench/markup-attach-authored.png`, `markup-attach-orbited.png`, `markup-viewlocked-pin.png`.
 - Smoke: `SMOKE_PORT=5710 node bench/smoke-markup.mjs` draws every tool on fzk-haus, comments, undo and redo, exports PDF and JSON, validates the PDF with pypdf / pdfinfo / pdftoppm (when installed), reloads and drops the PDF, opens the JSON, tries another model, converts to BCF, phone layout with touch and pen. Screenshots `bench/markup-*.png`. The software renderer of headless Chromium runs at 2 to 3 frames per second, so the run takes 15 to 30 minutes.
 
 ## Limitations
 
-- Attached outlines are projected on the overlay with no depth test: an outline on a wall is still drawn when another element hides that wall from the new camera. Surface hits use the geometry as it was when the shape was finished; a revised model follows through the element frame (bounds centre), not through the triangles.
+- Attached outlines are projected on the overlay with no depth test: an outline on a wall is still drawn when another element hides that wall from the new camera. Surface hits use the geometry as it was when the shape was finished; a revised model is followed by projecting the points onto the current triangles of the elements ("Reshaped elements"), which needs the normals and bounds stored since then: older files follow the bounds centre only (and are detached when an element is gone). A region is not re-fitted on a revised model.
 - A region is an axis-aligned box in the IFC frame (not an oriented box).
 - `Measurement` and `Penetration` pick on the screen; penetration rows exist only after the penetrations tool ran.
 
 - Pictures have the aspect of the window (that of the set camera); a very tall window gives a narrow picture on a landscape page. Very large pictures are lowered to the graphics card limits (said in the status line); there is no tiled render.
 - A Markup set does not store a thumbnail in the JSON; the PDF pictures are the thumbnails of the report.
-- Sets are session data (no browser storage): export to keep them.
+- Sets are session data (no browser storage): export to keep them. Sets of other models are kept for the session only too; delete them or move them to the model.
 - Scallop size is fixed by weight; a shape cannot be resized by handles (delete and redraw, or undo).
 - The PDF reader finds the embedded JSON in files written by this tool; a PDF re-saved by an editor that rewrites objects into object streams loses it from this reader (the JSON file still works).
 - Orthogonal views use the viewer's approximation (see saved-views.md).

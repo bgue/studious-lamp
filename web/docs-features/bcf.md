@@ -8,7 +8,7 @@ Where: the `BCF` tool in the action panel (a drawer), the `BCF` folder in the pa
 
 ## Workflow
 
-1. `Open BCF` (drawer, panel or palette), or drop a `.bcf` / `.bcfzip` anywhere on the page. Opening replaces the loaded topics; if you have unsaved topics of your own the file is merged in instead (same topic Guid: the file wins).
+1. `Open BCF` (drawer, panel or palette), or drop a `.bcf` / `.bcfzip` anywhere on the page. Opening replaces the loaded topics (not the hidden topics of other models); if you have unsaved topics of your own the file is merged in instead (same topic Guid: the file wins). Topics made on another model are listed under `Other models` (see "Which model an item belongs to").
 2. The drawer lists topics with status and priority chips. Filter by status, search title, description, assignee, labels and comments. Select a topic to see its snapshot, description, comments and viewpoints.
 3. `Apply` on a viewpoint moves the camera, selects its elements, hides and colours elements and sets clip planes. The status line says what was applied and what was skipped (unknown GlobalIds are counted, not silently dropped).
 4. `Clear viewpoint` undoes what BCF changed: the elements it hid (and only those: elements you hid yourself stay hidden), its colours and its clip planes (unless the section tool took the planes over since; a section box or plane that was on before the viewpoint comes back). Camera and selection stay where they are.
@@ -18,6 +18,23 @@ Where: the `BCF` tool in the action panel (a drawer), the `BCF` folder in the pa
 8. `Export 2.1` / `Export 3.0` download a `.bcfzip` of every topic in the list (loaded and created).
 
 Panel entries (`BCF` folder): `Open BCF`, `Create topic from view`, `Export BCF 2.1`, `Export BCF 3.0`, `Clear viewpoint`, read-only `BCF status`. Palette actions, without default keys: `bcf.open`, `bcf.create`, `bcf.export` (uses the default export version), `bcf.clear`. The params document has a `bcf` section with the default author and the default export version.
+
+## Which model an item belongs to
+
+Every topic belongs to the model it was made on: `topic.model` is a model identity (`name`, `elementCount`, `guidCount`, `guidHash`; the same one as the markup tool, `src/markup/scope.ts`), set when the topic is created in the viewer and stored in the side file as `"model"` (a topic with a model and no markup still gets a side file; other tools ignore it as they ignore the rest). A topic from another tool has no identity. On every model change (Sample Projects menu, the file loader, drops) each topic is compared with the loaded model by `compareModels`:
+
+| Result | What the viewer does |
+| --- | --- |
+| `same` | Listed, pinned and annotated as usual. |
+| `revised` (same name, other elements) | Listed and drawn, tagged `revised model`. Attached annotations are projected onto the changed elements again; the ones that cannot land are detached (view-locked), see [markup.md](markup.md), "Reshaped elements". |
+| `unknown` (no identity: a file from another tool) | Listed and drawn, tagged `model unknown` (a topic made for another model still applies its camera and says how many GlobalIds were unknown, as before). |
+| `different` | Hidden: no pin, no annotation, not listed with the current topics, its viewpoint is not applied (the status line says to use `Open` or `Move to this model`), the applied viewpoint and the selection of another model's topic are cleared. |
+
+- **Panel.** The list shows the topics of the loaded model; a collapsed `Other models (n)` group (`details[data-other-models]`) under it lists the others per model. Per topic: `Open` (lists it with the current topics until the model changes), `Move to this model` (re-binds it; annotations whose targets are missing show detached) and `Delete topic` (two clicks).
+- **Import.** Opening a file compares every topic's model with the loaded one: topics of another model go to `Other models` (not drawn, not selected), and the drawer shows a message and the status line a warning, as the Markup tool does for a markup file; a revised model and topics without identity are said too (`window.__xrayBcf.lastImport`). Opening a file replaces the loaded topics but keeps the topics of other models in the session (they were not part of what you were looking at); `Export` writes every topic of the session, other models' included, each with its identity in the side file, so reopening on the right model sorts them again.
+- **Persistence.** Topics are session data (only the author name and the default export version are stored in the browser), so nothing is restored into another model.
+- **Federated loads.** Several IFC files opened together are one model of the viewer (one identity for the whole federation); a topic belongs to the federation, not to one of its files.
+- **Scripting.** `topics` stays the live array of every topic of the session; `currentTopics` are the topics of the loaded model (and those opened on purpose), what the drawer lists; `otherModels()` groups the hidden ones per model; `scopeOf(guid)` is `same`, `revised`, `unknown` or `different`; `openOther(guid)`, `moveToModel(guid)`, `deleteTopic(guid)`; `lastImport` is what the last file said about its topics' models.
 
 ## Pins and annotations
 
@@ -47,13 +64,14 @@ BCF 2.1 and 3.0 have no field for a pin or annotations. The viewer writes a side
 
 ```json
 { "format": "xray-bcf-markup", "version": 1, "frame": "ifc", "units": "m", "topic": "<guid>", "pinNumber": 3,
+  "model": { "name": "fzk-haus", "elementCount": 82, "guidCount": 82, "guidHash": "<16 hex digits>" },
   "pin": { "position": [x, y, z], "elementGuid": "<IfcGuid>", "local": [dx, dy, dz] },
   "viewpoints": { "<viewpoint guid>": {
     "annotations": [{ "guid": "...", "type": "callout", "text": "...", "offset": [0.1, -0.09],
                       "anchor": { "kind": "element", "point": [x, y, z], "elementGuid": "<IfcGuid>", "local": [dx, dy, dz] } },
                     { "guid": "...", "type": "rect", "text": "...", "offset": [0, 0], "anchor": { "kind": "point", "point": [x, y, z] },
                       "shape": { "points": [[0.21, 0.3], [0.48, 0.62]], "depth": 12.4 },
-                      "attach": { "kind": "surface", "surface": { "guids": ["<IfcGuid>"], "closed": true, "pts": [{ "e": 0, "p": [x, y, z], "l": [dx, dy, dz] }] } } }],
+                      "attach": { "kind": "surface", "surface": { "guids": ["<IfcGuid>"], "closed": true, "fp": [[x0, y0, z0, x1, y1, z1]], "pts": [{ "e": 0, "p": [x, y, z], "l": [dx, dy, dz], "n": [nx, ny, nz], "g": 0.01 }] } } }],
     "markupSelection": ["<IfcGuid>"],
     "snapshotView": { "position": [...], "direction": [...], "up": [...], "fov": 42, "aspect": 1.78 },
     "baseSnapshot": "xray-<viewpoint guid>-base.png" } } }
@@ -94,7 +112,9 @@ Applying a viewpoint first clears the previous one. Viewpoint roll is ignored (t
 ```js
 const bcf = window.__xrayBcf;
 await bcf.load(fileOrArrayBuffer);               // { merge: true } to add to the current topics
-bcf.topics;                                      // BcfTopic[] (live)
+bcf.topics;                                      // BcfTopic[] (live, every topic); bcf.currentTopics: those of the loaded model
+bcf.otherModels(); bcf.scopeOf(topicGuid);       // topics of other models (hidden) per model; 'same' | 'revised' | 'unknown' | 'different'
+bcf.openOther(topicGuid); bcf.moveToModel(topicGuid); bcf.deleteTopic(topicGuid); bcf.lastImport;
 bcf.applyViewpoint(topicGuid, viewpointGuid?);   // { ok, applied[], skipped[], unknownGuids, status }
 bcf.clearViewpoint();                            // number of hidden elements restored
 bcf.createTopic({ title, description, type, status, priority, labels, assignedTo, author, snapshot, globalIds, camera, pin });
@@ -118,6 +138,7 @@ const bytes = await bcf.exportZip('3.0');        // Uint8Array; bcf.download('3.
 - `src/bcf/sidecar.ts` the markup side file, `annotate.ts` pure markup layout (draw operations for the overlay and the snapshot canvas, snapshot camera projection), `pins.ts` the live overlay, placement and dragging; `src/measure/current.ts` read-only list of the measure tool's measurements.
 - `src/bcf/zip.ts` zip reader and writer (stored and deflate through `CompressionStream`, CRC32, directory entries), `xml.ts` small strict XML reader (used instead of `DOMParser`, so browser and node tests behave identically), `parse.ts`, `write.ts`, `plan.ts` (pure viewpoint planning and capture), `controller.ts`, `ui.ts`; plugin `src/plugins/bcf.ts`.
 - Tests `tests/bcf-*.test.ts`, fixtures `tests/fixtures/bcf` (hand written 2.1 and 3.0 archives as folders, the official XSDs under `xsd/`, the BCF documentation under `docs/`). `tests/fixtures/bcf/validate_xsd.py` validates unpacked archives against the XSDs with lxml; `tests/bcf-xsd.test.ts` runs it and skips when python3 or lxml is missing.
+- `tests/markup-scope.test.ts` (topic identity through the side file and BCF round trips, the controller on a model change: lists, pins, annotations, `Open`, `Move to this model`, `Delete topic`); `SMOKE_PORT=5707 node bench/smoke-markup-scope.mjs` covers both tools.
 - `bench/smoke-bcf.mjs` (SMOKE_PORT=5333) runs the browser workflow and writes `bench/bcf-drawer.png`.
 - `tests/bcf-markup.test.ts`: side file round trip (2.1 and 3.0), burned and clean snapshot files, annotated elements in the selection, tolerant reading, the IFC mapping against a three.js camera projection, the burn-in layout and canvas painting, XSD validation with markup present.
 - `tests/bcf-markup-fixes.test.ts`: reserved rects (pins and boxes out of the gizmo), element-local anchors and explode offsets, measurement units, shapes (fractions to 3D and back, direct burn-in), pin number, `local`, shapes and `markupSelection` through the side file. `bench/smoke-fixes-w7.mjs` (SMOKE_PORT=5714) drives them in the browser (rectangle by mouse drag, the import-and-apply selection tint, pin numbers across an import).
@@ -126,7 +147,7 @@ const bytes = await bcf.exportZip('3.0');        // Uint8Array; bcf.download('3.
 ## Limitations
 
 - Orthographic cameras are approximated; viewpoint roll, lines, bitmaps and colour alpha are ignored.
-- Elements are matched by GlobalId only (no IfcProject / file matching); a topic made for another model applies its camera but selects nothing, and says how many ids were unknown.
+- Elements are matched by GlobalId only (no IfcProject / file matching). A topic made on another model is hidden under `Other models`; opened on purpose it applies its camera but selects nothing, and says how many ids were unknown. The model of a topic is the identity written by this viewer; topics from other tools are `unknown` and shown on any model.
 - No editing of existing topic fields besides status and added comments; no zip64; BimSnippet files, documents and header files are carried through unchanged but not shown.
 - Selection and exception lists over 1000 components work but the BCF guide recommends keeping them short.
 - Markup: other tools see the burned snapshot and the selection only; they drop the side file when they rewrite the archive. Notes (free points) and point-to-point measurements do not follow exploded elements; the burned snapshot draws anchors at the unexploded elements even when the snapshot was taken in the exploded view. For imported viewpoints the burn-in occlusion fade knows the hidden elements of the Visibility but not which elements were ghosted. Shapes drawn from a camera far from the viewpoint camera are mapped onto the shape plane, so they look skewed when seen from the side.

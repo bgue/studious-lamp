@@ -63,6 +63,13 @@ const CSS = `
 .bcf-mrow { padding: 4px 8px; border-bottom: 1px solid var(--bcf-line); cursor: pointer; display: flex; gap: 8px; }
 .bcf-mrow:last-child { border-bottom: 0; }
 .bcf-mrow:hover { background: var(--bcf-hover); }
+.bcf-other { border: 1px solid var(--bcf-line); border-radius: 5px; }
+.bcf-other:empty { display: none; }
+.bcf-other > summary { cursor: pointer; padding: 6px 8px; font-weight: 600; color: var(--bcf-dim); }
+.bcf-other[open] > summary { border-bottom: 1px solid var(--bcf-line); }
+.bcf-other-model { padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--bcf-line); }
+.bcf-other-model:last-child { border-bottom: 0; }
+.bcf-other-topic { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
 `;
 
 function ensureStyles(): void {
@@ -132,6 +139,11 @@ export async function openFiles(c: BcfController, files: File[]): Promise<void> 
     for (const f of ok) {
       await c.load(f, { merge });
       merge = true; // several files at once are combined
+      // Topics made on another model, or on none: say where they went (the same warning the markup file opening gives).
+      if (c.lastImport?.message) {
+        c.app.showMessage(`BCF opened. ${c.lastImport.message}`);
+        setTimeout(() => c.app.showMessage(null), 7000);
+      }
     }
   } catch (e) {
     c.app.showMessage(`Could not open BCF: ${e instanceof Error ? e.message : String(e)}`);
@@ -186,12 +198,12 @@ export function openTopicDialog(c: BcfController, onDone?: (t: BcfTopic) => void
   const desc = el('textarea', 'bcf-in');
   desc.id = 'bcf-f-description';
   desc.rows = 3;
-  const type = text('type', 'Issue', uniq(DEFAULT_TYPES, [...ext.topicTypes, ...c.topics.map((t) => t.topicType)]));
-  const status = text('status', 'Open', uniq(DEFAULT_STATUSES, [...ext.topicStatuses, ...c.topics.map((t) => t.topicStatus)]));
-  const priority = text('priority', 'Normal', uniq(DEFAULT_PRIORITIES, [...ext.priorities, ...c.topics.flatMap((t) => (t.priority ? [t.priority] : []))]));
+  const type = text('type', 'Issue', uniq(DEFAULT_TYPES, [...ext.topicTypes, ...c.currentTopics.map((t) => t.topicType)]));
+  const status = text('status', 'Open', uniq(DEFAULT_STATUSES, [...ext.topicStatuses, ...c.currentTopics.map((t) => t.topicStatus)]));
+  const priority = text('priority', 'Normal', uniq(DEFAULT_PRIORITIES, [...ext.priorities, ...c.currentTopics.flatMap((t) => (t.priority ? [t.priority] : []))]));
   const labels = text('labels');
   labels.placeholder = 'comma separated';
-  const assigned = text('assigned', '', uniq(ext.users, c.topics.flatMap((t) => (t.assignedTo ? [t.assignedTo] : []))));
+  const assigned = text('assigned', '', uniq(ext.users, c.currentTopics.flatMap((t) => (t.assignedTo ? [t.assignedTo] : []))));
   const author = text('author', c.author);
   author.placeholder = 'name or email (remembered)';
   const snap = el('input');
@@ -311,9 +323,10 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
 
   const list = el('div', 'bcf-list');
   list.setAttribute('data-bcf-list', '');
+  const other = el('details', 'bcf-other');
   const detail = el('div', 'bcf-detail');
   detail.setAttribute('data-bcf-detail', '');
-  root.append(bar, status, filters, list, detail);
+  root.append(bar, status, filters, list, other, detail);
 
   const urls = new Map<string, string>();
   const urlFor = (guid: string, bytes: Uint8Array, mime: string): string => {
@@ -354,7 +367,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
   let annText = '';
 
   function renderList(): void {
-    const statuses = [...new Set(c.topics.map((t) => t.topicStatus).filter(Boolean))];
+    const statuses = [...new Set(c.currentTopics.map((t) => t.topicStatus).filter(Boolean))];
     statusSel.textContent = '';
     statusSel.appendChild(el('option', undefined, { value: 'all' }, 'All statuses'));
     for (const s of statuses) statusSel.appendChild(el('option', undefined, { value: s }, s));
@@ -362,9 +375,9 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
     statusSel.value = filterStatus;
 
     list.textContent = '';
-    const shown = [...c.topics].filter(matches).sort((a, b) => (b.creationDate || '').localeCompare(a.creationDate || ''));
+    const shown = [...c.currentTopics].filter(matches).sort((a, b) => (b.creationDate || '').localeCompare(a.creationDate || ''));
     if (!shown.length) {
-      list.appendChild(el('div', 'bcf-empty', undefined, c.topics.length ? 'No topic matches the filter' : 'No topics. Open a BCF file or create a topic from the view.'));
+      list.appendChild(el('div', 'bcf-empty', undefined, c.currentTopics.length ? 'No topic matches the filter' : 'No topics. Open a BCF file or create a topic from the view.'));
     }
     for (const t of shown) {
       const row = el('div', `bcf-item${t.guid === c.selectedTopic ? ' sel' : ''}`);
@@ -372,6 +385,13 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
       row.appendChild(el('div', 'bcf-title', undefined, t.title));
       const chips = el('div', 'bcf-row');
       chips.style.gap = '4px';
+      const sc = c.scopeOf(t);
+      if (sc.tag) {
+        const tag = chip(sc.tag, 'lbl');
+        tag.setAttribute('data-scope-tag', sc.match);
+        tag.title = sc.note;
+        chips.appendChild(tag);
+      }
       if (t.topicStatus) chips.appendChild(chip(t.topicStatus, statusClass(t.topicStatus)));
       if (t.priority) chips.appendChild(chip(t.priority, priorityClass(t.priority)));
       if (t.pin) chips.appendChild(chip(`pin ${c.pinNumber(t)}`, 'lbl'));
@@ -380,6 +400,47 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
       row.appendChild(chips);
       row.onclick = () => c.select(t.guid);
       list.appendChild(row);
+    }
+    renderOther();
+  }
+
+  // Topics of other models: hidden (no pin, no annotation), listed apart. Open shows one on purpose; Move to this model re-binds it.
+  function renderOther(): void {
+    other.textContent = '';
+    const groups = c.otherModels();
+    if (!groups.length) return;
+    const n = groups.reduce((a, g) => a + g.items.length, 0);
+    other.setAttribute('data-other-models', String(n));
+    const sum = el('summary', undefined, undefined, `Other models (${n})`);
+    other.appendChild(sum);
+    for (const g of groups) {
+      const box = el('div', 'bcf-other-model');
+      box.setAttribute('data-model', g.key);
+      box.appendChild(el('div', 'bcf-meta', undefined, `Made on ${g.label}. Hidden on this model.`));
+      for (const t of g.items) {
+        const r = el('div', 'bcf-other-topic');
+        r.setAttribute('data-other-topic', t.guid);
+        r.appendChild(el('div', 'bcf-title', undefined, t.title));
+        const acts = el('div', 'bcf-row');
+        const bo = el('button', 'bcf-btn', undefined, 'Open');
+        bo.setAttribute('data-act', 'other-open');
+        bo.title = 'Show this topic on this model. It may not fit: its targets are not here.';
+        bo.onclick = () => { c.openOther(t.guid); };
+        const bm = el('button', 'bcf-btn', undefined, 'Move to this model');
+        bm.setAttribute('data-act', 'other-move');
+        bm.title = 'Make this topic belong to the loaded model. Annotations whose targets are missing show view-locked.';
+        bm.onclick = () => { c.moveToModel(t.guid); };
+        const bd = el('button', 'bcf-btn', undefined, 'Delete topic');
+        bd.setAttribute('data-act', 'other-delete');
+        bd.onclick = () => {
+          if (bd.dataset['arm'] === '1') c.deleteTopic(t.guid);
+          else { bd.dataset['arm'] = '1'; bd.textContent = 'Click again to delete'; setTimeout(() => { bd.dataset['arm'] = ''; bd.textContent = 'Delete topic'; }, 2500); }
+        };
+        acts.append(bo, bm, bd);
+        r.appendChild(acts);
+        box.appendChild(r);
+      }
+      other.appendChild(box);
     }
   }
 
@@ -403,7 +464,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
     const chips = el('div', 'bcf-row');
     chips.style.gap = '4px';
     const stSel = el('select', 'bcf-in');
-    const statuses = [...new Set([...DEFAULT_STATUSES, ...c.project.extensions.topicStatuses, ...c.topics.map((x) => x.topicStatus), t.topicStatus].filter(Boolean))];
+    const statuses = [...new Set([...DEFAULT_STATUSES, ...c.project.extensions.topicStatuses, ...c.currentTopics.map((x) => x.topicStatus), t.topicStatus].filter(Boolean))];
     for (const s of statuses) stSel.appendChild(el('option', undefined, { value: s }, s));
     stSel.value = t.topicStatus;
     stSel.onchange = () => c.setTopicStatus(t.guid, stSel.value);

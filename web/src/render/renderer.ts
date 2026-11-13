@@ -1460,6 +1460,38 @@ export class XrayRenderer {
     return this.clipPlanes ? this.clipPlanes.map((p) => ({ normal: [...p.normal], point: [...p.point] })) : null;
   }
 
+  /** True while section caps are painted (a section with caps is on and the camera looks in from the cut side). */
+  get clipCapsDrawn(): boolean {
+    return this.clipPlanes !== null && this.shared.clipCapOn!.value > 0.5;
+  }
+
+  /** True when a view mode (behind cut, peel) is on, so surface hits may be cut away (see viewModeCut). */
+  get viewModeCuts(): boolean {
+    return this.behind !== null || (this.peel !== null && !this.xrPresenting);
+  }
+
+  private cutCamKey = new Float64Array(17).fill(NaN);
+
+  /**
+   * Is the surface point of element `id` removed by a view mode (the same test a pick applies)? For rays other than a click (the
+   * attachment projection and occlusion tests): the peel ellipses are kept while the camera and the focus stay the same.
+   */
+  viewModeCut(id: ElementId, point: Vector3): boolean {
+    if (!this.viewModeCuts) return false;
+    const e = this.camera.matrixWorldInverse.elements;
+    const k = this.cutCamKey;
+    let same = this.pickEllipseFresh;
+    for (let i = 0; i < 16 && same; i++) if (k[i] !== e[i]) same = false;
+    const focus = this.peel?.focus.length ?? -1;
+    if (k[16] !== focus) same = false;
+    if (!same) {
+      this.pickEllipseFresh = false;
+      for (let i = 0; i < 16; i++) k[i] = e[i]!;
+      k[16] = focus;
+    }
+    return this.cutByViewMode(id, point);
+  }
+
   /** Is the surface point removed by a section plane (picking skips such hits)? */
   private cutByClip(point: Vector3): boolean {
     return this.clipPlanes !== null && !pointKept(this.clipPlanes, [point.x, point.y, point.z]);

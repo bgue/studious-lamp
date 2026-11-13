@@ -42,8 +42,19 @@ export interface MarkupAddSpec {
 declare global {
   interface Window {
     __xrayMarkup?: {
-      /** The sets of the session: id, title, counts, whether it is the active one. */
-      list(): Array<{ id: string; title: string; markups: number; open: number; resolved: number; active: boolean }>;
+      /**
+       * The sets of the loaded model (same, revised or unknown): id, title, counts, whether it is the active one, its scope
+       * (`same`, `revised`, `unknown`, `different`) and the name of the model it was made on. `all`: also the sets of other models.
+       */
+      list(opts?: { all?: boolean }): Array<{ id: string; title: string; markups: number; open: number; resolved: number; active: boolean; scope: import('../markup/model').ModelMatch; model: string }>;
+      /** The sets of other models (hidden), grouped per model. */
+      otherModels(): Array<{ model: string; elementCount: number; sets: Array<{ id: string; title: string; markups: number }> }>;
+      /** Show a set of another model on purpose (until the model changes). */
+      openOther(setId: string): boolean;
+      /** Make a set belong to the loaded model and run the attachment migration again. Null when there is no such set. */
+      moveToModel(setId: string): { migrated: number; attached: number; detached: number } | null;
+      /** Delete a set (of any model). */
+      deleteSet(setId: string): boolean;
       /** A copy of a set (view, camera, markups, comments). */
       get(id: string): MarkupSet | null;
       /** A new set from the current view; it becomes the active one. */
@@ -175,7 +186,15 @@ export const markupPlugin: AppPlugin = {
       return s;
     };
     window.__xrayMarkup = {
-      list: () => c.list(),
+      list: (o) => c.list(o),
+      otherModels: () => c.otherModels().map((g) => ({ model: g.model.name, elementCount: g.model.elementCount, sets: g.items.map((s) => ({ id: s.id, title: s.title, markups: s.markups.length })) })),
+      openOther: (id) => c.openOther(id),
+      moveToModel: (id) => c.moveToModel(id),
+      deleteSet: (id) => {
+        const had = !!c.get(id);
+        c.deleteSet(id);
+        return had;
+      },
       get: (id) => {
         const s = c.get(id);
         return s ? (JSON.parse(JSON.stringify(s)) as MarkupSet) : null;

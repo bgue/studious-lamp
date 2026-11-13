@@ -7,6 +7,7 @@
 // Directions only rotate: (x, y, z) -> (x, z, -y). The inverse is p = ( v.x + s.x,  -v.z + s.y,  v.y + s.z ).
 
 import type { Attachment } from './attach';
+import type { ModelIdentity } from '../markup/model';
 
 export type Vec3 = [number, number, number];
 export type BcfVersion = '2.1' | '3.0';
@@ -257,6 +258,11 @@ export interface BcfTopic {
   pin?: BcfPin;
   /** Stable number on the pin marker: the next free number when the topic was made (side file `pinNumber`). */
   pinNumber?: number;
+  /**
+   * The model the topic was made on (side file `model`). Topics of another model are hidden while a different model is
+   * loaded; a topic without it (made by another tool) is shown on any model, tagged "model unknown". See markup/scope.ts.
+   */
+  model?: ModelIdentity;
 }
 
 export interface BcfExtensions {

@@ -2796,6 +2796,30 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click a card.',
     'Report: Appendix J, Coordination tools',
   ),
+  'Markup drawer/Other models (group)': h(
+    'The group lists the sets made on other models. It starts closed.',
+    'Those sets stay out of the view, so an old note never sits on the wrong building.',
+    'Click the heading to open the group. Pick Open, Move to this model or Delete.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Markup drawer/Open': h(
+    'The button shows a set of another model on this model.',
+    'The set joins the list until you load a model again. Its shapes can sit in the wrong place.',
+    'Click the button. Check where the notes land.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Markup drawer/Move to this model': h(
+    'The button makes the set belong to the model on screen.',
+    'The set joins the list for good. Shapes whose parts are missing here lock to the screen and show a warning.',
+    'Click the button. Read the status line for the count of locked shapes.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Markup drawer/Model tag': h(
+    'The tag says the set comes from a revised model, or from a file that names none.',
+    'A new revision can move or remove the parts that a shape holds on to. Those shapes lock to the screen.',
+    'Hover the tag to read why. Move to this model when the set belongs here.',
+    'Report: Appendix J, Coordination tools',
+  ),
   'Markup drawer/Markup row': h(
     'The row shows a single markup with its number, kind, status and text.',
     'Click and the entry opens. It shows the comments.',
@@ -3440,6 +3464,30 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'The row shows 1 topic with its status, priority and counts. A click selects the topic.',
     'Each item is an issue note. A click opens its picture, text and comments below.',
     'Click the row to read the topic.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Other models (group)': h(
+    'The group lists the topics made on other models. It starts closed.',
+    'Those topics stay out of the view, so an old marker never sits on the wrong building.',
+    'Click the heading to open the group. Pick Open, Move to this model or Delete topic.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Open': h(
+    'The button shows a topic of another model on this model.',
+    'The topic joins the list until you load a model again. Its markers can sit in the wrong place.',
+    'Click the button. Check where the markers land.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Move to this model': h(
+    'The button makes the topic belong to the model on screen.',
+    'The topic joins the list for good. Notes whose parts are missing here lock to the screen.',
+    'Click the button. Read the status line for the count of locked notes.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Delete topic': h(
+    'The button removes a topic of another model from the session.',
+    'Click twice and it is gone. Export a file first if you need it later.',
+    'Click the button. Click again to confirm.',
     'Report: Appendix J, Coordination tools',
   ),
   'BCF drawer/Topic status list': h(

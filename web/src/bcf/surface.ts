@@ -9,7 +9,7 @@
 import { dirViewerToIfc, viewerToIfc } from './model';
 import type { Vec3 } from './model';
 import { cleanAttachment } from './attach';
-import type { Attachment, SurfaceData, SurfacePoint } from './attach';
+import type { Attachment, Box6, SurfaceData, SurfacePoint } from './attach';
 
 export interface Ray3 {
   /** Viewer frame. */
@@ -200,6 +200,8 @@ export interface InferInput {
   guidOf: (id: number) => string | undefined;
   /** Bounds centre of an element id, viewer frame. */
   centreOf: (id: number) => Vec3 | null;
+  /** Bounds of an element id, viewer frame (min x y z, max x y z): stored as the fingerprint of the targets. Optional. */
+  boundsOf?: (id: number) => readonly number[] | null;
   shift: Vec3;
   /** A measurement or penetration under the cursor or the centre of the shape (decided by the caller from the screen). */
   hint?: { measurement?: NonNullable<Attachment['measurement']>; penetration?: NonNullable<Attachment['penetration']> };
@@ -226,21 +228,26 @@ export interface Inference {
 const defaultLift = (d: number): number => Math.min(0.05, Math.max(0.005, d * 0.002));
 
 /** The surface data of cleaned points: guids by use, IFC points, local offsets. */
-export function toSurfaceData(c: Cleaned, o: Pick<InferInput, 'guidOf' | 'centreOf' | 'shift' | 'lift'>, closed: boolean): SurfaceData | null {
+export function toSurfaceData(c: Cleaned, o: Pick<InferInput, 'guidOf' | 'centreOf' | 'shift' | 'lift'> & Partial<Pick<InferInput, 'boundsOf'>>, closed: boolean): SurfaceData | null {
   const guids: string[] = [];
   const idx = new Map<string, number>();
   const pts: SurfacePoint[] = [];
+  const elementIds: number[] = [];
   const lift = o.lift ?? defaultLift;
   for (const q of c.pts) {
     const g = o.guidOf(q.element);
     if (!g) continue;
     let e = idx.get(g);
-    if (e === undefined) { e = guids.length; guids.push(g); idx.set(g, e); }
+    if (e === undefined) { e = guids.length; guids.push(g); idx.set(g, e); elementIds.push(q.element); }
     const l = lift(q.distance);
     const v: Vec3 = [q.point[0] + q.normal[0] * l, q.point[1] + q.normal[1] * l, q.point[2] + q.normal[2] * l];
     const r = (x: number): number => Math.round(x * 1e4) / 1e4;
     const ifc = viewerToIfc(v, o.shift).map(r) as Vec3;
     const sp: SurfacePoint = { e, p: ifc };
+    // The normal and the lift, so that a revised model can project the point back onto the surface (reproject.ts).
+    const nn = dirViewerToIfc(q.normal);
+    sp.n = [Math.round(nn[0] * 1e3) / 1e3, Math.round(nn[1] * 1e3) / 1e3, Math.round(nn[2] * 1e3) / 1e3];
+    sp.g = Math.round(l * 1e4) / 1e4;
     const c0 = o.centreOf(q.element);
     if (c0) {
       const d = dirViewerToIfc([v[0] - c0[0], v[1] - c0[1], v[2] - c0[2]]);
@@ -249,7 +256,19 @@ export function toSurfaceData(c: Cleaned, o: Pick<InferInput, 'guidOf' | 'centre
     pts.push(sp);
   }
   if (pts.length < 2 || pts.length < c.pts.length * 0.9) return null;
-  return { guids, pts, closed };
+  const out: SurfaceData = { guids, pts, closed };
+  const fp = o.boundsOf ? elementIds.map((id) => boundsToIfc(o.boundsOf!(id), o.shift)) : [];
+  if (fp.some((b) => b)) out.fp = fp;
+  return out;
+}
+
+/** Viewer-frame bounds as IFC-frame bounds (axes swapped, so min and max are taken again). */
+export function boundsToIfc(b: readonly number[] | null | undefined, shift: Vec3): Box6 | null {
+  if (!b || b.length < 6) return null;
+  const lo = viewerToIfc([b[0]!, b[1]!, b[2]!], shift);
+  const hi = viewerToIfc([b[3]!, b[4]!, b[5]!], shift);
+  const r = (x: number): number => Math.round(x * 1e3) / 1e3;
+  return [r(Math.min(lo[0], hi[0])), r(Math.min(lo[1], hi[1])), r(Math.min(lo[2], hi[2])), r(Math.max(lo[0], hi[0])), r(Math.max(lo[1], hi[1])), r(Math.max(lo[2], hi[2]))];
 }
 
 function percentile(sorted: number[], q: number): number {

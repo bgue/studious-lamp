@@ -525,12 +525,12 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
   const viaJson = await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id).markups.length);
   check('opening the JSON restores the markups', viaJson === 15);
 
-  // another model: warning, still restores what it can
+  // another model: a warning, and the set is kept but hidden under "Other models" (markup scope: it does not belong to this model)
   await boot('synth5k');
   await dropFile('markup.json', Buffer.from(jsonText).toString('base64'), 'application/json');
-  await page.waitForFunction(() => window.__xrayMarkup.list().length === 1, null, { timeout: 30000 });
-  const other = await page.evaluate(() => ({ status: window.__xrayMarkup.status, n: window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id).markups.length }));
-  check('a different model: warning, markups restored', /different|not in this model|Warning/i.test(other.status) && other.n === 15, other.status.slice(0, 160));
+  await page.waitForFunction(() => window.__xrayMarkup.list({ all: true }).length === 1, null, { timeout: 30000 });
+  const other = await page.evaluate(() => ({ status: window.__xrayMarkup.status, n: window.__xrayMarkup.get(window.__xrayMarkup.list({ all: true })[0].id).markups.length, cur: window.__xrayMarkup.list().length, others: window.__xrayMarkup.otherModels().length, drawn: document.querySelectorAll('svg.xray-svg-overlay [data-mk]').length }));
+  check('a different model: warning, markups kept under Other models and not drawn', /different|not in this model|Warning/i.test(other.status) && other.n === 15 && other.cur === 0 && other.others === 1 && other.drawn === 0, other.status.slice(0, 160));
   const rep = await page.evaluate(async (t) => (await window.__xrayMarkup.importJson(t)), jsonText);
   check('the import report counts unknown GlobalIds and flags the model', rep.ok && rep.match === 'different' && rep.unknownGuids > 0 && rep.replaced === 1 && rep.warnings.length >= 2, JSON.stringify({ m: rep.match, u: rep.unknownGuids, w: rep.warnings.length }));
   const bad = await page.evaluate(async () => (await window.__xrayMarkup.importJson('{"schema":"xray-markup-set/2","sets":[]}')));

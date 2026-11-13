@@ -214,6 +214,8 @@ export class Overlay {
     for (const r of this.reserved) sig += `|${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.w)},${Math.round(r.h)}`;
     // Element offsets (the exploded view) move anchored markup without a camera change.
     sig += `|o${(this.app.renderer as unknown as { offsetsVersion?: number }).offsetsVersion ?? 0}`;
+    // A section changes what hides what (the dimming of attached outlines) without a camera change.
+    sig += `|c${(this.app.renderer as unknown as { clipVersion?: number }).clipVersion ?? 0}`;
     for (let i = 0; i < 16; i++) sig += `,${e[i]!.toFixed(6)}`;
     if (!this.dirty && sig === this.signature) return;
     this.signature = sig;

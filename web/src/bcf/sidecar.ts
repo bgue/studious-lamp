@@ -12,6 +12,7 @@
 //   {
 //     "format": "xray-bcf-markup", "version": 1, "frame": "ifc", "units": "m",
 //     "topic": "<topic guid>", "pinNumber": 3,
+//     "model": { "name", "elementCount", "guidCount", "guidHash" },   (the model the topic was made on, see markup/scope.ts)
 //     "pin": { "position": [x, y, z], "elementGuid": "<IfcGuid>", "local": [dx, dy, dz] },
 //     "viewpoints": {
 //       "<viewpoint guid>": {
@@ -31,6 +32,8 @@
 
 import { ANNOTATION_TYPES, IFC_GUID_RE, isShapeType, newGuid } from './model';
 import { attachGuids, cleanAttachment, cloneAttachment } from './attach';
+import { cleanIdentity } from '../markup/model';
+import type { ModelIdentity } from '../markup/model';
 import type { BcfAnchor, BcfAnnotation, BcfMeasureLink, BcfPin, BcfShape, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
 
 export const SIDECAR_NAME = 'xray-markup.json';
@@ -54,6 +57,7 @@ export interface Sidecar {
   topic: string;
   pinNumber?: number;
   pin?: BcfPin;
+  model?: ModelIdentity;
   viewpoints: Record<string, SidecarViewpoint>;
 }
 
@@ -107,15 +111,17 @@ export function baseSnapshotName(viewpointGuid: string, version: BcfVersion): st
 }
 
 /**
- * The side file text of a topic, or null when the topic has no markup. `baseSnapshots` maps a viewpoint guid to the
+ * The side file text of a topic, or null when the topic has neither markup nor a model identity. `baseSnapshots` maps a viewpoint guid to the
  * file name of its clean snapshot (only for the snapshots that were burned).
  */
 export function sidecarJson(t: BcfTopic, version: BcfVersion, baseSnapshots: ReadonlyMap<string, string> = new Map()): string | null {
-  if (!hasMarkup(t)) return null;
+  // The model identity alone is worth a side file: it says which model the topic belongs to.
+  if (!hasMarkup(t) && !t.model) return null;
   const g = (s: string): string => (version === '3.0' ? s.toLowerCase() : s);
   const out: Sidecar = { format: SIDECAR_FORMAT, version: SIDECAR_VERSION, frame: 'ifc', units: 'm', topic: g(t.guid), viewpoints: {} };
   if (t.pinNumber !== undefined) out.pinNumber = t.pinNumber;
   if (t.pin) out.pin = clonePin(t.pin);
+  if (t.model) out.model = { ...t.model };
   for (const r of t.viewpoints) {
     const v: SidecarViewpoint = {};
     if (r.annotations?.length) v.annotations = r.annotations.map(cloneAnnotation);
@@ -247,6 +253,7 @@ export function readAnnotation(v: unknown): BcfAnnotation | null {
 export interface SidecarRead {
   pinNumber?: number;
   pin?: BcfPin;
+  model?: ModelIdentity;
   viewpoints: Map<string, SidecarViewpoint>;
   problems: string[];
 }
@@ -269,6 +276,8 @@ export function parseSidecar(text: string): SidecarRead {
       if (local && eg) out.pin.local = local;
     } else problems.push('pin has no valid position');
   }
+  const model = cleanIdentity(raw['model']);
+  if (model) out.model = model;
   const pn = raw['pinNumber'];
   if (pn !== undefined) {
     if (fin(pn) && Number.isInteger(pn) && pn >= 1 && pn < 1e6) out.pinNumber = pn;
@@ -305,6 +314,7 @@ export function parseSidecar(text: string): SidecarRead {
  */
 export function applySidecar(t: BcfTopic, s: SidecarRead): { baseSnapshots: Map<string, string>; missing: string[] } {
   if (s.pin) t.pin = s.pin;
+  if (s.model) t.model = s.model;
   if (s.pinNumber !== undefined) t.pinNumber = s.pinNumber;
   const baseSnapshots = new Map<string, string>();
   const seen = new Set<string>();
