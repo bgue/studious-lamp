@@ -1,8 +1,8 @@
-# P2-I6 STATE  r=1 base=4624fcf C=0 ck=- gate=n/a wt=/home/user/wt/p2-i6
+# P2-I6 STATE  r=2 base=8e7134b C=0 ck=- gate=n/a wt=/home/user/wt/p2-i6
 ## BOARD   (wave-1 prep only; exit items later)
-S1 p disp f - B2 marts sync pass; spec staged r1
-T02 t stg f - gold marts SQL; waits S1 merged
-T03 t stg l - blocked: needs P2-I5 merged to trunk
+S1 p mrg f f567b59 marts sync; gate 3472 P; APPROVALS
+T02 t stg f - gold marts SQL; ready (S1 mrg)
+T03 t stg l - ready (P2-I5 on trunk 8e7134b)
 B1 p todo f - exit wave 5; not staged
 T01 t todo f - exit wave 5; needs B1
 T04 t todo f - exit demo; needs T01 T02
@@ -16,12 +16,12 @@ D5 2026-11-13 r1: T02 Haiku-ability checklist yes after S1 (3 SQL files, provide
 ## SEC
 (SR-X1 range 4624fcf..head at wave 1 end: S1 and T02 rows; proofs in S1 "Sec")
 ## OPEN
-Q1 P2-I5 merge to trunk date, T03 start | needs orch | raised r1
+Q1 answered: P2-I5 on trunk 8e7134b 2026-11-13, merged into p2/i6
 Q2 scaffold register and scaffold quantities on hire reports wait for I4-B scaffold; T03 marks them gaps with that dependency | needs orch | raised r1
 ## NEXT
-1. Orch: dispatch S1 (builder), gate, review full, merge; then spawn r2.
-2. r2: verify S1 merged; check S1 report interface equals spec; dispatch T02 (copy provided tests).
-3. r2/r3: when P2-I5 is on trunk, dispatch T03 (lite).
+1. Orch r2: S1 merged with trunk (I5). T02 interface change in S1 report: readiness model needs cur_core_record (refs and provided tests unchanged).
+2. Dispatch T02 (full) and T03 (lite) in one workflow; merge on pass.
+3. SR-X1 at wave-1 end (S1, T02 rows); check I5 awp events against PAYLOAD_REFS there.
 4. Exit wave (B1, T01, T04, T05) only after the web increment.
 ## REFS
 Spec and tickets: docs/tickets/P2-I6/{S1,T02,T03}-*.md. Provided tests arrive from S1 under docs/tickets/P2-I6/provided/ (T02_test_*.py). Draft tickets from T03 go to docs/tickets/P2-I6/drafts/.
