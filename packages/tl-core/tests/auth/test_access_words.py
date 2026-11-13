@@ -36,6 +36,19 @@ AWP_IWP = {
 }
 #: The two words of the core constraint (ADR-0024); `awp.constraint.edit` is gone.
 CORE_CONSTRAINT = {"core.constraint.edit": "user", "core.constraint.view": "read"}
+#: The weekly cycle, progress, closeout and subcontract words and the waive word (P2-I5 S1).
+AWP_WEEK = {
+    "awp.week.plan": "user",
+    "awp.week.commit": "user",
+    "awp.week.close": "controller",
+    "awp.progress.record": "user",
+    "awp.closeout.record": "user",
+    "awp.closeout.close": "controller",
+    "awp.subcontract.assign": "controller",
+    "awp.subcontract.progress": "user",
+    "awp.worker.run": "controller",
+    "core.constraint.waive": "controller",
+}
 #: Every word of specs/m4-materials.md section 3.
 MATERIALS = {
     "materials.view": "read",
@@ -70,19 +83,30 @@ REQUISITIONS = {
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_40_words() -> None:
+def test_the_shipped_table_loads_50_words() -> None:
     words = load_access_words()
-    assert (
-        len(words)
-        == 40
-        == len(AWP) + len(AWP_IWP) + len(CORE_CONSTRAINT) + len(MATERIALS) + len(REQUISITIONS)
+    expected = (
+        len(AWP)
+        + len(AWP_IWP)
+        + len(CORE_CONSTRAINT)
+        + len(MATERIALS)
+        + len(AWP_WEEK)
+        + len(REQUISITIONS)
     )
+    assert len(words) == 50 == expected
     assert "awp.constraint.edit" not in words
 
 
 def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> None:
     words = load_access_words()
-    for word, table in {**AWP, **AWP_IWP, **CORE_CONSTRAINT, **MATERIALS, **REQUISITIONS}.items():
+    for word, table in {
+        **AWP,
+        **AWP_IWP,
+        **CORE_CONSTRAINT,
+        **MATERIALS,
+        **AWP_WEEK,
+        **REQUISITIONS,
+    }.items():
         assert words.get(word) == table, word
 
 

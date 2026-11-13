@@ -1,0 +1,33 @@
+# File slots of an IWP closeout (brief 9 M3, 20.1; P2-I5): the redlined drawings (a scan or a photo) and the actuals
+# as a CSV.
+id: https://example.org/throughline/fixtures/files/awp-iwp-closeout
+name: tl_fixture_awp_iwp_closeout_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  IWPCloseout:
+    annotations:
+      tl:file_slots:
+        - name: redlines
+          label: Redlined drawings
+          cardinality: many
+          accepted_types:
+            - application/pdf
+            - image/*
+          max_size: 104857600
+          retention_class: project
+        - name: actuals
+          label: Actuals
+          cardinality: many
+          accepted_types:
+            - text/csv
+          max_size: 10485760
+          retention_class: project

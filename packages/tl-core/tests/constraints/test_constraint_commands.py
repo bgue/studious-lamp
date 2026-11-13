@@ -131,7 +131,7 @@ def _check_constraint(w: c2.C2, iwp: str) -> Any:
 
 def test_person_clear_keeps_suppress_hash_and_suppresses_equal_hash(w: c2.C2, iwp: str) -> None:
     chk = _check_constraint(w, iwp)
-    w.run("user", "ClearConstraint", constraint=chk.constraint_id, reason="seen")
+    w.run("waiver", "ClearConstraint", constraint=chk.constraint_id, reason="seen")
     assert w.row(chk.constraint_id)["suppress_hash"] == H1
     sup = w.modraise(iwp, "check", phase="start", check_name="c2", facts_hash=H1)
     new = w.modraise(iwp, "check", phase="start", check_name="c2", facts_hash=H3)

@@ -1,6 +1,6 @@
 """Lint rules over package documents (brief 27.6).
 
-The rule table (L001 to L007) is the specification. Rules that look at one document or one
+The rule table (L001 to L008) is the specification. Rules that look at one document or one
 property are plain loops; the cross-package rules (L003 orphan code lists, L005 similar names)
 see the whole document set at once.
 """
@@ -23,13 +23,15 @@ MIN_DESCRIPTION_LENGTH = 10
 MIN_CODE_VALUES = 2
 #: A record type in ``applies_to``: ``<module>.<Class>``, e.g. ``core.Record`` (L007).
 APPLIES_TO_PATTERN = re.compile(r"[a-z][a-z0-9_]*\.[A-Z][A-Za-z0-9]*")
+#: The weights of one rule of credit add up to this (L008).
+RULE_WEIGHT_TOTAL = 100
 _SHORT_DESCRIPTION = f"description is shorter than {MIN_DESCRIPTION_LENGTH} characters"
 
 
 @dataclass(frozen=True)
 class LintIssue:
     severity: Literal["error", "warning"]
-    rule: str  # "L001" ... "L007"
+    rule: str  # "L001" ... "L008"
     package: str  # "name@version"
     path: str  # "psets.valve_data.properties.size_in", "code_lists.MaterialCode"
     message: str
@@ -54,6 +56,7 @@ def lint_documents(docs: Sequence[PackageDoc]) -> list[LintIssue]:
     issues: list[LintIssue] = []
     for doc in docs:
         issues.extend(_pset_issues(doc))
+        issues.extend(_rules_of_credit_issues(doc))
         for list_name, code_list in doc.code_lists.items():
             issues.extend(_code_list_issues(doc.key(), list_name, code_list))
     issues.extend(_property_issues(properties))
@@ -102,6 +105,17 @@ def _pset_issues(doc: PackageDoc) -> list[LintIssue]:
             if APPLIES_TO_PATTERN.fullmatch(record_type) is None:
                 message = f"applies_to {record_type!r} is not <module>.<Class>"
                 issues.append(_issue("L007", doc.key(), path, message, severity="error"))
+    return issues
+
+
+def _rules_of_credit_issues(doc: PackageDoc) -> list[LintIssue]:
+    """L008: the weights of one commodity sum to exactly 100 (the message is fixed)."""
+    issues: list[LintIssue] = []
+    for rule in doc.rules_of_credit:
+        if sum(step.weight for step in rule.steps) != RULE_WEIGHT_TOTAL:
+            message = f"rules_of_credit: weights of {rule.commodity} do not sum to 100"
+            path = f"rules_of_credit.{rule.commodity}"
+            issues.append(_issue("L008", doc.key(), path, message, severity="error"))
     return issues
 
 

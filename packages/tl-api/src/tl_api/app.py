@@ -55,6 +55,8 @@ from tl_api.routes import (
     admin,
     auth,
     awp,
+    awp_progress,
+    awp_weeks,
     constraints,
     correspondence,
     cost,
@@ -343,6 +345,8 @@ def create_app(
         cost,
         materials,  # P2-I3-T04a
         schemareg,  # P1-I8
+        awp_progress,  # P2-I5 T11a1: the progress and count reads (before awp: iwps/counts)
+        awp_weeks,  # P2-I5 T11a2: the weekly-plan and look-ahead reads (before awp)
         awp,  # P2-I1 T03a: the awp read routes
         requisitions,  # P2-I4A T04c1: the requisition and work order read routes
         constraints,  # P2-I2 T04c1: the constraint read routes

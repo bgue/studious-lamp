@@ -16,8 +16,11 @@ PWP: Final = "awp.PWPRef"
 IWP: Final = "awp.IWP"
 SCOPE_ITEM: Final = "awp.ScopeItem"
 IWP_CLOSEOUT: Final = "awp.IWPCloseout"
+WEEKLY_PLAN: Final = "awp.WeeklyPlan"
 COST_CODE: Final = "cost.CostCode"
-RECORD_TYPES: Final = frozenset({WBS_NODE, PATH, CWA, CWP, EWP, PWP, IWP, SCOPE_ITEM, IWP_CLOSEOUT})
+RECORD_TYPES: Final = frozenset(
+    {WBS_NODE, PATH, CWA, CWP, EWP, PWP, IWP, SCOPE_ITEM, IWP_CLOSEOUT, WEEKLY_PLAN}
+)
 PACKAGE_TYPES: Final = (EWP, PWP)
 
 #: The namespace of a record key. A typed key cannot hold ``@``, so no typed record of another
@@ -36,6 +39,9 @@ PWP_TABLE: Final = "cur_awp_pwp_ref"
 IWP_TABLE: Final = "cur_awp_iwp"
 SCOPE_ITEM_TABLE: Final = "cur_awp_scope_item"
 IWP_CLOSEOUT_TABLE: Final = "cur_awp_iwp_closeout"
+WEEKLY_PLAN_TABLE: Final = "cur_awp_weekly_plan"
+WEEK_COMMITMENT_TABLE: Final = "cur_awp_week_commitment"
+IWP_PROGRESS_TABLE: Final = "cur_awp_iwp_progress"
 READINESS_TABLE: Final = "cur_awp_readiness"
 READINESS_CHECK_TABLE: Final = "cur_awp_readiness_check"
 PACKAGE_TABLE: Final = {EWP: EWP_TABLE, PWP: PWP_TABLE}
@@ -107,6 +113,7 @@ PIN_RELATION: Final = "references"
 DOCUMENT_TYPE: Final = "documents.Document"
 TAG_TYPE: Final = "engineering.Tag"
 
+WEEKLY_PLAN_VIEW: Final = "v_awp_weekly_plan"
 IWP_VIEW: Final = "v_awp_iwp"
 SCOPE_ITEM_VIEW: Final = "v_awp_scope_item"
 
@@ -164,3 +171,45 @@ TRANSITION_READY: Final = "ready"
 TRANSITION_UNREADY: Final = "unready"
 CONSTRAINT_TYPE: Final = "core.Constraint"
 CONSTRAINT_TABLE: Final = "cur_core_constraint"
+
+#: Weekly plan, progress, closeout and subcontract (P2-I5 S1): the events and the plan workflow.
+WEEK_OPENED: Final = "WeeklyPlan.Opened"
+WEEK_IWP_COMMITTED: Final = "WeeklyPlan.IwpCommitted"
+WEEK_OUTCOME_RECORDED: Final = "WeeklyPlan.OutcomeRecorded"
+WEEK_CLOSED: Final = "WeeklyPlan.Closed"
+IWP_STARTED: Final = "IWP.Started"
+IWP_PROGRESS_RECORDED: Final = "IWP.ProgressRecorded"
+IWP_FIELD_COMPLETED: Final = "IWP.FieldCompleted"
+IWP_CLOSEOUT_RECORDED: Final = "IWPCloseout.Recorded"
+CWP_PARTY_ASSIGNED: Final = "Cwp.PartyAssigned"
+CWP_SUBCONTRACT_PROGRESS: Final = "Cwp.SubcontractProgressRecorded"
+#: The states of the weekly plan workflow (``schema/fixtures/workflows/awp-weekly-plan.yaml``).
+WEEK_DRAFT: Final = "Draft"
+WEEK_COMMITTED: Final = "Committed"
+WEEK_CLOSED_STATE: Final = "Closed"
+OUTCOME_DONE: Final = "done"
+OUTCOME_MISSED: Final = "missed"
+#: The events of this part whose payload carries ``feed_policy: none``. ``WeeklyPlan.Closed`` and
+#: ``IWPCloseout.Recorded`` make a feed card. (``tl_core.feed.cards`` honours the key only for
+#: the names in its ``POLICY_EVENT_TYPES``, as for the IWP events: the key is data, not yet read.)
+PART3_NO_CARD_EVENTS: Final = (
+    WEEK_OPENED,
+    WEEK_IWP_COMMITTED,
+    WEEK_OUTCOME_RECORDED,
+    IWP_STARTED,
+    IWP_PROGRESS_RECORDED,
+    IWP_FIELD_COMPLETED,
+    CWP_PARTY_ASSIGNED,
+    CWP_SUBCONTRACT_PROGRESS,
+)
+
+#: Rules of credit and progress (P2-I5 S2).
+EDITION_SETTING: Final = "awp.rules_of_credit.set"
+DEFAULT_EDITION: Final = "co.acme.awp@1.1.0"
+DEFAULT_COMMODITY: Final = "piping"
+SCI_INSTALLED: Final = "Installed"
+#: The scope item states a ``scope_state:<State>`` step is measured against, in order.
+SCOPE_STATE_ORDER: Final = (SCI_PLANNED, SCI_INSTALLED, SCI_VERIFIED)
+#: The most manual credit entries one IWP holds (``IWP.ProgressRecorded.manual``).
+MAX_MANUAL: Final = 500
+MAX_MANUAL_PER_COMMAND: Final = 50

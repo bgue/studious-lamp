@@ -1,0 +1,67 @@
+# Acme advanced work packaging standards, second edition (brief 9 M3; P2-I5). It supersedes 1.0.0 for awp:
+# the 1.0.0 lists, the miss reasons of a weekly commitment and the constraint type `Interface`. The rules of credit
+# of the same edition are package content: `schema/fixtures/packages/co.acme.awp@1.1.0.yaml`. Data only: read by tl_mod_engineering.document.
+# Three code lists for the awp module. `Commodity` is an editable starter list (projects may add values),
+# `PathReason` names why the path of construction was re-sequenced, and `ConstraintType` is read by the
+# constraints of the next increment. `Discipline` and `UnitOfMeasure` come from co.acme.standards@1.0.0.
+standards: co.acme.awp
+version: "1.1.0"
+title: Acme advanced work packaging standards
+description: "Commodity, path re-sequencing reason, constraint type and weekly miss reason code lists for the awp module."
+owner: "role:standards-steward"
+effective_from: "2026-01-01"
+
+code_lists:
+  Commodity:
+    label: Commodity
+    definition: "The kind of installed material a quantity of a construction work package counts."
+    value_list_policy: extensible
+    values:
+      - {code: piping, label: Piping}
+      - {code: structural-steel, label: Structural steel}
+      - {code: concrete, label: Concrete}
+      - {code: civil-earthworks, label: Civil and earthworks}
+      - {code: electrical, label: Electrical}
+      - {code: instrumentation, label: Instrumentation}
+      - {code: mechanical-equipment, label: Mechanical equipment}
+      - {code: insulation, label: Insulation}
+      - {code: painting, label: Painting}
+  PathReason:
+    label: Path re-sequencing reason
+    definition: "Why a construction work area was moved in the path of construction."
+    value_list_policy: extensible
+    values:
+      - {code: Access, label: Access}
+      - {code: Procurement, label: Procurement}
+      - {code: Engineering, label: Engineering}
+      - {code: Weather, label: Weather}
+      - {code: Crew, label: Crew}
+      - {code: Owner-request, label: Owner request}
+      - {code: Other, label: Other}
+  ConstraintType:
+    label: Constraint type
+    definition: "What holds back field work on a construction work package."
+    value_list_policy: extensible
+    values:
+      - {code: Engineering, label: Engineering}
+      - {code: Procurement, label: Procurement}
+      - {code: Materials, label: Materials}
+      - {code: Equipment, label: Equipment}
+      - {code: Permit, label: Permit}
+      - {code: Predecessor, label: Predecessor}
+      - {code: Interface, label: Interface}
+      - {code: Access, label: Access}
+      - {code: Other, label: Other}
+  MissReason:
+    label: Miss reason
+    definition: "Why a committed interim work package was not finished in its week."
+    value_list_policy: extensible
+    values:
+      - {code: Constraint, label: Constraint}
+      - {code: Material, label: Material}
+      - {code: Labour, label: Labour}
+      - {code: Weather, label: Weather}
+      - {code: Rework, label: Rework}
+      - {code: Access, label: Access}
+      - {code: Equipment, label: Equipment}
+      - {code: Other, label: Other}

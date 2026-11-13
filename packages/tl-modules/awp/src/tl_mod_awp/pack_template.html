@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IWP work pack</title>
+<style>
+@page { size: A4; margin: 12mm; }
+body { font-family: sans-serif; margin: 0; color: #000; }
+section { padding: 0 0 4mm 0; }
+h1 { font-size: 18pt; margin: 0 0 4mm 0; }
+h2 { font-size: 13pt; margin: 0 0 3mm 0; border-bottom: 1px solid #000; }
+dl { display: grid; grid-template-columns: 40mm 1fr; gap: 1mm 3mm; margin: 0 0 4mm 0; }
+dt { font-family: monospace; font-weight: bold; }
+dd { margin: 0; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 4mm; }
+th, td { border: 1px solid #000; padding: 2mm; text-align: left; vertical-align: top; }
+th { background: #eee; }
+#scope td:first-child, #mto td:first-child { font-family: monospace; }
+table.ruled td { height: 9mm; }
+.drawing { display: inline-block; margin: 0 6mm 4mm 0; text-align: center; vertical-align: top; }
+.drawing > div:first-of-type { font-family: monospace; }
+.drawing svg { width: 30mm; height: 30mm; }
+.note { font-size: 9pt; margin: 0 0 2mm 0; }
+footer { font-size: 9pt; margin-top: 4mm; }
+@media print {
+  section + section { page-break-before: always; }
+  .drawing { page-break-inside: avoid; }
+  table, tr { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<section id="cover"><h2>Cover</h2>$cover</section>
+<section id="scope"><h2>Scope and steps</h2>$scope</section>
+<section id="drawings"><h2>Drawings</h2>$drawings</section>
+<section id="mto"><h2>Take-off</h2>$mto</section>
+<section id="safety"><h2>Safety</h2><p>$safety</p></section>
+<section id="quality"><h2>Inspection and test plan</h2><p>$quality</p></section>
+<section id="permits"><h2>Permits and scaffold tags</h2><p>$permits</p></section>
+<section id="signoff"><h2>Sign-off</h2>$signoff
+<table class="ruled">
+<thead><tr><th>Name</th><th>Role</th><th>Signature</th><th>Date</th></tr></thead>
+<tbody>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+</section>
+<footer>Generated $generated</footer>
+</body>
+</html>

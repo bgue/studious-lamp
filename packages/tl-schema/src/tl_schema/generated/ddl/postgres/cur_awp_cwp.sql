@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS cur_awp_cwp (
   budget_hours TEXT COLLATE "C",
   quantities_json JSONB,
   contractor_text TEXT COLLATE "C",
+  assigned_party TEXT COLLATE "C",
   last_seq BIGINT NOT NULL
 );
 

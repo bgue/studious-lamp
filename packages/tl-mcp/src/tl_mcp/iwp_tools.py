@@ -1,4 +1,4 @@
-"""IWP tools (P2-I2-T09b): four reads and one proposal.
+"""IWP tools (P2-I2-T09b): four reads and one proposal; P2-I5-T12a adds two more proposals.
 
 The reads answer from ``tl_mod_awp.iwp_views`` and the readiness from
 ``tl_mod_awp.readiness.views.visible_readiness``. Every read names its resource for the authorizer
@@ -7,6 +7,10 @@ The reads answer from ``tl_mod_awp.iwp_views`` and the readiness from
 ``propose_iwp_scope`` files a pending proposal (``proposals.submit``); nothing changes until a
 person with the ``user`` word accepts it (ADR-0014 section 8). The IWP and the scope items are
 named by key and resolved under the agent's viewer; an unknown or hidden key answers one text.
+
+``propose_progress`` and ``propose_week_commitment`` (T12a) file ``RecordManualProgress`` and
+``CommitIwpToWeek`` the same way; the record version the command pins is read when the proposal is
+filed, and accepting runs the command as the accepting person.
 
 The constraint tools (reads and ``propose_constraint``) are not here: an agent holds no
 ``core.constraint.*`` word, and agent use of core words is deferred to the Phase 3 agent layer
@@ -27,9 +31,10 @@ from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.queries import get_record
 from tl_core.uow import UnitOfWork
 from tl_mod_awp import iwp_views
-from tl_mod_awp.commands import AddIwpScope
+from tl_mod_awp.commands import AddIwpScope, CommitIwpToWeek, ManualStep, RecordManualProgress
 from tl_mod_awp.readiness.views import visible_readiness
 
+from tl_mcp.awp_week_tools import get_weekly_plan_impl
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
 from tl_mcp.intent_param import IntentParam
@@ -41,7 +46,7 @@ from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     _result,
 )
 
-#: The five ``mcp.<tool>`` actions this module's tools ask the authorizer about. ``identity.py``
+#: The seven ``mcp.<tool>`` actions this module's tools ask the authorizer about. ``identity.py``
 #: ORs them into ``MCP_ACTIONS``; a tool not listed there is refused.
 IWP_MCP_ACTIONS: frozenset[str] = frozenset(
     {
@@ -50,6 +55,8 @@ IWP_MCP_ACTIONS: frozenset[str] = frozenset(
         "mcp.list_iwp_scope",
         "mcp.get_iwp_readiness",
         "mcp.propose_iwp_scope",
+        "mcp.propose_progress",
+        "mcp.propose_week_commitment",
     }
 )
 
@@ -200,6 +207,88 @@ def propose_iwp_scope_impl(
     return _result(view)
 
 
+class ProgressStep(BaseModel):
+    """One hand entry: a step of a scope item is done, or is not."""
+
+    scope_item: Key = Field(description="The scope item's record key.")
+    step: Annotated[str, Field(min_length=1, max_length=MAX_PART, description="The step name.")]
+    done: bool
+
+
+def propose_progress_impl(
+    ctx: McpContext,
+    *,
+    project: str,
+    iwp: str,
+    steps: list[ProgressStep],
+    summary: str | None,
+    intent: Intent | None = None,
+) -> ProposalResult:
+    scope = _scope(project)
+    with ctx.factory(True) as uow:
+        found = get_record(uow, scope, iwp)
+        if found is None:
+            raise RecordNotFoundError("no record with that key")
+        iwp_id, version = str(found["id"]), int(found["version"])
+        manual = [
+            ManualStep(scope_item_id=_resolve(uow, scope, s.scope_item), step=s.step, done=s.done)
+            for s in steps
+        ]
+    command = RecordManualProgress(
+        actor=ctx.actor,
+        source=proposals.source_for(ctx.actor),
+        scope=scope,
+        iwp_id=iwp_id,
+        steps=manual,
+        expected_version=version,
+        intent=intent,
+    )
+    view = proposals.submit(
+        ctx.factory,
+        tool="propose_progress",
+        agent=ctx.actor,
+        command=command,
+        summary=summary or f"Record progress on {len(steps)} steps of {iwp}",
+    )
+    return _result(view)
+
+
+def propose_week_commitment_impl(
+    ctx: McpContext,
+    *,
+    project: str,
+    week: str,
+    iwp: str,
+    committed_hours: str,
+    foreman: str | None,
+    summary: str | None,
+    intent: Intent | None = None,
+) -> ProposalResult:
+    scope = _scope(project)
+    plan = get_weekly_plan_impl(ctx, project=project, week=week)
+    with ctx.factory(True) as uow:
+        iwp_id = _resolve(uow, scope, iwp)
+    command = CommitIwpToWeek(
+        actor=ctx.actor,
+        source=proposals.source_for(ctx.actor),
+        scope=scope,
+        plan_id=plan.id,
+        iwp_id=iwp_id,
+        committed_hours=committed_hours,
+        foreman=foreman,
+        expected_version=plan.version,
+        intent=intent,
+    )
+    view = proposals.submit(
+        ctx.factory,
+        tool="propose_week_commitment",
+        agent=ctx.actor,
+        command=command,
+        summary=summary or f"Commit {iwp} to {week} for {committed_hours} hours",
+    )
+    return _result(view)
+
+
 def register_iwp_tools(server: MCPServer, ctx: McpContext) -> None:
     """Add the four IWP read tools and the proposing tool to ``server``."""
 
@@ -272,4 +361,60 @@ def register_iwp_tools(server: MCPServer, ctx: McpContext) -> None:
         with guarded(ctx, "propose_iwp_scope", resource_name("iwp", project, iwp)):
             return propose_iwp_scope_impl(
                 ctx, project=project, iwp=iwp, items=items, summary=summary, intent=intent
+            )
+
+    @server.tool(annotations=PROPOSES)
+    def propose_progress(
+        project: Project,
+        iwp: Annotated[Key, Field(description="The IWP's number.")],
+        steps: Annotated[
+            list[ProgressStep],
+            Field(min_length=1, max_length=MAX_PROPOSED_ITEMS, description="The steps to mark."),
+        ],
+        intent: IntentParam = None,
+        summary: Summary = None,
+    ) -> ProposalResult:
+        """Propose hand progress: steps of scope items that no record proves, marked done or not.
+
+        Nothing is recorded now. A person who may record progress accepts it in the review queue.
+        """
+        with guarded(ctx, "propose_progress", resource_name("iwp", project, iwp)):
+            return propose_progress_impl(
+                ctx, project=project, iwp=iwp, steps=steps, summary=summary, intent=intent
+            )
+
+    @server.tool(annotations=PROPOSES)
+    def propose_week_commitment(
+        project: Project,
+        week: Annotated[
+            str,
+            Field(min_length=1, max_length=MAX_PART, description="The week as `YYYY-Www`."),
+        ],
+        iwp: Annotated[Key, Field(description="The IWP's number.")],
+        committed_hours: Annotated[
+            str,
+            Field(
+                min_length=1, max_length=16, description="The hours committed, for example `40`."
+            ),
+        ],
+        foreman: Annotated[
+            str | None, Field(min_length=1, max_length=MAX_PART, description="The foreman.")
+        ] = None,
+        intent: IntentParam = None,
+        summary: Summary = None,
+    ) -> ProposalResult:
+        """Propose committing an IWP to a week's plan.
+
+        Nothing is committed now. A person who may commit to a week accepts it in the review queue.
+        """
+        with guarded(ctx, "propose_week_commitment", resource_name("iwp", project, iwp)):
+            return propose_week_commitment_impl(
+                ctx,
+                project=project,
+                week=week,
+                iwp=iwp,
+                committed_hours=committed_hours,
+                foreman=foreman,
+                summary=summary,
+                intent=intent,
             )

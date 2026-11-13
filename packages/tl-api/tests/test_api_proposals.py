@@ -232,10 +232,25 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
         assert response.json()["message"] == MESSAGE
         seen.add(spec.name)
     assert (
-        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 118 + 19 + 14 + 25 + 10 + 4 + 24 + 4
+        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 118 + 19 + 14 + 25 + 10 + 4 + 24 + 4 + 10
     )  # incl. P1-I5, P1-I7 WS-A, RFIs, Commercial (P1-I6: 19), the registry (P1-I8: 14), awp (25),
     # awp IWP and scope commands (P2-I2: 10, the constraint ones left for the core; S3: 4),
-    # materials (P2-I3: 24), the core constraint commands (P2-I2 C2: 4)
+    # materials (P2-I3: 24), the core constraint commands (P2-I2 C2: 4),
+    # awp weekly plan and progress entry (P2-I5: 10: OpenWeeklyPlan, CommitIwpToWeek,
+    # RecordWeekOutcome, CloseWeek, InstallScopeItem, ReturnScopeItem, VerifyScopeItem,
+    # RecordManualProgress, StartIwpWork, CompleteIwpField)
+
+
+def test_an_agent_is_refused_a_waive_and_a_week_close_with_the_reason(harness: Harness) -> None:
+    """P2-I5-T12a: a waived clear and closing a weekly plan are a person's acts; the refusal names
+    the reason (agents propose) and no body detail gets past it."""
+    agent = as_agent(harness)
+    for name in ("ClearConstraint", "CloseWeek"):
+        body = body_for(harness, name)
+        response = agent.post(f"/commands/{name}", json=body)
+        assert response.status_code == 403, (name, response.text)
+        assert response.json()["error"] == "agent_must_propose", name
+        assert response.json()["message"] == MESSAGE, name
 
 
 def test_an_agent_token_can_still_post_and_read_and_a_person_can_still_change_records(
