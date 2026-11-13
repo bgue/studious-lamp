@@ -151,6 +151,7 @@ def test_the_installed_modules_are_found_through_their_entry_points() -> None:
         "legacy",
         "materials",
         "quality",
+        "requisitions",
         "schedule",
         "schemareg",
     ]

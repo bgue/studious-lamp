@@ -24,6 +24,7 @@ members = [
     "tl-mod-legacy",
     "tl-mod-materials",
     "tl-mod-quality",
+    "tl-mod-requisitions",
     "tl-mod-schedule",
     "tl-mod-schemareg",
     "tl-schema",
@@ -3126,6 +3127,27 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
+name = "tl-mod-requisitions"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/requisitions" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-core" },
+    { name = "tl-mod-engineering" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 

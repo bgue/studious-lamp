@@ -19,7 +19,7 @@ from typing import Any
 import pytest
 from harness import Harness
 from sqlalchemy import Connection, Engine, event, text
-from test_confidentiality_walk import PASSWORD, _person  # pyright: ignore[reportMissingImports]
+from tl_api_walk import PASSWORD, _person  # pyright: ignore[reportMissingImports]
 from tl_core.auth import accounts, module_roles, sessions
 from tl_core.util import new_ulid
 

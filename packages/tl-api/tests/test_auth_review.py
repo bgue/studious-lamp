@@ -364,6 +364,7 @@ AGENT_MAY_NOT = {
     "record.write",
     "setting.write",
     "core.constraint.view",  # P2-I2-T04c1: constraint reads are closed to agents until allowed
+    "requisitions.view",  # P2-I4A-T04c1: requisition and work order reads are closed to agents
     "activity.read",  # P2-INS-S1: the activity read is closed to agents until allowed
     "insights.note_need",  # P2-INS-S2: telemetry write, closed to agents
     "admin.integration.action.define",
@@ -486,6 +487,11 @@ AGENT_MAY_NOT = {
     "control.command.AdjustStock",
     "control.command.ScrapStock",
     "control.command.VoidReceipt",
+    # the punch list (P2-PUNCH): verify, reopen and void are the controller's decisions; an agent
+    # proposes a punch item (propose_punch_item) and does nothing else here
+    "control.command.VerifyPunchItem",
+    "control.command.ReopenPunchItem",
+    "control.command.VoidPunchItem",
     # the MTO publish (P2-I3-S4): a controlling act, access word controller (superuser holds it)
     "control.command.PublishDerivedMto",
     # the awp module (P2-I1): the superuser's acts; an agent proposes

@@ -272,6 +272,20 @@ settings:
       maximum: 52
     since: "0.1.0"
 
+  - key: requisitions.forecast.weeks
+    type: int
+    default: 8
+    description: How many weeks ahead the labour requisition forecast looks. Proposed default.
+    docs: >-
+      The forecast of labour requisitions by craft and week shows this many weeks from the current one.
+      Eight weeks covers a typical look-ahead schedule.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 52
+    since: "0.1.0"
+
   - key: awp.iwp.size_hours
     type: list
     default: [60, 850]

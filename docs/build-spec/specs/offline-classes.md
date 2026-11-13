@@ -70,6 +70,11 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {"core.ActivityPost": "full", 
 | `schemareg.SchemaPackage`, `Adoption`, `Waiver` | none | — | Design §5.3: schema packages are online only |
 | `cost.CostCode`, `CostSnapshot`; `schedule.Schedule`, `ScheduleSnapshot`, `ActivityRef` | none | — | Mirrors imported on the authority |
 | `legacy.LoadRun` | none | — | Loads run on the authority |
+| `requisitions.LaborRequisition` | draft_only | `RaiseRequisition` | Crew requests are raised on site and approved on the authority; approve, reject, schedule, assign and close are central acts |
+| `requisitions.MaterialRequisition` | draft_only | `RaiseRequisition` | As labour: raised anywhere, approved on the authority (P2-I4A S1, as built) |
+| `requisitions.GeneralRequisition` | draft_only | `RaiseRequisition` | As labour: raised anywhere, approved on the authority (P2-I4A S1, as built) |
+| `requisitions.ScaffoldRequest` | draft_only | `RaiseRequisition` | As labour: raised anywhere, approved on the authority (P2-I4A S1, as built) |
+| `requisitions.WorkOrder` | none | — | Online only: opened by an approval and moved (schedule, assign, start, complete, close) on the authority (P2-I4A S1, as built) |
 
 | Core stream (not a record) | Class | Why |
 |---|---|---|

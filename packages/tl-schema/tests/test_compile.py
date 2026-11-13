@@ -36,6 +36,7 @@ def test_fixtures_compile_into_three_layers(build_docs: Build) -> None:
     psets = compile_psets(build_docs())
     assert list(psets) == [
         "correspondence_data",
+        "crane_lift",
         "document_data",
         "prj.shutdown_tie_in",
         "provenance",

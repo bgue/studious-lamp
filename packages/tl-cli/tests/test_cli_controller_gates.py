@@ -183,6 +183,7 @@ REQUIRE_COMMAND = {
     "doc.py": 6, "doc_link.py": 2, "doc_rendition.py": 3, "doc_rev.py": 4,
     "intent_flags.py": 1,  # P2-INT-T02 run_with_intent
     "mat_write.py": 7,
+    "punch_write.py": 1,  # P2-PUNCH
     "review.py": 5,
     "rfi.py": 10, "schema_gov.py": 4, "schema_import.py": 1, "schema_pkg.py": 6,
     "schema_waiver.py": 3, "standards.py": 3, "standards_class.py": 3, "tag.py": 6,

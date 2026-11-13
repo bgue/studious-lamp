@@ -47,6 +47,18 @@ A module role does not filter reads: a `superuser` grant gives no restricted rea
 | `quality.punch.verify` | `controller` | quality |
 | `quality.punch.reopen` | `controller` | quality |
 | `quality.punch.void` | `controller` | quality |
+| `requisitions.view` | `read` | requisitions |
+| `requisitions.raise` | `user` | requisitions |
+| `requisitions.edit` | `user` | requisitions |
+| `requisitions.cancel` | `user` | requisitions |
+| `requisitions.approve` | `controller` | requisitions |
+| `requisitions.reject` | `controller` | requisitions |
+| `requisitions.schedule` | `controller` | requisitions |
+| `requisitions.assign` | `controller` | requisitions |
+| `requisitions.start` | `user` | requisitions |
+| `requisitions.complete` | `user` | requisitions |
+| `requisitions.close` | `controller` | requisitions |
+| `requisitions.fulfil` | `user` | requisitions (no command yet) |
 
 ## How a module author uses a fine word
 

@@ -73,6 +73,7 @@ from tl_api.routes import (
     punch,
     records,
     reference,
+    requisitions,
     schedule,
     schemareg,
     threads,
@@ -345,6 +346,7 @@ def create_app(
         schemareg,  # P1-I8
         awp,  # P2-I1 T03a: the awp read routes
         punch,  # P2-PUNCH T03: the punch read routes
+        requisitions,  # P2-I4A T04c1: the requisition and work order read routes
         constraints,  # P2-I2 T04c1: the constraint read routes
         insights,  # P2-INS S2: the Checks read and the one telemetry write
     ):

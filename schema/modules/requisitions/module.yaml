@@ -1,0 +1,27 @@
+id: https://example.org/throughline/modules/requisitions
+name: tl_mod_requisitions
+title: "The requisitions module (M9, requisitions and work orders)"
+description: >-
+  The request-to-work-order engine of a project (brief 9, M9). A requisition asks for something for the
+  field: labour (`LaborRequisition`), material (`MaterialRequisition`), a general service such as a crane lift
+  (`GeneralRequisition`) or scaffold (`ScaffoldRequest`). The abstract `Requisition` holds what the four share.
+  An approver approves or rejects it; approval opens a `WorkOrder`, which is scheduled, assigned, started,
+  completed and closed. The requisition's own events are on its stream, the work order's on the work order's.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the
+  module's own current-state table, joined on `id`; the abstract base has no table. Design:
+  docs/build-spec/module-designs/requisitions-and-scaffold.md; contract: docs/build-spec/phase2-contracts-draft.md section 3.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - requisition
+  - work_order
+  - events
+default_range: string
+annotations:
+  tl:module: requisitions

@@ -47,6 +47,7 @@ from tl_mcp.materials_tools import register_materials_tools
 from tl_mcp.models import LakeQueryOutput, SearchResult
 from tl_mcp.modes import resolve_tool_modes
 from tl_mcp.punch_tools import register_punch_tools
+from tl_mcp.requisition_tools import register_requisition_tools
 from tl_mcp.schedule_read_tools import register_schedule_read_tools
 from tl_mcp.schedule_tools import register_schedule_tools
 from tl_mcp.thread_tools import register_thread_tools
@@ -151,6 +152,7 @@ def build_server(
     register_materials_tools(server, ctx)
     register_iwp_tools(server, ctx)
     register_punch_tools(server, ctx)  # P2-PUNCH-T05
+    register_requisition_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(
