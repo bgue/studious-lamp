@@ -261,7 +261,9 @@ def redact_intent_ids(intent: Intent, hidden: set[str]) -> Intent:
 #: ADR-0024 F7). A stream type listed here is not a scanned one: the stream stays visible.
 #: An entry whose second part is empty nulls each hidden id field by itself (and a field of the
 #: first part is a path: ``a[].b`` is ``b`` of each item of the list ``a``; a hidden id inside a
-#: list is dropped from it). No event changes: the stored payload is the same, only the read.
+#: list of ids is dropped from it, and an item of the last listed ``[]`` whose id field is hidden
+#: is dropped whole, so none of its other fields, such as a key, remains).
+#: No event changes: the stored payload is the same, only the read.
 _RequisitionRefs = dict[str, tuple[tuple[str, ...], tuple[str, ...]]]
 _REQUISITION_RAISED: Final[_RequisitionRefs] = {
     "Requisition.Raised": (("for_record_id",), ()),
@@ -277,7 +279,7 @@ PAYLOAD_REFS: Final[dict[str, dict[str, tuple[tuple[str, ...], tuple[str, ...]]]
         "Constraint.Cleared": (("resolved_by",), ("resolved_by",)),
     },
     "awp.IWP": {
-        "IWP.ReadinessEvaluated": (("checks[].resolve_via",), ()),
+        "IWP.ReadinessEvaluated": (("checks[].resolve_via[].record_id",), ()),
         "IWP.DocumentPinned": (("document_id", "revision_id"), ()),
         "IWP.ScopeAdded": (("record_id",), ()),
         "IWP.ScopeRemoved": (("record_id",), ()),
@@ -345,7 +347,12 @@ def _path_without(data: Any, parts: Sequence[str], hidden: set[str]) -> Any:
     if name.endswith("[]"):
         if not isinstance(value, list):
             return source
-        items = [_path_without(item, parts[1:], hidden) for item in cast("list[Any]", value)]
+        last = not any(p.endswith("[]") for p in parts[1:])
+        items = [
+            _path_without(item, parts[1:], hidden)
+            for item in cast("list[Any]", value)
+            if not (last and set(_path_ids(item, parts[1:])) & hidden)
+        ]
         return _with(source, key, items)
     if len(parts) > 1:
         return _with(source, key, _path_without(value, parts[1:], hidden))

@@ -29,8 +29,12 @@ class Seen(BaseModel):
     payload: dict[str, Any]
 
 
+def _ref(record_id: str) -> dict[str, Any]:
+    return {"record_id": record_id, "record_type": "t", "key": f"KEY-{record_id[:6]}"}
+
+
 def _check(via: list[str]) -> dict[str, Any]:
-    return {"name": "n", "state": "blocked", "resolve_via": via}
+    return {"name": "n", "state": "blocked", "resolve_via": [_ref(i) for i in via]}
 
 
 def _payload(field: str, value: str) -> dict[str, Any]:
@@ -180,3 +184,24 @@ def test_every_added_entry_has_a_case() -> None:
         (s, e) for s, events in PAYLOAD_REFS.items() if not s.startswith("core.") for e in events
     }
     assert entries == cases
+
+
+def test_a_real_check_result_loses_the_hidden_item_whole_and_keeps_the_rest() -> None:
+    from tl_core.readiness.types import CheckResult, RecordRef
+
+    result = CheckResult(
+        name="n",
+        version="1",
+        state="blocked",
+        detail="d",
+        resolve_via=[
+            RecordRef(record_id=HIDDEN, record_type="t", key="SECRET-KEY"),
+            RecordRef(record_id=SHOWN, record_type="t", key="OPEN-KEY"),
+        ],
+    )
+    payload = {"iwp_id": SHOWN, "checks": [result.model_dump(mode="json")]}
+    read = _read("awp.IWP", "IWP.ReadinessEvaluated", payload, cf.LOWEST)
+    assert HIDDEN not in str(read) and "SECRET-KEY" not in str(read)
+    assert [r["key"] for r in read["checks"][0]["resolve_via"]] == ["OPEN-KEY"]
+    assert read["checks"][0]["name"] == "n"
+    assert _read("awp.IWP", "IWP.ReadinessEvaluated", payload, CONTROLLER) == payload

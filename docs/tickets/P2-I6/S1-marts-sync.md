@@ -45,6 +45,7 @@ New `tl_lake/gold.py`:
 class GoldModel:
     name: str                  # table name, starts "mart_"; the SQL file is models/<name>.sql
     needs: tuple[str, ...]     # lake tables that must exist, else the mart is dropped and the model skipped
+    record_columns: tuple[str, ...] = ()  # columns holding a record id; rows kept only if NULL or in cur_core_record, each sync
 
 GOLD_MODELS: tuple[GoldModel, ...]   # build order
 def model_sql(name: str) -> str      # text of models/<name>.sql (importlib.resources), one SELECT, no trailing ';'
@@ -52,7 +53,7 @@ def build_gold_marts(con: Duck) -> None
     # per model in order: DROP TABLE IF EXISTS; if all needs exist: CREATE TABLE <ref> AS <model_sql>
     # (the table exists, possibly empty, whenever its needs exist). Names go through table_ref. No views, no indexes.
 ```
-`GOLD_MODELS` order and needs: `mart_iwp_readiness_history` needs `events`; `mart_materials` needs `cur_materials_movement`, `cur_materials_stock`;
+`GOLD_MODELS` order and needs (changed after the first build, see Decision): `mart_iwp_readiness_history` needs `events`, `cur_core_record` and lists `record_columns=("iwp_id",)`, so the runner keeps a row only when its `iwp_id` is a silver record (the model's SELECT must keep an `iwp_id` column); `mart_materials` needs `cur_materials_movement`, `cur_materials_stock`;
 `mart_schedule_vs_readiness` needs `mart_schedule_history`, `mart_iwp_readiness_history`.
 Call sites: `sync._sync` after `build_document_marts(con)` and before the `_tl_sync` insert; `xer._sync` right after `build_marts(con)`. Both inside the open transaction.
 
