@@ -8,8 +8,8 @@ T03 t mrg f - tour seeds from project (report exists; verify in log)
 T04 t mrg l - runbook (report exists; verify in log)
 T06 t mrg f - constraints section (constraints.py on trunk)
 T07 t mrg f 19ca2fa schedule + 4 snapshots; 11 P
-T08 t disp f 7b91594 att2: add GeneralRequisitionType to demo standards
-T09 t disp f - att2: lhartmann awp superuser (2nd signer)
+T08 t mrg f de8a92c req 4 kinds + WO lifecycle; 16 P
+T09 t mrg f cc3957b release: 2 sign-offs, issue, start; 17 P
 T10 t stg f - weekly plans; needs T09; stub not yet added
 T11 t stg f - progress; needs T09; stub not yet added
 ## DEC
