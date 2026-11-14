@@ -22,6 +22,7 @@ from typing import Protocol
 from tl_adapters.db import DbTarget, open_uow
 from tl_core import confidentiality as cf
 from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.password import prepare_password
 from tl_core.auth.queries import find_account
 from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
@@ -179,20 +180,29 @@ def _ensure_documents_actor(db: DbTarget) -> None:
         )
 
 
-def _ensure_agent_bot(db: DbTarget) -> None:
-    """Give ``agent:bot`` an account: an agent files only where it holds a module role (P2-X2)."""
+def _ensure_agent_bot(db: DbTarget, scope: str) -> None:
+    """Give ``agent:bot`` an account and an explicit ``user`` grant on the seed scope.
+
+    An agent files only where an admin granted it a module role (P2-X2 S1)."""
     with open_uow(db) as uow:
-        if find_account(uow.conn(), username="bot") is not None:
-            return
-        accounts.create_account(
+        view = find_account(uow.conn(), username="bot")
+        if view is None:
+            view = accounts.create_account(
+                uow, username="bot", display_name="Seed agent", kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
+        if find_account(uow.conn(), username="gadmin") is None:
+            accounts.create_account(
+                uow, username="gadmin", display_name="Seed admin", kind="person",
+                roles=["admin"], password=None, by="svc:test",
+            )  # fmt: skip
+        grant_module_role(
             uow,
-            username="bot",
-            display_name="Seed agent",
-            kind="agent",
-            roles=["user"],
-            password=None,
-            by="svc:test",
-        )
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=scope, module="*", role="user", reason="seed",
+            ),
+        )  # fmt: skip
 
 
 def seed_hidden_world(
@@ -203,7 +213,7 @@ def seed_hidden_world(
     scope: str = "project:P123",
     twin: Twin | None = None,
 ) -> Hidden:
-    _ensure_agent_bot(db)
+    _ensure_agent_bot(db, scope)
     cmd = _Cmd(actor="user:ctl", source="test", scope=scope)
     world = CorrWorld(db, objects / "corr")
     ids: dict[str, str] = {}

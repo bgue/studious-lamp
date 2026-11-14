@@ -21,10 +21,12 @@ from sqlalchemy import text
 from tl_adapters.db import DbTarget, make_uow_factory, open_uow
 from tl_api.auth import Forbidden
 from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.password import prepare_password
 from tl_core.auth.queries import find_account
 from tl_core.modules import ConfidentialSource, load_modules, use_modules
 from tl_core.services import proposals
+from tl_core.uow import UnitOfWork
 from tl_mcp.errors import MAX_PART
 from tl_mcp.materials_tools import MATERIALS_MCP_ACTIONS
 from tl_mcp.server import build_server
@@ -47,6 +49,38 @@ READS = {
 #: The five kinds of reader. A tool always reads as the lowest viewer (tl_mcp.errors): none of them
 #: reads a restricted record, a document controller and an admin included.
 READERS = ["user:bob", "user:amy", "user:ctl", "user:boss", "agent:bot"]
+
+
+PROJECTS = ("project:P123", "project:P1", "project:P2", "project:P999")
+
+
+def grant_filing(uow: UnitOfWork, name: str, projects: tuple[str, ...] = PROJECTS) -> None:
+    """The agent's account (role user) and an explicit ``user`` grant (P2-X2 S1).
+
+    An agent files only where an admin granted it a module role; a role derived from the account
+    role does not count."""
+    conn = uow.conn()
+    view = find_account(conn, username=name)
+    if view is None:
+        view = accounts.create_account(
+            uow, username=name, display_name=name, kind="agent",
+            roles=["user"], password=None, by="svc:test",
+        )  # fmt: skip
+    if find_account(conn, username="gadmin") is None:
+        accounts.create_account(
+            uow, username="gadmin", display_name="gadmin", kind="person",
+            roles=["admin"], password=None, by="svc:test",
+        )  # fmt: skip
+    targets = [(p, "*") for p in projects]
+    targets += [("company", s.name) for s in load_modules() if s.company_roles][:1]
+    for project, module in targets:
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=project, module=module, role="user", reason="test",
+            ),
+        )  # fmt: skip
 
 
 class Hook:
@@ -88,14 +122,14 @@ def world(db: DbTarget, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tupl
 
 
 def server_for(
-    db: DbTarget, tmp_path: Path, actor: str = "agent:triage", hook: Hook | None = None
+    db: DbTarget,
+    tmp_path: Path,
+    actor: str = "agent:triage",
+    hook: Hook | None = None,
+    project: str | None = None,
 ) -> MCPServer:
     with open_uow(db) as uow:  # an agent files only where it holds a module role (P2-X2)
-        if find_account(uow.conn(), username=actor.partition(":")[2]) is None:
-            accounts.create_account(
-                uow, username=actor.partition(":")[2], display_name="agent", kind="agent",
-                roles=["user"], password=None, by="svc:test",
-            )  # fmt: skip
+        grant_filing(uow, actor.partition(":")[2], (*PROJECTS, *([project] if project else [])))
     return build_server(
         make_uow_factory(db), actor=actor, authorize_hook=hook or Hook(), lake_dir=tmp_path / "lake"
     )
@@ -151,7 +185,7 @@ def test_propose_reservation_waits_for_a_person(
 ) -> None:
     w, s = world
     project = w.project.removeprefix("project:")
-    server = server_for(db, tmp_path)
+    server = server_for(db, tmp_path, project=w.project)
     line = w.one("SELECT key FROM cur_core_record WHERE id = :i", i=s.line)["key"]
     before = call(server, "list_material_stock", project=project)
     factory = make_uow_factory(db)

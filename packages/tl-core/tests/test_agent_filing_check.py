@@ -78,7 +78,7 @@ class World:
         self.ids[name] = view.account_id
 
     def make_bot(self) -> None:
-        """The agent's account: role ``user``, which derives the ``user`` word everywhere."""
+        """The agent's account: role ``user`` (derives the user word, grants nothing)."""
         self.make("bot", ["user"], "agent")
 
     def _cmd(self, cls: type[GrantModuleRole], project: str, module: str, role: str):  # type: ignore[no-untyped-def]
@@ -233,3 +233,25 @@ def test_refusal_is_identical_for_readers_with_and_without_clearance(
         with cf.use_viewer(viewer):
             texts.append(str(refusal(db, factory, cmd(), "submit")))
     assert len(set(texts)) == 1
+
+
+@pytest.mark.parametrize("how", ["submit", "propose"])
+def test_derived_user_role_alone_is_refused_module_command(
+    db: DbTarget, factory: object, world: World, module_command: None, how: str
+) -> None:
+    world.make_bot()  # account role user derives the user word, but no explicit grant
+    refusal(db, factory, cmd(), how)
+    world.grant("user")  # an explicit grant files
+    got = do_submit(factory, cmd()) if how == "submit" else do_propose(db, cmd())
+    assert got.proposal_id
+
+
+@pytest.mark.parametrize("how", ["submit", "propose"])
+def test_derived_user_role_alone_is_refused_core_command(
+    db: DbTarget, factory: object, world: World, core_command: None, how: str
+) -> None:
+    world.make_bot()
+    refusal(db, factory, cmd(), how)
+    world.grant("user", module="*")  # granted_all_modules counts
+    got = do_submit(factory, cmd()) if how == "submit" else do_propose(db, cmd())
+    assert got.proposal_id

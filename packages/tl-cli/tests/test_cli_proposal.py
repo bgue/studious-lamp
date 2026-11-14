@@ -10,12 +10,15 @@ import pytest
 from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.queries import find_account
+from tl_core.modules import load_modules
 from tl_core.services import proposals
 from tl_core.services.commands import CreateRecord, UpdateRecord
 from tl_core.services.psets import SetPsetValues
 from tl_core.services.queries import get_record
 from tl_core.services.records import handle_update_record
+from tl_core.uow import UnitOfWork
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
 
@@ -24,6 +27,38 @@ P = "P123"
 SCOPE = f"project:{P}"
 AGENT = "agent:triage"
 KEY = "P123-REC-0042"
+
+
+PROJECTS = ("project:P123", "project:P1", "project:P2", "project:P999")
+
+
+def grant_filing(uow: UnitOfWork, name: str, projects: tuple[str, ...] = PROJECTS) -> None:
+    """The agent's account (role user) and an explicit ``user`` grant (P2-X2 S1).
+
+    An agent files only where an admin granted it a module role; a role derived from the account
+    role does not count."""
+    conn = uow.conn()
+    view = find_account(conn, username=name)
+    if view is None:
+        view = accounts.create_account(
+            uow, username=name, display_name=name, kind="agent",
+            roles=["user"], password=None, by="svc:test",
+        )  # fmt: skip
+    if find_account(conn, username="gadmin") is None:
+        accounts.create_account(
+            uow, username="gadmin", display_name="gadmin", kind="person",
+            roles=["admin"], password=None, by="svc:test",
+        )  # fmt: skip
+    targets = [(p, "*") for p in projects]
+    targets += [("company", s.name) for s in load_modules() if s.company_roles][:1]
+    for project, module in targets:
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=project, module=module, role="user", reason="test",
+            ),
+        )  # fmt: skip
 
 
 @pytest.fixture
@@ -51,11 +86,7 @@ def factory(env: dict[str, str]) -> Any:
 def ensure_agent(env: dict[str, str]) -> None:
     """The agent's account (role user): an agent files only where it holds a module role."""
     with open_uow(env["TL_DB"]) as uow:
-        if find_account(uow.conn(), username="triage") is None:
-            accounts.create_account(
-                uow, username="triage", display_name="triage", kind="agent",
-                roles=["user"], password=None, by="svc:test",
-            )  # fmt: skip
+        grant_filing(uow, "triage")
 
 
 def propose_create(env: dict[str, str], key: str = KEY, scope: str = SCOPE) -> str:
