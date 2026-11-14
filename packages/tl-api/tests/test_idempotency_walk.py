@@ -1,11 +1,13 @@
 """Idempotency keys are per actor at the HTTP edge (P2-X1-T07).
 
 The same key value sent by another actor neither replays the first answer nor collides with it:
-each actor gets its own record, with its own ids, whether the body is the same or different.
+each actor gets its own record, with its own ids. The record key differs in the second body, so
+the duplicate-record-key rule is not what is tested here.
 
-The walk as five kinds of reader (a keyed replay after the viewer's clearance drops) is not here
-yet: the confidentiality walk has no clearance-drop step to reuse for a ``core.Record`` made by
-``CreateRecord``. See the report's Blocked section.
+Not here yet: the walk as five kinds of reader (a keyed replay after the viewer's clearance drops).
+A ``core.Record`` made by ``CreateRecord`` cannot be made confidential through a ``use_modules``
+extension type: the API refuses a record type that is not registered in the extension-type service
+(``unsupported_record_type``). See the report's Blocked section.
 """
 
 from __future__ import annotations
@@ -43,7 +45,7 @@ def test_another_actor_with_the_same_key_and_other_body_gets_its_own_record_not_
 ) -> None:
     alice = post(harness, body(key="REC-A"), KEY, actor=ALICE)
     assert alice.status_code == 200, alice.text
-    bobs = post(harness, body(key="REC-B", title="Pump"), KEY, actor=BOB)
+    bobs = post(harness, body(key="REC-OTHER", title="Pump"), KEY, actor=BOB)
     assert bobs.status_code != 409, bobs.text
     assert bobs.status_code == 200, bobs.text
     assert bobs.json()["stream_id"] != alice.json()["stream_id"]

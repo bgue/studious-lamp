@@ -12,8 +12,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import SCOPE, McpHarness
 from tl_core.services import proposals
+from tl_core.services.commands import VoidRecord
+from tl_core.services.records import handle_void_record
 from tl_mcp.server import build_server
 
 OTHER_AGENT = "agent:other"
@@ -57,7 +60,7 @@ def test_q3_a_keyed_retry_after_the_daily_cap_is_replayed_not_refused(
     assert len(proposal_events(env)) == 2
 
 
-def test_q3_b_keyed_retry_after_the_target_is_taken_is_replayed_not_refused(
+def test_q3_b_keyed_retry_after_the_target_key_is_taken_is_replayed_not_refused(
     env: McpHarness,
 ) -> None:
     first = create(env, key="P123-REC-0042", idempotency_key=KEY)
@@ -66,4 +69,33 @@ def test_q3_b_keyed_retry_after_the_target_is_taken_is_replayed_not_refused(
     env.create_record("P123-REC-0042")
     replay = create(env, key="P123-REC-0042", idempotency_key=KEY)
     assert replay["proposal"]["proposal_id"] == first["proposal"]["proposal_id"]
+    assert len(proposal_events(env)) == 1
+
+
+def test_q3_b_voided_target_retry_is_replayed_not_refused(env: McpHarness) -> None:
+    target = env.create_record("P123-REC-0042")
+    update: dict[str, Any] = {
+        "record": "P123-REC-0042",
+        "scope": SCOPE,
+        "pset": "valve_data",
+        "values": {"size_in": 4},
+    }
+    first = env.structured("update_psets", idempotency_key=KEY, **update)
+    # the target is voided after the proposal was filed: precheck of the same command now refuses
+    with env.factory(False) as uow:
+        handle_void_record(
+            uow,
+            VoidRecord(
+                actor="user:seed",
+                source="test",
+                scope=SCOPE,
+                stream_id=target.stream_id,
+                expected_version=target.version,
+                reason="walk: target voided after the first filing",
+            ),
+        )
+    with pytest.raises(ToolError):  # a fresh filing without the key is refused now
+        env.structured("update_psets", **update)
+    replay = env.structured("update_psets", idempotency_key=KEY, **update)
+    assert replay == first
     assert len(proposal_events(env)) == 1
