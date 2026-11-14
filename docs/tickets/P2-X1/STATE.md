@@ -1,16 +1,17 @@
-# P2-X1 STATE  r=2 base=7a0b140b C=0 ck=0 gate=n/a wt=/home/user/wt/p2-x1
+# P2-X1 STATE  r=3 base=7a0b140b C=2 ck=0 gate=n/a wt=/home/user/wt/p2-x1
 ## BOARD
 S1 p mrg f 4b42fa5 store+helper; mrg 77e9b51; review P 3 LO
 T04 t mrg f 77a1d8c openapi diff; +became-required test
 T01 t mrg f b7d64e4 header on /commands; 270 P
 T03 t mrg f 9eb471c five MCP tools take key; 38 P
-T02 t stg f - client key on retry; waits T01
-T05 t stg f - baseline + just step; waits T04; Q1 rule in text; keep errors.py rows in step
-T06 t stg l - api-compat.md; waits T04; carries Q1 rule
-T07 t stg f - walking tests; waits S1 T01 T03
-T08 t stg f - demo driver; waits T02 T03 T05
+T02 t stg f - client key on retry; T01 mrg; r4 (base.py _send, POST /commands/ only)
+T05 t disp f eb2e480 baseline+errors+just step; Q1 rule; worktree x1/t05
+T06 t disp l eb2e480 api-compat.md; Q1 rule; worktree x1/t06
+T07 t disp f eb2e480 walking tests + Q3 cases (one allowed red)
+T08 t stg f - demo driver; waits T02 T05; T03 mrg
 T09 t stg l - runbook + AGENTS rows; waits T08
 ## DEC
+D6 2026-11-14 T03b not ticketed: demo item 3 uses create_record via MCP (T03); module tools stay key-less, DEFERRED line in r4
 D1 2026-11-13 purge job deferred; setting kept, rows retained (plan, DEFERRED row)
 D2 2026-11-13 T04 limited to diff_openapi; wiring in `just check` is T05
 D4 2026-11-13 header Idempotency-Key and body field both allowed; differ -> 422 invalid_idempotency_key (T01)
@@ -19,15 +20,14 @@ D3 2026-11-13 proposal rule and action paths keep key None; only agent `propose`
 ## SEC
 none yet; SR-X1 at DONE: S1, T01, T03, T07 plus I6 B2, T02
 ## OPEN
-Q3 proposals.submit runs budget and precheck before propose's replay: a keyed retry may be refused instead of replaying (T03 author). Needs a test in T07 and, if real, a fix piece | needs orch | raised T03
-Q1 answered 2026-11-13 owner: baseline refreshed only as a release step; a breaking change between releases needs an APPROVALS line naming what breaks and a note in api-compat.md; removals are deprecated for at least one release first. T05 and T06 carry this rule.
+Q3 proposals.submit (proposals.py:725) runs budget and precheck before propose's replay: confirmed by reading; T07 tests it (cap case, moved-target case). If red: orch spawns builder piece S2 (move the idempotency replay ahead of budget and precheck in submit; mutation on that guard) | needs orch | raised T03
+Q1 answered 2026-11-13 owner: baseline refreshed only as a release step; breaking change between releases needs an APPROVALS line naming what breaks and a note in api-compat.md; removals deprecated one release first. T05 and T06 carry it.
 ## NEXT
-1. Orchestrator: worktrees /home/user/wt/x1/t01, /t03; run T01 and T03 (disjoint); T04 attempt 2 finishes.
-2. r3 after T04 merged: write T05 (Q1 rule, errors table in step with OpenAPI), T06; T02 once T01 merged.
-3. Decide T03b (module tools) vs fold into T07 scope; T07 needs S1 T01 T03.
-4. Then T08, T09; DONE round after SR-X1.
+1. Orch: run T05 T06 T07 (disjoint paths; x1/t05 t06 t07); T07 may return Q3 RED: relay it, S2 piece follows.
+2. r4: write T02 (client key on retry: base.py _send; POST /commands/ gets a generated key, one retry on reset/timeout with the same key; caller key kept) once slot free; T08 after T02 and T05.
+3. T09 after T08. Add DEFERRED.md lines (purge job, T03b) in r4 if the file exists.
+4. DONE round after SR-X1 (S1 T01 T03 T07 T02, I6 B2).
 ## REFS
-T01 t mrg f b7d64e4 header on /commands; 270 P
 Provided test packages/tl-schema/tests/test_compat_openapi.py; stub diff_openapi in tl_schema/compat.py.
 Seams: commands.py:46, proposals.py:499,573,636, tl_api/commands.py:359,:503.
 ## TRAPS
