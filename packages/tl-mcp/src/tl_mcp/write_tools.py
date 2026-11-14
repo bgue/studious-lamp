@@ -87,8 +87,6 @@ ExpectedVersion = Annotated[
 IdempotencyKey = Annotated[
     str | None,
     Field(
-        min_length=1,
-        max_length=128,
         description="Optional. Retrying with the same key (same arguments) returns the first "
         "proposal instead of filing another.",
     ),

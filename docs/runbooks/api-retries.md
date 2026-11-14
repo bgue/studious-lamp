@@ -42,6 +42,11 @@ A replay checks the viewer again. If the viewer can no longer see the record, th
 existed: `404` with the text of a missing id, and no title or record id. An agent's MCP replay gets the same error type
 and text as a call that names a missing id. This is by design (ADR-0016): do not work around it in a client.
 
+## One key, one intent
+A key names one intent, not one record version. `expected_version` is not part of the request hash, so a reused key
+replays the first answer even if the record has changed since. To re-apply after someone else changed the record, read
+the record again and send the change with a new key.
+
 ## Retention
 - Setting `idempotency.retention_days`: default 7, range 1 to 90 (`schema/settings/platform.yaml`).
 - The window is not enforced yet. The purge job is deferred (P2-X1 D1; `docs/build-spec/DEFERRED.md`), so rows are kept,

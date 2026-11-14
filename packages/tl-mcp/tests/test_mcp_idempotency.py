@@ -110,3 +110,18 @@ def test_the_key_is_optional_on_the_five_tools_and_absent_from_post_feed(env: Mc
         assert "idempotency_key" in schema["properties"], name
         assert "idempotency_key" not in schema.get("required", []), name
     assert "idempotency_key" not in tools["post_feed"].input_schema["properties"]
+
+
+@pytest.mark.parametrize("length", [129, 1000])
+def test_an_over_long_key_is_refused_without_echoing_any_part_of_it(
+    env: McpHarness, length: int
+) -> None:
+    prefix, suffix = "SECRETPREFIX-", "-SECRETSUFFIX"
+    key = prefix + "x" * (length - len(prefix) - len(suffix)) + suffix
+    assert len(key) == length
+    with pytest.raises(ToolError) as caught:
+        env.call("create_record", scope=SCOPE, title="Weld NCR", key="P123-REC-0042",
+                 idempotency_key=key)  # fmt: skip
+    assert "SECRETPREFIX" not in str(caught.value)
+    assert "SECRETSUFFIX" not in str(caught.value)
+    assert len(proposal_events(env)) == 0
