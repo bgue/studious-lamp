@@ -23,6 +23,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Literal
 
 from tl_schema.ddl_loader import statements
 
@@ -82,12 +83,19 @@ class SilverTable:
     ``key`` is the column rows are matched on when replacing. A table with a ``driver`` is replaced
     for every key that changed in the driver table instead: ``pset_values`` has several rows per
     record and a record that loses its last value has no changed row to find.
+
+    ``change`` says how rows follow the ledger. ``last_seq``: the rule above. ``seq``: an
+    append-only table keyed by the event ``seq`` of its rows; rows with ``seq`` after the watermark
+    are copied (and the readable ones the lake lacks, for records that became readable), a row
+    already copied is never rewritten. ``whole``: a table with no change column; every non-empty
+    sync deletes its rows and loads them again.
     """
 
     name: str
     source: str
     key: str
     driver: str | None = None
+    change: Literal["last_seq", "seq", "whole"] = "last_seq"
 
 
 SILVER_TABLES: tuple[SilverTable, ...] = (
@@ -96,6 +104,8 @@ SILVER_TABLES: tuple[SilverTable, ...] = (
     SilverTable("pset_values", "cur_pset_values", "record_id", driver="cur_core_record"),
     SilverTable("cur_documents_document", "cur_documents_document", "id"),
     SilverTable("cur_documents_revision", "cur_documents_revision", "id"),
+    SilverTable("cur_materials_movement", "cur_materials_movement", "seq", change="seq"),
+    SilverTable("cur_materials_stock", "cur_materials_stock", "lot_id", change="whole"),
 )
 RECORD_SOURCE = "cur_core_record"
 """The ledger table that drives ``pset_values`` and carries one row per record."""

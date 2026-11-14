@@ -7,7 +7,7 @@ from typing import Any
 
 from builder import LedgerBuilder
 from sqlalchemy import Engine, text
-from tl_lake import LakeConfig, read_snapshot, sync_lake
+from tl_lake import LakeConfig, read_snapshot, sync_lake, sync_xer
 from tl_lake.duck import open_lake
 from tl_lake.ingest import to_json_value
 
@@ -16,6 +16,8 @@ TABLES = {
     "cur_core_record": "cur_core_record",
     "links": "cur_links",
     "pset_values": "cur_pset_values",
+    "cur_materials_movement": "cur_materials_movement",
+    "cur_materials_stock": "cur_materials_stock",
 }
 
 
@@ -57,6 +59,27 @@ def do_sync(ledger: LedgerBuilder, config: LakeConfig) -> None:
             sync_lake(config, conn)
     finally:
         engine.dispose()
+
+
+def do_sync_xer(ledger: LedgerBuilder, config: LakeConfig) -> None:
+    """The schedule pass (typed rows and marts; no bronze), after ``do_sync``."""
+    engine = ledger.engine()
+    try:
+        with read_snapshot(engine) as conn:
+            sync_xer(config, conn, None)
+    finally:
+        engine.dispose()
+
+
+def lake_table_names(config: LakeConfig) -> list[str]:
+    """Every table of the lake, sorted."""
+    with open_lake(config, write=False) as con:
+        return sorted(
+            str(r[0])
+            for r in con.execute(
+                "SELECT table_name FROM duckdb_tables() WHERE database_name = 'lake'"
+            ).fetchall()
+        )
 
 
 def assert_lake_matches_ledger(

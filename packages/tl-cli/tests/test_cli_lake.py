@@ -57,7 +57,8 @@ def test_sync_reports_the_range_the_snapshot_and_the_silver_rows(env: dict[str, 
     assert lines[0].startswith(f"synced seq 1..{n} ({n} events) in snapshot ")
     assert lines[1] == (
         "silver rows: cur_core_record 2, links 0, pset_values 0, "
-        "cur_documents_document 0, cur_documents_revision 0"
+        "cur_documents_document 0, cur_documents_revision 0, "
+        "cur_materials_movement 0, cur_materials_stock 0"
     )
 
 
@@ -77,7 +78,8 @@ def test_sync_is_incremental(env: dict[str, str]) -> None:
     assert lines[0].startswith(f"synced seq {last}..{last} (1 events) in snapshot ")
     assert lines[1] == (
         "silver rows: cur_core_record 1, links 0, pset_values 0, "
-        "cur_documents_document 0, cur_documents_revision 0"
+        "cur_documents_document 0, cur_documents_revision 0, "
+        "cur_materials_movement 0, cur_materials_stock 0"
     )
 
 
@@ -93,8 +95,12 @@ def test_status_after_a_sync_shows_the_as_of_seq_and_row_counts(env: dict[str, s
         "cur_core_record 2",
         "cur_documents_document 0",
         "cur_documents_revision 0",
+        "cur_materials_movement 0",
+        "cur_materials_stock 0",
         f"events {n}",
         "links 0",
+        "mart_iwp_readiness_history 0",
+        "mart_materials 0",
         "pset_values 0",
     ]
 
@@ -185,7 +191,8 @@ def test_mart_ls_and_show_read_a_mart(env: dict[str, str]) -> None:
     run(env, "lake", "sync")
     empty = run(env, "lake", "mart", "ls")
     assert empty.exit_code == 0, empty.output
-    assert empty.stdout.strip() == ""  # no document or schedule yet: no mart
+    # no document or schedule yet: only the gold marts that need nothing but silver, empty
+    assert empty.stdout.splitlines() == ["mart_iwp_readiness_history 0", "mart_materials 0"]
     missing = run(env, "lake", "mart", "show", "mart_document_status")
     assert missing.exit_code == 1
     assert "no mart 'mart_document_status'" in missing.output

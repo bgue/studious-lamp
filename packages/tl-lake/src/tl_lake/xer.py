@@ -53,6 +53,7 @@ from tl_xer.bundle import BundleError, read_bundle, verify_bundle
 from tl_lake.config import LakeConfig
 from tl_lake.duck import LOCK_TIMEOUT_S, Duck, ident, lake_tables, open_lake, table_ref
 from tl_lake.errors import LakeSyncError
+from tl_lake.gold import build_gold_marts
 from tl_lake.ingest import CHUNK_ROWS, insert_rows
 from tl_lake.schema import Column, generated_columns
 from tl_lake.xer_marts import build_marts
@@ -628,6 +629,7 @@ def _sync_silver(
             con.execute(f"DELETE FROM {table_ref(STATE_TABLE)}")
             con.execute(f"INSERT INTO {table_ref(STATE_TABLE)} VALUES (?)", [signature])
             build_marts(con)  # (a snapshot loaded or dropped changes the rows of the first)
+            build_gold_marts(con)  # the marts that read the schedule history
         if changed_meta or loaded or gone:
             con.execute("COMMIT")
         else:
