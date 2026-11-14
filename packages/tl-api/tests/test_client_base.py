@@ -69,16 +69,22 @@ def test_a_get_that_fails_twice_is_api_unavailable() -> None:
     assert len(seen) == 2
 
 
-def test_a_write_is_never_sent_twice() -> None:
+def test_a_keyed_command_post_is_sent_twice_and_other_writes_once() -> None:
     def broken(request: httpx2.Request, n: int) -> httpx2.Response:
         raise httpx2.ReadError("reset")
 
     api, seen = client_for(broken)
     with pytest.raises(ApiUnavailableError):
         api._post_json("/commands/CreateRecord", {})  # pyright: ignore[reportPrivateUsage]
+    # the command POST carries one key in both bodies (P2-X1-T02 amendment)
+    keys = [json.loads(r.content)["idempotency_key"] for r in seen]
+    assert len(seen) == 2 and keys[0] and keys[0] == keys[1]
     with pytest.raises(ApiUnavailableError):
         api._send("PUT", "/uploads/x/content", content=b"x")  # pyright: ignore[reportPrivateUsage]
-    assert len(seen) == 2  # one attempt each
+    assert len(seen) == 3  # the PUT: one attempt
+    with pytest.raises(ApiUnavailableError):
+        api._post_json("/links", {})  # pyright: ignore[reportPrivateUsage]
+    assert len(seen) == 4  # a POST outside /commands/: one attempt
 
 
 def test_a_dot_segment_is_refused_and_everything_else_is_escaped() -> None:

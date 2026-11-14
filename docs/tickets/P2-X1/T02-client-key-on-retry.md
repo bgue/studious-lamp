@@ -59,3 +59,6 @@ Standard report. State: the key format used; the exact retry rule; that the prov
 ## Escalation triggers
 - A test outside Allowed paths breaks (e.g. one that counts requests on a POST /commands/ failure): list it and stop.
 - The remote TUI or another caller sets its own header `Idempotency-Key`: stop and report.
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+`test_client_base.py::test_a_write_is_never_sent_twice` pinned the old rule (no write retried). With a key, a command POST is safe to retry, so that pin is superseded for keyed command POSTs only. Added allowed path: `packages/tl-api/tests/test_client_base.py`, that test only: assert the keyed `/commands/` POST is sent twice with the same `idempotency_key` in both bodies, and every non-command write (the PUT, any POST outside `/commands/`) is still sent exactly once. Rename the test to say so. Do not weaken any other assertion.
