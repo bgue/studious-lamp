@@ -70,3 +70,8 @@ First line: `Q3 GREEN` or `Q3 RED <case> <error text>`. List the test names.
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+- Q3 is fixed by S2 (merged into this branch). The two Q3 tests must now pass unchanged; if either is still red, stop and report.
+- Answer 1 (five-reader walk): use option (a), a confidential extension record type via `use_modules`, as in `packages/tl-core/tests/test_idempotency.py`. Drop the actor's clearance after the first filing; the replay must return ids the viewer filter hides as absent (same answer as a missing record), for each of the five kinds of reader.
+- Answer 2 (cross-actor isolation): the second actor uses the same idempotency key value with a body whose record key differs (for example `REC-OTHER`). Expected: the second actor's command runs and creates its own record; no 409 mismatch, no replay of the first actor's result. The duplicate record-key rule is not idempotency and is not tested here.
