@@ -1,4 +1,4 @@
-# P2-X1 STATE  r=4 base=7a0b140b C=3 ck=0 gate=n/a wt=/home/user/wt/p2-x1
+# P2-X1 STATE  r=5 base=f95c1c56 C=4 ck=0 gate=pass wt=/home/user/wt/p2-x1
 ## BOARD
 S1 p mrg f 4b42fa5 store+helper; mrg 77e9b51; review P 3 LO
 T04 t mrg f 77a1d8c openapi diff; +became-required test
@@ -27,15 +27,13 @@ F4 LO open replayed proposal with hidden id answers proposal_not_found, not reco
 F5 LO deferred MTO.Defined redacted ids become null (shape no real event has) -> DEFERRED
 F6 LO deferred baseline refresh not tied to an APPROVALS line by tooling; response $ref switch not diffed -> DEFERRED
 F7 LO fixed@4fcd833 reused key with newer expected_version replays older result -> S3 runbook line
-none yet; SR-X1 at DONE: S1, T01, T03, T07 plus I6 B2, T02
 ## OPEN
 Q3 closed: S2 + orchestrator hash fix; T07 Q3 x3 green
 Q1 answered 2026-11-13 owner: baseline refreshed only as a release step; breaking change between releases needs an APPROVALS line naming what breaks and a note in api-compat.md; removals deprecated one release first. T05 and T06 carry it.
 ## NEXT
-1. Orch: run T02 and T08 (x1/t02, x1/t08; disjoint). T08 gate = demo on sqlite and postgres, one at a time.
-2. After T08 mrg: T09 (ticket staged, lite). T02 and T08 merged = C3.
-3. Then DONE round: SR-X1 on S1 T01 T03 T07 T02 (+I6 B2), whole gate, gate-pg on touched dirs, demo, APPROVALS check.
-4. Watch: T08 may find an agent HTTP key route missing (clause 3); it reports, MCP half shown.
+1. DONE 2026-11-14: whole suite in split sessions green after ba133554 (MCP string-limit rule test lists the key, F2) and the
+   trunk palette snapshot fix f95c1c56; two load-only failures passed alone (DEFERRED). gate-pg idempotency tests 132 P.
+2. Orch: merge p2/x1 to the trunk, STATUS line. Follow-up: F3 webhook redaction piece (DEFERRED).
 ## REFS
 Provided tests: packages/tl-schema/tests/test_compat_openapi.py (T04, green); T02 copy at docs/tickets/P2-X1/provided/test_client_idempotency.py (in tree, red until T02).
 Seams: commands.py:46, proposals.py:499,573,636, tl_api/commands.py:359,:503. Client key lives in the body (`idempotency_key`); T02 adds it in `_send`.
