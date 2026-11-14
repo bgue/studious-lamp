@@ -89,7 +89,6 @@ IdempotencyKey = Annotated[
     Field(
         min_length=1,
         max_length=128,
-        pattern=r"^[\x21-\x7e]+$",
         description="Optional. Retrying with the same key (same arguments) returns the first "
         "proposal instead of filing another.",
     ),
