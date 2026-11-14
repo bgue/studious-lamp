@@ -33,6 +33,7 @@ from tl_core import confidentiality
 from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.changefeed.filters import SHADOW_PROPOSAL_TYPE, is_shadow_proposal
 from tl_core.integration.streams import INTEGRATION_INTERNAL_EVENT_TYPES
+from tl_core.intent import payload_ref_ids, redacted_payload
 from tl_core.query.api import QuerySpec, count_query, parse
 from tl_core.query.ast import And, Compare
 from tl_core.services.queries import get_record_by_id
@@ -419,11 +420,27 @@ class Dispatcher:
         mode = effective_mode(self._policy, row, requested_mode)
         links: list[dict[str, Any]] = []
         record: dict[str, Any] | None = None
+        detail: dict[str, Any] | None = None
         if mode != "thin":
             links = self._links(uow.conn(), row)
+            detail = self._detail(uow.conn(), row)
             if mode == "full":
                 record = get_record_by_id(uow, row.subject_id)
-        return to_body(build_envelope(row, mode, self._uris, links=links, record=record))
+        return to_body(
+            build_envelope(row, mode, self._uris, links=links, record=record, detail=detail)
+        )
+
+    @staticmethod
+    def _detail(conn: Connection, row: OutboxRow) -> dict[str, Any]:
+        """The ledger payload with the references the current viewer (the subscription's owner,
+        set by ``_enqueue``) may not read set to null, as ``/events`` shows them (ADR-0016)."""
+        detail: dict[str, Any] = dict(row.data.get("detail", {}))
+        ids = payload_ref_ids(row.stream_type, row.event_type, detail)
+        if not ids:
+            return detail
+        hidden = confidentiality.hidden_among(conn, sorted(ids), confidentiality.current_viewer())
+        shown: dict[str, Any] = redacted_payload(row.stream_type, row.event_type, detail, hidden)
+        return shown
 
     @staticmethod
     def _links(conn: Connection, row: OutboxRow) -> list[dict[str, Any]]:
