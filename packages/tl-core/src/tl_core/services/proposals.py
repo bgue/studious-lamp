@@ -63,7 +63,7 @@ from tl_core.proposals.types import (
     ProposalView,
     SettingProposalInfo,
 )
-from tl_core.services import idempotency
+from tl_core.services import agent_scope, agent_stop, idempotency
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.errors import (
     BudgetExceededError,
@@ -497,6 +497,8 @@ def propose(
             raise RecordNotFoundError(f"no record {stream_id!r}")
         return get_proposal(uow.conn(), stream_id)
     source = source_for(agent)
+    agent_scope.check_filing(uow.conn(), agent, command)  # P2-X2: after replay, before budget
+    agent_stop.require_not_stopped(uow.conn(), agent)
     limit = budget if budget is not None else daily_budget(uow.conn())
     if proposals_today(uow.conn(), agent, now=now) >= limit:
         raise BudgetExceededError(
@@ -758,6 +760,8 @@ def submit(
                     raise RecordNotFoundError(f"no record {stream_id!r}")
                 return get_proposal(uow.conn(), stream_id)
     with factory(readonly=True) as uow:
+        agent_scope.check_filing(uow.conn(), agent, command)  # P2-X2: after replay, before budget
+        agent_stop.require_not_stopped(uow.conn(), agent)
         limit = budget if budget is not None else daily_budget(uow.conn())
         if proposals_today(uow.conn(), agent, now=now) >= limit:
             raise BudgetExceededError(
@@ -878,6 +882,8 @@ def accept_proposal(
     """
     _require_person(by, "accept")
     row = _pending(uow, proposal_id)
+    if row.tool != ACTION_PROPOSAL_TOOL:
+        agent_stop.require_not_stopped(uow.conn(), row.agent)  # P2-X2
     _require_access(row.command_type, holds)
     if row.tool == ACTION_PROPOSAL_TOOL and row.agent == by:
         raise ProposalDeciderError("an action that needs approval is approved by another person")
