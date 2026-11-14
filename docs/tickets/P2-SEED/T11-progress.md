@@ -54,3 +54,21 @@ a run without the two sections leaves other types unchanged.
 ## Escalation triggers
 - No commodity of the demo list has a manual step, or the edition is not adopted: stop, name it (a standards edit is a decision).
 - `AddIwpScope` or `CreateScopeItem` refused on Ready IWPs, or scope changes readiness so fewer than 12 are Ready: stop.
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+- Added allowed path: `dev/seed/demo_project/data/standards.yaml`. Add the `UnitOfMeasure` code list, copied entry for entry from `schema/fixtures/standards/co.acme.standards@1.0.0.yaml`, so `CreateScopeItem` accepts the demo units. Do not touch `data/awp/standards.yaml` (T10 owns it).
+- Commodities without a `manual` step falling back to the piping steps is accepted; say so in the report.
+Then finish `scope.py`, `progress.py` and the test as the ticket says.
+
+## Amendment 2 (orchestrator, 2026-11-14, after attempt 2)
+Decision: option 1. Scope is defined during planning, so the `scope` section runs before `constraints` (IWPs are still Draft or Planned there).
+- Added allowed path: `dev/seed/demo_project/registry.py`, the `ORDER` tuple only: move `scope` to just before `constraints`. Keep `scope.py`'s `needs` consistent with the new place.
+- Add scope to the IWPs that the constraints and release sections later carry forward (the same IWPs as before, chosen by id, not by Ready state).
+- If adding scope changes which IWPs reach Ready or Issued, update the pins in `tests/tools/test_demo_project_release.py` and `tests/tools/test_demo_project_constraints.py` (added allowed paths, pins only) and explain each changed number in the report. Do not change the handler rule.
+- Run the gate with the release and constraints tests included.
+
+## Amendment 3 (orchestrator, 2026-11-14, after attempt 3; replaces amendment 2's ORDER move)
+Amendment 2 was wrong: the IWPs are created inside the constraints section (`constraints.py:115`). Decision: option 1.
+- Added allowed path: `dev/seed/demo_project/constraints.py`. Right after each `CreateIwp` (while the IWP is Draft), call a helper from `scope.py` (for example `add_scope(world, iwp_id, rng)`) that creates the scope items and runs `AddIwpScope`. Give the helper its own rng stream derived from the seed (for example `random.Random(f"{seed}-scope")` or the existing per-section rng pattern) so the constraint section's own random choices do not shift.
+- `scope` is then no longer a separate section: remove it from `ORDER` and `__init__.py` in `registry.py` (allowed path), keep `scope.py` as a helper module. `progress` stays a section after `release`.
+- If the counts of Ready or Issued IWPs change, update the pins in `tests/tools/test_demo_project_release.py` and `test_demo_project_constraints.py` (pins only) and explain each number in the report. The handler rule does not change.

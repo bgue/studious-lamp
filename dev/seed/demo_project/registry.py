@@ -20,7 +20,6 @@ ORDER = (
     "awp",
     "schedule",
     "constraints",
-    "scope",
     "release",
     "materials",
     "quality",
