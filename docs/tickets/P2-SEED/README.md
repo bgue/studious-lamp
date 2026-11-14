@@ -58,5 +58,5 @@ default confidentiality; one section file, one test file per ticket. Each ticket
 | T07 | schedule: one schedule, 4 weekly XER snapshots, activity links | full | none |
 | T08 | requisitions (24, four kinds) and the work order lifecycle | full | none |
 | T09 | release: sign off and issue IWPs, start some | full | constraints section |
-| T10 | weekly plans, commitments, outcomes (after T09) | full | T09 |
-| T11 | IWP progress and KPI figures (after T09) | full | T09 |
+| T10 | weekly plans, commitments, outcomes; adds MissReason list | full | T09 |
+| T11 | scope items (before release) and IWP progress | full | T09 |
