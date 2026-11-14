@@ -1,7 +1,7 @@
 # P2-X2 STATE  r=1 base=a2e3ddc4 C=0 ck=- gate=n/a wt=/home/user/wt/p2-x2
 ## BOARD
 S1 p disp f - filing check; spec committed; seam stub+wiring in proposals.py
-S3 p disp f - stop switch; spec committed; schema gated (95)
+S3 p mrg f a03515d2 stop switch; review P 3 LO; 52 P sq+pg; APPROVALS
 S2 p todo f - queue cap; waits S1 merged; setting gated (95)
 T01 t todo f - API routes, ApiClient stop/resume/list; waits S3
 T02 t todo f - tl agent stop/resume/stopped; waits S3
