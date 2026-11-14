@@ -45,3 +45,9 @@ the report says which moved; deterministic twice; a run without the section leav
 ## Escalation triggers
 - Readiness will not compute in process, or the sign-off setting names a role no roster person holds: stop, name it (this may
   become a builder piece; do not add commands or edit `core.py`).
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+Decision on the sign-off role: option 2. The product default (`awp.release.signoff_roles = [superuser]`) stays; the demo roster gains a second awp superuser.
+- Added allowed path: `dev/seed/demo_project/core.py`. Change only lhartmann (Project engineer) from `("awp", "user")` to `("awp", "superuser")`.
+- The two sign-offs on each released IWP are by two distinct people: lhartmann and mokafor.
+- If a roster pin in an existing test under `tests/tools/` fails because of this grant, update that pin (added allowed path for that one line) and name it in the report. No other roster change.
