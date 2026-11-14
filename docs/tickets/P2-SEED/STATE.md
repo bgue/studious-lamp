@@ -1,4 +1,4 @@
-# P2-SEED STATE  r=4 base=7a0b140b C=C2 ck=0 gate=n/a wt=/home/user/wt/p2-seed
+# P2-SEED STATE  r=4 base=7a0b140b C=C2 ck=0 gate=pass wt=/home/user/wt/p2-seed
 ## BOARD
 S1 p mrg f - generator framework, core/eng/docs/corr sections
 T01 t mrg f - awp section (report exists)
