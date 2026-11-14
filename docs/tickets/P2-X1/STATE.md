@@ -5,9 +5,10 @@ T04 t mrg f 77a1d8c openapi diff; +became-required test
 T01 t mrg f b7d64e4 header on /commands; 270 P
 T03 t mrg f 9eb471c five MCP tools take key; 38 P
 T02 t stg f - client key on retry; T01 mrg; r4 (base.py _send, POST /commands/ only)
-T05 t disp f eb2e480 baseline+errors+just step; Q1 rule; worktree x1/t05
-T06 t disp l eb2e480 api-compat.md; Q1 rule; worktree x1/t06
-T07 t disp f eb2e480 walking tests + Q3 cases (one allowed red)
+T05 t disp f 5ff52fa att2: stripped baseline, 3 MB cap
+T06 t mrg l 3cd8853 api-compat.md with Q1 rule
+T07 t blk f 7f71f8c Q3 RED both cases -> S2; att2 after S2 mrg
+S2 p disp f - replay before budget and precheck in submit (Q3)
 T08 t stg f - demo driver; waits T02 T05; T03 mrg
 T09 t stg l - runbook + AGENTS rows; waits T08
 ## DEC
