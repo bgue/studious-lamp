@@ -24,7 +24,7 @@ approval (95 line); this piece adds a one-paragraph amendment note to ADR-0027 o
    `check_filing`, then `agent_stop.require_not_stopped` (S3), then budget, then precheck. So an agent that lost its word after
    filing still gets its first answer on replay and nothing else; a fresh filing is refused before it costs a budget unit
    or a dry run. Test the order with a key: replay allowed after the word is revoked; a new key refused.
-4. Core commands (no module in `command_index()`): unchanged, no word asked (Q1 in STATE.md; the cap and stop still apply).
+4. Core commands (no module in `command_index()`; Q1 decided by the orchestrator 2026-11-14, closed by default, ADR-0009): the agent must hold at least one module role (any module, any word) on the scope, read through the same grant lookup the module check uses; otherwise the same uniform refusal as a scope that does not exist. No new grant type. Add a test for each side (core command with no grant refused as missing; with any grant files).
 5. Filing refused: no event, no budget use, no idempotency row (the check runs before `idempotency.record`; assert row count).
 6. The scenario agents of I6 are granted before I6 T04: do not change them; list in the report which existing tests file
    as an agent without a grant and had to gain one (`GrantModuleRole` in the fixture), a consequential pin.

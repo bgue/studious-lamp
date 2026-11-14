@@ -11,14 +11,14 @@ T05 t todo f - demo driver dev/demos/P2-X2.sh; waits T02,T04
 T06 t todo l - runbook accounts-and-access.md grant checklist; waits T05
 ## DEC
 D1 2026-11-14 order in submit/propose: replay, check_filing, require_not_stopped, budget, precheck; wired by supervisor r1 (specs S1 item 3)
-D2 2026-11-14 filing check applies to module commands (command_index); core commands unchanged (Q1)
+D2 2026-11-14 filing check: module commands need the module `user` word; core commands need any module role on the scope (orch Q1, closed by default)
 D3 2026-11-14 seams = two stub modules so S1 (agent_scope.py) and S3 (agent_stop.py) have disjoint paths
 D4 2026-11-14 accept check skipped for ACTION_PROPOSAL_TOOL (person-filed action proposals have no agent stop)
 D5 2026-11-14 ADR-0029 d6: is_stopped(conn, agent) is the one callable stop check (S3 item 5)
 ## SEC
 (none yet; SR-X2 at wave end: refusals equal missing, cap text no counts, held count filtered, stop holds accept, events append-only, agent cannot stop)
 ## OPEN
-Q1 Core commands (CreateRecord, AddLink...) have no module word; filing check skips them. OK, or require a project-level agent grant? needs orch raised S1
+Q1 closed 2026-11-14 orch: core commands need any module role on the scope (D2)
 Q2 ADR-0027 amendment (filing check moves to X2) is an owner approval; S1 does not edit the ADR needs orch raised S1
 ## NEXT
 1. Orchestrator runs S1, S3 builders (max 2 gating at once); merge S1 = C1, then S3 and S2 = C2.
