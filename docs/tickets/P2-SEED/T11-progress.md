@@ -54,3 +54,8 @@ a run without the two sections leaves other types unchanged.
 ## Escalation triggers
 - No commodity of the demo list has a manual step, or the edition is not adopted: stop, name it (a standards edit is a decision).
 - `AddIwpScope` or `CreateScopeItem` refused on Ready IWPs, or scope changes readiness so fewer than 12 are Ready: stop.
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+- Added allowed path: `dev/seed/demo_project/data/standards.yaml`. Add the `UnitOfMeasure` code list, copied entry for entry from `schema/fixtures/standards/co.acme.standards@1.0.0.yaml`, so `CreateScopeItem` accepts the demo units. Do not touch `data/awp/standards.yaml` (T10 owns it).
+- Commodities without a `manual` step falling back to the piping steps is accepted; say so in the report.
+Then finish `scope.py`, `progress.py` and the test as the ticket says.
