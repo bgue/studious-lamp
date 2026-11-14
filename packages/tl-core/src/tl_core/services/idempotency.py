@@ -171,9 +171,13 @@ def replay_result(conn: Connection, replay: Replay, viewer: Viewer | None = None
     """The ``CommandResult`` of a replay, re-read from the ledger through the viewer filter.
 
     A stream the viewer can no longer see answers as one that does not exist
-    (``RecordNotFoundError``: the status and text of an absent record).
+    (``RecordNotFoundError``: the status and text of an absent record). The events pass the filter
+    and the redaction ``/events`` applies for the same viewer (SR-X1 F1): a hidden event is
+    dropped, a hidden reference in a shown one is nulled.
     """
     from tl_core.archive.sealer import read_events
+    from tl_core.confidentiality import filter_events
+    from tl_core.intent import redact_for_viewer
 
     stream_id, *event_ids = replay.result_ids
     if hidden_among(conn, [stream_id], viewer):
@@ -184,6 +188,7 @@ def replay_result(conn: Connection, replay: Replay, viewer: Viewer | None = None
         seqs = [int(r[0]) for r in conn.execute(_SEQS, {"ids": sorted(wanted)})]
         if seqs:
             events = [e for e in read_events(conn, min(seqs), max(seqs)) if e.event_id in wanted]
+        events = redact_for_viewer(conn, filter_events(conn, events, viewer), viewer)
     version = max((e.stream_version for e in events if e.stream_id == stream_id), default=0)
     found = conn.execute(_KEY_OF, {"id": stream_id}).first()
     return CommandResult(
