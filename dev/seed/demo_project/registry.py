@@ -18,9 +18,12 @@ ORDER = (
     "documents",
     "correspondence",
     "awp",
+    "schedule",
     "constraints",
+    "release",
     "materials",
     "quality",
+    "requisitions",
 )
 
 Build = Callable[[World, random.Random], None]
