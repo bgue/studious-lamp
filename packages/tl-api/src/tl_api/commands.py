@@ -89,6 +89,7 @@ from tl_core.services.feed_actions import (
     handle_react_to_post,
     handle_retract_post,
 )
+from tl_core.services.idempotency import InvalidIdempotencyKeyError
 from tl_core.services.proposals import source_for
 from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.reserved import refuse_reserved, refuse_reserved_fields, refuse_role_claim
@@ -394,9 +395,26 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
                 "scope is a 400 `effective_time_forbidden`.",
             ),
         ] = None,
+        idempotency_key: Annotated[
+            str | None,
+            Header(
+                alias="Idempotency-Key",
+                description="Optional idempotency key (1 to 128 printable ASCII characters, no "
+                "space). The same key with the same body replays the first result; the same key "
+                "with another body is a 409 `idempotency_mismatch`. The body field "
+                "`idempotency_key` works too; if both are given they must be equal.",
+            ),
+        ] = None,
     ) -> CommandResult:
         ctx = get_ctx(request)
         fields = body.model_dump()
+        if idempotency_key is not None:  # the header is the documented way (decision D4)
+            body_key = fields.get("idempotency_key")
+            if body_key is not None and body_key != idempotency_key:
+                raise InvalidIdempotencyKeyError(
+                    "Idempotency-Key header and body idempotency_key differ"
+                )
+            fields["idempotency_key"] = idempotency_key
         if actor.startswith("agent:"):  # an agent cannot claim another source (brief 18.12)
             fields["source"] = source_for(actor)
         command = spec.model(**fields, actor=actor)
