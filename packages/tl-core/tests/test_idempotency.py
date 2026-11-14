@@ -16,7 +16,7 @@ from tl_core import confidentiality as cf
 from tl_core.ledger import Event
 from tl_core.modules import ConfidentialSource, ModuleSpec, use_modules
 from tl_core.services import idempotency
-from tl_core.services.commands import Command, CommandResult, CreateRecord
+from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.idempotency import (
     IdempotencyInProgress,
@@ -315,3 +315,37 @@ def test_body_hash_ignores_the_three_ids_and_nothing_else() -> None:
     assert idempotency.body_hash(make(None, correlation_id="c", causation_id="d")) == base
     assert idempotency.body_hash(make(description="B")) != base
     assert idempotency.body_hash({"b": 1, "a": 2}) == idempotency.body_hash({"a": 2, "b": 1})
+
+
+def test_expected_version_is_out_of_the_hash_and_the_other_fields_stay_in() -> None:
+    def update(version: int, value: int = 1) -> UpdateRecord:
+        return UpdateRecord(
+            actor="user:ann", source="test", scope=SCOPE, stream_id="01J0000000000000000000000A",
+            expected_version=version, changes={"size_in": value},
+        )  # fmt: skip
+
+    base = idempotency.body_hash(update(3))
+    assert idempotency.body_hash(update(4)) == base  # resolved at call time, not request content
+    assert idempotency.body_hash(update(3, value=2)) != base
+
+
+def test_a_proposal_wrapped_command_drops_expected_version_from_the_hash() -> None:
+    from tl_core.services.idempotency import body_hash
+
+    base = {
+        "tool": "update_psets",
+        "summary": "s",
+        "command": {"name": "UpdateRecord", "expected_version": 3, "x": 1},
+    }
+    moved = {
+        "tool": "update_psets",
+        "summary": "s",
+        "command": {"name": "UpdateRecord", "expected_version": 4, "x": 1},
+    }
+    other = {
+        "tool": "update_psets",
+        "summary": "s",
+        "command": {"name": "UpdateRecord", "expected_version": 3, "x": 2},
+    }
+    assert body_hash(base) == body_hash(moved)
+    assert body_hash(base) != body_hash(other)
