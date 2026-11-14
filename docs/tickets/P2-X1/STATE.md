@@ -5,10 +5,10 @@ T04 t mrg f 77a1d8c openapi diff; +became-required test
 T01 t mrg f b7d64e4 header on /commands; 270 P
 T03 t mrg f 9eb471c five MCP tools take key; 38 P
 T02 t stg f - client key on retry; T01 mrg; r4 (base.py _send, POST /commands/ only)
-T05 t disp f 5ff52fa att2: stripped baseline, 3 MB cap
+T05 t mrg f f92108d baseline 1.5 MB stripped + check step
 T06 t mrg l 3cd8853 api-compat.md with Q1 rule
 T07 t blk f 7f71f8c Q3 RED both cases -> S2; att2 after S2 mrg
-S2 p disp f - replay before budget and precheck in submit (Q3)
+S2 p mrg f ac97d72 replay before budget+precheck; APPROVALS; pg at DONE
 T08 t stg f - demo driver; waits T02 T05; T03 mrg
 T09 t stg l - runbook + AGENTS rows; waits T08
 ## DEC
@@ -21,7 +21,7 @@ D3 2026-11-13 proposal rule and action paths keep key None; only agent `propose`
 ## SEC
 none yet; SR-X1 at DONE: S1, T01, T03, T07 plus I6 B2, T02
 ## OPEN
-Q3 proposals.submit (proposals.py:725) runs budget and precheck before propose's replay: confirmed by reading; T07 tests it (cap case, moved-target case). If red: orch spawns builder piece S2 (move the idempotency replay ahead of budget and precheck in submit; mutation on that guard) | needs orch | raised T03
+Q3 closed by S2 (T07 att2 must turn its two Q3 tests green)
 Q1 answered 2026-11-13 owner: baseline refreshed only as a release step; breaking change between releases needs an APPROVALS line naming what breaks and a note in api-compat.md; removals deprecated one release first. T05 and T06 carry it.
 ## NEXT
 1. Orch: run T05 T06 T07 (disjoint paths; x1/t05 t06 t07); T07 may return Q3 RED: relay it, S2 piece follows.
