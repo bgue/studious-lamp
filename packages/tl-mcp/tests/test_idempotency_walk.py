@@ -14,6 +14,11 @@ from typing import Any
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import SCOPE, McpHarness
+from sqlalchemy import text
+from tl_adapters.db import open_uow
+from tl_core import confidentiality as cf
+from tl_core import modules as core_modules
+from tl_core.modules import ConfidentialSource
 from tl_core.services import proposals
 from tl_core.services.commands import VoidRecord
 from tl_core.services.records import handle_void_record
@@ -21,6 +26,16 @@ from tl_mcp.server import build_server
 
 OTHER_AGENT = "agent:other"
 KEY = "walk-ncr-0042-r1"
+FAKE_ID = "01J000000000000000000000"
+CLASS_TABLE = "walk_idem_mcp_class"
+RECORD_KEY = "P123-REC-0042"
+TITLE = "Weld NCR walk title 3c9e"
+UPDATE: dict[str, Any] = {
+    "record": RECORD_KEY,
+    "scope": SCOPE,
+    "pset": "valve_data",
+    "values": {"size_in": 4},
+}
 
 
 def proposal_events(env: McpHarness) -> list[Any]:
@@ -98,4 +113,56 @@ def test_q3_b_voided_target_retry_is_replayed_not_refused(env: McpHarness) -> No
         env.structured("update_psets", **update)
     replay = env.structured("update_psets", idempotency_key=KEY, **update)
     assert replay == first
+    assert len(proposal_events(env)) == 1
+
+
+@pytest.fixture
+def classed(env: McpHarness, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``core.Record`` rows carry a class in ``CLASS_TABLE`` (a test-only source, as seed_week)."""
+    with open_uow(env.db) as uow:
+        uow.conn().execute(
+            text(f"CREATE TABLE {CLASS_TABLE} (id TEXT PRIMARY KEY, cls TEXT NOT NULL)")
+        )
+    source = ConfidentialSource(
+        record_types=frozenset({"core.Record"}),
+        table=CLASS_TABLE,
+        id_column="id",
+        class_column="cls",
+    )
+    real = core_modules.confidential_sources
+    monkeypatch.setattr(cf, "confidential_sources", lambda: [*real(), source])
+
+
+def set_class(env: McpHarness, record_id: str, cls: str) -> None:
+    with open_uow(env.db) as uow:
+        uow.conn().execute(text(f"DELETE FROM {CLASS_TABLE} WHERE id = :i"), {"i": record_id})
+        uow.conn().execute(
+            text(f"INSERT INTO {CLASS_TABLE} (id, cls) VALUES (:i, :c)"),
+            {"i": record_id, "c": cls},
+        )
+
+
+def test_an_agent_replay_after_its_clearance_drops_answers_as_a_missing_record(
+    env: McpHarness, classed: None
+) -> None:
+    """The agent files K about a record it can read; the record then rises above its clearance.
+    The replay of K answers what a call naming an id that never existed answers: same error type
+    and text, and neither the record's id nor its title. The agent names the record by its key, so
+    the comparison swaps that key for an id that never existed."""
+    record_id = str(env.create_record(RECORD_KEY, TITLE).stream_id)
+    set_class(env, record_id, "internal")  # the agent may read the record while K is filed
+    first = env.structured("update_psets", idempotency_key=KEY, **UPDATE)
+    assert first["proposal"]["proposal_id"]
+    assert len(proposal_events(env)) == 1
+
+    set_class(env, record_id, "privileged")  # the agent's clearance no longer reaches it
+    with pytest.raises(ToolError) as replayed:
+        env.call("update_psets", idempotency_key=KEY, **UPDATE)
+    with pytest.raises(ToolError) as missing:
+        env.call("update_psets", **{**UPDATE, "record": FAKE_ID})
+
+    assert type(replayed.value) is type(missing.value)
+    assert record_id not in str(replayed.value)
+    assert TITLE not in str(replayed.value)
+    assert str(replayed.value).replace(RECORD_KEY, FAKE_ID) == str(missing.value)
     assert len(proposal_events(env)) == 1
