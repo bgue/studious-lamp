@@ -738,7 +738,25 @@ def submit(
     The cheap checks (tool, summary, roles, budget) run first, so an over-budget agent costs no
     dry run. Raises what either step raises.
     """
-    _check_proposal(tool, agent, command, summary)
+    clean = _check_proposal(tool, agent, command, summary)
+    if command.idempotency_key is not None:
+        # a filed key answers first (P2-X1): no budget use, no dry run, no event
+        with factory(readonly=True) as uow:
+            replay = idempotency.lookup(
+                uow.conn(),
+                agent,
+                command.idempotency_key,
+                "propose",
+                {"tool": tool, "summary": clean, "command": command.model_dump(mode="json")},
+            )
+            if replay is not None:
+                from tl_core.integration.actor_access import viewer_of as replay_viewer
+
+                stream_id = replay.result_ids[0]
+                viewer = replay_viewer(uow.conn(), agent)
+                if confidentiality.hidden_among(uow.conn(), [stream_id], viewer):
+                    raise RecordNotFoundError(f"no record {stream_id!r}")
+                return get_proposal(uow.conn(), stream_id)
     with factory(readonly=True) as uow:
         limit = budget if budget is not None else daily_budget(uow.conn())
         if proposals_today(uow.conn(), agent, now=now) >= limit:

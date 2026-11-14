@@ -120,6 +120,28 @@ def check(
     return Replay(command=row[0], result_ids=list(json.loads(row[2])))
 
 
+def lookup(
+    conn: Connection, actor: str, key: str | None, command: str, body: object
+) -> Replay | None:
+    """Read-only ``check``: ``None`` for no key, no entry or an entry not yet completed; a
+    ``Replay`` for a completed entry of the same command and body hash. Nothing is written.
+
+    Raises ``IdempotencyMismatch`` for another command or body, ``InvalidIdempotencyKeyError``
+    for a bad key. The claim in ``check`` stays the authority for concurrent first filings.
+    """
+    if key is None:
+        return None
+    validate_key(key)
+    row = conn.execute(_FIND, {"actor": actor, "key": key}).first()
+    if row is None:
+        return None
+    if row[0] != command or row[1] != body_hash(body):
+        raise IdempotencyMismatch(MISMATCH_TEXT)
+    if row[2] is None:
+        return None
+    return Replay(command=row[0], result_ids=list(json.loads(row[2])))
+
+
 def record(conn: Connection, actor: str, key: str | None, result_ids: list[str]) -> None:
     """Store the ids the command produced on the claim ``check`` made, in the same transaction."""
     if key is None:
