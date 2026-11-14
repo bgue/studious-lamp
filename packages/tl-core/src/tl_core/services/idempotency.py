@@ -25,7 +25,9 @@ from tl_core.services.commands import KEY_PATTERN, KEY_REFUSED, CommandResult
 from tl_core.services.errors import RecordNotFoundError, ServiceError
 
 #: Left out of the body hash: they change on a retry without changing the request.
-EXCLUDED = frozenset({"idempotency_key", "correlation_id", "causation_id"})
+#: ``expected_version`` is concurrency control, not request content: the MCP tools resolve it
+#: server-side at call time, so a retry after the target moved is the same request (P2-X1-T07).
+EXCLUDED = frozenset({"idempotency_key", "correlation_id", "causation_id", "expected_version"})
 
 MISMATCH_TEXT = "this Idempotency-Key was already used for a different request; nothing was written"
 IN_PROGRESS_TEXT = "a request with this Idempotency-Key is still in progress; retry shortly"
@@ -72,7 +74,8 @@ def validate_key(key: str) -> str:
 
 
 def body_hash(body: object) -> str:
-    """SHA-256 (hex) of the canonical JSON of ``body`` without the key and trace ids."""
+    """SHA-256 (hex) of the canonical JSON of ``body`` without the key, the trace ids and
+    ``expected_version`` (concurrency control, resolved at call time; see ``EXCLUDED``)."""
     plain: Any
     if isinstance(body, BaseModel):
         plain = body.model_dump(mode="json")
