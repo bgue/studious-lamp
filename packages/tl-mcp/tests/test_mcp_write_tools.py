@@ -417,8 +417,11 @@ def test_every_string_the_tools_accept_has_a_length_limit(env: McpHarness) -> No
         unbounded += strings(tool.input_schema, tool.name)
     # the only unbounded strings are the free-form JSON values, which check_json bounds as text,
     # and the text of an intent (P2-INT-T03), which tl_core.intent.validate_intent bounds when the
-    # proposal is made (why 500, next text 200, condition 200, goal_ref 64): see test_intent_param
-    assert [p for p in unbounded if "$defs.Intent" not in p] == []
+    # proposal is made (why 500, next text 200, condition 200, goal_ref 64): see test_intent_param;
+    # and the idempotency key (P2-X1-S3, F2), which command validation bounds to 128 without echoing
+    # it (a schema maxLength makes FastMCP echo the truncated key): see test_mcp_idempotency
+    exempt = ("$defs.Intent", ".properties.idempotency_key.")
+    assert [p for p in unbounded if not any(e in p for e in exempt)] == []
 
 
 def test_a_user_actor_server_also_proposes_and_tags_its_source(tmp_path: Path) -> None:
