@@ -57,3 +57,16 @@ code_lists:
       - {code: crane_lift, label: Crane lift}
       - {code: hot_work_support, label: Hot work support}
       - {code: other, label: Other}
+  MissReason:
+    label: Miss reason
+    definition: "Why a committed interim work package was not finished in its week."
+    value_list_policy: extensible
+    values:
+      - {code: Constraint, label: Constraint}
+      - {code: Material, label: Material}
+      - {code: Labour, label: Labour}
+      - {code: Weather, label: Weather}
+      - {code: Rework, label: Rework}
+      - {code: Access, label: Access}
+      - {code: Equipment, label: Equipment}
+      - {code: Other, label: Other}
