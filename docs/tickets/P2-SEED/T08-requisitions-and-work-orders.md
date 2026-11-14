@@ -49,3 +49,7 @@ deterministic twice (counts and key hash); a run without the section leaves othe
 ## Escalation triggers
 - A roster person lacks a word that the seed needs: do not edit `core.py`; stop and name the person and word.
 - The module lacks a command the states need (stop; no command is added here).
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+- Added allowed path: `dev/seed/demo_project/data/awp/standards.yaml`. Add the `GeneralRequisitionType` code list (crane_lift, hot_work_support, other) copied from `schema/fixtures/standards/co.acme.awp@1.0.0.yaml`, so the default build passes.
+- "~9 live work orders" read as 10 (as built) is accepted.
