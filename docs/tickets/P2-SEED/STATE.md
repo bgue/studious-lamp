@@ -10,8 +10,8 @@ T06 t mrg f - constraints section (constraints.py on trunk)
 T07 t mrg f 19ca2fa schedule + 4 snapshots; 11 P
 T08 t mrg f de8a92c req 4 kinds + WO lifecycle; 16 P
 T09 t mrg f cc3957b release: 2 sign-offs, issue, start; 17 P
-T10 t disp f - weekly plans + MissReason list; stub 0d0ff331
-T11 t disp f - scope (pre-release) + progress; stubs 0d0ff331
+T10 t mrg f 2d56cda 5 weekly plans; MissReason; 12 P
+T11 t disp f 7e9e776 att3: scope section before constraints (AddIwpScope refused on Ready)
 ## DEC
 D1 2026-11-14 audit: gaps = requisitions, schedule, weekly plan, progress; cost not a gap (ImportCostSnapshot in awp, materials)
 D2 2026-11-14 stubs T07 T08 T09 registered by supervisor (210f780a) so ticket paths are disjoint; ORDER: awp, schedule, constraints, release, materials, quality, requisitions
