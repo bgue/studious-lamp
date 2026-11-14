@@ -51,13 +51,12 @@ Owner: "make test fixtures for new modules". Audit by grep of record types again
 WorkOrder), schedule (3 types) and the weekly plan and progress of awp (`awp.WeeklyPlan`, earned progress) have no seed data.
 IWPs are never Issued, so weekly and progress screens would stay empty. Cost is NOT a gap (cost codes and a snapshot come
 from `ImportCostSnapshot` in the awp and materials sections); quality is seeded. P2-I6 T03 confirmed requisitions and work orders.
-Rules: real command handlers only, no direct inserts; rng per section; tens of records; existing demo WPs, IWPs, items;
+Stubs and registry lines are committed by the supervisor. Rules: real command handlers only, no direct inserts; rng per section; tens of records; existing demo WPs, IWPs, items;
 default confidentiality; one section file, one test file per ticket. Each ticket's gate: its own test plus `tests/tools/test_demo_project.py`.
-Stubs and registry lines are committed by the supervisor, so tickets share no path.
 | Id | What | Review | Depends on |
 |---|---|---|---|
 | T07 | schedule: one schedule, 4 weekly XER snapshots, activity links | full | none |
 | T08 | requisitions (24, four kinds) and the work order lifecycle | full | none |
 | T09 | release: sign off and issue IWPs, start some | full | constraints section |
-| T10 | weekly plans, commitments, outcomes, closed weeks (stub added after T09) | full | T09 |
-| T11 | IWP progress and KPI figures (stub added after T09) | full | T09 |
+| T10 | weekly plans, commitments, outcomes (after T09) | full | T09 |
+| T11 | IWP progress and KPI figures (after T09) | full | T09 |
