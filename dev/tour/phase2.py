@@ -6,15 +6,20 @@
 Same method as `wave1.py` (see `tourkit.py`): a fresh SQLite ledger in a temporary directory, the
 real TUI driven headless, the frozen clock, and the leak check on every plain screenshot. The
 project is built once by the demo project generator (`seed_demo_project` from `wave1`); no
-network, no Postgres. It writes eight SVGs (the constraint, requisition, work order and punch
-screens are left out: P200 gives no actor in the tour read access to them, see the report):
+network, no Postgres. It writes twelve SVGs. Every actor is written ``user:<name>``: a bare name
+resolves to no account, so a screen that checks a read word (constraints, requisitions, work
+orders, punch) refuses it:
 
     01-iwps          the IWP register                          user:lhartmann
+    02-constraints   the constraints                           user:gwhitfield (viewer, all modules)
     03-readiness     the readiness checks of one IWP          user:lhartmann
     04-lookahead     the look-ahead (weekly step 1)           user:lhartmann
     05-release       the release step (weekly step 3)         user:lhartmann
     06-commitments   the commitments of the open week         user:lhartmann
     07-progress      the progress of the IWPs in field work   user:lhartmann
+    08-requisitions  the requisitions                          user:treyes
+    09-work-orders   the work order backlog                    user:treyes
+    10-punch         the punch list                            user:hsato
     11-schedule      the schedules                            user:lhartmann
     12-packages      the packages                             user:lhartmann
 """
@@ -78,9 +83,12 @@ def scenario(
 
 
 def shots(ws: Workspace) -> None:
+    from tl_tui.widgets.constraint_screen import ConstraintScreen
     from tl_tui.widgets.iwp_register import IwpRegisterScreen
     from tl_tui.widgets.package_log import PackageLogScreen
+    from tl_tui.widgets.punch_log import PunchLogScreen
     from tl_tui.widgets.readiness_screen import ReadinessScreen
+    from tl_tui.widgets.requisition_register import RequisitionLogScreen
     from tl_tui.widgets.schedule_screen import ScheduleScreen
     from tl_tui.widgets.weekly_screen import (
         CommitmentsScreen,
@@ -88,6 +96,7 @@ def shots(ws: Workspace) -> None:
         ProgressScreen,
         ReleaseScreen,
     )
+    from tl_tui.widgets.work_order_backlog import WorkOrderBacklogScreen
 
     scenario(
         ws,
@@ -98,6 +107,16 @@ def shots(ws: Workspace) -> None:
         "the IWPs",
         "P200-IWP-CIV-0001",
         "Interim package 01 (CIV)",
+    )
+    scenario(
+        ws,
+        "02-constraints",
+        "The constraints of P200",
+        "user:gwhitfield",
+        lambda c: ConstraintScreen(c, PROJECT),
+        "the constraints",
+        "P200-CON-0001",
+        "Scaffold",
     )
     scenario(
         ws,
@@ -148,6 +167,36 @@ def shots(ws: Workspace) -> None:
         "the progress",
         "P200-IWP-INS-0005",
         "Interim package 09 (INS)",
+    )
+    scenario(
+        ws,
+        "08-requisitions",
+        "The requisitions of P200",
+        "user:treyes",
+        lambda c: RequisitionLogScreen(c, PROJECT),
+        "the requisitions",
+        "P200-REQ-GEN-0001",
+        "Crane lift for the pipe rack steel",
+    )
+    scenario(
+        ws,
+        "09-work-orders",
+        "The work order backlog of P200",
+        "user:treyes",
+        lambda c: WorkOrderBacklogScreen(c, PROJECT),
+        "the work orders",
+        "P200-WO-0001",
+        "Labour",
+    )
+    scenario(
+        ws,
+        "10-punch",
+        "The punch list of P200",
+        "user:hsato",
+        lambda c: PunchLogScreen(c, PROJECT),
+        "the punch items",
+        "P200-PUN-0001",
+        "Weld undersize at spool joint",
     )
     scenario(
         ws,
