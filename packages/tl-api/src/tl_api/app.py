@@ -53,6 +53,7 @@ from tl_api.routes import (
     actions,
     activity,
     admin,
+    agent_stop,
     auth,
     awp,
     awp_progress,
@@ -325,6 +326,7 @@ def create_app(
         health,
         auth,
         admin,
+        agent_stop,  # P2-X2 T01: stop, resume and list stopped agents (admin only)
         records,
         activity,  # P2-INS-S1: the activity read of a record
         actions,  # P1-UX2: what the caller may do on a record
