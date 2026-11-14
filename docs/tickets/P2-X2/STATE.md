@@ -3,8 +3,8 @@
 S1 p disp f - re-dispatched amendment 1 (explicit grants only); branch p2/x2-s1-filing-check
 S3 p mrg f a03515d2 stop switch; review P 3 LO; 52 P 2a; APPROVALS
 S2 p todo f - queue cap spec written r2; dispatch after S1 merged; setting gated (95)
-T01 t todo f - spec r2: routes + ApiClient stop/resume/stopped; ready (S3 merged)
-T02 t todo f - spec r2: tl agent stop/resume/stopped; ready (S3 merged)
+T01 t mrg f 0bcadd9c admin stop routes+client; 2s on wording only, orch fixed
+T02 t mrg f b0178386 tl agent stop|resume|stopped; 42 P
 T03 t todo f - accounts screen flag + held count; waits T01
 T04 t todo f - walks, AGENT_MAY_NOT rows; waits S1,S2,S3,T03
 T05 t todo f - demo driver dev/demos/P2-X2.sh; waits T02,T04
