@@ -87,11 +87,14 @@ def build_envelope(
     *,
     links: Sequence[Mapping[str, Any]] = (),
     record: Mapping[str, Any] | None = None,
+    detail: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The envelope for ``row`` in ``mode``.
 
     ``links`` are the subject's immediate links as ``{"rel", "id", "type", "key"}`` (``id`` a bare
     record id); they are rendered with URIs. ``record`` is the projection for ``full`` mode.
+    ``detail`` is the ledger payload as the audience may read it (the caller redacts it); it
+    defaults to the row's own.
     """
     origin_raw = row.data.get("origin", {})
     version = row.subject_version if row.subject_version is not None else row.stream_version
@@ -109,7 +112,7 @@ def build_envelope(
     if mode in ("delta", "full"):
         data["changes"] = dict(row.data.get("changes", {}))
         data["links"] = [_render_link(link, row, uris) for link in links]
-        data["detail"] = dict(row.data.get("detail", {}))
+        data["detail"] = dict(row.data.get("detail", {}) if detail is None else detail)
     if mode == "full":
         data["record"] = None if record is None else dict(record)
     return {

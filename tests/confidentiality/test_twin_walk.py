@@ -192,11 +192,47 @@ def _probe(world: World, tw: Twinning | None, reader: str, kind: str) -> list[Ca
     ]
 
 
+#: Leaks that were fixed: each is an ordinary case, not an xfail. (Its ``twin_channels.LEAKS`` entry
+#: and mask stay until that module's owner removes them; the case reads the bodies itself, so the
+#: mask cannot hide a regression, and the other leaks of the webhook channel do not matter here.)
+FIXED = {"webhook-target"}
+
+
+def _constraint_bodies(bodies: list[str]) -> list[str]:
+    return [b for b in bodies if json.loads(b)["type"].startswith("tl.core.Constraint.Raised")]
+
+
+@pytest.mark.parametrize("name", sorted(FIXED))
+def test_a_fixed_leak_shows_no_difference(name: str, new_db: object, tmp_path: Path) -> None:
+    """P2-WHR-S1: a constraint raised on a hidden target (a ``PAYLOAD_REFS`` field) reads the same
+    in every webhook mode whether the target is hidden (world A) or never existed (B): the
+    target fields are null in both, and the id of the target is not in the body."""
+    a, b, _, _ = _worlds(LEAKS[name].group, new_db, tmp_path)
+    try:
+        hooks = {"A": webhook_bodies(a), "B": webhook_bodies(b)}
+        secret = a.hidden.ids["restricted"]
+        for who in GROUPS[LEAKS[name].group]:
+            for mode in ("delta", "full"):
+                left = _constraint_bodies(hooks["A"][(who, mode)])
+                right = _constraint_bodies(hooks["B"][(who, mode)])
+                assert left, (who, mode)
+                assert secret not in "".join(left), (who, mode)
+                details = [json.loads(x)["data"]["detail"] for x in left]
+                assert all(d["target_id"] is None and d["target_kind"] is None for d in details)
+                twin = [json.loads(x)["data"]["detail"] for x in right]
+                assert [sorted(d) for d in details] == [sorted(d) for d in twin], (who, mode)
+                assert all(d["target_id"] is None for d in twin), (who, mode)
+    finally:
+        a.close()
+        b.close()
+
+
 @pytest.mark.parametrize(
     "name",
     [
         pytest.param(n, marks=pytest.mark.xfail(strict=True, reason=v.reason))
         for n, v in LEAKS.items()
+        if n not in FIXED
     ],
 )
 def test_known_leak(name: str, new_db: object, tmp_path: Path) -> None:
