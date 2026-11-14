@@ -10,7 +10,7 @@ T06 t mrg l 3cd8853 api-compat.md with Q1 rule
 T07 t mrg f 49a80b8 walk 5 readers + Q3 x3 green; hash drops expected_version; APPROVALS
 S2 p mrg f ac97d72 replay before budget+precheck; APPROVALS; pg at DONE
 T08 t mrg f 99d2021 demo 6 clauses sq+pg OK
-T09 t stg l - runbook + AGENTS rows; ready (T08 mrg)
+T09 t mrg l fc88788 runbook api-retries + AGENTS rows
 ## DEC
 D6 2026-11-14 T03b not ticketed: demo item 3 uses create_record via MCP (T03); module tools key-less; DEFERRED row added r4
 D1 2026-11-13 purge job deferred; setting kept, rows retained (DEFERRED row added r4)
