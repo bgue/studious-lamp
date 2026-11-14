@@ -1,0 +1,90 @@
+id: https://example.org/throughline/core/agent_stop
+name: tl_core_agent_stop
+title: Throughline agent stop switch (P2-X2, ADR-0029 decision 6)
+description: >-
+  An admin stops one agent and holds what it filed. `Agent.Stopped` and `Agent.Resumed` are events on the agent's
+  account stream (stream type `core.Account`, stream id `account:<account_id>`, scope `company`), so they are internal
+  like every `Account.*` event: the events API shows them to admins only. They carry the agent actor string and an
+  optional short reason, never record text. `cur_agent_stop` holds the current state of each agent that was ever
+  stopped; it is rebuilt from the ledger like any projection. Timestamps are ISO-8601 UTC strings; flags are 0/1.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - events
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  AgentStop:
+    description: >-
+      The stop state of one agent (`agent:<name>`). One row per agent that was ever stopped: a resume sets `stopped`
+      to 0 and keeps the row. Written by `Agent.Stopped` and `Agent.Resumed`.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_agent_stop
+    attributes:
+      agent:
+        identifier: true
+        required: true
+        description: The agent actor string, `agent:<name>`.
+      account_id:
+        range: Ulid
+        required: true
+        description: The agent's account.
+      stopped:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: 1 while stopped.
+        annotations:
+          tl:indexed: true
+      stopped_at:
+        description: ISO-8601 UTC of the last stop.
+      stopped_by:
+        description: Actor that stopped it.
+      reason:
+        description: Short reason given at the stop.
+      resumed_at:
+        description: ISO-8601 UTC of the last resume.
+      resumed_by:
+        description: Actor that resumed it.
+      last_seq:
+        range: integer
+        required: true
+
+  AgentStoppedPayload:
+    is_a: EventPayload
+    description: >-
+      An admin stopped an agent. New filings and accepts of its proposals are refused until `Agent.Resumed`. Internal:
+      never delivered to webhooks.
+    annotations:
+      tl:event_type: Agent.Stopped
+      tl:event_version: "1"
+    attributes:
+      agent:
+        required: true
+        description: "The agent actor string, `agent:<name>`."
+      reason:
+        description: "Short reason, no record text."
+    examples:
+      - value: "{\"agent\": \"agent:site-bot\", \"reason\": \"filing the wrong packages\"}"
+
+  AgentResumedPayload:
+    is_a: EventPayload
+    description: >-
+      An admin resumed a stopped agent. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: Agent.Resumed
+      tl:event_version: "1"
+    attributes:
+      agent:
+        required: true
+        description: "The agent actor string, `agent:<name>`."
+    examples:
+      - value: "{\"agent\": \"agent:site-bot\"}"

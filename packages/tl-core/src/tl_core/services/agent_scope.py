@@ -1,4 +1,7 @@
-"""What an agent may file (P2-X2). Seam stub: S1 fills ``check_filing``; S2 adds the queue cap here."""
+"""What an agent may file (P2-X2).
+
+Seam stub: S1 fills ``check_filing``; S2 adds the queue cap here.
+"""
 
 from __future__ import annotations
 

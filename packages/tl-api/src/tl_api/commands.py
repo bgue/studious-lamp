@@ -80,6 +80,12 @@ from tl_core.integration.rules.service import (
 )
 from tl_core.intent import check_intent, intent_scope, register_command_names
 from tl_core.services import idempotency, links, psets
+from tl_core.services.agent_stop import (
+    ResumeAgent,
+    StopAgent,
+    handle_resume_agent,
+    handle_stop_agent,
+)
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
@@ -218,6 +224,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(RegisterEnricher, handle_register_enricher, "admin"),
     CommandSpec(ReviseEnricher, handle_revise_enricher, "admin"),
     CommandSpec(SetEnricherEnabled, handle_set_enricher_enabled, "admin"),
+    # P2-X2: the per-agent stop switch is an admin's alone (an agent never runs it, ADR-0009)
+    CommandSpec(StopAgent, handle_stop_agent, "admin"),
+    CommandSpec(ResumeAgent, handle_resume_agent, "admin"),
     # a person runs an enricher on a record, accepts or rejects a value (the target type decides)
     CommandSpec(RunEnricher, handle_run_enricher),
     CommandSpec(AcceptEnrichment, handle_accept_enrichment),
