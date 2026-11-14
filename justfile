@@ -16,6 +16,10 @@ gen:
 compat-update:
     uv run python -m tl_schema.compat --update
 
+# Refresh the OpenAPI baseline (release step only; refuses a breaking change; P2-X1-T05)
+openapi-baseline:
+    uv run python -m tl_api.openapi --baseline
+
 # Lint, format check, types, and codegen drift (fails if `just gen` would change committed output)
 check:
     uv run ruff check .
@@ -24,6 +28,7 @@ check:
     uv run python -m tl_schema.generate --check
     uv run python -m tl_schema.compat --check
     uv run python -m tl_api.openapi --check
+    uv run python -m tl_api.openapi --compat
     uv run python dev/tools/check_licences.py
 
 # Unit and integration tests on SQLite
