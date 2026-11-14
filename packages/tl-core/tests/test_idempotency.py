@@ -13,6 +13,8 @@ from pydantic import ValidationError
 from sqlalchemy import Connection, text
 from tl_adapters.db import DbTarget, open_uow
 from tl_core import confidentiality as cf
+from tl_core.auth import accounts
+from tl_core.auth.queries import find_account
 from tl_core.ledger import Event
 from tl_core.modules import ConfidentialSource, ModuleSpec, use_modules
 from tl_core.services import idempotency
@@ -276,6 +278,12 @@ def test_the_key_is_in_no_log_record_and_no_error_text(
 
 
 def file_proposal(db: DbTarget, key: str | None, title: str = "A record") -> str:
+    with open_uow(db) as uow:  # an agent files only where it holds a module role (P2-X2)
+        if find_account(uow.conn(), username="bot") is None:
+            accounts.create_account(
+                uow, username="bot", display_name="bot", kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
     with open_uow(db) as uow:
         view = propose(
             uow, tool="create_record", agent="agent:bot",

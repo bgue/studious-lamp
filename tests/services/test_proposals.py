@@ -15,6 +15,7 @@ from tl_adapters.db import (
     open_uow,
     rebuild_projections,
 )
+from tl_core.auth import accounts
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
@@ -79,6 +80,17 @@ def flow() -> Iterator[None]:
 class World:
     def __init__(self, db: DbTarget) -> None:
         self.db = db
+        for name in (
+            "triage",
+            "bot",
+            "other",
+            "fresh",
+        ):  # an agent files only where it holds a module role (P2-X2)
+            with open_uow(db) as uow:
+                accounts.create_account(
+                    uow, username=name, display_name=name, kind="agent",
+                    roles=["user"], password=None, by="svc:test",
+                )  # fmt: skip
 
     def factory(self, readonly: bool = False) -> Any:
         return open_uow(self.db, readonly=readonly)

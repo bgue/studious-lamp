@@ -179,6 +179,22 @@ def _ensure_documents_actor(db: DbTarget) -> None:
         )
 
 
+def _ensure_agent_bot(db: DbTarget) -> None:
+    """Give ``agent:bot`` an account: an agent files only where it holds a module role (P2-X2)."""
+    with open_uow(db) as uow:
+        if find_account(uow.conn(), username="bot") is not None:
+            return
+        accounts.create_account(
+            uow,
+            username="bot",
+            display_name="Seed agent",
+            kind="agent",
+            roles=["user"],
+            password=None,
+            by="svc:test",
+        )
+
+
 def seed_hidden_world(
     db: DbTarget,
     service: FileService,
@@ -187,6 +203,7 @@ def seed_hidden_world(
     scope: str = "project:P123",
     twin: Twin | None = None,
 ) -> Hidden:
+    _ensure_agent_bot(db)
     cmd = _Cmd(actor="user:ctl", source="test", scope=scope)
     world = CorrWorld(db, objects / "corr")
     ids: dict[str, str] = {}

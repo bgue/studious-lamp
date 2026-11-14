@@ -9,6 +9,8 @@ from typing import Any
 import pytest
 from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
+from tl_core.auth import accounts
+from tl_core.auth.queries import find_account
 from tl_core.services import proposals
 from tl_core.services.commands import CreateRecord, UpdateRecord
 from tl_core.services.psets import SetPsetValues
@@ -46,6 +48,16 @@ def factory(env: dict[str, str]) -> Any:
     return open_one
 
 
+def ensure_agent(env: dict[str, str]) -> None:
+    """The agent's account (role user): an agent files only where it holds a module role."""
+    with open_uow(env["TL_DB"]) as uow:
+        if find_account(uow.conn(), username="triage") is None:
+            accounts.create_account(
+                uow, username="triage", display_name="triage", kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
+
+
 def propose_create(env: dict[str, str], key: str = KEY, scope: str = SCOPE) -> str:
     command = CreateRecord(
         actor=AGENT,
@@ -55,6 +67,7 @@ def propose_create(env: dict[str, str], key: str = KEY, scope: str = SCOPE) -> s
         title="Weld NCR",
         key=key,
     )
+    ensure_agent(env)
     view = proposals.submit(
         factory(env), tool="create_record", agent=AGENT, command=command, summary=f"Create {key}"
     )
@@ -227,6 +240,7 @@ def test_a_proposal_the_record_has_outgrown_fails_loudly_and_changes_nothing(
         layer="standard",
         values={"manufacturer": "Acme"},
     )
+    ensure_agent(env)
     view = proposals.submit(
         factory(env), tool="update_psets", agent=AGENT, command=command, summary="Set maker"
     )

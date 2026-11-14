@@ -19,6 +19,8 @@ from mcp_types import CallToolResult
 from tl_adapters.db import DbTarget, make_uow_factory
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_adapters.sqlite.uow import create_schema
+from tl_core.auth import accounts
+from tl_core.auth.queries import find_account
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 from tl_core.services.commands import CommandResult, CreateRecord
@@ -109,8 +111,26 @@ class McpHarness:
 
     # --- calling the server -----------------------------------------------------------------
 
+    def ensure_agent(self, actor: str = ACTOR) -> None:
+        """The agent's account (role user), made on first use: an agent files only where it holds
+        a module role (P2-X2). A test that made the account itself keeps its own."""
+        with self.factory(readonly=False) as uow:
+            if find_account(uow.conn(), username=actor.partition(":")[2]) is None:
+                accounts.create_account(
+                    uow, username=actor.partition(":")[2], display_name="agent", kind="agent",
+                    roles=["user"], password=None, by="svc:test",
+                )  # fmt: skip
+
+    def _writes(self, tool: str) -> bool:
+        """Whether ``tool`` is not read-only (only a filing needs the agent's account)."""
+        listed = {t.name: t for t in asyncio.run(self.server.list_tools())}
+        found = listed.get(tool)
+        return found is None or found.annotations is None or not found.annotations.read_only_hint
+
     def call(self, tool: str, **arguments: Any) -> CallToolResult:
         """Run a tool. A refusal raises ``ToolError`` as the SDK does before the transport."""
+        if self._writes(tool):
+            self.ensure_agent()
         result = asyncio.run(self.server.call_tool(tool, arguments))
         assert isinstance(result, CallToolResult)
         return result
@@ -130,6 +150,8 @@ class McpHarness:
         return content
 
     def wire_call(self, tool: str, **arguments: Any) -> CallToolResult:
+        if self._writes(tool):
+            self.ensure_agent()
         """The same call through an in-memory MCP client, errors included as results."""
 
         async def run() -> CallToolResult:

@@ -56,6 +56,7 @@ def test_the_same_key_from_two_agents_files_two_proposals(env: McpHarness, tmp_p
     mine = create(env, idempotency_key=KEY)
     other_server = build_server(env.factory, actor=OTHER_AGENT, lake_dir=tmp_path / "lake")
     other = McpHarness(env.db, env.factory, other_server)
+    other.ensure_agent(OTHER_AGENT)
     theirs = create(other, key="P123-REC-0043", idempotency_key=KEY)
     assert mine["proposal"]["agent"] != theirs["proposal"]["agent"]
     assert theirs["proposal"]["agent"] == OTHER_AGENT

@@ -22,6 +22,7 @@ from tl_adapters.db import DbTarget, make_uow_factory, open_uow
 from tl_api.auth import Forbidden
 from tl_core.auth import accounts
 from tl_core.auth.password import prepare_password
+from tl_core.auth.queries import find_account
 from tl_core.modules import ConfidentialSource, load_modules, use_modules
 from tl_core.services import proposals
 from tl_mcp.errors import MAX_PART
@@ -89,6 +90,12 @@ def world(db: DbTarget, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tupl
 def server_for(
     db: DbTarget, tmp_path: Path, actor: str = "agent:triage", hook: Hook | None = None
 ) -> MCPServer:
+    with open_uow(db) as uow:  # an agent files only where it holds a module role (P2-X2)
+        if find_account(uow.conn(), username=actor.partition(":")[2]) is None:
+            accounts.create_account(
+                uow, username=actor.partition(":")[2], display_name="agent", kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
     return build_server(
         make_uow_factory(db), actor=actor, authorize_hook=hook or Hook(), lake_dir=tmp_path / "lake"
     )

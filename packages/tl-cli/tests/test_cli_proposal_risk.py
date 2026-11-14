@@ -9,12 +9,24 @@ import pytest
 from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core import settings
+from tl_core.auth import accounts
+from tl_core.auth.queries import find_account
 from tl_core.services import proposals
 from tl_core.services.settings import ChangeSetting
 from typer.testing import CliRunner
 
 runner = CliRunner()
 AGENT = "agent:triage"
+
+
+def ensure_agent(db: str) -> None:
+    """The agent's account (role user): an agent files only where it holds a module role."""
+    with open_uow(db) as uow:
+        if find_account(uow.conn(), username="triage") is None:
+            accounts.create_account(
+                uow, username="triage", display_name="triage", kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
 
 
 @pytest.fixture
@@ -41,6 +53,7 @@ def propose(env: dict[str, str]) -> str:
     def factory(readonly: bool = False):  # type: ignore[no-untyped-def]
         return open_uow(env["TL_DB"], readonly=readonly)
 
+    ensure_agent(env["TL_DB"])
     return proposals.submit(
         factory, tool="propose_setting_change", agent=AGENT, command=command, summary="Allow hub"
     ).proposal_id
@@ -86,6 +99,7 @@ def test_a_user_layer_proposal_names_whose_preference_it_changes(env: dict[str, 
     def factory(readonly: bool = False):  # type: ignore[no-untyped-def]
         return open_uow(env["TL_DB"], readonly=readonly)
 
+    ensure_agent(env["TL_DB"])
     pid = proposals.submit(
         factory, tool="propose_setting_change", agent=AGENT, command=command, summary="vim for bob"
     ).proposal_id

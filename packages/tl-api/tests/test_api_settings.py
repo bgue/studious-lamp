@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 from fastapi.testclient import TestClient
-from harness import ALICE, BOB, Harness
+from harness import ALICE, BOB, Harness, ensure_agent
 from tl_api.tokens import add_token
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
@@ -310,6 +310,7 @@ def propose(h: Harness, **kw: Any) -> ProposalView:
         value=kw.pop("value", ["hub.example.com"]),
         reason="partner hub",
     )
+    ensure_agent(h)
     return proposals.submit(
         h.backend,
         tool="propose_setting_change",

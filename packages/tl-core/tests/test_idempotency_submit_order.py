@@ -7,6 +7,7 @@ from collections.abc import Iterator
 import pytest
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, make_uow_factory, open_uow
+from tl_core.auth import accounts
 from tl_core.proposals.types import ProposalView
 from tl_core.services.commands import CreateRecord
 from tl_core.services.errors import BudgetExceededError, DuplicateKeyError
@@ -21,6 +22,12 @@ AGENT = "agent:bot"
 
 @pytest.fixture
 def factory(db: DbTarget) -> Iterator[object]:
+    for name in ("bot", "other"):  # an agent files only where it holds a module role (P2-X2)
+        with open_uow(db) as uow:
+            accounts.create_account(
+                uow, username=name, display_name=name, kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
     made = make_uow_factory(db)
     try:
         yield made

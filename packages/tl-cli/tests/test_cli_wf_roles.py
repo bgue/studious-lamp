@@ -23,6 +23,7 @@ from tl_cli import session
 from tl_cli.main import app
 from tl_core.auth import accounts, sessions
 from tl_core.auth.password import prepare_password
+from tl_core.auth.queries import find_account
 from tl_core.services import proposals
 from tl_core.services.workflow import TransitionWorkflow
 from typer.testing import CliRunner
@@ -33,6 +34,18 @@ PASSWORD = "correct horse battery"
 P = "P123"
 SCOPE = f"project:{P}"
 AGENT = "agent:triage"
+
+
+def ensure_agent(db: str) -> None:
+    """The agent's account (role user): an agent files only where it holds a module role."""
+    with open_uow(db) as uow:
+        if find_account(uow.conn(), username="triage") is None:
+            accounts.create_account(
+                uow, username="triage", display_name="triage", kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
+
+
 CLAIM_REFUSED = "does not hold it"
 runner = CliRunner()
 
@@ -263,6 +276,7 @@ def propose_issue(cast: Cast, key: str) -> str:
         actor=AGENT, source="mcp:triage", scope=SCOPE, stream_id=row.id,
         expected_version=row.version, transition="issue",
     )  # fmt: skip
+    ensure_agent(cast.base["TL_DB"])
     made = proposals.submit(
         factory, tool="transition_workflow", agent=AGENT, command=command, summary="Issue it"
     )

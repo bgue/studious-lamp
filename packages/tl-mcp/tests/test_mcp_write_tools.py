@@ -36,7 +36,11 @@ PROPOSING = (
 def events(env: McpHarness, event_type: str | None = None) -> list[Any]:
     with env.factory(True) as uow:
         found = uow.ledger.read_after(0, limit=1000)
-    return [e for e in found if event_type is None or e.event_type == event_type]
+    return [
+        e
+        for e in found
+        if (event_type is None and e.event_type != "Account.Created") or e.event_type == event_type
+    ]  # the agent's account (made on first use by the harness) is not the filing under test
 
 
 def accept(env: McpHarness, proposal_id: str) -> ProposalView:

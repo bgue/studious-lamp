@@ -9,6 +9,8 @@ import pytest
 from pydantic import ValidationError
 from settings_world import ALICE, P1, SRC, World, future
 from tl_adapters.db import open_uow
+from tl_core.auth import accounts
+from tl_core.auth.queries import find_account
 from tl_core.proposals.types import PROPOSABLE_TOOLS
 from tl_core.services import proposals
 from tl_core.services.errors import (
@@ -48,7 +50,18 @@ def run(world: World, cmd: ChangeSetting) -> Any:
         return handle_change_setting(uow, cmd)
 
 
+def ensure_agent(world: World) -> None:
+    """The agent's account (role user): an agent files only where it holds a module role."""
+    with open_uow(world.db) as uow:
+        if find_account(uow.conn(), username="triage") is None:
+            accounts.create_account(
+                uow, username="triage", display_name="triage", kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
+
+
 def propose(world: World, cmd: ChangeSetting, **kw: Any) -> Any:
+    ensure_agent(world)
     return proposals.submit(
         world.factory,
         tool=TOOL,
@@ -134,7 +147,7 @@ def test_a_proposal_changes_nothing_until_a_person_accepts(world: World) -> None
     assert done.status == "accepted"
     assert world.value("t.limit", project="P1") == 30
     changed = [e for e in world.events() if e.event_type == SETTING_CHANGED][0]
-    created = world.events()[0]
+    created = [e for e in world.events() if e.event_type == "Proposal.Created"][0]
     assert (changed.actor, changed.source) == (ALICE, "mcp:triage")
     assert changed.causation_id == created.event_id
     assert changed.correlation_id == view.proposal_id
@@ -224,6 +237,7 @@ def test_other_proposals_have_no_setting_info(world: World) -> None:
     command = CreateRecord(
         actor=AGENT, source="mcp:triage", scope=P1, record_type="core.Record", title="t", key="K-1"
     )
+    ensure_agent(world)
     shown = proposals.submit(
         world.factory, tool="create_record", agent=AGENT, command=command, summary="x"
     )

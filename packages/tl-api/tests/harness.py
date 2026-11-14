@@ -27,6 +27,8 @@ from tl_api.app import create_app
 from tl_api.client import ApiClient
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore, add_token
+from tl_core.auth import accounts
+from tl_core.auth.queries import find_account
 from tl_core.files.scan import Scanner
 from tl_core.files.service import FileService
 from tl_core.services.commands import CommandResult, CreateRecord
@@ -41,6 +43,17 @@ BOB = "user:bob"
 class LiveServer:
     base_url: str
     token: str
+
+
+def ensure_agent(h: Harness, actor: str = "agent:triage") -> None:
+    """The agent's account (role user): an agent files only where it holds a module role (P2-X2)."""
+    name = actor.partition(":")[2]
+    with h.backend(False) as uow:
+        if find_account(uow.conn(), username=name) is None:
+            accounts.create_account(
+                uow, username=name, display_name=name, kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
 
 
 @dataclass
