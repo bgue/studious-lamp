@@ -1,10 +1,10 @@
 """scope section of P200 (P2-SEED-T11): scope items for the IWPs that are Ready, before release.
 
 Every IWP in the Ready state gets 3-6 scope items: each item is created (``CreateScopeItem``, by the
-project engineer, who edits IWPs) with a commodity of the company's list, a quantity, a unit, the
-estimated hours and the work package of its IWP; then they are added to the IWP in one
-``AddIwpScope`` command. Scope is added before release, because a frozen IWP (Issued and later)
-takes no scope.
+project engineer, who edits IWPs) with a commodity of the company's list, a quantity, a unit of the
+UnitOfMeasure list (``data/standards.yaml``), the estimated hours and the work package of its IWP;
+then they are added to the IWP in one ``AddIwpScope`` command. Scope is added before release,
+because a frozen IWP (Issued and later) takes no scope.
 
 Commodities are the demo list (``data/awp/standards.yaml``). Only ``piping`` has its own rules of
 credit with a ``manual`` step; the other commodities of the list use the piping steps (rule 2 of
@@ -28,9 +28,16 @@ from dev.seed.demo_project.world import TODAY, World
 
 #: the editor of the IWPs (awp.iwp.edit): the project engineer, an awp superuser in the roster
 EDITOR = "lhartmann"
-#: commodities of the demo list (``data/awp/standards.yaml``, ``Commodity``)
-COMMODITIES = ("piping", "structural-steel", "insulation", "electrical", "mechanical-equipment")
-UNIT = "m"  # a unit of the company list
+#: commodities of the demo list (``data/awp/standards.yaml``, ``Commodity``), each with a unit of
+#: the UnitOfMeasure list (``data/standards.yaml``)
+UNIT_OF = {
+    "piping": "m",
+    "structural-steel": "kg",
+    "insulation": "m3",
+    "electrical": "m",
+    "mechanical-equipment": "kg",
+}
+COMMODITIES = tuple(UNIT_OF)
 ITEMS_MIN = 3
 ITEMS_MAX = 6
 SCOPE_DAY_OFFSET = 6  # the scope is entered six days before TODAY, before the sign-offs
@@ -65,7 +72,7 @@ def build(world: World, rng: random.Random) -> None:
                     commodity=commodity,
                     description=f"{commodity.replace('-', ' ')} line {n:02d} of {key}",
                     qty=str(rng.randrange(10, 400)),
-                    uom=UNIT,
+                    uom=UNIT_OF[commodity],
                     est_hours=f"{hours:.1f}",
                     cwp_id=cwp,
                 )
