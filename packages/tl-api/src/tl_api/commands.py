@@ -79,7 +79,7 @@ from tl_core.integration.rules.service import (
     handle_revise_rule,
 )
 from tl_core.intent import check_intent, intent_scope, register_command_names
-from tl_core.services import links, psets
+from tl_core.services import idempotency, links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
@@ -89,6 +89,7 @@ from tl_core.services.feed_actions import (
     handle_react_to_post,
     handle_retract_post,
 )
+from tl_core.services.idempotency import InvalidIdempotencyKeyError
 from tl_core.services.proposals import source_for
 from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.reserved import refuse_reserved, refuse_reserved_fields, refuse_role_claim
@@ -353,17 +354,27 @@ def run_command(
         require_command_access(uow.conn(), command, holder=holder_for_principal(principal))
         # after the access decision, so an intent never changes it; a bad intent refuses the whole
         # command before the handler runs (ADR-0025 d4)
+        replay = idempotency.check(
+            uow.conn(), actor, command.idempotency_key, spec.name, command
+        )  # the claim is in this transaction: it commits with the events or not at all
+        if replay is not None:
+            return idempotency.replay_result(uow.conn(), replay, viewer_for(principal))
         command = check_intent(command, uow.conn(), viewer_for(principal))
         with intent_scope(command.intent):
             if spec.needs_holds:
                 from tl_api.routes.proposals import holds_access
 
-                return cast(Any, spec.handler)(
+                result = cast(Any, spec.handler)(
                     uow, command, holds=lambda level: holds_access(principal, actor, level)
                 )
-            if spec.takes_roles:
-                return cast(Any, spec.handler)(uow, command, roles=workflow_roles(principal))
-            return spec.handler(uow, command)
+            elif spec.takes_roles:
+                result = cast(Any, spec.handler)(uow, command, roles=workflow_roles(principal))
+            else:
+                result = spec.handler(uow, command)
+            idempotency.record(
+                uow.conn(), actor, command.idempotency_key, idempotency.result_ids_of(result)
+            )
+            return result
 
 
 def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[..., CommandResult]:
@@ -384,9 +395,26 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
                 "scope is a 400 `effective_time_forbidden`.",
             ),
         ] = None,
+        idempotency_key: Annotated[
+            str | None,
+            Header(
+                alias="Idempotency-Key",
+                description="Optional idempotency key (1 to 128 printable ASCII characters, no "
+                "space). The same key with the same body replays the first result; the same key "
+                "with another body is a 409 `idempotency_mismatch`. The body field "
+                "`idempotency_key` works too; if both are given they must be equal.",
+            ),
+        ] = None,
     ) -> CommandResult:
         ctx = get_ctx(request)
         fields = body.model_dump()
+        if idempotency_key is not None:  # the header is the documented way (decision D4)
+            body_key = fields.get("idempotency_key")
+            if body_key is not None and body_key != idempotency_key:
+                raise InvalidIdempotencyKeyError(
+                    "Idempotency-Key header and body idempotency_key differ"
+                )
+            fields["idempotency_key"] = idempotency_key
         if actor.startswith("agent:"):  # an agent cannot claim another source (brief 18.12)
             fields["source"] = source_for(actor)
         command = spec.model(**fields, actor=actor)
@@ -499,16 +527,31 @@ class TableCommandRunner:
                 raise CommandAccessError(str(exc)) from exc
         else:  # a core command, or automation (a service actor keeps its declared access)
             held = require_access(uow.conn(), command.actor, needed, spec.name)
+        if spec.needs_holds and held is None:
+            # no module command takes ``holds`` today; fail closed if one does
+            raise CommandAccessError(f"{spec.name}: its access depends on its content")
+        replay = idempotency.check(
+            uow.conn(), command.actor, command.idempotency_key, spec.name, command
+        )  # automation passes no key today; one set is honoured the same way as at the door
+        if replay is not None:
+            from tl_core.integration.actor_access import viewer_of
+
+            return idempotency.replay_result(
+                uow.conn(), replay, viewer_of(uow.conn(), command.actor)
+            )
         if spec.needs_holds:
-            if held is None:  # no module command takes ``holds`` today; fail closed if one does
-                raise CommandAccessError(f"{spec.name}: its access depends on its content")
-            return cast(Any, spec.handler)(uow, command, holds=holds_for(held))
-        if spec.takes_roles:
+            result = cast(Any, spec.handler)(uow, command, holds=holds_for(cast(Any, held)))
+        elif spec.takes_roles:
             # the roles of the command's own actor, from the ledger: a person's account, nothing
             # for a service actor (a workflow guard on a role fails closed for automation)
             roles = workflow_roles_of(uow.conn(), command.actor)
-            return cast(Any, spec.handler)(uow, command, roles=roles)
-        return spec.handler(uow, command)
+            result = cast(Any, spec.handler)(uow, command, roles=roles)
+        else:
+            result = spec.handler(uow, command)
+        idempotency.record(
+            uow.conn(), command.actor, command.idempotency_key, idempotency.result_ids_of(result)
+        )
+        return result
 
 
 def command_runner() -> TableCommandRunner:

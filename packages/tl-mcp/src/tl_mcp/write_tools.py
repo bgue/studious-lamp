@@ -84,6 +84,13 @@ ExpectedVersion = Annotated[
         "the version now. If the record changes before a person accepts, the proposal fails.",
     ),
 ]
+IdempotencyKey = Annotated[
+    str | None,
+    Field(
+        description="Optional. Retrying with the same key (same arguments) returns the first "
+        "proposal instead of filing another.",
+    ),
+]
 
 
 class ProposalResult(BaseModel):
@@ -146,6 +153,7 @@ def create_record_impl(
     numbering: dict[str, str] | None,
     summary: str | None,
     intent: Intent | None = None,
+    idempotency_key: str | None = None,
 ) -> ProposalResult:
     check_json("psets", psets or {})
     command = CreateRecord(
@@ -159,6 +167,7 @@ def create_record_impl(
         psets=psets or {},
         numbering=numbering or {},
         intent=intent,
+        idempotency_key=idempotency_key,
     )
     line = summary or f"Create {record_type} {_short(title)!r} in {scope}"
     view = proposals.submit(
@@ -178,6 +187,7 @@ def update_psets_impl(
     expected_version: int | None,
     summary: str | None,
     intent: Intent | None = None,
+    idempotency_key: str | None = None,
 ) -> ProposalResult:
     check_json("values", values)
     found = _envelope(ctx, record, scope)
@@ -191,6 +201,7 @@ def update_psets_impl(
         layer=layer,
         values=values,
         intent=intent,
+        idempotency_key=idempotency_key,
     )
     label = found["key"] or found["id"]
     line = summary or f"Set {pset} on {label}: {_short(', '.join(sorted(values)))}"
@@ -210,6 +221,7 @@ def link_records_impl(
     note: str | None,
     summary: str | None,
     intent: Intent | None = None,
+    idempotency_key: str | None = None,
 ) -> ProposalResult:
     with ctx.factory(True) as uow:
         from_id = resolve_record_id(uow, from_record, scope)
@@ -225,6 +237,7 @@ def link_records_impl(
         relation=relation,
         note=note,
         intent=intent,
+        idempotency_key=idempotency_key,
     )
     line = summary or f"Link {_short(from_record)} to {_short(to_record)}" + (
         f" ({relation})" if relation else ""
@@ -245,6 +258,7 @@ def transition_workflow_impl(
     reason: str | None,
     summary: str | None,
     intent: Intent | None = None,
+    idempotency_key: str | None = None,
 ) -> ProposalResult:
     found = _envelope(ctx, record, scope)
     command = TransitionWorkflow(
@@ -256,6 +270,7 @@ def transition_workflow_impl(
         transition=transition,
         reason=reason,
         intent=intent,
+        idempotency_key=idempotency_key,
     )
     label = found["key"] or found["id"]
     line = summary or f"Run transition {transition!r} on {label}"
@@ -276,6 +291,7 @@ def propose_setting_change_impl(
     applies_at: str | None,
     summary: str | None,
     intent: Intent | None = None,
+    idempotency_key: str | None = None,
 ) -> ProposalResult:
     check_json("value", value)
     ref = parse_layer(layer)
@@ -296,6 +312,7 @@ def propose_setting_change_impl(
         reason=reason,
         applies_at=when,
         intent=intent,
+        idempotency_key=idempotency_key,
     )
     shown = "reset" if reset else f"set to {_short(format_value(value, max_items=5))}"
     line = summary or f"Change setting {key} at {ref.name}: {shown}"
@@ -361,6 +378,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
         ] = None,
         intent: IntentParam = None,
         summary: Summary = None,
+        idempotency_key: IdempotencyKey = None,
     ) -> ProposalResult:
         """Propose a new record. A person must accept the proposal before the record exists.
 
@@ -379,6 +397,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 numbering=numbering,
                 summary=summary,
                 intent=intent,
+                idempotency_key=idempotency_key,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -402,6 +421,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
         expected_version: ExpectedVersion = None,
         intent: IntentParam = None,
         summary: Summary = None,
+        idempotency_key: IdempotencyKey = None,
     ) -> ProposalResult:
         """Propose property values for a record. A person must accept before anything changes.
 
@@ -419,6 +439,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 expected_version=expected_version,
                 summary=summary,
                 intent=intent,
+                idempotency_key=idempotency_key,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -436,6 +457,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
         note: Annotated[str | None, Field(max_length=MAX_NOTE)] = None,
         intent: IntentParam = None,
         summary: Summary = None,
+        idempotency_key: IdempotencyKey = None,
     ) -> ProposalResult:
         """Propose a link between two records. A person must accept before the link exists."""
         with guarded(ctx, "link_records", resource_name("record", from_record)):
@@ -448,6 +470,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 note=note,
                 summary=summary,
                 intent=intent,
+                idempotency_key=idempotency_key,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -459,6 +482,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
         reason: Annotated[str | None, Field(max_length=MAX_NOTE)] = None,
         intent: IntentParam = None,
         summary: Summary = None,
+        idempotency_key: IdempotencyKey = None,
     ) -> ProposalResult:
         """Propose a workflow transition. A person must accept before the record moves.
 
@@ -475,6 +499,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 reason=reason,
                 summary=summary,
                 intent=intent,
+                idempotency_key=idempotency_key,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -511,6 +536,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
         ] = None,
         intent: IntentParam = None,
         summary: Summary = None,
+        idempotency_key: IdempotencyKey = None,
     ) -> ProposalResult:
         """Propose a settings change. A person must accept before the setting changes.
 
@@ -529,6 +555,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 applies_at=applies_at,
                 summary=summary,
                 intent=intent,
+                idempotency_key=idempotency_key,
             )
 
     @server.tool(annotations=POSTS)

@@ -6,12 +6,15 @@ import re
 from collections.abc import Iterable
 from typing import Any, cast
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from tl_core.intent import Intent
 from tl_core.ledger import Event
 
 _SCOPE_PATTERN = re.compile(r"(?:company|project:[A-Za-z0-9_.-]+)")
+#: An idempotency key: printable ASCII without a space, 1 to 128 characters (P2-X1).
+KEY_PATTERN = re.compile(r"[\x21-\x7e]{1,128}")
+KEY_REFUSED = "idempotency key must be 1 to 128 printable ASCII characters"
 
 
 def contains_nul(value: Any) -> bool:
@@ -38,13 +41,23 @@ def contains_nul(value: Any) -> bool:
 
 
 class Command(BaseModel):
+    # a refused idempotency key must not come back in the error text (P2-X1)
+    model_config = ConfigDict(hide_input_in_errors=True)
+
     actor: str
     source: str
     scope: str  # must match ^(company|project:[A-Za-z0-9_.-]+)$
     correlation_id: str | None = None
     causation_id: str | None = None
-    idempotency_key: str | None = None  # accepted and ignored in this increment
+    idempotency_key: str | None = None  # ASCII 1..128; the API door and `propose` honour it
     intent: Intent | None = None
+
+    @field_validator("idempotency_key")
+    @classmethod
+    def check_idempotency_key(cls, value: str | None) -> str | None:
+        if value is not None and KEY_PATTERN.fullmatch(value) is None:
+            raise ValueError(KEY_REFUSED)  # never the key itself
+        return value
 
     @field_validator("scope")
     @classmethod
