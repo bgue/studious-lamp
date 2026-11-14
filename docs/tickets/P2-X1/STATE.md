@@ -11,6 +11,7 @@ T07 t mrg f 49a80b8 walk 5 readers + Q3 x3 green; hash drops expected_version; A
 S2 p mrg f ac97d72 replay before budget+precheck; APPROVALS; pg at DONE
 T08 t mrg f 99d2021 demo 6 clauses sq+pg OK
 T09 t mrg l fc88788 runbook api-retries + AGENTS rows
+S3 p disp f - SR-X1 F1 HI replay through event filter; F2 MCP key echo; F7 runbook
 ## DEC
 D6 2026-11-14 T03b not ticketed: demo item 3 uses create_record via MCP (T03); module tools key-less; DEFERRED row added r4
 D1 2026-11-13 purge job deferred; setting kept, rows retained (DEFERRED row added r4)
@@ -19,6 +20,13 @@ D4 2026-11-13 header Idempotency-Key and body field both allowed; differ -> 422 
 D5 2026-11-13 T03 covers write_tools.py five tools; module tools (punch, requisition, awp, thread, correspondence, derivation, materials, schedule, iwp) = T03b later; API has no agent create route, only accept/reject
 D3 2026-11-13 proposal rule and action paths keep key None; only agent `propose` takes a key
 ## SEC
+F1 HI open replay returns raw stored events (link to hidden record) -> S3
+F2 MD open MCP key max_length echoes truncated key -> S3
+F3 MD open webhook envelopes never apply PAYLOAD_REFS (pre-existing; I6 entries) -> follow-up piece
+F4 LO open replayed proposal with hidden id answers proposal_not_found, not record_not_found
+F5 LO open MTO.Defined redacted ids become null (shape no real event has) -> DEFERRED
+F6 LO open baseline refresh not tied to an APPROVALS line by tooling; response $ref switch not diffed -> DEFERRED
+F7 LO open reused key with newer expected_version replays older result -> S3 runbook line
 none yet; SR-X1 at DONE: S1, T01, T03, T07 plus I6 B2, T02
 ## OPEN
 Q3 closed: S2 + orchestrator hash fix; T07 Q3 x3 green
