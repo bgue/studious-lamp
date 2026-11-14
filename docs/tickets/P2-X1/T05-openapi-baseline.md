@@ -84,3 +84,10 @@ Standard report. Quote the failure message for one removed field. Say the baseli
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+The full document is 2.74 MB, over the 2 MB stop. Decision: the baseline stores only what `diff_openapi` reads.
+- `"openapi"` holds the document with every `description`, `summary`, `title`, `example` and `examples` key removed at any depth (a helper in `openapi.py`, applied identically when building the baseline and when comparing, so the compare is like for like).
+- Written with `json.dumps(..., indent=1, sort_keys=True)` plus a trailing newline; `"errors"` unchanged.
+- The size stop becomes 3 MB. If the stripped file is still over 3 MB, stop and report the size.
+- Then commit `docs/reference/openapi.baseline.json`, add `just openapi-baseline`, and the step in `just check`, as the ticket says.
