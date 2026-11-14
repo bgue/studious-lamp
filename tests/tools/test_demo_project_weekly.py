@@ -17,7 +17,7 @@ from sqlalchemy import text
 from tl_adapters.db import open_uow
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_SECTIONS = "core,engineering,awp,constraints,scope,release"
+BASE_SECTIONS = "core,engineering,awp,constraints,release"
 WEEKLY_SECTIONS = f"{BASE_SECTIONS},weekly"
 PLAN_TYPE = "awp.WeeklyPlan"
 
