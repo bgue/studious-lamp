@@ -26,6 +26,7 @@ from tl_core.intent import IntentInvalid, IntentReferenceUnknown
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
+from tl_core.services import idempotency as idem
 from tl_core.threads import errors as thr
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
@@ -37,6 +38,7 @@ from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
 from tl_mod_legacy import errors as legacy
 from tl_mod_materials import errors as mat
+from tl_mod_quality import errors as qual
 from tl_mod_requisitions import errors as req
 from tl_mod_schedule import errors as sched
 from tl_mod_schemareg import errors as sreg
@@ -78,6 +80,10 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.LayerError, "layer_error", 422),
         s(svc.PsetValidationError, "pset_validation", 422),
         s(svc.InvalidScopeError, "invalid_scope", 422),
+        # --- idempotency keys (P2-X1) --------------------------------------------------------
+        s(idem.InvalidIdempotencyKeyError, "invalid_idempotency_key", 422),
+        s(idem.IdempotencyMismatch, "idempotency_mismatch", 409),
+        s(idem.IdempotencyInProgress, "idempotency_in_progress", 409),
         # --- links ---------------------------------------------------------------------------
         s(svc.LinkNotFoundError, "link_not_found", 404),
         s(svc.InvalidLinkTransitionError, "invalid_link_transition", 409),
@@ -389,6 +395,12 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(req.RequisitionRuleError, "requisition_rule", 422),
         s(req.RequisitionStateError, "requisition_state", 409),
         s(req.StaleVersionError, "requisition_stale_version", 409),
+        # --- quality module (P2-PUNCH): punch items ---------------------------------------------
+        s(qual.QualityError, "quality_error", 422),
+        s(qual.QualityScopeError, "quality_scope", 422),
+        s(qual.PunchRuleError, "punch_rule", 422),
+        s(qual.PunchStateError, "punch_state", 409),
+        s(qual.StaleVersionError, "punch_stale_version", 409),
     )
 
 

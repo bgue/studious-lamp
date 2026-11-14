@@ -56,6 +56,7 @@ Classes:
 | `materials.ProjectItem` | Project item | `none` | Online only. |
 | `materials.Receipt` | Receipt | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `materials.StockLot` | Stock lot | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `quality.PunchItem` | Punch item | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `requisitions.GeneralRequisition` | General requisition | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `requisitions.LaborRequisition` | Labour requisition | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `requisitions.MaterialRequisition` | Material requisition | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |

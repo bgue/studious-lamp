@@ -65,6 +65,16 @@ MATERIALS = {
     "materials.mto.publish": "controller",
     "materials.mto.assign": "user",
 }
+#: The seven words of the punch list (P2-PUNCH S1); an assignment is an edit (no assign word).
+QUALITY = {
+    "quality.view": "read",
+    "quality.punch.raise": "user",
+    "quality.punch.edit": "user",
+    "quality.punch.clear": "user",
+    "quality.punch.verify": "controller",
+    "quality.punch.reopen": "controller",
+    "quality.punch.void": "controller",
+}
 #: The twelve words of the requisitions module (P2-I4A S1): approval is one word, no chain.
 REQUISITIONS = {
     "requisitions.view": "read",
@@ -83,17 +93,18 @@ REQUISITIONS = {
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_50_words() -> None:
+def test_the_shipped_table_loads_57_words() -> None:
     words = load_access_words()
     expected = (
         len(AWP)
         + len(AWP_IWP)
         + len(CORE_CONSTRAINT)
         + len(MATERIALS)
+        + len(QUALITY)
         + len(AWP_WEEK)
         + len(REQUISITIONS)
     )
-    assert len(words) == 50 == expected
+    assert len(words) == 57 == expected
     assert "awp.constraint.edit" not in words
 
 
@@ -104,6 +115,7 @@ def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> 
         **AWP_IWP,
         **CORE_CONSTRAINT,
         **MATERIALS,
+        **QUALITY,
         **AWP_WEEK,
         **REQUISITIONS,
     }.items():

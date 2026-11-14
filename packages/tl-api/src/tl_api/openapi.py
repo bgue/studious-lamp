@@ -1,7 +1,15 @@
-"""The committed OpenAPI document and its drift check (`just check`).
+"""The committed OpenAPI document, its drift check, and the release baseline (`just check`).
 
     uv run python -m tl_api.openapi            # write docs/reference/openapi.json
     uv run python -m tl_api.openapi --check    # exit 1 when the committed file is out of date
+    uv run python -m tl_api.openapi --compat   # exit 1 on a breaking change against the baseline
+    uv run python -m tl_api.openapi --baseline # refresh the baseline (release step; refuses breaks)
+
+The baseline (`docs/reference/openapi.baseline.json`) holds the document, with prose and examples
+removed (`strip_prose`, the same on both sides of the compare), and the error codes with their
+statuses. It is refreshed only as a release step: a breaking change between releases needs
+an `APPROVALS.md` line naming what breaks and a note in `api-compat.md`, and removals are
+deprecated for at least one release first. Additive changes pass without a refresh.
 
 The document is built from the routes alone: the app is created over a backend that fails if it
 is ever used, so generation needs no database, no token file and no environment.
@@ -19,11 +27,23 @@ from typing import Any, NoReturn
 from tl_core.bus import Bus
 from tl_core.ledger import Ledger
 from tl_core.uow import UnitOfWork
+from tl_schema.compat import diff_openapi
 
 from tl_api.app import create_app
+from tl_api.errors import ERROR_TABLE
 
 #: Repository-relative location of the committed document.
 OPENAPI_PATH = Path("docs/reference/openapi.json")
+
+#: Repository-relative location of the release baseline (document plus error codes).
+BASELINE_PATH = Path("docs/reference/openapi.baseline.json")
+
+#: The rule every breaking-change refusal ends with (one sentence).
+RULE = (
+    "The baseline is refreshed only as a release step: a breaking change between releases needs "
+    "an APPROVALS.md line naming what breaks and a note in api-compat.md, and removals are "
+    "deprecated for at least one release first."
+)
 
 
 class _UnusedBackend:
@@ -58,12 +78,100 @@ def render() -> str:
     return json.dumps(build_openapi(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
+#: Keys the baseline does not store: prose and examples, which the compat diff never reads.
+PROSE_KEYS = frozenset({"description", "summary", "title", "example", "examples"})
+
+#: Keys whose value maps author-chosen names to nodes. A name there (a field called ``title``)
+#: is data, so it is kept; only the node under it is stripped.
+NAME_MAP_KEYS = frozenset(
+    {
+        "properties",
+        "patternProperties",
+        "dependentSchemas",
+        "$defs",
+        "definitions",
+        "schemas",
+        "paths",
+        "responses",
+        "parameters",
+        "requestBodies",
+        "headers",
+        "securitySchemes",
+        "links",
+        "callbacks",
+        "content",
+        "encoding",
+        "mapping",
+        "variables",
+    }
+)
+
+
+def strip_prose(node: Any) -> Any:
+    """A copy of a document with ``PROSE_KEYS`` removed at any depth (P2-X1-T05 amendment)."""
+    if isinstance(node, list):
+        return [strip_prose(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    out: dict[str, Any] = {}
+    for key, value in node.items():
+        if key in PROSE_KEYS:
+            continue
+        if key in NAME_MAP_KEYS and isinstance(value, dict):
+            out[key] = {name: strip_prose(item) for name, item in value.items()}
+        else:
+            out[key] = strip_prose(value)
+    return out
+
+
+def baseline_document() -> dict[str, Any]:
+    """The current document (prose stripped) and error codes, in the baseline's shape."""
+    return {
+        "openapi": strip_prose(build_openapi()),
+        "errors": {spec.error: spec.status for spec in ERROR_TABLE},
+    }
+
+
+def render_baseline(document: dict[str, Any]) -> str:
+    """A baseline as committed: sorted keys, one-space indent, trailing newline."""
+    return json.dumps(document, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def breaking_changes(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
+    """One line per breaking change: API diff, then removed or re-statused error codes."""
+    lines = diff_openapi(strip_prose(baseline.get("openapi", {})), current["openapi"])
+    old_codes: dict[str, int] = baseline.get("errors", {})
+    new_codes: dict[str, int] = current["errors"]
+    for code in sorted(old_codes):
+        if code not in new_codes:
+            lines.append(f"error {code}: removed")
+        elif new_codes[code] != old_codes[code]:
+            lines.append(f"error {code}: status {old_codes[code]} -> {new_codes[code]}")
+    return lines
+
+
 def repo_root() -> Path:
     here = Path(__file__).resolve()
     for parent in here.parents:
         if (parent / "justfile").exists():
             return parent
     raise RuntimeError("cannot find the repository root (no justfile above this file)")
+
+
+def _baseline_file() -> Path:
+    # An absolute BASELINE_PATH replaces the repository root, which the tests rely on.
+    return repo_root() / BASELINE_PATH
+
+
+def _load(path: Path) -> dict[str, Any]:
+    loaded: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return loaded
+
+
+def _report_breaks(problems: list[str]) -> None:
+    for line in problems:
+        print(line, file=sys.stderr)
+    print(RULE, file=sys.stderr)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -80,8 +188,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 1
         return 0
+    if args == ["--compat"]:
+        baseline_file = _baseline_file()
+        if not baseline_file.exists():
+            print(
+                f"{BASELINE_PATH} is missing; the baseline is written only as a release step "
+                "(`just openapi-baseline`)",
+                file=sys.stderr,
+            )
+            return 1
+        problems = breaking_changes(_load(baseline_file), baseline_document())
+        if problems:
+            _report_breaks(problems)
+            return 1
+        return 0
+    if args == ["--baseline"]:
+        baseline_file = _baseline_file()
+        current_document = baseline_document()
+        if baseline_file.exists():
+            problems = breaking_changes(_load(baseline_file), current_document)
+            if problems:
+                _report_breaks(problems)
+                return 1
+        baseline_file.parent.mkdir(parents=True, exist_ok=True)
+        baseline_file.write_text(render_baseline(current_document), encoding="utf-8")
+        print(f"wrote {BASELINE_PATH}")
+        return 0
     if args:
-        print("usage: python -m tl_api.openapi [--check]", file=sys.stderr)
+        print("usage: python -m tl_api.openapi [--check | --compat | --baseline]", file=sys.stderr)
         return 2
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(fresh, encoding="utf-8")

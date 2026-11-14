@@ -35,7 +35,8 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # item commands: 10, the 4 constraint commands having left for the core; S3 sign-off, issue
     # and hold: 4; P2-I5 S2 progress and field lifecycle: 6; S4a weekly plan: 4) and the materials
     # module (P2-I3: 22 + the 2 take-off commands) and the 4 core constraint commands (P2-I2 C2)
-    counts = (20, 14, 24, 10, 1, 6, 28, 4, 3, 5, 6, 1, 3, 19, 14, 25, 10, 4, 6, 4, 24, 4)
+    # and the quality module's six punch commands (P2-PUNCH S2)
+    counts = (20, 14, 24, 10, 1, 6, 28, 4, 3, 5, 6, 1, 3, 19, 14, 25, 10, 4, 6, 4, 24, 4, 6)
     assert len(COMMANDS) == sum(counts)
 
 
@@ -310,6 +311,10 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "AdjustStock",
             "ScrapStock",
             "PublishDerivedMto",
+            # the quality module (P2-PUNCH): verify, reopen and void are controller words
+            "VerifyPunchItem",
+            "ReopenPunchItem",
+            "VoidPunchItem",
         )
     }
     assert {s.name for s in COMMANDS if effective_access(s) == "controller"} == {

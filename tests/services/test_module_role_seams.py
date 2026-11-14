@@ -48,6 +48,7 @@ from tl_mod_documents.commands import API_COMMANDS as DOCUMENTS
 from tl_mod_documents.derivation.publish import PublishDerivedDocuments
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING
 from tl_mod_materials.commands import MATERIALS_COMMANDS as MATERIALS
+from tl_mod_quality.module import PUNCH_COMMANDS as QUALITY
 from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE
 from tl_mod_schedule.handlers.publish import PublishScheduleSnapshot
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG
@@ -62,6 +63,7 @@ API_COMMANDS_OF = {
     "documents": DOCUMENTS,
     "engineering": ENGINEERING,
     "materials": MATERIALS,
+    "quality": QUALITY,
     "schedule": SCHEDULE,
     "schemareg": SCHEMAREG,
 }
@@ -87,11 +89,11 @@ def test_legacy_has_no_api_commands_and_no_words() -> None:
 
 def test_every_module_row_of_the_api_table_is_in_the_index_and_nothing_else_is() -> None:
     full = command_index()
-    # requisitions has only read routes in the API (``routes/requisitions.py``); its commands are
-    # run from the CLI and as MCP proposals, so the module has index rows and no API-table rows
+    # requisitions has only read routes in the API (``routes/requisitions.py``); its commands run
+    # from the CLI and as MCP proposals, so it has index rows and no API-table rows
     assert any(m == "requisitions" for m, _ in full.values())
     assert not any(s.module == "requisitions" for s in COMMANDS)
-    index = {name: row for name, row in full.items() if row[0] != "requisitions"}
+    index = {n: row for n, row in full.items() if row[0] != "requisitions"}
     assert {s.name for s in COMMANDS if s.module is not None} == set(index)
     assert {m for m, _ in index.values()} == {"awp", *API_COMMANDS_OF}
     assert {w for _, w in full.values()} <= {"admin", "company", "read", "user", "controller"}
@@ -449,6 +451,7 @@ def test_every_module_with_a_record_type_is_walked_by_the_require_generic_test()
         "documents",
         "engineering",
         "materials",
+        "quality",
         "requisitions",
         "schedule",
         "schemareg",

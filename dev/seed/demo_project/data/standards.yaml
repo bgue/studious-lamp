@@ -44,6 +44,21 @@ code_lists:
       - {code: DS, label: Datasheet}
       - {code: SPC, label: Specification}
       - {code: LD, label: Loop diagram}
+  UnitOfMeasure:
+    label: Unit of measure
+    definition: "A unit in which an engineering quantity is recorded, with its UCUM code and dimension."
+    value_list_policy: closed
+    values:
+      - {code: mm, label: Millimetre, attributes: {ucum: mm, dimension: length}}
+      - {code: in, label: Inch, attributes: {ucum: "[in_i]", dimension: length}}
+      - {code: m, label: Metre, attributes: {ucum: m, dimension: length}}
+      - {code: bar, label: Bar, attributes: {ucum: bar, dimension: pressure}}
+      - {code: psi, label: Pound-force per square inch, attributes: {ucum: "[psi]", dimension: pressure}}
+      - {code: degC, label: Degree Celsius, attributes: {ucum: Cel, dimension: temperature}}
+      - {code: degF, label: Degree Fahrenheit, attributes: {ucum: "[degF]", dimension: temperature}}
+      - {code: kg, label: Kilogram, attributes: {ucum: kg, dimension: mass}}
+      - {code: lb, label: Pound (mass), attributes: {ucum: "[lb_av]", dimension: mass}}
+      - {code: m3, label: Cubic metre, attributes: {ucum: m3, dimension: volume}}
 
 mnemonics:
   - {code: P, label: Pump, class_hint: Pump}

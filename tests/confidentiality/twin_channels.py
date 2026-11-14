@@ -340,7 +340,13 @@ def _mcp_values(hidden: Any) -> dict[str, list[Any]]:
         "code": ["MER", "x", "1.1.1"],
         "lot": ["P123-RCPT-0001@1", "x"],
         "iwp": [*hidden.numbers.values(), "P123-IWP-0001", "x"],
-        "key": [*hidden.numbers.values(), "P123-REQ-GEN-0001", "P123-WO-0001", "x"],
+        "key": [
+            *hidden.numbers.values(),
+            "P123-REQ-GEN-0001",
+            "P123-WO-0001",
+            "P123-PUN-0001",  # get_punch_item (P2-PUNCH)
+            "x",
+        ],
         "week": ["2026-W45", "2099-W01", "x"],  # get_weekly_plan (a week, YYYY-Www)
     }
 

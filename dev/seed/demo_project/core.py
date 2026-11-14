@@ -38,7 +38,7 @@ class Person:
 PEOPLE: tuple[Person, ...] = (
     Person("mokafor", "Marta Okafor", "Project administrator", ("admin",)),
     Person("ipetrov", "Ivan Petrov", "Document controller", ("user", "document_controller")),
-    Person("lhartmann", "Lena Hartmann", "Project engineer", ("user",), (("awp", "user"),)),
+    Person("lhartmann", "Lena Hartmann", "Project engineer", ("user",), (("awp", "superuser"),)),
     Person(
         "treyes",
         "Tomas Reyes",
@@ -48,7 +48,7 @@ PEOPLE: tuple[Person, ...] = (
     ),
     Person("cbrooks", "Callum Brooks", "Foreman, piping", ("user",), (("awp", "user"),)),
     Person("pnair", "Priya Nair", "Foreman, civil", ("user",), (("awp", "user"),)),
-    Person("hsato", "Hana Sato", "Quality inspector", ("user",)),
+    Person("hsato", "Hana Sato", "Quality inspector", ("user",), (("quality", "superuser"),)),
     Person("odoyle", "Owen Doyle", "RFI author", ("user",)),
     Person(
         "gwhitfield",

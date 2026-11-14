@@ -93,7 +93,8 @@ linkml_meta = LinkMLMeta({'default_prefix': 'throughline',
                  'jobs',
                  'integration_ops',
                  'constraint',
-                 'telemetry'],
+                 'telemetry',
+                 'idempotency'],
      'name': 'tl_core',
      'prefixes': {'linkml': {'prefix_prefix': 'linkml',
                              'prefix_reference': 'https://w3id.org/linkml/'},
@@ -861,7 +862,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -1071,7 +1073,8 @@ class Record(RecordEnvelope):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -1164,7 +1167,8 @@ class Event(ConfiguredBaseModel):
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
-                       'AuthAudit']} })
+                       'AuthAudit',
+                       'IdempotencyKey']} })
     recorded_at: datetime  = Field(default=..., description="""System (transaction) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -1477,7 +1481,8 @@ class Link(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., description="""Time of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -5550,7 +5555,8 @@ class EventCard(ConfiguredBaseModel):
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
-                       'AuthAudit']} })
+                       'AuthAudit',
+                       'IdempotencyKey']} })
     summary: str = Field(default=..., description="""Rendered one-line summary, for example `jsmith created 14 records`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
                        'ThreadDispatchedPayload',
@@ -5788,7 +5794,8 @@ class FeedItemRow(ConfiguredBaseModel):
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
-                       'AuthAudit']} })
+                       'AuthAudit',
+                       'IdempotencyKey']} })
     occurred_at: datetime  = Field(default=..., description="""`recorded_at` of the post, or of the latest event of a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow']} })
     seq: int = Field(default=..., description="""`seq` of the posted event, or of the latest event of a card.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Event',
@@ -6444,7 +6451,8 @@ class ThreadRow(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     last_message_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadRow']} })
     last_seq: int = Field(default=..., description="""`seq` of the latest event of the thread.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
@@ -6669,7 +6677,8 @@ class ThreadParticipantRow(ConfiguredBaseModel):
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
-                       'AuthAudit']} })
+                       'AuthAudit',
+                       'IdempotencyKey']} })
     reasons: Any = Field(default=..., description="""A sorted JSON list of `creator`, `author`, `mentioned`, `dispatcher`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['ThreadParticipantRow']} })
     first_seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadParticipantRow', 'TypeRegistrationRow']} })
@@ -6702,7 +6711,7 @@ class ProposalCreatedPayload(EventPayload):
     agent: str = Field(default=..., description="""The proposing actor, `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
     command_type: str = Field(default=..., description="""Name of the command model (`CreateRecord`, `SetPsetValues`, `AddLink`, `TransitionWorkflow`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchResult', 'ProposalCreatedPayload', 'ProposalRow']} })
     command: Any = Field(default=..., description="""The command, as JSON.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
-         'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+         'domain_of': ['ProposalCreatedPayload', 'ProposalRow', 'IdempotencyKey']} })
     summary: str = Field(default=..., description="""One line for the review queue.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
                        'ThreadDispatchedPayload',
@@ -6898,7 +6907,7 @@ class ProposalRow(ConfiguredBaseModel):
          'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
     command_type: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchResult', 'ProposalCreatedPayload', 'ProposalRow']} })
     command: Any = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
-         'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+         'domain_of': ['ProposalCreatedPayload', 'ProposalRow', 'IdempotencyKey']} })
     summary: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
                        'ThreadDispatchedPayload',
@@ -6938,7 +6947,8 @@ class ProposalRow(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     created_event_id: str = Field(default=..., description="""Event id of `Proposal.Created`; the cause of the accepted command's events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow']} })
     decided_by: Optional[str] = Field(default=None, description="""The person who accepted, rejected or failed it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow', 'EnrichmentValue']} })
     decided_at: Optional[datetime ] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow', 'EnrichmentValue']} })
@@ -7423,7 +7433,8 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
-                       'AuthAudit']} })
+                       'AuthAudit',
+                       'IdempotencyKey']} })
     source: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'Link',
                        'LinkAddedPayload',
@@ -7567,7 +7578,8 @@ class SettingLockRow(ConfiguredBaseModel):
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
-                       'AuthAudit']} })
+                       'AuthAudit',
+                       'IdempotencyKey']} })
     seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
@@ -8025,7 +8037,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -8400,7 +8413,8 @@ class IntegrationApp(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -8685,7 +8699,8 @@ class ActionDefinition(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -9159,7 +9174,8 @@ class Rule(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -9398,7 +9414,8 @@ class InboundEndpoint(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -9710,7 +9727,8 @@ class Enricher(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -10042,7 +10060,8 @@ class OutboxEvent(ConfiguredBaseModel):
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
-                       'AuthAudit']} })
+                       'AuthAudit',
+                       'IdempotencyKey']} })
     source: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'Link',
                        'LinkAddedPayload',
@@ -10164,7 +10183,8 @@ class WebhookDelivery(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     next_attempt_at: str = Field(default=..., description="""ISO-8601 UTC. A pending delivery is not tried before this time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookDelivery']} })
     lease_until: Optional[str] = Field(default=None, description="""ISO-8601 UTC while a worker holds the delivery; an expired lease can be taken over.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookDelivery', 'JobQueue']} })
     lease_owner: Optional[str] = Field(default=None, description="""Worker id that holds the lease.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookDelivery', 'JobQueue']} })
@@ -10277,7 +10297,8 @@ class WebhookSecret(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     expires_at: Optional[str] = Field(default=None, description="""ISO-8601 UTC. A rotated-out secret keeps signing until this time (the overlap), then retires.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscription',
                        'WebhookSecret',
@@ -10531,7 +10552,8 @@ class ExtensionRecord(RecordEnvelope):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -11316,7 +11338,8 @@ class Account(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     updated_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -11603,7 +11626,8 @@ class AuthSession(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     expires_at: str = Field(default=..., description="""ISO-8601 UTC. Sign-out, disable and a password change delete the row.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscription',
                        'WebhookSecret',
@@ -11642,7 +11666,8 @@ class AuthTokenSecret(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
 
 
 class AuthAttempt(ConfiguredBaseModel):
@@ -11697,7 +11722,8 @@ class AuthAudit(ConfiguredBaseModel):
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
-                       'AuthAudit']} })
+                       'AuthAudit',
+                       'IdempotencyKey']} })
     detail: Optional[str] = Field(default=None, description="""A short reason code or id (`bad_credentials`, `disabled`, a token id, the end of a lock). Never a secret.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload',
                        'CloudEventData',
                        'AuthAudit']} })
@@ -12426,7 +12452,8 @@ class IntegrationSecret(ConfiguredBaseModel):
                        'Account',
                        'AuthSession',
                        'AuthTokenSecret',
-                       'IntegrationSecret']} })
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
     expires_at: Optional[str] = Field(default=None, description="""ISO-8601 UTC. A rotated-out secret keeps verifying until this time (at most 24 hours), then retires.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscription',
                        'WebhookSecret',
@@ -13324,6 +13351,50 @@ class TelemetryNeed(ConfiguredBaseModel):
     why: Optional[str] = Field(default=None, description="""Always written null; no reader and no privacy review yet.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TelemetryNeed']} })
 
 
+class IdempotencyKey(ConfiguredBaseModel):
+    """
+    One claimed (actor, key). `result_json` is null while the claim has not been completed (it is set in the same transaction by `tl_core.services.idempotency.record`, so another connection sees a claim only complete, or, if a caller never recorded one, as in progress).
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'idempotency_key'}},
+         'from_schema': 'https://example.org/throughline/core/idempotency',
+         'unique_keys': {'actor_key': {'description': 'One row per (actor, key); the '
+                                                      'claim insert conflicts here.',
+                                       'unique_key_name': 'actor_key',
+                                       'unique_key_slots': ['actor', 'idem_key']}}})
+
+    actor: str = Field(default=..., description="""The actor the key belongs to; another actor's identical key is another row.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'ThreadParticipantRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'AuthAudit',
+                       'IdempotencyKey']} })
+    idem_key: str = Field(default=..., description="""The client's key (ASCII, 1 to 128 characters). Never logged, never in an error text.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IdempotencyKey']} })
+    command: str = Field(default=..., description="""The command name the key was first used for.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow', 'IdempotencyKey']} })
+    body_hash: str = Field(default=..., description="""SHA-256 (hex) of the command's canonical JSON without key, correlation and causation ids.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IdempotencyKey']} })
+    result_json: Optional[str] = Field(default=None, description="""JSON list of the result ids (stream id, then event ids); null until recorded.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IdempotencyKey']} })
+    created_at: str = Field(default=..., description="""ISO-8601 UTC with microseconds and a `Z` suffix.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'ThreadRow',
+                       'ProposalRow',
+                       'WebhookSubscription',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'Rule',
+                       'InboundEndpoint',
+                       'Enricher',
+                       'WebhookDelivery',
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret',
+                       'IntegrationSecret',
+                       'IdempotencyKey']} })
+
+
 # Model rebuild
 # see https://pydantic-docs.helpmanual.io/usage/models/#rebuilding-a-model
 RecordEnvelope.model_rebuild()
@@ -13495,3 +13566,4 @@ ConstraintAssignedPayload.model_rebuild()
 ConstraintClearedPayload.model_rebuild()
 ConstraintWithdrawnPayload.model_rebuild()
 TelemetryNeed.model_rebuild()
+IdempotencyKey.model_rebuild()

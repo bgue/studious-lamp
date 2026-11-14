@@ -1,0 +1,111 @@
+id: https://example.org/throughline/modules/quality/punch_item
+name: tl_mod_quality_punch_item
+title: Punch items (brief 9, M5)
+description: >-
+  A punch item is one open point on a punch list: an area, a system, a due date, a category (A, B or C), an
+  assignee and the record it was raised from. Its life is the workflow `quality-punch-item`. The title of the
+  record is the subject and its description the detail, both on the envelope. Dates are `YYYY-MM-DD`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: quality
+
+enums:
+  PunchCategory:
+    description: Punch category; A blocks a later completion step (Phase 4 reads it).
+    permissible_values:
+      A:
+        description: Must be cleared before completion.
+      B:
+        description: Must be cleared before handover (the default).
+      C:
+        description: May be cleared after handover.
+
+classes:
+  PunchItem:
+    title: Punch item
+    description: >-
+      One punch item. Record type `quality.PunchItem`; its key is the number the allocator gives it
+      (`P123-PUN-0001`, gap-free). Offline class `draft_only`: a walkdown raises items offline; clearing,
+      verifying, reopening and voiding are central. A punch item is hidden through its source record (`source_id`).
+    annotations:
+      tl:current_state: true
+      tl:record_types: "quality.PunchItem"
+      tl:offline: draft_only
+      tl:table: cur_quality_punch_item
+      tl:ix_source: "source_id"
+      tl:ix_area: "area"
+      tl:ix_system: "system"
+      tl:ix_due_on: "due_on"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      area:
+        pattern: "^.{1,64}$"
+        description: "Area of the plant or site, at most 64 characters; null when none."
+      system:
+        pattern: "^.{1,64}$"
+        description: "System code or name, at most 64 characters; null when none."
+      due_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Due date, `YYYY-MM-DD`; null when none."
+      category:
+        range: PunchCategory
+        required: true
+        ifabsent: string(B)
+        description: "A, B or C (`PunchCategory`); default B."
+      assignee:
+        pattern: "^.{1,120}$"
+        description: "Who is to clear it, an actor text or a name, at most 120 characters; null when none."
+      raised_by:
+        pattern: "^.{1,64}$"
+        required: true
+        description: "Actor text of the person who raised it, at most 64 characters."
+      source_id:
+        range: Ulid
+        description: "The record it was raised from; null when none. The confidentiality subject."
+      cleared_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who cleared it; null unless cleared."
+      cleared_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date it was cleared, `YYYY-MM-DD`; null unless cleared."
+      clear_note:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "What was done, at most 300 characters; null unless cleared."
+      verified_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who verified it; null unless verified."
+      verified_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date it was verified, `YYYY-MM-DD`; null unless verified."
+      reopen_count:
+        range: integer
+        required: true
+        minimum_value: 0
+        ifabsent: int(0)
+        description: "How many times it was reopened; default 0."
+      last_reopen_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Reason of the last reopening, at most 300 characters; null when never reopened."
+      void_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Why it was voided, at most 300 characters; null unless void."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

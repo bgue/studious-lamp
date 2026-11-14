@@ -1,0 +1,23 @@
+id: https://example.org/throughline/modules/quality
+name: tl_mod_quality
+title: "The quality module (M5, punch list)"
+description: >-
+  Quality management of a project (brief 9, M5), first slice. A `PunchItem` is one item of a punch list: it is
+  raised against an area and a system (optionally from any record), cleared by its assignee, verified by a
+  controller and, if it comes back, reopened. Phase 3 adds inspections, deficiencies and ITPs to this module.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the
+  module's own current-state table, joined on `id`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - punch_item
+  - events
+default_range: string
+annotations:
+  tl:module: quality

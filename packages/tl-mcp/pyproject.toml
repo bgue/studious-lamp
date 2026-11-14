@@ -15,6 +15,7 @@ dependencies = [
   "tl-mod-schemareg",
   "tl-mod-legacy",
   "tl-mod-materials",
+  "tl-mod-quality",
 ]
 
 [project.scripts]

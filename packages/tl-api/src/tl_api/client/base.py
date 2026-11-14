@@ -15,15 +15,18 @@ also an ``httpx2.TransportError``, so code that catches the transport error keep
 streaming calls (``stream_events``, ``download_to``) use the connection pool directly and raise the
 raw ``httpx2.TransportError``.
 
-Retries. There is none, except one: a GET that fails because a reused connection was reset
-(``ReadError``, ``WriteError``, ``CloseError``, ``RemoteProtocolError``) is sent once more on a
-fresh connection. A timeout, a refused connection and every write are never retried, because a POST
-may have been applied.
+Retries. A GET that fails because a reused connection was reset (``ReadError``, ``WriteError``,
+``CloseError``, ``RemoteProtocolError``) is sent once more on a fresh connection; a GET timeout is
+not. A ``POST /commands/<name>`` (P2-X1-T02) gets an idempotency key (the caller's, or a fresh one)
+and is sent a second time with that same key when it fails with a reset or a timeout; server replay
+makes that safe. A refused connection, an error answer and every other POST are never retried,
+because the POST may have been applied.
 """
 
 from __future__ import annotations
 
 import urllib.parse
+import uuid
 from collections.abc import Mapping
 from types import TracebackType
 from typing import Any, TypeVar
@@ -65,6 +68,11 @@ class ApiUnavailableError(ApiError, httpx2.TransportError):
 
 #: Failures that mean "the pooled connection died", the only case a GET is sent again.
 _RESET = (httpx2.ReadError, httpx2.WriteError, httpx2.CloseError, httpx2.RemoteProtocolError)
+
+
+def _keyed(method: str, path: str, json: Any) -> bool:
+    """A command POST: it carries an idempotency key and is sent twice on a reset or a timeout."""
+    return method.upper() == "POST" and path.startswith("/commands/") and isinstance(json, dict)
 
 
 class ApiClientBase:
@@ -116,7 +124,11 @@ class ApiClientBase:
         headers: Mapping[str, str] | None = None,
     ) -> httpx2.Response:
         """One request. Raises the mapped exception for status 400 and above."""
-        attempts = 2 if method.upper() == "GET" else 1
+        keyed = _keyed(method, path, json)
+        if keyed and json.get("idempotency_key") is None:
+            # One key per call, made before the first attempt, so the retry carries the same one.
+            json = {**json, "idempotency_key": uuid.uuid4().hex}
+        attempts = 2 if method.upper() == "GET" or keyed else 1
         response = self._attempt(attempts, method, path, params, json, content, headers)
         if response.status_code >= 400:
             raise self.error_from(response)
@@ -132,7 +144,11 @@ class ApiClientBase:
         content: Any,
         headers: Mapping[str, str] | None,
     ) -> httpx2.Response:
-        """Send the request; a reset connection is tried again while ``attempts`` remain."""
+        """Send the request; a reset connection is tried again while ``attempts`` remain.
+
+        A timeout is tried again only for a keyed command POST (its key makes the second send safe).
+        """
+        keyed = _keyed(method, path, json)
         last: httpx2.TransportError | None = None
         for _ in range(attempts):
             try:
@@ -146,6 +162,10 @@ class ApiClientBase:
                 )
             except _RESET as exc:
                 last = exc  # a pooled connection died: try once more on a fresh one
+            except httpx2.TimeoutException as exc:
+                if not keyed:
+                    raise ApiUnavailableError(exc) from exc
+                last = exc  # a keyed command: the same key makes the second send safe
             except httpx2.TransportError as exc:
                 raise ApiUnavailableError(exc) from exc
         assert last is not None

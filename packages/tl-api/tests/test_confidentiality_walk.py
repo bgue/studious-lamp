@@ -297,6 +297,11 @@ def test_the_walk_finds_the_routes_and_the_seed_is_what_the_walk_assumes(
         "/projects/{project}/constraints/groups",
         "/projects/{project}/constraints/{key}",
     } <= paths
+    assert {  # P2-PUNCH-T03: the punch routes; a seeded walk is in tests/test_api_punch.py
+        "/projects/{project}/punch",
+        "/projects/{project}/punch/{key}",
+        "/projects/{project}/punch-counts",
+    } <= paths
     assert (
         {  # P2-I4A-T04c1: the requisition and work order reads, walked in test_api_requisitions.py
             "/projects/{project}/requisitions",

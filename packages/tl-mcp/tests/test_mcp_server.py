@@ -105,6 +105,7 @@ READING = (
     | AWP_READ_TOOLS
     | MATERIALS_READ_TOOLS
     | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness"}  # T09b
+    | {"list_punch_items", "get_punch_item"}  # P2-PUNCH-T05
     | {
         "list_weekly_plans",
         "get_weekly_plan",
@@ -123,6 +124,7 @@ TOOLS = (
     | AWP_PROPOSE_TOOLS
     | MATERIALS_PROPOSE_TOOLS
     | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness", "propose_iwp_scope"}  # T09b
+    | {"propose_punch_item"}  # P2-PUNCH-T05
     | {"propose_progress", "propose_week_commitment"}  # P2-I5-T12a
     | {
         "list_weekly_plans",

@@ -23,6 +23,7 @@ from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_api.client.files import save_download
 from tl_api.insights_sources import sources_for
 from tl_api.routes import constraints as constraint_routes
+from tl_api.routes import punch as punch_routes
 from tl_api.routes import requisitions as requisition_routes
 from tl_api.routes.awp import CheckBody, CwpDetailView, ReadinessBody, TimelineRow, _note
 from tl_api.routes.awp_progress import IwpHash, IwpProgress, ProgressItem, RollupBody
@@ -226,6 +227,9 @@ from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
 from tl_mod_materials.commands import MATERIALS_COMMANDS
+from tl_mod_quality import MODULE as QUALITY_MODULE
+from tl_mod_quality import views as punch_views
+from tl_mod_quality.module import PUNCH_COMMANDS
 from tl_mod_requisitions import views as requisition_views
 from tl_mod_requisitions.api import RequisitionRow
 from tl_mod_schedule import views as schedule_views
@@ -1772,6 +1776,73 @@ class EmbeddedClient:
             self._own_command(cmd.actor)
             self._command_gate(uow, cmd)
             return self.own_writes.note(spec.handler(uow, cmd))
+
+    # --- quality: the punch list (P2-PUNCH-T04) ------------------------------------------------
+    #
+    # The same calls the routes make (``tl_api.routes.punch``), under the signed-in person's viewer
+    # (``_uow`` sets it), after the same ``quality.view`` check. A missing or hidden item is one
+    # ``RecordNotFoundError``, with the route's text.
+
+    def _require_punch_view(self, uow: UnitOfWork, project: str) -> None:
+        require_word(
+            uow.conn(),
+            holder_for_actor(uow.conn(), self.actor),
+            scope=f"project:{project}",
+            module=QUALITY_MODULE,
+            word=normalise_word(punch_routes.VIEW_WORD),
+            what=punch_routes.VIEW_WORD,
+        )
+
+    def list_punch_items(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        area: str | None = None,
+        system: str | None = None,
+        assignee: str | None = None,
+        category: str | None = None,
+        from_key: str | None = None,
+        overdue: bool = False,
+        limit: int = 200,
+    ) -> punch_views.PunchPage:
+        with self._uow(True) as uow:
+            self._require_punch_view(uow, project)
+            return punch_views.punch_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                area=area,
+                system=system,
+                assignee=assignee,
+                category=category,
+                source_key=from_key,
+                overdue=overdue,
+                today=date.today().isoformat(),
+                limit=limit,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def get_punch_item(self, project: str, key: str) -> punch_views.PunchDetail:
+        with self._uow(True) as uow:
+            self._require_punch_view(uow, project)
+            detail = punch_views.punch_detail(
+                uow.conn(), f"project:{project}", key, viewer=confidentiality.current_viewer()
+            )
+            if detail is None:
+                raise RecordNotFoundError(punch_routes.MSG_NOT_FOUND)
+            return detail
+
+    def get_punch_counts(self, project: str) -> dict[str, int]:
+        with self._uow(True) as uow:
+            self._require_punch_view(uow, project)
+            return punch_views.punch_counts(
+                uow.conn(), f"project:{project}", viewer=confidentiality.current_viewer()
+            )
+
+    def quality_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a punch command by name (a model of ``PUNCH_COMMANDS``, as the signed-in person)."""
+        return self._module_command(name, cmd, PUNCH_COMMANDS, "quality")
 
     # --- the awp module (P2-I1 T03b): the reads the API routes serve, under the viewer's filter --
 

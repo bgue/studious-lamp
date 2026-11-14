@@ -42,6 +42,7 @@ SECTION_4_DRAFTS: dict[str, frozenset[str]] = {
     ),
     "correspondence.TechnicalItem": frozenset({"RaiseTechnical", "UpdateTechnical"}),
     "materials.StockLot": frozenset({"IssueStock", "TransferStock", "ReturnStock"}),
+    "quality.PunchItem": frozenset({"RaisePunchItem"}),
     "requisitions.LaborRequisition": frozenset({"RaiseRequisition"}),
     "requisitions.MaterialRequisition": frozenset({"RaiseRequisition"}),
     "requisitions.GeneralRequisition": frozenset({"RaiseRequisition"}),

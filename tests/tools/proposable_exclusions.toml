@@ -2,6 +2,12 @@
 # ADR-0027 decision 4: every command ticket adds a row or an entry. Acts that a person decides, and
 # the owner's own field edits, are never proposed by an agent.
 [commands]
+# P2-PUNCH S2 quality (the row is `propose_punch_item`, RaisePunchItem)
+ClearPunchItem = "person acts directly"
+EditPunchItem = "person acts directly"
+VerifyPunchItem = "act: verifying is the controller's decision"
+ReopenPunchItem = "act: reopening is the controller's decision"
+VoidPunchItem = "act: voiding is the controller's decision"
 # P2-I4A S2 requisitions (the row is `propose_requisition`, RaiseRequisition)
 ApproveRequisition = "act: approving a request is the approver's decision"
 RejectRequisition = "act: rejecting a request is the approver's decision"

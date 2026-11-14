@@ -72,6 +72,7 @@ from tl_api.routes import (
     links,
     materials,
     proposals,
+    punch,
     records,
     reference,
     requisitions,
@@ -348,6 +349,7 @@ def create_app(
         awp_progress,  # P2-I5 T11a1: the progress and count reads (before awp: iwps/counts)
         awp_weeks,  # P2-I5 T11a2: the weekly-plan and look-ahead reads (before awp)
         awp,  # P2-I1 T03a: the awp read routes
+        punch,  # P2-PUNCH T03: the punch read routes
         requisitions,  # P2-I4A T04c1: the requisition and work order read routes
         constraints,  # P2-I2 T04c1: the constraint read routes
         insights,  # P2-INS S2: the Checks read and the one telemetry write
