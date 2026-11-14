@@ -327,3 +327,25 @@ def test_expected_version_is_out_of_the_hash_and_the_other_fields_stay_in() -> N
     base = idempotency.body_hash(update(3))
     assert idempotency.body_hash(update(4)) == base  # resolved at call time, not request content
     assert idempotency.body_hash(update(3, value=2)) != base
+
+
+def test_a_proposal_wrapped_command_drops_expected_version_from_the_hash() -> None:
+    from tl_core.services.idempotency import body_hash
+
+    base = {
+        "tool": "update_psets",
+        "summary": "s",
+        "command": {"name": "UpdateRecord", "expected_version": 3, "x": 1},
+    }
+    moved = {
+        "tool": "update_psets",
+        "summary": "s",
+        "command": {"name": "UpdateRecord", "expected_version": 4, "x": 1},
+    }
+    other = {
+        "tool": "update_psets",
+        "summary": "s",
+        "command": {"name": "UpdateRecord", "expected_version": 3, "x": 2},
+    }
+    assert body_hash(base) == body_hash(moved)
+    assert body_hash(base) != body_hash(other)

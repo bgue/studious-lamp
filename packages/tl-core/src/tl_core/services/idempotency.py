@@ -84,6 +84,10 @@ def body_hash(body: object) -> str:
     if isinstance(plain, dict):
         fields = cast("dict[str, Any]", plain)
         plain = {k: v for k, v in fields.items() if k not in EXCLUDED}
+        inner = plain.get("command")
+        if isinstance(inner, dict):  # a proposal hashes {"tool", "summary", "command": ...}
+            inner_fields = cast("dict[str, Any]", inner)
+            plain["command"] = {k: v for k, v in inner_fields.items() if k not in EXCLUDED}
     canonical = json.dumps(plain, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
