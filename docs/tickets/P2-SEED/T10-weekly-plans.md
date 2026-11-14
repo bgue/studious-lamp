@@ -53,3 +53,8 @@ reason; deterministic twice (same plan keys and states); a run without the secti
 ## Escalation triggers
 - Commit or close is refused for a reason the ticket does not name, or the plan states cannot reach those counts: stop, name it.
 - Do not edit `release.py`, `core.py` or any handler; do not add commands.
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+- Week 5: accepted as built, opened with no commitments (the only reachable Draft). The test pins 1 Draft.
+- lhartmann (project engineer, awp superuser) plans, commits and records outcomes: accepted.
+Nothing else changes; finish the report (status done) and run the gate.
