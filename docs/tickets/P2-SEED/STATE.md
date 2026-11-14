@@ -7,9 +7,9 @@ T05 t mrg l - fixed anchors
 T03 t mrg f - tour seeds from project (report exists; verify in log)
 T04 t mrg l - runbook (report exists; verify in log)
 T06 t mrg f - constraints section (constraints.py on trunk)
-T07 t disp f - schedule: 4 XER snapshots, links
-T08 t disp f - requisitions 24 + work orders
-T09 t disp f - release: issue IWPs
+T07 t mrg f 19ca2fa schedule + 4 snapshots; 11 P
+T08 t disp f 7b91594 att2: add GeneralRequisitionType to demo standards
+T09 t disp f - att2: lhartmann awp superuser (2nd signer)
 T10 t stg f - weekly plans; needs T09; stub not yet added
 T11 t stg f - progress; needs T09; stub not yet added
 ## DEC
