@@ -78,3 +78,6 @@ Standard report; list the pins changed and whether `errors.py` was touched.
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment (orchestrator, 2026-11-14, after attempt 1)
+Decision on the attempt-1 question: option 1. Drop only the `pattern=` argument from the `IdempotencyKey` alias, keep `max_length=128`. FastMCP echoes the rejected value for a `pattern` violation, which the no-echo rule forbids; command validation (`KEY_PATTERN`, `KEY_REFUSED`) still refuses a space or control character without echoing it. Keep the space test as written (it must pass). Note the one-line interface change in the report.
