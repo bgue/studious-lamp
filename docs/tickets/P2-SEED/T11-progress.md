@@ -59,3 +59,10 @@ a run without the two sections leaves other types unchanged.
 - Added allowed path: `dev/seed/demo_project/data/standards.yaml`. Add the `UnitOfMeasure` code list, copied entry for entry from `schema/fixtures/standards/co.acme.standards@1.0.0.yaml`, so `CreateScopeItem` accepts the demo units. Do not touch `data/awp/standards.yaml` (T10 owns it).
 - Commodities without a `manual` step falling back to the piping steps is accepted; say so in the report.
 Then finish `scope.py`, `progress.py` and the test as the ticket says.
+
+## Amendment 2 (orchestrator, 2026-11-14, after attempt 2)
+Decision: option 1. Scope is defined during planning, so the `scope` section runs before `constraints` (IWPs are still Draft or Planned there).
+- Added allowed path: `dev/seed/demo_project/registry.py`, the `ORDER` tuple only: move `scope` to just before `constraints`. Keep `scope.py`'s `needs` consistent with the new place.
+- Add scope to the IWPs that the constraints and release sections later carry forward (the same IWPs as before, chosen by id, not by Ready state).
+- If adding scope changes which IWPs reach Ready or Issued, update the pins in `tests/tools/test_demo_project_release.py` and `tests/tools/test_demo_project_constraints.py` (added allowed paths, pins only) and explain each changed number in the report. Do not change the handler rule.
+- Run the gate with the release and constraints tests included.
