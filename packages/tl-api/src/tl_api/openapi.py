@@ -5,8 +5,9 @@
     uv run python -m tl_api.openapi --compat   # exit 1 on a breaking change against the baseline
     uv run python -m tl_api.openapi --baseline # refresh the baseline (release step; refuses breaks)
 
-The baseline (`docs/reference/openapi.baseline.json`) holds the document and the error codes with
-their statuses. It is refreshed only as a release step: a breaking change between releases needs
+The baseline (`docs/reference/openapi.baseline.json`) holds the document, with prose and examples
+removed (`strip_prose`, the same on both sides of the compare), and the error codes with their
+statuses. It is refreshed only as a release step: a breaking change between releases needs
 an `APPROVALS.md` line naming what breaks and a note in `api-compat.md`, and removals are
 deprecated for at least one release first. Additive changes pass without a refresh.
 
@@ -77,22 +78,68 @@ def render() -> str:
     return json.dumps(build_openapi(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
+#: Keys the baseline does not store: prose and examples, which the compat diff never reads.
+PROSE_KEYS = frozenset({"description", "summary", "title", "example", "examples"})
+
+#: Keys whose value maps author-chosen names to nodes. A name there (a field called ``title``)
+#: is data, so it is kept; only the node under it is stripped.
+NAME_MAP_KEYS = frozenset(
+    {
+        "properties",
+        "patternProperties",
+        "dependentSchemas",
+        "$defs",
+        "definitions",
+        "schemas",
+        "paths",
+        "responses",
+        "parameters",
+        "requestBodies",
+        "headers",
+        "securitySchemes",
+        "links",
+        "callbacks",
+        "content",
+        "encoding",
+        "mapping",
+        "variables",
+    }
+)
+
+
+def strip_prose(node: Any) -> Any:
+    """A copy of a document with ``PROSE_KEYS`` removed at any depth (P2-X1-T05 amendment)."""
+    if isinstance(node, list):
+        return [strip_prose(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    out: dict[str, Any] = {}
+    for key, value in node.items():
+        if key in PROSE_KEYS:
+            continue
+        if key in NAME_MAP_KEYS and isinstance(value, dict):
+            out[key] = {name: strip_prose(item) for name, item in value.items()}
+        else:
+            out[key] = strip_prose(value)
+    return out
+
+
 def baseline_document() -> dict[str, Any]:
-    """The current document and error codes, in the baseline's shape."""
+    """The current document (prose stripped) and error codes, in the baseline's shape."""
     return {
-        "openapi": build_openapi(),
+        "openapi": strip_prose(build_openapi()),
         "errors": {spec.error: spec.status for spec in ERROR_TABLE},
     }
 
 
 def render_baseline(document: dict[str, Any]) -> str:
-    """A baseline as committed: sorted keys, two-space indent, trailing newline."""
-    return json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    """A baseline as committed: sorted keys, one-space indent, trailing newline."""
+    return json.dumps(document, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
 
 
 def breaking_changes(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
     """One line per breaking change: API diff, then removed or re-statused error codes."""
-    lines = diff_openapi(baseline.get("openapi", {}), current["openapi"])
+    lines = diff_openapi(strip_prose(baseline.get("openapi", {})), current["openapi"])
     old_codes: dict[str, int] = baseline.get("errors", {})
     new_codes: dict[str, int] = current["errors"]
     for code in sorted(old_codes):
