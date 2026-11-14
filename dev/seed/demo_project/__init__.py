@@ -14,7 +14,12 @@ from dev.seed.demo_project import (  # noqa: F401  (each module registers its se
     documents,
     engineering,
     materials,
+    progress,
     quality,
+    release,
+    requisitions,
+    schedule,
+    weekly,
 )
 from dev.seed.demo_project.registry import ORDER, SECTIONS
 
