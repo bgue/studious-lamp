@@ -1,7 +1,7 @@
-"""The scope and progress sections of the demo project generator (P2-SEED-T11): scope items on every
-released IWP, the released IWPs unchanged by the scope section, earned progress that differs per
-started IWP, two field-completed packages, the same result on two runs, and a run without the two
-sections leaving the other record types unchanged.
+"""The progress section of the demo project generator (P2-SEED-T11), with scope added inside the
+constraints section: scope items on every released IWP, the released IWPs unchanged by the progress
+section, earned progress that differs per started IWP, two field-completed packages, the same result
+on two runs, and a run without the progress section leaving the other record types unchanged.
 
 Each run builds a fresh SQLite ledger in a child process, as ``test_demo_project_release.py`` does.
 """
@@ -21,7 +21,7 @@ from tl_mod_awp.progress import engine
 ROOT = Path(__file__).resolve().parents[2]
 BASE_SECTIONS = "core,engineering,awp,constraints"
 RELEASE_SECTIONS = f"{BASE_SECTIONS},release"
-FULL_SECTIONS = f"{BASE_SECTIONS},scope,release,progress"
+FULL_SECTIONS = f"{BASE_SECTIONS},release,progress"
 RELEASED_STATES = ("Issued", "In progress", "Field complete")
 PROJECT = "project:P200"
 
@@ -108,7 +108,7 @@ def runs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     plain = generate(made["plain"], base / "objects-c", RELEASE_SECTIONS)
     for result in (first, second, plain):
         assert result.returncode == 0, result.stderr[-2000:]
-    assert "scope:" in first.stdout and "progress:" in first.stdout
+    assert "progress:" in first.stdout
     return made
 
 
@@ -122,7 +122,7 @@ def test_every_released_iwp_has_scope_items(runs: dict[str, Path]) -> None:
         assert scoped[key] >= 3, (key, scoped[key])
 
 
-def test_released_iwps_are_the_same_with_and_without_scope_and_progress(
+def test_released_iwps_are_the_same_with_and_without_progress(
     runs: dict[str, Path],
 ) -> None:
     def released(db: Path) -> list[str]:

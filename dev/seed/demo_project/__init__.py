@@ -19,7 +19,6 @@ from dev.seed.demo_project import (  # noqa: F401  (each module registers its se
     release,
     requisitions,
     schedule,
-    scope,
     weekly,
 )
 from dev.seed.demo_project.registry import ORDER, SECTIONS
