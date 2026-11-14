@@ -45,3 +45,18 @@ two foremen, a quality inspector, an RFI author, read-only client rep; passwords
 | T06 | constraint seeds on IWPs and CWPs (core.Constraint, ADR-0024); STAGED until wave 2 and a trunk with the type are merged | Haiku (full) | T01, wave 2 on trunk |
 | T05 | fixed anchors for other features (viewer plan check F4): pin tags `200-V-1027`, `300-T-101`, documents `P200-200-PID-4701` (restricted) and `P200-200-PID-4702` (with a superseded revision), so fixtures can key on them | Haiku (lite) | S1 |
 | (later) | quality section, on when `quality.PunchItem` exists (roadmap 4a) | Haiku | punch slice |
+
+## Phase 2 modules (round 3 of this increment, 2026-11-14)
+Owner: "make test fixtures for new modules". Audit by grep of record types against the seed: requisitions (5 types incl.
+WorkOrder), schedule (3 types) and the weekly plan and progress of awp (`awp.WeeklyPlan`, earned progress) have no seed data.
+IWPs are never Issued, so weekly and progress screens would stay empty. Cost is NOT a gap (cost codes and a snapshot come
+from `ImportCostSnapshot` in the awp and materials sections); quality is seeded. P2-I6 T03 confirmed requisitions and work orders.
+Stubs and registry lines are committed by the supervisor. Rules: real command handlers only, no direct inserts; rng per section; tens of records; existing demo WPs, IWPs, items;
+default confidentiality; one section file, one test file per ticket. Each ticket's gate: its own test plus `tests/tools/test_demo_project.py`.
+| Id | What | Review | Depends on |
+|---|---|---|---|
+| T07 | schedule: one schedule, 4 weekly XER snapshots, activity links | full | none |
+| T08 | requisitions (24, four kinds) and the work order lifecycle | full | none |
+| T09 | release: sign off and issue IWPs, start some | full | constraints section |
+| T10 | weekly plans, commitments, outcomes; adds MissReason list | full | T09 |
+| T11 | scope items (before release) and IWP progress | full | T09 |

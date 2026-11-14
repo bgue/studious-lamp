@@ -47,6 +47,7 @@ from tl_mod_awp.readiness import evaluate_now
 
 from dev.seed.demo_project.core import ADMIN
 from dev.seed.demo_project.registry import register
+from dev.seed.demo_project.scope import add_scope
 from dev.seed.demo_project.world import TODAY, World
 
 BUILDER = "lhartmann"  # the project engineer plans and raises
@@ -105,6 +106,10 @@ def build(world: World, rng: random.Random) -> None:
     if len(cwps) < IWP_COUNT // 2 + CWP_CONSTRAINTS:
         raise RuntimeError("the awp section left too few released work packages")
 
+    # The scope items of the IWPs draw from a stream derived from this section's state at its start
+    # (the seed and the section name) and do not advance ``rng``, so the constraint draws hold.
+    scope_rng = random.Random(f"scope:{rng.getstate()!r}")
+
     # --- the IWPs, in the constraint check -----------------------------------------------------
     iwps: list[str] = []
     for i in range(IWP_COUNT):
@@ -123,6 +128,8 @@ def build(world: World, rng: random.Random) -> None:
                 foreman=f"user:{rng.choice(FOREMEN)}",
             )
             iwp = str(made.stream_id)
+            # scope is added while the IWP is Draft: a frozen IWP takes no scope (scope.py)
+            add_scope(world, iwp, f"{i + 1:02d}", cwp, scope_rng)
             world.run(handle_start_iwp_development, StartIwpDevelopment, by=BUILDER, iwp=iwp)
             world.run(
                 handle_send_iwp_to_constraint_check,
