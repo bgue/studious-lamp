@@ -3,7 +3,7 @@
 S1 p mrg f 4b42fa5 store+helper; mrg 77e9b51; review P 3 LO
 T04 t mrg f 77a1d8c openapi diff; +became-required test
 T01 t mrg f b7d64e4 header on /commands; 270 P
-T03 t disp f a1cd3a5 att2: drop pattern (FastMCP echoes value)
+T03 t mrg f 9eb471c five MCP tools take key; 38 P
 T02 t stg f - client key on retry; waits T01
 T05 t stg f - baseline + just step; waits T04; Q1 rule in text; keep errors.py rows in step
 T06 t stg l - api-compat.md; waits T04; carries Q1 rule
