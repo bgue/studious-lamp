@@ -7,7 +7,7 @@ T03 t mrg f 9eb471c five MCP tools take key; 38 P
 T02 t stg f - client key on retry; T01 mrg; r4 (base.py _send, POST /commands/ only)
 T05 t mrg f f92108d baseline 1.5 MB stripped + check step
 T06 t mrg l 3cd8853 api-compat.md with Q1 rule
-T07 t blk f 7f71f8c Q3 RED both cases -> S2; att2 after S2 mrg
+T07 t mrg f 49a80b8 walk 5 readers + Q3 x3 green; hash drops expected_version; APPROVALS
 S2 p mrg f ac97d72 replay before budget+precheck; APPROVALS; pg at DONE
 T08 t stg f - demo driver; waits T02 T05; T03 mrg
 T09 t stg l - runbook + AGENTS rows; waits T08
