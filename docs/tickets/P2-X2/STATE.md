@@ -12,6 +12,7 @@ T04 t mrg f 3404c59d review P; amend 1 (T01 helper grant)
 T05 t mrg f 7139c557 review P after amend 2; demo OK both adapters
 T06 t mrg l acbad682 review P attempt 2
 T07 t mrg f fd874cf0 DONE-gate fallout; contract excludes Agent.* (admin-only)
+T08 t mrg f 21bc6a36 S1 grant fallout (tests, accept scripts)
 ## DEC
 D1 2026-11-14 order in submit/propose: replay, check_filing, require_not_stopped, check_queue_cap, budget, precheck; cap line added by S2 (D6)
 D2 2026-11-14 filing check: module commands need the module `user` word; core commands need an explicit module role on the scope (Q1 closed)
