@@ -12,6 +12,7 @@ text agents read, and error handling.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated
@@ -26,6 +27,7 @@ from tl_core.addable import AddableProperties
 from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
+from tl_core.modules import ModuleHookError, load_modules, resolve_hook
 from tl_core.query.parser import MAX_QUERY_LENGTH
 from tl_core.services.link_queries import LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
@@ -35,22 +37,10 @@ from tl_lake.guard import MAX_SQL_CHARS
 from tl_mod_documents.derivation import store as derivation_store
 
 from tl_mcp import resources, tools
-from tl_mcp.awp_tools import register_awp_tools
-from tl_mcp.awp_week_tools import register_week_tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
-from tl_mcp.correspondence_tools import register_correspondence_tools
-from tl_mcp.derivation_tools import register_derivation_tools
-from tl_mcp.document_tools import register_document_tools
-from tl_mcp.engineering_tools import register_engineering_tools
 from tl_mcp.errors import MAX_PART, guarded, resource_name
-from tl_mcp.iwp_tools import register_iwp_tools
-from tl_mcp.materials_tools import register_materials_tools
 from tl_mcp.models import LakeQueryOutput, SearchResult
 from tl_mcp.modes import resolve_tool_modes
-from tl_mcp.punch_tools import register_punch_tools
-from tl_mcp.requisition_tools import register_requisition_tools
-from tl_mcp.schedule_read_tools import register_schedule_read_tools
-from tl_mcp.schedule_tools import register_schedule_tools
 from tl_mcp.thread_tools import register_thread_tools
 from tl_mcp.type_tools import register_type_tools
 from tl_mcp.write_tools import register_write_tools
@@ -105,6 +95,26 @@ ScopeForKey = Annotated[
 ]
 
 
+_log = logging.getLogger("tl_mcp")
+
+
+def _register_module_tools(server: MCPServer, ctx: McpContext) -> None:
+    """Register every installed module's tools (``ModuleSpec.tools``), module-name order.
+
+    Hooks are resolved once, before any registration. A module whose hook cannot be resolved
+    registers none of its tools (fixed warning, no ref); the others still register.
+    """
+    resolved: list[tuple[object, ...]] = []
+    for spec in load_modules():
+        try:
+            resolved.append(resolve_hook(spec, "tools"))
+        except ModuleHookError as exc:
+            _log.warning("%s", exc)
+    for registrars in resolved:
+        for register in registrars:
+            register(server, ctx)  # type: ignore[operator]
+
+
 def build_server(
     factory: UowFactory,
     *,
@@ -142,19 +152,8 @@ def build_server(
     server = MCPServer("throughline", instructions=INSTRUCTIONS)
     register_write_tools(server, ctx, modes)
     register_type_tools(server, ctx)
-    register_engineering_tools(server, ctx)
-    register_document_tools(server, ctx)
-    register_derivation_tools(server, ctx)
     register_thread_tools(server, ctx)  # P1-I7 WS-B
-    register_correspondence_tools(server, ctx)
-    register_schedule_tools(server, ctx)
-    register_schedule_read_tools(server, ctx)
-    register_awp_tools(server, ctx)
-    register_materials_tools(server, ctx)
-    register_iwp_tools(server, ctx)
-    register_punch_tools(server, ctx)  # P2-PUNCH-T05
-    register_week_tools(server, ctx)  # P2-I5-T11c
-    register_requisition_tools(server, ctx)
+    _register_module_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(
