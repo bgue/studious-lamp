@@ -10,9 +10,9 @@ T09b1 t mrg f 49ab7045 review P
 T09b2 t mrg f 7480bded review P
 T07a t mrg f f4b66174 review P
 T07b t mrg f 3fc897e2 review P
-T09c t disp f - error rows for scaffold refusals (T09a open question); D18
+T09c t mrg f cb1e81ef review P
 T11a t disp f - demo project `scaffold` section (P200 data for tour); D19
-T12 t disp l - docs, runbook, contracts As-built; root AGENTS row at DONE
+T12 t mrg l d1484534 esc settled amend 1
 T10a t stg f - demo clauses 5, 6 (lifecycle, due, dismantle); after T09c
 T10b t stg f - demo clause 7 toolcrib; after T10a
 T11b t stg l - tour shots 13-15; after T11a
