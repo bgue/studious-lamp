@@ -89,18 +89,31 @@ P2_PTW = {
 }
 
 
-def test_the_platform_file_defines_45_keys_with_those_of_p2_qr_p2_insp_and_p2_ptw(
+#: The seven keys P2-FORMS S2 added (forms and public intake).
+P2_FORMS = {
+    "forms.draft_saves_max",
+    "forms.intake.enabled",
+    "forms.intake.rate_per_address_per_hour",
+    "forms.intake.rate_per_code_per_hour",
+    "forms.intake.pending_per_code_max",
+    "forms.intake.retention_days",
+    "forms.intake.code_max_days",
+}
+
+
+def test_the_platform_file_defines_52_keys_with_those_of_p2_qr_p2_insp_p2_ptw_and_p2_forms(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert len(PHASE2) == 12
     # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
     # idempotency.retention_days is the P2-X1 S1 key: neither old nor wave-0.
-    assert len(definitions) == 45
-    assert 45 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5) + len(P2_QR) + len(P2_PTW)
+    assert len(definitions) == 52
+    assert 52 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5) + len(P2_QR) + len(P2_PTW) + len(P2_FORMS)
     assert set(PHASE2) <= set(definitions) and P2_I5 <= set(definitions)
     assert P2_QR <= set(definitions) and P2_PTW <= set(definitions)
+    assert P2_FORMS <= set(definitions)
     assert len(set(definitions) - set(PHASE2)) == (
-        OLD_KEYS + 2 + len(P2_I5) + len(P2_QR) + len(P2_PTW)
+        OLD_KEYS + 2 + len(P2_I5) + len(P2_QR) + len(P2_PTW) + len(P2_FORMS)
     )
 
 
@@ -314,3 +327,26 @@ def test_public_base_url_accepts(definitions: dict[str, SettingDefinition], valu
 def test_public_base_url_refuses(definitions: dict[str, SettingDefinition], value: str) -> None:
     with pytest.raises(InvalidSettingValueError):
         normalise(definitions["api.public_base_url"], value)
+
+
+def test_p2_forms_keys_have_their_defaults_scopes_and_bounds(
+    definitions: dict[str, SettingDefinition],
+) -> None:
+    expected = {
+        "forms.draft_saves_max": (50, ["platform", "company"], True, 1, 500),
+        "forms.intake.enabled": (False, ["platform"], False, None, None),
+        "forms.intake.rate_per_address_per_hour": (20, ["platform"], False, 1, 1000),
+        "forms.intake.rate_per_code_per_hour": (60, ["platform"], False, 1, 10000),
+        "forms.intake.pending_per_code_max": (200, ["platform", "company"], True, 1, 5000),
+        "forms.intake.retention_days": (30, ["platform", "company"], True, 1, 90),
+        "forms.intake.code_max_days": (90, ["platform", "company"], True, 1, 365),
+    }
+    assert set(expected) == P2_FORMS
+    for key, (default, scopes, lockable, low, high) in expected.items():
+        d = definitions[key]
+        assert (d.default, list(d.scopes), d.lockable) == (default, scopes, lockable), key
+        if low is None:
+            assert d.type == "bool" and d.validation is None, key
+        else:
+            assert d.validation is not None, key
+            assert (d.validation.minimum, d.validation.maximum) == (low, high), key

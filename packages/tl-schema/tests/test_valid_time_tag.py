@@ -204,6 +204,23 @@ FROZEN: frozenset[str] = frozenset(
         # P2-QR S1: a system act, transaction time is the fact (the spec adds these two by name)
         "tl_mod_qr_events.ScanCodeIssuedPayload",
         "tl_mod_qr_events.ScanCodeRevokedPayload",
+        # P2-FORMS S2: a system act, transaction time is the fact (receipt time: only time in v1)
+        "tl_mod_forms_events.IntakeCodeIssuedPayload",
+        "tl_mod_forms_events.IntakeCodeRevokedPayload",
+        "tl_mod_forms_events.IntakeItemAcceptedPayload",
+        "tl_mod_forms_events.IntakeItemPurgedPayload",
+        "tl_mod_forms_events.IntakeItemReceivedPayload",
+        "tl_mod_forms_events.IntakeItemRejectedPayload",
+        "tl_mod_forms_events.SubmissionAcceptedPayload",
+        "tl_mod_forms_events.SubmissionDraftDiscardedPayload",
+        "tl_mod_forms_events.SubmissionDraftSavedPayload",
+        "tl_mod_forms_events.SubmissionReturnedPayload",
+        "tl_mod_forms_events.SubmissionSubmittedPayload",
+        "tl_mod_forms_events.SubmissionVoidedPayload",
+        "tl_mod_forms_events.TemplateCreatedPayload",
+        "tl_mod_forms_events.TemplateEditedPayload",
+        "tl_mod_forms_events.TemplatePublishedPayload",
+        "tl_mod_forms_events.TemplateRetiredPayload",
     }
 )
 

@@ -182,6 +182,19 @@ def test_the_shipped_file_numbers_the_three_permits_types() -> None:
         assert registry.find("company", record_type) is None
 
 
+def test_the_shipped_file_numbers_the_two_forms_types() -> None:
+    """P2-FORMS S2: a template counts once for the company, a submission per project."""
+    registry = load_numbering(FIXTURE)
+    template = registry.find("company", "forms.Template")
+    assert template is not None and template.type_code == "TPL"
+    assert template.compiled().render({"type": "TPL"}, 1) == "TPL-0001"
+    assert registry.find("project:P123", "forms.Template") is None
+    sub = registry.find("project:P123", "forms.Submission")
+    assert sub is not None and sub.type_code == "FRM"
+    assert sub.compiled().render({"project": "P123", "type": "FRM"}, 1) == "P123-FRM-0001"
+    assert registry.find("company", "forms.Submission") is None  # S3 decides on a company form
+
+
 def test_get_numbering_reads_the_schema_directory(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -103,6 +103,13 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "permits.gas.lel_max_pct",
         "permits.gas.h2s_max_ppm",
         "permits.gas.co_max_ppm",
+        "forms.draft_saves_max",  # P2-FORMS S2
+        "forms.intake.enabled",
+        "forms.intake.rate_per_address_per_hour",
+        "forms.intake.rate_per_code_per_hour",
+        "forms.intake.pending_per_code_max",
+        "forms.intake.retention_days",
+        "forms.intake.code_max_days",
     }
 
 
