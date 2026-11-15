@@ -281,6 +281,11 @@ work package you cannot see". No hire quantities (W3-3). The module reads the re
 `scaffold.inspections_due` (job id `inspdue:<project>:<YYYY-MM-DD>`) appends `Scaffold.InspectionDue` once per due day
 and never changes a tag or a state.
 
+**As built (P2-I4B S1-F4, supersedes the sketch above where they differ).** The requisitions api has no single-request read,
+so the scaffold module reads the request row directly: one SQL SELECT on `cur_requisitions_scaffold_request` (named by
+`tl_mod_scaffold.names.REQUEST_TABLE`), beside the `api.open_requisitions_for` call. This is a supervisor decision, not an
+api change. A later ADR can replace the SELECT with a requisitions read when a second consumer needs one.
+
 ---
 
 ## 4. Inventory movements and reservations (I3; called by I4-A and the readiness check)
