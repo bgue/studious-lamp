@@ -1,7 +1,7 @@
 # P2-FORMS — Forms engine, general forms, zero-login intake, web fill page
 
-Status: round 1 (2026-11-15). Plan of record: `docs/build-spec/module-designs/forms-eval.md` §8.3 (plan-checked there,
-15 findings answered; this plan does not differ from it except as D1 to D3 in `STATE.md`). Pieces specified: S1, S2.
+Status: round 2 (2026-11-15; S1, S2, S2w merged; S3, CR1 specs, T01, T13, T14 tickets written). Plan of record: `docs/build-spec/module-designs/forms-eval.md` §8.3 (plan-checked there,
+15 findings answered; this plan does not differ from it except as the decisions of `STATE.md` say). Pieces specified: S1, S2, S3, CR1.
 Sources: ADR-0031 (accepted), ADR-0032 (accepted, owner 2026-11-15), `forms-eval.md` (§2 engine, §3 API, §8), ADR-0030
 and `tl_core/qr/types.py` (the pattern), `docs/tickets/P2-INSP/README.md` (pattern for this file). Branch `p2/forms`
 from the integration branch `p2/ip`; piece branches `p2/forms-s<n>-<slug>`, ticket branches `p2/forms-t<nn>-<slug>`,
@@ -56,6 +56,7 @@ Tier B = builder piece (`kind: piece`); H = implementer ticket. Sec = a row for 
 | T11 | Demo `dev/demos/P2-FORMS.sh` and driver (eight clauses above) | H | T05-T10 | - | full | later |
 | T12 | Tour shots and docs: module README and AGENTS, `docs/modules/forms/`, runbook `docs/runbooks/forms.md` (templates carry no project text; backups), root `AGENTS.md` row | H | T11 | - | lite | later |
 | T13 | `tl_mod_quality.insp_rules` re-exports `validate_questions` and `validate_answers` from core (keeps `failed_questions`, `result_of`); INSP T00 test stays as is | H | S1, INSP T00 merged | - | full | later |
+| T14 | Webhook contract scenario delivers the Permit, Checklist, Inspection, QR and forms events; envelope `required` drops `omit` slots (S2w Open 1); spec `T14-webhook-scenario.md` | H | S2w | - | full | later |
 
 ## Items, slice INTAKE (released; waits for QR C2 for the code service; specs written after FORMS S3)
 | ID | Title | Tier | Depends |
@@ -85,8 +86,8 @@ Tier B = builder piece (`kind: piece`); H = implementer ticket. Sec = a row for 
 | Wave | Runs together | Notes |
 |---|---|---|
 | 1 | S1 and S2 | **today**; S1 is light, S2 is heavy (schema); at most 2 heavy runs with PTW S1 building: the orchestrator staggers |
-| 2 | CR1, then S3 | CR1 is the wave's one confidentiality piece |
-| 3 | workflow {T01, T02, T13}, then T09 | T13 needs INSP T00 merged |
+| 2 | S3 with workflow {T14}, then CR1 | CR1 is the wave's one confidentiality piece; it follows S3 (both edit forms `module.py`; D13) |
+| 3 | workflow {T01, T13} (T02 after its provided test), then T09 | T13: INSP T00 is merged |
 | 4 | S3s | needs INSP C2 and PTW C2 |
 | 5 | T03, then workflow {T05, T06, T04} | CLI, MCP, routes wait for X4 C2 |
 | 6 | {T07, T10}, T08, T11, T12 | |
