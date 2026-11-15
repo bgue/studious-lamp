@@ -95,7 +95,8 @@ def test_the_platform_file_defines_45_keys_with_those_of_p2_qr_p2_insp_and_p2_pt
     assert len(PHASE2) == 12
     # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
     # idempotency.retention_days is the P2-X1 S1 key: neither old nor wave-0.
-    assert len(definitions) == 45 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5) + len(P2_QR) + len(P2_PTW)
+    assert len(definitions) == 45
+    assert 45 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5) + len(P2_QR) + len(P2_PTW)
     assert set(PHASE2) <= set(definitions) and P2_I5 <= set(definitions)
     assert P2_QR <= set(definitions) and P2_PTW <= set(definitions)
     assert len(set(definitions) - set(PHASE2)) == (
