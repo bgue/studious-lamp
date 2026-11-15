@@ -65,6 +65,8 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {"core.ActivityPost": "full", 
 | `correspondence.CommercialItem` | none | — | Every command is a `controller` act and items are restricted by default |
 | `quality.PunchItem` | draft_only | — | A walkdown raises items offline; clear, verify, reopen and void are central (P2-PUNCH) |
 | `qr.ScanCode` | none | — | Issued and revoked on the authority; a code is a server secret by hash (P2-QR S1) |
+| `quality.Checklist` | none | — | A checklist is written and published centrally (P2-INSP) |
+| `quality.Inspection` | draft_only | — | An inspection is planned offline; schedule, record, verify and cancel are central (P2-INSP) |
 | `correspondence.CorrespondenceThread`, `ResponseClock`, `ContractClause`, `Party` | none | — | Clocks recompute on the authority; threads, clauses and parties are reference data |
 | `engineering.Tag` | full | — | Field tagging; duplicates merge by natural key (`natural_key` policy, Phase 3) |
 | `engineering.CodeList`, `Mnemonic`, `NumberingPattern`, `CodeValue`, `TagClass` | none | — | Registry: admin data, company scope |

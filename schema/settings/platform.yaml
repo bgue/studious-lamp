@@ -470,4 +470,14 @@ settings:
     validation:
       minimum: 1
       maximum: 100
+
+  - key: quality.inspections.required_for_iwp
+    type: bool
+    default: false
+    description: When on, an IWP with no planned inspection is not ready.
+    docs: >-
+      Off by default. When on, the readiness check of an interim work package counts a planned inspection as a
+      requirement: an IWP that has none is not ready. Inspections already planned are not changed.
+    scopes: [platform, company, project]
+    lockable: true
     since: "0.1.0"

@@ -13,20 +13,39 @@ from tl_core.modules import ModuleSpec, load_modules
 from tl_core.projection.record import RecordProjector
 from tl_mod_quality import MODULE
 from tl_mod_quality.module import PUNCH_COMMANDS, projectors, spec
-from tl_mod_quality.names import PUNCH_EVENTS, PUNCH_ITEM, PUNCH_ITEM_TABLE
-from tl_mod_quality.projectors import PunchItemProjector
+from tl_mod_quality.names import (
+    CHECKLIST,
+    INSPECTION,
+    PUNCH_EVENTS,
+    PUNCH_ITEM,
+    PUNCH_ITEM_TABLE,
+    RAISE,
+    RECORD_TYPES,
+)
+from tl_mod_quality.projectors import ChecklistProjector, InspectionProjector, PunchItemProjector
 
 BASE = datetime(2026, 12, 1, 9, 0, tzinfo=UTC)
 STREAM = "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
 
 
-def test_spec_loads_with_the_record_type_and_one_projector() -> None:
+def test_spec_loads_with_three_record_types_and_three_projectors() -> None:
     built = spec()
     assert isinstance(built, ModuleSpec)
     assert built.name == MODULE == "quality"
-    assert built.record_types == frozenset({PUNCH_ITEM})
-    assert [type(p) for p in built.projectors()] == [PunchItemProjector]
-    assert [type(p) for p in projectors()] == [PunchItemProjector]
+    assert built.record_types == frozenset({PUNCH_ITEM, CHECKLIST, INSPECTION}) == RECORD_TYPES
+    kinds = [PunchItemProjector, ChecklistProjector, InspectionProjector]
+    assert [type(p) for p in built.projectors()] == kinds
+    assert [type(p) for p in projectors()] == kinds
+
+
+def test_the_punch_commands_and_words_are_as_before() -> None:
+    built = spec()
+    assert len(PUNCH_COMMANDS) == 6
+    assert RAISE == "quality.punch.raise"
+    assert set(built.command_words) == {c.model.__name__ for c in PUNCH_COMMANDS}
+    assert set(built.generic_commands) == {PUNCH_ITEM}
+    assert set(built.actions) == {PUNCH_ITEM}
+    assert set(built.offline_drafts) == {PUNCH_ITEM}
 
 
 def test_spec_has_six_commands_and_the_raise_draft() -> None:

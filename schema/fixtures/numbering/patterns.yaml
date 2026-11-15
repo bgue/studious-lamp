@@ -88,6 +88,17 @@ patterns:
     scope: "project:*"
     template: "{project}-{type}-{seq:4}"
     type_code: PUN
+  # Inspection checklists and inspections (P2-INSP): one count per project each, P123-CHK-0001 and P123-INS-0001.
+  - id: quality.Checklist
+    record_type: quality.Checklist
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: CHK
+  - id: quality.Inspection
+    record_type: quality.Inspection
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: INS
   # Requisitions (brief 9 M9): one gap-free counter per kind, P123-REQ-LAB-0001 and so on; the work order has its own.
   - id: requisitions.LaborRequisition
     record_type: requisitions.LaborRequisition

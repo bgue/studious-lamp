@@ -72,7 +72,8 @@ QR = {
     "qr.revoke": "controller",
 }
 
-#: The seven words of the punch list (P2-PUNCH S1); an assignment is an edit (no assign word).
+#: The seven words of the punch list (P2-PUNCH S1; an assignment is an edit, no assign word) and the
+#: six of checklists and inspections (P2-INSP S1).
 QUALITY = {
     "quality.view": "read",
     "quality.punch.raise": "user",
@@ -81,6 +82,12 @@ QUALITY = {
     "quality.punch.verify": "controller",
     "quality.punch.reopen": "controller",
     "quality.punch.void": "controller",
+    "quality.checklist.edit": "user",
+    "quality.checklist.publish": "controller",
+    "quality.inspection.plan": "user",
+    "quality.inspection.record": "user",
+    "quality.inspection.verify": "controller",
+    "quality.inspection.cancel": "controller",
 }
 #: The twelve words of the requisitions module (P2-I4A S1): approval is one word, no chain.
 REQUISITIONS = {
@@ -100,7 +107,7 @@ REQUISITIONS = {
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_60_words() -> None:
+def test_the_shipped_table_loads_66_words() -> None:
     words = load_access_words()
     expected = (
         len(AWP)
@@ -112,7 +119,7 @@ def test_the_shipped_table_loads_60_words() -> None:
         + len(REQUISITIONS)
         + len(QR)
     )
-    assert len(words) == 60 == expected
+    assert len(words) == 66 == expected
     assert "awp.constraint.edit" not in words
 
 

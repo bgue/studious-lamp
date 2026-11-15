@@ -1,0 +1,33 @@
+# Workflow of an inspection (brief 9 M5): Planned, Scheduled (and rescheduled), Done when the result is recorded,
+# Verified by a controller. A planned or scheduled inspection can be cancelled. Verified and Cancelled are final;
+# Done to Planned and any move out of a final state are not moves. Every move is a command of the quality module
+# (by_module), so the file states the moves and names no role: who may do what is the access word of each command
+# (ADR-0013).
+id: quality.inspection
+version: 1
+record_type: quality.Inspection
+scope: company
+initial_state: Planned
+states:
+  - name: Planned
+  - name: Scheduled
+  - name: Done
+  - name: Verified
+  - name: Cancelled
+transitions:
+  - name: schedule
+    label: Schedule the inspection
+    from: [Planned, Scheduled]
+    to: Scheduled
+  - name: record
+    label: Record the result
+    from: [Scheduled]
+    to: Done
+  - name: verify
+    label: Verify the result
+    from: [Done]
+    to: Verified
+  - name: cancel
+    label: Cancel the inspection
+    from: [Planned, Scheduled]
+    to: Cancelled

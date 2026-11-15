@@ -1,0 +1,13 @@
+# Sample checklist: Flange joint make-up. Plain data in the question shape of schema/modules/quality/checklist.yaml.
+title: Flange joint make-up
+discipline: piping
+questions:
+  - {id: "q1", text: "Flange faces are clean and undamaged", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q2", text: "Gasket type matches the line class", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q3", text: "Studs and nuts match the specification", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q4", text: "Lubricant applied to threads", kind: "yes_no_na", required: false, unit: null, min: null, max: null, choices: null, fails_when: null}
+  - {id: "q5", text: "Gap between flange faces", kind: "number", required: true, unit: "mm", min: 0, max: 3, choices: null, fails_when: "out_of_range"}
+  - {id: "q6", text: "Torque applied", kind: "number", required: true, unit: "N.m", min: 180, max: 220, choices: null, fails_when: "out_of_range"}
+  - {id: "q7", text: "Tightening pattern", kind: "choice", required: true, unit: null, min: null, max: null, choices: ["star", "circular", "hydraulic tensioner"], fails_when: null}
+  - {id: "q8", text: "Joint tag number as marked", kind: "text", required: true, unit: null, min: null, max: null, choices: null, fails_when: null}
+  - {id: "q9", text: "Remarks", kind: "text", required: false, unit: null, min: null, max: null, choices: null, fails_when: null}

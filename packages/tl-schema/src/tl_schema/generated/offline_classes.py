@@ -52,6 +52,8 @@ OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
     "materials.Receipt": "draft_only",
     "materials.StockLot": "draft_only",
     "qr.ScanCode": "none",
+    "quality.Checklist": "none",
+    "quality.Inspection": "draft_only",
     "quality.PunchItem": "draft_only",
     "requisitions.GeneralRequisition": "draft_only",
     "requisitions.LaborRequisition": "draft_only",

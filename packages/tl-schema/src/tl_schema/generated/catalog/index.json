@@ -244,6 +244,42 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Checklist.Created.v1",
+      "event_type": "Checklist.Created",
+      "payload_class": "ChecklistCreatedPayload",
+      "sample": "samples/Checklist.Created.v1.json",
+      "schema": "schemas/Checklist.Created.v1.json",
+      "title": "A checklist was created.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Checklist.Edited.v1",
+      "event_type": "Checklist.Edited",
+      "payload_class": "ChecklistEditedPayload",
+      "sample": "samples/Checklist.Edited.v1.json",
+      "schema": "schemas/Checklist.Edited.v1.json",
+      "title": "A draft checklist was edited; only fields that changed are present.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Checklist.Published.v1",
+      "event_type": "Checklist.Published",
+      "payload_class": "ChecklistPublishedPayload",
+      "sample": "samples/Checklist.Published.v1.json",
+      "schema": "schemas/Checklist.Published.v1.json",
+      "title": "A checklist was published.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Checklist.Retired.v1",
+      "event_type": "Checklist.Retired",
+      "payload_class": "ChecklistRetiredPayload",
+      "sample": "samples/Checklist.Retired.v1.json",
+      "schema": "schemas/Checklist.Retired.v1.json",
+      "title": "A checklist was retired.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.CodeValue.Closed.v1",
       "event_type": "CodeValue.Closed",
       "payload_class": "CodeValueClosedPayload",
@@ -988,6 +1024,51 @@
       "sample": "samples/InboundEndpoint.SecretRotated.v1.json",
       "schema": "schemas/InboundEndpoint.SecretRotated.v1.json",
       "title": "A new secret was issued; the previous one keeps verifying until the overlap ends (at most 24 hours).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inspection.Cancelled.v1",
+      "event_type": "Inspection.Cancelled",
+      "payload_class": "InspectionCancelledPayload",
+      "sample": "samples/Inspection.Cancelled.v1.json",
+      "schema": "schemas/Inspection.Cancelled.v1.json",
+      "title": "An inspection was cancelled.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inspection.Planned.v1",
+      "event_type": "Inspection.Planned",
+      "payload_class": "InspectionPlannedPayload",
+      "sample": "samples/Inspection.Planned.v1.json",
+      "schema": "schemas/Inspection.Planned.v1.json",
+      "title": "An inspection was planned.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inspection.ResultRecorded.v1",
+      "event_type": "Inspection.ResultRecorded",
+      "payload_class": "InspectionResultRecordedPayload",
+      "sample": "samples/Inspection.ResultRecorded.v1.json",
+      "schema": "schemas/Inspection.ResultRecorded.v1.json",
+      "title": "The result of an inspection was recorded.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inspection.Scheduled.v1",
+      "event_type": "Inspection.Scheduled",
+      "payload_class": "InspectionScheduledPayload",
+      "sample": "samples/Inspection.Scheduled.v1.json",
+      "schema": "schemas/Inspection.Scheduled.v1.json",
+      "title": "An inspection was scheduled or rescheduled.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inspection.Verified.v1",
+      "event_type": "Inspection.Verified",
+      "payload_class": "InspectionVerifiedPayload",
+      "sample": "samples/Inspection.Verified.v1.json",
+      "schema": "schemas/Inspection.Verified.v1.json",
+      "title": "A recorded inspection was verified by a controller.",
       "version": 1
     },
     {

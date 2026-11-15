@@ -44,7 +44,11 @@ from tl_mod_quality.names import (
     VERIFY,
     VOID_WORD,
 )
-from tl_mod_quality.projectors import PunchItemProjector
+from tl_mod_quality.projectors import (
+    ChecklistProjector,
+    InspectionProjector,
+    PunchItemProjector,
+)
 
 
 @dataclass(frozen=True)
@@ -87,7 +91,7 @@ PROPOSABLE = (
 
 def projectors() -> list[Projector]:
     """Fresh projectors in the order they are registered."""
-    return [PunchItemProjector()]
+    return [PunchItemProjector(), ChecklistProjector(), InspectionProjector()]
 
 
 def spec() -> ModuleSpec:

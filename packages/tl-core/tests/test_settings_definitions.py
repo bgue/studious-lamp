@@ -93,6 +93,7 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "idempotency.retention_days",  # P2-X1 S1
         "api.public_base_url",  # P2-QR S1
         "qr.codes_per_record_max",
+        "quality.inspections.required_for_iwp",  # P2-INSP S1
     }
 
 

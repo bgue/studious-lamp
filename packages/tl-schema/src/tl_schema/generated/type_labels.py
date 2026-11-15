@@ -50,6 +50,8 @@ TYPE_LABELS: Final[dict[str, str]] = {
     "materials.Receipt": "Receipt",
     "materials.StockLot": "Stock lot",
     "qr.ScanCode": "Scan code",
+    "quality.Checklist": "Checklist",
+    "quality.Inspection": "Inspection",
     "quality.PunchItem": "Punch item",
     "requisitions.GeneralRequisition": "General requisition",
     "requisitions.LaborRequisition": "Labour requisition",

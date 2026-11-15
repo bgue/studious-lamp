@@ -157,6 +157,8 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
         "v_materials_receipt",
         "v_materials_stock_lot",
         "v_qr_scan_code",
+        "v_quality_checklist",
+        "v_quality_inspection",
         "v_quality_punch_item",
         "v_requisitions_general_requisition",
         "v_requisitions_labor_requisition",
