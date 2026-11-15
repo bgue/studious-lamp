@@ -1,7 +1,7 @@
 # P2-I4B STATE  r=1 base=d4e92ffc C=0 ck=- gate=n/a wt=/home/user/wt/p2-i4b
 ## BOARD   (S1 = plan B4; `stg` staged, spec not yet written)
 S1 p mrg f 256d9014 findings dec by orch; 2nd gate PASS per file; APPROVALS
-T06 t disp f - toolcrib screen; provided test; spec written
+T06 t mrg f 1c3e1294 review P; F2 ctrl+i is Tab -> T07a
 T01 t stg f - read views and export_rows; after S1
 T05 t stg f - scaffold_tagged, labour_requested; after S1
 T09b1 t stg f - API routes and five-reader walk; after T01
