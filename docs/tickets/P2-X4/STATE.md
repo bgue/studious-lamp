@@ -1,6 +1,6 @@
 # P2-X4 STATE  r=1 base=a933413 C=0 ck=0 gate=n/a wt=/home/user/wt/p2-x4
 ## BOARD
-S1 p disp f - hooks+ModuleCommand; spec S1-module-hooks.md; test provided
+S1 p mrg f 0 hooks; review P 3 LO (F3: S2 keep cross-module router order awp_progress, awp_weeks before awp); 432 P; APPROVALS
 S2 p todo f - waits S1; API table from load_modules()
 S3 p todo f - waits S1; MCP tools, closed allow list
 T01 t todo f - waits S1; CLI group loop
