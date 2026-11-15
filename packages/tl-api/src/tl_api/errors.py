@@ -40,6 +40,7 @@ from tl_mod_legacy import errors as legacy
 from tl_mod_materials import errors as mat
 from tl_mod_quality import errors as qual
 from tl_mod_requisitions import errors as req
+from tl_mod_scaffold import errors as scf
 from tl_mod_schedule import errors as sched
 from tl_mod_schemareg import errors as sreg
 
@@ -401,6 +402,13 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(qual.PunchRuleError, "punch_rule", 422),
         s(qual.PunchStateError, "punch_state", 409),
         s(qual.StaleVersionError, "punch_stale_version", 409),
+        # --- scaffold module (P2-I4B): scaffold records -----------------------------------------
+        s(scf.ScaffoldError, "scaffold_error", 422),
+        s(scf.ScaffoldScopeError, "scaffold_scope", 422),
+        s(scf.ScaffoldRuleError, "scaffold_rule", 422),
+        s(scf.ScaffoldStateError, "scaffold_state", 409),
+        s(scf.DismantleRefused, "scaffold_dismantle_refused", 409),
+        s(scf.StaleVersionError, "scaffold_stale_version", 409),
     )
 
 
