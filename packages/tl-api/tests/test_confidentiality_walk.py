@@ -302,6 +302,12 @@ def test_the_walk_finds_the_routes_and_the_seed_is_what_the_walk_assumes(
         "/projects/{project}/punch/{key}",
         "/projects/{project}/punch-counts",
     } <= paths
+    assert {  # P2-I4B-T09b1: the scaffold reads; a seeded walk is in tests/test_api_scaffold.py
+        "/projects/{project}/scaffolds",
+        "/projects/{project}/scaffolds/{key}",
+        "/projects/{project}/scaffold-due",
+        "/projects/{project}/scaffold-export",
+    } <= paths
     assert (
         {  # P2-I4A-T04c1: the requisition and work order reads, walked in test_api_requisitions.py
             "/projects/{project}/requisitions",
