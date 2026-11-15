@@ -79,3 +79,12 @@ Stop and write *Blocked* if a clause needs a source change; if a CLI command nam
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator ruling, T05 round 2)
+Clause 2 files a MODULE command: `propose_punch_item` (`RaisePunchItem`, word `quality.punch.raise`, a `user` word). A plain account derives the `user` word on every module, so amy is made
+word-less by an explicit grant that replaces the derived roles: `tl admin roles grant amy --project P1 --module quality --role viewer`. Amy's accept is refused; demo (admin) accepts a second
+punch proposal. Proposal A carries amy's record through `from_key`. Clause 4 needs no stub: S3b keeps a stopped agent's proposal pending. SQL column is `event_type`. Driver size 287 lines accepted.
+
+## Amendment 2 (orchestrator, 2026-11-15; review F1-F4)
+Sizes accepted as built: `dev/demos/P2-X2.sh` 178 lines, `dev/demos/p2_x2_demo.py` 300 lines. Clause 2 passes on amy's
+refused accept beside demo's successful accept of the same command (review F4 LO accepted as is).
