@@ -14,7 +14,7 @@ T09c t mrg f cb1e81ef review P
 T11a t mrg f 9d5237e5 review P; 1 scaffold (Designed)
 T12 t mrg l d1484534 esc settled amend 1
 T10a t mrg f 863b91a3 review P; stale echo fix in T10b
-T10b t stg f - demo clause 7 toolcrib; after T10a
+T10b t mrg f 2eb59e85 esc settled amend 1
 T11b t stg l - tour shots 13-15; after T11a
 ## DEC
 D1 2026-11-15 TagScaffoldGreen is its own command (word scaffold.tag.green, controller); InspectScaffold takes conditional or fail only: one word per command (W3-2); S1, contract §3

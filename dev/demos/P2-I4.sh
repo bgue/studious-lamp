@@ -21,7 +21,10 @@
 #      red, the scaffold goes to Modify and the check is blocked; release is refused meanwhile;
 #   6  scaffold inspections due and dismantle: the job scaffold.inspections_due flags the overdue
 #      scaffold once (a second run writes nothing); dismantle is refused while the IWP that requires
-#      the scaffold is Issued, and allowed after tl awp iwp cancel (decision D17: Cancelled is "closes").
+#      the scaffold is Issued, and allowed after tl awp iwp cancel (decision D17: Cancelled is "closes");
+#   7  toolcrib screen (P2-I4B-T10b; driver: dev/demos/p2_i4b_demo.py, mode toolcrib): uma issues one
+#      elbow from TC1 to Ana Ruiz and takes it back, one line each, keys F2 and Ctrl+R; on hand 5 -> 4
+#      -> 5 (sue defines TC1 in the demo world, which loads none, and uma receives 5 EA into it)
 # Deferred and not claimed here: stock fulfilment, FIFO lots, the shortage constraint, the labour
 # forecast, reports, thread dispatch and web pages.
 #
@@ -253,6 +256,12 @@ run_backend() {
   expect "cancel $IWP  version" "$out"
   driver_b scaffold-after
   clause 6 "the job flags the overdue scaffold once; dismantle refused while the IWP is Issued; allowed after it is cancelled"
+
+  step "[$backend] clause 7: the toolcrib screen issues a tool to a person and takes it back, one line each"
+  out="$(as ada tl admin roles grant sue --project P123 --module materials --role superuser --reason demo)"; echo "$out"
+  expect "granted superuser on materials for project:P123 to sue" "$out"
+  driver_b toolcrib
+  clause 7 "F2 issues one elbow from TC1 to Ana Ruiz and Ctrl+R takes it back; on hand 5 -> 4 -> 5 (keyboard only, sue defines TC1, uma receives 5 EA into it)"
 
   drop_pg
   echo "[$backend] clauses 1-4 passed"
