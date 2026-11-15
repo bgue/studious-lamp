@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from tl_adapters.db import DbTarget, create_schema
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+from forms_world import World  # noqa: E402
 
 
 @pytest.fixture
@@ -14,3 +20,11 @@ def db(new_db: Callable[[], DbTarget]) -> DbTarget:
     target = new_db()
     create_schema(target)
     return target
+
+
+@pytest.fixture
+def world(db: DbTarget) -> World:
+    """A ledger with the people."""
+    w = World(db)
+    w.people()
+    return w
