@@ -7,7 +7,7 @@ INSP-S1 p mrg f ed1ff779 review P; F1 MD `at` accepted; APPROVALS
 PTW-S1 p mrg f 15962582 review P; APPROVALS (gas defaults pending safety lead)
 QR-T02 t mrg l 26266171 review P after amend 1 + report fix
 QR-T03 t mrg f 09182bee review P; 2 LO
-INSP-T00 t stg f - insp_rules.py; needs INSP-S1 merged; provided test staged
+INSP-T00 t mrg f bf8bb301 review P after amend 1
 PTW-T00 t stg f - rules.py; needs PTW-S1 merged; provided test staged
 QR-S2 p todo f - after S1 and X4-free (no hooks); writes T01 provided test
 INSP-S2 p todo f - after INSP-S1, INSP-T00

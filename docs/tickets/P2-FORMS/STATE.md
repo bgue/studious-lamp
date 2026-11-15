@@ -1,7 +1,7 @@
 # P2-FORMS STATE  r=1 base=b91ee33d C=C0 ck=0 gate=n/a wt=/home/user/wt/forms-plan
 Plan `docs/tickets/P2-FORMS/README.md` (plan-checked via forms-eval). Branch `p2/forms-plan` from `p2/ip`@b91ee33d.
 ## BOARD
-S1 p stg f - contract and rules in core; provided test staged
+S1 p mrg f 10737874 review P after fix (197 P); APPROVALS
 S2 p stg f - forms schema, intake folded in (D1)
 CR1 p todo f - orch-scheduled confidentiality rows; after S2
 S3 p todo f - commands, uow seam; after S1, S2
