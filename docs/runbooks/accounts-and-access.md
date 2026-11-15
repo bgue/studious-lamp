@@ -119,11 +119,11 @@ An agent files only where it holds the module `user` word on the scope, from an 
     uv run tl admin token issue triage --label pilot
     ```
     Expected: `created triage  agent  ...`; the token on stdout and `issued token <id> for agent:triage, expires <time>; this is the only time it is shown` on stderr.
-16. List the projects and modules the agent will file in (a plan, not a command). Check what it already holds on each project:
+16. List the modules on each project the agent will file in, with what the agent holds on each. Run it once per project (here P1); the modules are the ones the CLI loads:
     ```
-    uv run tl admin roles ls --project P1
+    uv run tl admin roles effective triage --project P1
     ```
-    Expected: one row per explicit grant on P1; none for a new agent.
+    Expected: one line per loaded module, `<module>  <roles or ->  <source>`. Note the modules you will file in; step 17 grants them.
 17. Grant `user` per project and module, with a reason. Use `--module '*'` for every module. An agent may hold `viewer` or `user`, never `superuser`:
     ```
     uv run tl admin roles grant triage --project P1 --module documents --role user --reason "pilot agent files on P1 documents"
