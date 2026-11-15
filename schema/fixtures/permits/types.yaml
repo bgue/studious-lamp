@@ -1,0 +1,54 @@
+# What each permit type demands (design permits.md section 3). Data, not code: loaded by
+# `tl_mod_permits.types_table.load_types`. One entry per `PermitType` value; an entry missing for a value, an unknown
+# key or a repeated precaution id is an error at load. `max_days` is the longest validity from issue (1 is one shift).
+types:
+  hot_work:
+    needs_gas_test: true
+    needs_isolation: false
+    max_days: 1
+    precautions:
+      - {id: fire_watch, text: "Fire watch named"}
+      - {id: extinguisher, text: "Extinguisher at the work"}
+      - {id: combustibles_cleared, text: "Combustibles cleared"}
+      - {id: spark_containment, text: "Spark containment in place"}
+  confined_space:
+    needs_gas_test: true
+    needs_isolation: true
+    max_days: 1
+    precautions:
+      - {id: attendant, text: "Attendant named"}
+      - {id: rescue_plan, text: "Rescue plan in place"}
+      - {id: ventilation, text: "Ventilation running"}
+      - {id: entry_log, text: "Entry log at the opening"}
+  work_at_height:
+    needs_gas_test: false
+    needs_isolation: false
+    max_days: 7
+    precautions:
+      - {id: fall_protection, text: "Fall protection in use"}
+      - {id: exclusion_zone, text: "Exclusion zone below"}
+      - {id: tool_lanyards, text: "Tool lanyards fitted"}
+      - {id: scaffold_tag, text: "Scaffold tag checked"}
+  excavation:
+    needs_gas_test: false
+    needs_isolation: false
+    max_days: 7
+    precautions:
+      - {id: services_located, text: "Underground services located"}
+      - {id: shoring, text: "Shoring or batter in place"}
+      - {id: barriers, text: "Barriers around the opening"}
+      - {id: spoil_set_back, text: "Spoil set back from the edge"}
+  isolation:
+    needs_gas_test: false
+    needs_isolation: true
+    max_days: 7
+    precautions:
+      - {id: points_listed, text: "Isolation points listed"}
+      - {id: locks_tags_applied, text: "Locks and tags applied"}
+      - {id: zero_energy_proven, text: "Zero energy proven"}
+  general:
+    needs_gas_test: false
+    needs_isolation: false
+    max_days: 7
+    precautions:
+      - {id: jha_attached, text: "Job hazard assessment attached"}

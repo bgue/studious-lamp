@@ -94,6 +94,15 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "api.public_base_url",  # P2-QR S1
         "qr.codes_per_record_max",
         "quality.inspections.required_for_iwp",  # P2-INSP S1
+        "permits.shift_hours",  # P2-PTW S1
+        "permits.shift_start",
+        "permits.gas_test.valid_minutes",
+        "permits.required_for_iwp",
+        "permits.gas.o2_min_pct",
+        "permits.gas.o2_max_pct",
+        "permits.gas.lel_max_pct",
+        "permits.gas.h2s_max_ppm",
+        "permits.gas.co_max_ppm",
     }
 
 

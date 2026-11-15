@@ -104,10 +104,25 @@ REQUISITIONS = {
     "requisitions.close": "controller",
     "requisitions.fulfil": "user",
 }
+#: The twelve words of the permits module (P2-PTW S1).
+PERMITS = {
+    "permits.view": "read",
+    "permits.request": "user",
+    "permits.revalidate": "user",
+    "permits.suspend": "user",
+    "permits.handback": "user",
+    "permits.isolation.apply": "user",
+    "permits.gastest.record": "user",
+    "permits.approve": "controller",
+    "permits.issue": "controller",
+    "permits.resume": "controller",
+    "permits.close": "controller",
+    "permits.isolation.verify": "controller",
+}
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_66_words() -> None:
+def test_the_shipped_table_loads_69_words() -> None:
     words = load_access_words()
     expected = (
         len(AWP)
@@ -118,8 +133,9 @@ def test_the_shipped_table_loads_66_words() -> None:
         + len(AWP_WEEK)
         + len(REQUISITIONS)
         + len(QR)
+        + len(PERMITS)
     )
-    assert len(words) == 66 == expected
+    assert len(words) == 69 == expected
     assert "awp.constraint.edit" not in words
 
 
@@ -134,6 +150,7 @@ def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> 
         **AWP_WEEK,
         **REQUISITIONS,
         **QR,
+        **PERMITS,
     }.items():
         assert words.get(word) == table, word
 

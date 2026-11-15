@@ -1,0 +1,91 @@
+id: https://example.org/throughline/modules/permits/gas_test
+name: tl_mod_permits_gas_test
+title: Gas tests
+description: >-
+  A gas test is one set of readings of the air at a place, with a time, a tester and an instrument. The result is computed from the limits in settings, never typed. A reading is a fact: the record has no workflow.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: permits
+
+enums:
+  GasResult:
+    description: "Outcome of a gas test against the limits."
+    permissible_values:
+      pass:
+        description: Every reading is within its limit.
+      fail:
+        description: At least one reading is outside its limit.
+
+classes:
+  GasTest:
+    title: Gas test
+    description: >-
+      One gas test. Record type `permits.GasTest`; its key is the number the allocator gives it (`P123-GAS-0001`,
+      gap-free). Offline class `none`. It is hidden through its permit (`permit_id`).
+    annotations:
+      tl:current_state: true
+      tl:record_types: "permits.GasTest"
+      tl:offline: none
+      tl:table: cur_permits_gas_test
+      tl:ix_permit: "permit_id"
+      tl:ix_taken_at: "taken_at"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      permit_id:
+        range: Ulid
+        required: true
+        description: "The permit the test is for."
+      taken_at:
+        range: datetime
+        required: true
+        description: "When the reading was taken, an aware time."
+      tester:
+        pattern: "^.{1,120}$"
+        required: true
+        description: "Who took it, at most 120 characters."
+      instrument_text:
+        pattern: "^.{1,64}$"
+        description: "The instrument, at most 64 characters; null when not named."
+      o2_pct:
+        range: decimal
+        minimum_value: 0
+        description: "Oxygen, percent; null when not read."
+      lel_pct:
+        range: decimal
+        minimum_value: 0
+        description: "Flammables, percent of the lower explosive limit; null when not read."
+      h2s_ppm:
+        range: decimal
+        minimum_value: 0
+        description: "Hydrogen sulphide, parts per million; null when not read."
+      co_ppm:
+        range: decimal
+        minimum_value: 0
+        description: "Carbon monoxide, parts per million; null when not read."
+      result:
+        range: GasResult
+        required: true
+        description: "`pass` or `fail` (`GasResult`), computed from the limits."
+      note:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "A note, at most 300 characters; null when none."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

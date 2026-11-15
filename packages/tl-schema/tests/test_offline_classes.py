@@ -63,6 +63,9 @@ SPEC_RECORDS: dict[str, str] = {
     "qr.ScanCode": "none",  # P2-QR S1
     "quality.Checklist": "none",
     "quality.Inspection": "draft_only",
+    "permits.GasTest": "none",  # P2-PTW-S1
+    "permits.Isolation": "none",  # P2-PTW-S1
+    "permits.Permit": "none",  # P2-PTW-S1
     "quality.PunchItem": "draft_only",
     "requisitions.GeneralRequisition": "draft_only",
     "requisitions.LaborRequisition": "draft_only",
@@ -97,7 +100,7 @@ SPEC_STREAMS: dict[str, str] = {
 
 def test_every_labelled_record_type_has_a_class_and_nothing_else() -> None:
     assert set(OFFLINE_CLASSES) == set(TYPE_LABELS)
-    assert len(OFFLINE_CLASSES) == 59
+    assert len(OFFLINE_CLASSES) == 62
 
 
 def test_the_record_table_is_the_spec_table_cell_for_cell() -> None:

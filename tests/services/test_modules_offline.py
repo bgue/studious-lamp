@@ -138,6 +138,7 @@ def test_discovery_runs_the_check_on_every_module(monkeypatch: pytest.MonkeyPatc
         "engineering",
         "legacy",
         "materials",
+        "permits",
         "qr",
         "quality",
         "requisitions",

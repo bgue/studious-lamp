@@ -67,6 +67,9 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {"core.ActivityPost": "full", 
 | `qr.ScanCode` | none | — | Issued and revoked on the authority; a code is a server secret by hash (P2-QR S1) |
 | `quality.Checklist` | none | — | A checklist is written and published centrally (P2-INSP) |
 | `quality.Inspection` | draft_only | — | An inspection is planned offline; schedule, record, verify and cancel are central (P2-INSP) |
+| `permits.Permit` | none | — | A permit is an act on the authority, like a scaffold tag (P2-PTW) |
+| `permits.Isolation` | none | — | Applying, verifying and removing an isolation are acts on the authority (P2-PTW) |
+| `permits.GasTest` | none | — | A reading is recorded online against its permit (P2-PTW) |
 | `correspondence.CorrespondenceThread`, `ResponseClock`, `ContractClause`, `Party` | none | — | Clocks recompute on the authority; threads, clauses and parties are reference data |
 | `engineering.Tag` | full | — | Field tagging; duplicates merge by natural key (`natural_key` policy, Phase 3) |
 | `engineering.CodeList`, `Mnemonic`, `NumberingPattern`, `CodeValue`, `TagClass` | none | — | Registry: admin data, company scope |

@@ -23,6 +23,7 @@ members = [
     "tl-mod-engineering",
     "tl-mod-legacy",
     "tl-mod-materials",
+    "tl-mod-permits",
     "tl-mod-qr",
     "tl-mod-quality",
     "tl-mod-requisitions",
@@ -2748,6 +2749,7 @@ dependencies = [
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
+    { name = "tl-mod-permits" },
     { name = "tl-mod-qr" },
     { name = "tl-mod-quality" },
     { name = "tl-mod-schedule" },
@@ -2772,6 +2774,7 @@ requires-dist = [
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
+    { name = "tl-mod-permits", editable = "packages/tl-modules/permits" },
     { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-mod-quality", editable = "packages/tl-modules/quality" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
@@ -2798,6 +2801,7 @@ dependencies = [
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
+    { name = "tl-mod-permits" },
     { name = "tl-mod-qr" },
     { name = "tl-mod-quality" },
     { name = "tl-mod-schedule" },
@@ -2824,6 +2828,7 @@ requires-dist = [
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
+    { name = "tl-mod-permits", editable = "packages/tl-modules/permits" },
     { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-mod-quality", editable = "packages/tl-modules/quality" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
@@ -2935,6 +2940,7 @@ dependencies = [
     { name = "tl-lake" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
+    { name = "tl-mod-permits" },
     { name = "tl-mod-qr" },
     { name = "tl-mod-quality" },
     { name = "tl-mod-schedule" },
@@ -2953,6 +2959,7 @@ requires-dist = [
     { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
+    { name = "tl-mod-permits", editable = "packages/tl-modules/permits" },
     { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-mod-quality", editable = "packages/tl-modules/quality" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
@@ -3142,6 +3149,27 @@ requires-dist = [
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
+name = "tl-mod-permits"
+version = "0.1.0"
+source = { editable = "packages/tl-modules/permits" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
@@ -3337,6 +3365,7 @@ dependencies = [
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
+    { name = "tl-mod-permits" },
     { name = "tl-mod-qr" },
     { name = "tl-mod-quality" },
     { name = "tl-mod-schedule" },
@@ -3361,6 +3390,7 @@ requires-dist = [
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
+    { name = "tl-mod-permits", editable = "packages/tl-modules/permits" },
     { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-mod-quality", editable = "packages/tl-modules/quality" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },

@@ -95,6 +95,7 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`File.Processed`](#fileprocessed) | `tl.core.File.Processed.v1` | A file passed its scan and is available. |
 | [`File.Rejected`](#filerejected) | `tl.core.File.Rejected.v1` | A file failed its scan and was rejected. |
 | [`File.Uploaded`](#fileuploaded) | `tl.core.File.Uploaded.v1` | A file was uploaded and attached to a record; it is quarantined until its scan finishes. |
+| [`GasTest.Recorded`](#gastestrecorded) | `tl.core.GasTest.Recorded.v1` | A gas test was recorded. |
 | [`IWP.Created`](#iwpcreated) | `tl.core.IWP.Created.v1` | An interim work package was created. |
 | [`IWP.DocumentPinned`](#iwpdocumentpinned) | `tl.core.IWP.DocumentPinned.v1` | A document revision was pinned to an interim work package. |
 | [`IWP.FieldCompleted`](#iwpfieldcompleted) | `tl.core.IWP.FieldCompleted.v1` | Field work on an interim work package was completed. |
@@ -132,6 +133,9 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`InventoryLocation.Defined`](#inventorylocationdefined) | `tl.core.InventoryLocation.Defined.v1` | A stock location was defined in the project's location tree. |
 | [`InventoryLocation.Retired`](#inventorylocationretired) | `tl.core.InventoryLocation.Retired.v1` | A location was retired; the command is refused while stock is held there. |
 | [`InventoryLocation.Revised`](#inventorylocationrevised) | `tl.core.InventoryLocation.Revised.v1` | A location was renamed or its kind changed; only the fields that changed are present. |
+| [`Isolation.Applied`](#isolationapplied) | `tl.core.Isolation.Applied.v1` | An isolation was applied. |
+| [`Isolation.Removed`](#isolationremoved) | `tl.core.Isolation.Removed.v1` | An isolation was removed. |
+| [`Isolation.Verified`](#isolationverified) | `tl.core.Isolation.Verified.v1` | An applied isolation was verified by a controller. |
 | [`ItemMaster.Defined`](#itemmasterdefined) | `tl.core.ItemMaster.Defined.v1` | An item was defined in the company item library. |
 | [`ItemMaster.Retired`](#itemmasterretired) | `tl.core.ItemMaster.Retired.v1` | An item was retired from the library; projects keep their copies. |
 | [`ItemMaster.Revised`](#itemmasterrevised) | `tl.core.ItemMaster.Revised.v1` | An item of the library was revised; only the fields that changed are present. |
@@ -167,6 +171,19 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Party.Retired`](#partyretired) | `tl.core.Party.Retired.v1` | A party was retired. |
 | [`PathOfConstruction.Defined`](#pathofconstructiondefined) | `tl.core.PathOfConstruction.Defined.v1` | The path of construction was defined (version 1). |
 | [`PathOfConstruction.Resequenced`](#pathofconstructionresequenced) | `tl.core.PathOfConstruction.Resequenced.v1` | A CWA was moved in the path; the event holds the full new list. |
+| [`Permit.Approved`](#permitapproved) | `tl.core.Permit.Approved.v1` | A requested permit was approved by a controller. |
+| [`Permit.Cancelled`](#permitcancelled) | `tl.core.Permit.Cancelled.v1` | A requested or approved permit was cancelled. |
+| [`Permit.Closed`](#permitclosed) | `tl.core.Permit.Closed.v1` | The permit authority closed a handed-back permit. |
+| [`Permit.HandedBack`](#permithandedback) | `tl.core.Permit.HandedBack.v1` | The holder handed the permit back with a note that the site is safe. |
+| [`Permit.IsolationLinked`](#permitisolationlinked) | `tl.core.Permit.IsolationLinked.v1` | An isolation was linked to the permit. |
+| [`Permit.IsolationUnlinked`](#permitisolationunlinked) | `tl.core.Permit.IsolationUnlinked.v1` | An isolation was unlinked from the permit. |
+| [`Permit.Issued`](#permitissued) | `tl.core.Permit.Issued.v1` | An approved permit was issued and is Active. |
+| [`Permit.Lapsed`](#permitlapsed) | `tl.core.Permit.Lapsed.v1` | The daily-and-shift job flagged an active permit whose validity passed (job only). |
+| [`Permit.Rejected`](#permitrejected) | `tl.core.Permit.Rejected.v1` | A requested permit was rejected. |
+| [`Permit.Requested`](#permitrequested) | `tl.core.Permit.Requested.v1` | A permit was asked for. |
+| [`Permit.Resumed`](#permitresumed) | `tl.core.Permit.Resumed.v1` | A suspended permit was resumed by the permit authority. |
+| [`Permit.Revalidated`](#permitrevalidated) | `tl.core.Permit.Revalidated.v1` | The holder confirmed conditions are unchanged for the next shift. |
+| [`Permit.Suspended`](#permitsuspended) | `tl.core.Permit.Suspended.v1` | An active permit was suspended (stop work). |
 | [`ProcessingJob.Cancelled`](#processingjobcancelled) | `tl.core.ProcessingJob.Cancelled.v1` | A queued job was cancelled before a worker took it. |
 | [`ProcessingJob.Defined`](#processingjobdefined) | `tl.core.ProcessingJob.Defined.v1` | A processing job was queued. |
 | [`ProcessingJob.Failed`](#processingjobfailed) | `tl.core.ProcessingJob.Failed.v1` | The claimed attempt failed. |
@@ -5504,6 +5521,76 @@ A file was uploaded and attached to a record; it is quarantined until its scan f
 }
 ```
 
+## GasTest.Recorded
+
+A gas test was recorded. Stream type `permits.GasTest`.
+
+- CloudEvents type: `tl.core.GasTest.Recorded.v1`
+- Ledger payload class: `GasTestRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `co_ppm` | string or null | no | CO ppm (decimal text), or null. |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `h2s_ppm` | string or null | no | H2S ppm (decimal text), or null. |
+| `instrument_text` | string or null | no | The instrument, or null. |
+| `lel_pct` | string or null | no | LEL percent (decimal text), or null. |
+| `note` | string or null | no | A note, or null. |
+| `o2_pct` | string or null | no | Oxygen percent (decimal text), or null. |
+| `permit_id` | string | yes | The permit the test is for. |
+| `record_id` | string | yes | The gastest. |
+| `result` | string | yes | `pass` or `fail` (`GasResult`). |
+| `taken_at` | string | yes | When the reading was taken. |
+| `tester` | string | yes | Who took it. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "co_ppm": "2",
+      "feed_policy": "none",
+      "h2s_ppm": "0",
+      "instrument_text": "MX6",
+      "lel_pct": "0",
+      "note": null,
+      "o2_pct": "20.9",
+      "permit_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "result": "pass",
+      "taken_at": "2026-12-01T06:10:00Z",
+      "tester": "Gus"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/GasTest.Recorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.GasTest.Recorded.v1"
+}
+```
+
 ## IWP.Created
 
 An interim work package was created.
@@ -7513,6 +7600,174 @@ A location was renamed or its kind changed; only the fields that changed are pre
 }
 ```
 
+## Isolation.Applied
+
+An isolation was applied. Stream type `permits.Isolation`.
+
+- CloudEvents type: `tl.core.Isolation.Applied.v1`
+- Ledger payload class: `IsolationAppliedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `applied_at` | string | yes | When it was applied. |
+| `energy` | string | yes | The kind of energy (`EnergyKind`). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `lock_number` | string or null | no | Lock number, or null. |
+| `method` | string or null | no | How, or null. |
+| `point_record_id` | string or null | no | A tag or equipment record, or null. |
+| `point_text` | string | yes | What is isolated. |
+| `record_id` | string | yes | The isolation. |
+| `tag_number` | string or null | no | Tag number, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "applied_at": "2026-12-01T06:00:00Z",
+      "energy": "electrical",
+      "feed_policy": "none",
+      "lock_number": "L-12",
+      "method": "Lock and tag",
+      "point_record_id": null,
+      "point_text": "Pump P-101 breaker",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "tag_number": "T-12"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Isolation.Applied/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Isolation.Applied.v1"
+}
+```
+
+## Isolation.Removed
+
+An isolation was removed. Stream type `permits.Isolation`.
+
+- CloudEvents type: `tl.core.Isolation.Removed.v1`
+- Ledger payload class: `IsolationRemovedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `record_id` | string | yes | The isolation. |
+| `removed_at` | string | yes | When it was removed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "removed_at": "2026-12-01T17:00:00Z"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Isolation.Removed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Isolation.Removed.v1"
+}
+```
+
+## Isolation.Verified
+
+An applied isolation was verified by a controller. Stream type `permits.Isolation`.
+
+- CloudEvents type: `tl.core.Isolation.Verified.v1`
+- Ledger payload class: `IsolationVerifiedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `record_id` | string | yes | The isolation. |
+| `verified_at` | string | yes | When it was verified. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "verified_at": "2026-12-01T06:20:00Z"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Isolation.Verified/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Isolation.Verified.v1"
+}
+```
+
 ## ItemMaster.Defined
 
 An item was defined in the company item library. Stream type `materials.ItemMaster`.
@@ -9407,6 +9662,715 @@ A CWA was moved in the path; the event holds the full new list.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.PathOfConstruction.Resequenced.v1"
+}
+```
+
+## Permit.Approved
+
+A requested permit was approved by a controller. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Approved.v1`
+- Ledger payload class: `PermitApprovedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Approved/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Approved.v1"
+}
+```
+
+## Permit.Cancelled
+
+A requested or approved permit was cancelled. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Cancelled.v1`
+- Ledger payload class: `PermitCancelledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `reason` | string | yes | Why it was cancelled. |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Work moved",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Cancelled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Cancelled.v1"
+}
+```
+
+## Permit.Closed
+
+The permit authority closed a handed-back permit. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Closed.v1`
+- Ledger payload class: `PermitClosedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Closed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Closed.v1"
+}
+```
+
+## Permit.HandedBack
+
+The holder handed the permit back with a note that the site is safe. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.HandedBack.v1`
+- Ledger payload class: `PermitHandedBackPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `note` | string | yes | The hand-back note. |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "note": "Site clear",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.HandedBack/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.HandedBack.v1"
+}
+```
+
+## Permit.IsolationLinked
+
+An isolation was linked to the permit. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.IsolationLinked.v1`
+- Ledger payload class: `PermitIsolationLinkedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `isolation_id` | string | yes | The isolation. |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "isolation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.IsolationLinked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.IsolationLinked.v1"
+}
+```
+
+## Permit.IsolationUnlinked
+
+An isolation was unlinked from the permit. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.IsolationUnlinked.v1`
+- Ledger payload class: `PermitIsolationUnlinkedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `isolation_id` | string | yes | The isolation. |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "isolation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.IsolationUnlinked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.IsolationUnlinked.v1"
+}
+```
+
+## Permit.Issued
+
+An approved permit was issued and is Active. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Issued.v1`
+- Ledger payload class: `PermitIssuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `issued_at` | string | yes | When it was issued. |
+| `precautions` | any | yes |  |
+| `record_id` | string | yes | The permit. |
+| `valid_until` | string | yes | End of validity. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "issued_at": "2026-12-01T06:30:00Z",
+      "precautions": [
+        {
+          "id": "fire_watch",
+          "text": "Fire watch named"
+        }
+      ],
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "valid_until": "2026-12-01T18:00:00Z"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Issued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Issued.v1"
+}
+```
+
+## Permit.Lapsed
+
+The daily-and-shift job flagged an active permit whose validity passed (job only). Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Lapsed.v1`
+- Ledger payload class: `PermitLapsedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `record_id` | string | yes | The permit. |
+| `valid_until` | string | yes | The `valid_until` that passed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "valid_until": "2026-12-01T18:00:00Z"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Lapsed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Lapsed.v1"
+}
+```
+
+## Permit.Rejected
+
+A requested permit was rejected. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Rejected.v1`
+- Ledger payload class: `PermitRejectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `reason` | string | yes | Why it was rejected. |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Not this week",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Rejected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Rejected.v1"
+}
+```
+
+## Permit.Requested
+
+A permit was asked for. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Requested.v1`
+- Ledger payload class: `PermitRequestedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `area` | string or null | no | Area, or null. |
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `for_record_id` | string or null | no | The record the work belongs to, or null. |
+| `holder` | string or null | no | The permit holder, or null. |
+| `location_text` | string or null | no | Where the work is, or null. |
+| `needed_from` | string or null | no | YYYY-MM-DD, or null. |
+| `needed_until` | string or null | no | YYYY-MM-DD, or null. |
+| `permit_type` | string | yes | The type (`PermitType`). |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "area": "A1",
+      "feed_policy": "none",
+      "for_record_id": null,
+      "holder": "Rob",
+      "location_text": "Pump room",
+      "needed_from": "2026-12-01",
+      "needed_until": "2026-12-01",
+      "permit_type": "hot_work",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Requested/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Requested.v1"
+}
+```
+
+## Permit.Resumed
+
+A suspended permit was resumed by the permit authority. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Resumed.v1`
+- Ledger payload class: `PermitResumedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | When it was resumed. |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `record_id` | string | yes | The permit. |
+| `valid_until` | string | yes | New end of validity. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-12-01T10:00:00Z",
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "valid_until": "2026-12-01T18:00:00Z"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Resumed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Resumed.v1"
+}
+```
+
+## Permit.Revalidated
+
+The holder confirmed conditions are unchanged for the next shift. Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Revalidated.v1`
+- Ledger payload class: `PermitRevalidatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | When it was revalidated. |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `record_id` | string | yes | The permit. |
+| `valid_until` | string | yes | New end of validity. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-12-01T18:00:00Z",
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "valid_until": "2026-12-02T06:00:00Z"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Revalidated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Revalidated.v1"
+}
+```
+
+## Permit.Suspended
+
+An active permit was suspended (stop work). Stream type `permits.Permit`.
+
+- CloudEvents type: `tl.core.Permit.Suspended.v1`
+- Ledger payload class: `PermitSuspendedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: permits make no feed card here. |
+| `gas_test_id` | string or null | no | The failing gas test that caused it, or null. |
+| `reason` | string | yes | Why it was suspended. |
+| `record_id` | string | yes | The permit. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "gas_test_id": null,
+      "reason": "Gas alarm",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Permit.Suspended/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Permit.Suspended.v1"
 }
 ```
 

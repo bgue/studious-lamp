@@ -1,0 +1,26 @@
+id: https://example.org/throughline/modules/permits
+name: tl_mod_permits
+title: "The permits module (permit to work, isolations, gas tests)"
+description: >-
+  Permit to work on a project (brief 7.1, 9 M3, 9 M9). A `Permit` is asked for by a holder, approved by a controller,
+  issued by the permit authority, revalidated each shift, suspended, resumed, handed back and closed. An `Isolation` is
+  a lockout of one point of energy that permits depend on. A `GasTest` is one reading with a time and a tester.
+  Design: `docs/build-spec/module-designs/permits.md`.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the
+  module's own current-state table, joined on `id`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - permit
+  - isolation
+  - gas_test
+  - events
+default_range: string
+annotations:
+  tl:module: permits
