@@ -58,3 +58,8 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15)
+The statement-count test counted the SQLite adapter's `BEGIN DEFERRED` (emitted through `before_cursor_execute`) as a read.
+Its listener now ignores BEGIN, COMMIT and ROLLBACK; the bound stays at one read statement. The provided copy is updated
+to the same bytes; both paths are allowed for that.

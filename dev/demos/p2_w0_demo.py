@@ -325,6 +325,7 @@ def clause9() -> None:
             "permits_planned",
             "predecessors_handed_over",
             "rfis_answered",
+            "scaffold_tagged",
         },
         f"load_checks() is {load_checks()}",
     )
