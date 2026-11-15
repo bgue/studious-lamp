@@ -63,7 +63,8 @@ def dismantle_blockers(
 ) -> list[str]:
     """The reasons not to dismantle: one per requiring work package that holds the scaffold, one
     per other scaffold request of such a package still open. A hidden package (its state is
-    in ``hidden_iwp_states``, one entry each) is counted, never named and never given a state. Empty means go ahead."""
+    in ``hidden_iwp_states``, one entry each) is counted, never named and never given a state.
+    Empty means go ahead."""
     reasons = [
         f"work package {number} is {state} and requires this scaffold"
         for number, state in sorted(iwp_states.items())
