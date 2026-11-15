@@ -18,6 +18,7 @@ D5 2026-11-13 r1: T02 Haiku-ability checklist yes after S1 (3 SQL files, provide
 ## OPEN
 Q1 answered: P2-I5 on trunk 8e7134b 2026-11-13, merged into p2/i6
 Q2 scaffold register and scaffold quantities on hire reports wait for I4-B scaffold; T03 marks them gaps with that dependency | needs orch | raised r1
+Q3 owner 2026-11-14: "Reports should be mindlessly simple and cheap - just export everything as csv/jsonl." Weigh for the exit report items (B1, T01, T04) when the exit wave is planned | needs orch | raised orch
 ## NEXT
 1. Orch r2: S1 merged with trunk (I5). T02 interface change in S1 report: readiness model needs cur_core_record (refs and provided tests unchanged).
 2. Done r2: T02 and T03 merged. Wave-1 prep complete (C1 of prep).
