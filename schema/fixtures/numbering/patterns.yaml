@@ -88,6 +88,25 @@ patterns:
     scope: "project:*"
     template: "{project}-{type}-{seq:4}"
     type_code: PUN
+  # Permits (design permits.md section 4): one gap-free count per project and type, P123-PTW-0001 and so on.
+  - id: permits.Permit
+    record_type: permits.Permit
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: PTW
+    gap_free: true
+  - id: permits.Isolation
+    record_type: permits.Isolation
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: ISL
+    gap_free: true
+  - id: permits.GasTest
+    record_type: permits.GasTest
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: GAS
+    gap_free: true
   # Requisitions (brief 9 M9): one gap-free counter per kind, P123-REQ-LAB-0001 and so on; the work order has its own.
   - id: requisitions.LaborRequisition
     record_type: requisitions.LaborRequisition

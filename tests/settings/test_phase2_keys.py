@@ -74,17 +74,30 @@ def definitions() -> dict[str, SettingDefinition]:
 
 #: The two keys P2-I5 S1 added: neither old nor wave-0.
 P2_I5 = {"awp.pack.pdf", "tui.landing"}
+#: The nine keys P2-PTW S1 added (permit to work; the safety lead owns the values).
+P2_PTW = {
+    "permits.shift_hours",
+    "permits.shift_start",
+    "permits.gas_test.valid_minutes",
+    "permits.required_for_iwp",
+    "permits.gas.o2_min_pct",
+    "permits.gas.o2_max_pct",
+    "permits.gas.lel_max_pct",
+    "permits.gas.h2s_max_ppm",
+    "permits.gas.co_max_ppm",
+}
 
 
-def test_the_platform_file_defines_33_keys_17_old_12_new_telemetry_idempotency_two_of_p2_i5(
+def test_the_platform_file_defines_42_keys_with_nine_permits_keys(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert len(PHASE2) == 12
     # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
     # idempotency.retention_days is the P2-X1 S1 key: neither old nor wave-0.
-    assert len(definitions) == 33 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5)
+    assert len(definitions) == 42 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5) + len(P2_PTW)
     assert set(PHASE2) <= set(definitions) and P2_I5 <= set(definitions)
-    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 2 + len(P2_I5)
+    assert P2_PTW <= set(definitions)
+    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 2 + len(P2_I5) + len(P2_PTW)
 
 
 def test_the_p2_i5_keys_have_their_defaults_scopes_and_choices(

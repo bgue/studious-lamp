@@ -91,6 +91,15 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "requisitions.forecast.weeks",  # P2-I4A S1
         "telemetry.retention_days",  # P2-INS S2
         "idempotency.retention_days",  # P2-X1 S1
+        "permits.shift_hours",  # P2-PTW S1
+        "permits.shift_start",
+        "permits.gas_test.valid_minutes",
+        "permits.required_for_iwp",
+        "permits.gas.o2_min_pct",
+        "permits.gas.o2_max_pct",
+        "permits.gas.lel_max_pct",
+        "permits.gas.h2s_max_ppm",
+        "permits.gas.co_max_ppm",
     }
 
 

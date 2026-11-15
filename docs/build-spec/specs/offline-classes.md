@@ -64,6 +64,9 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {"core.ActivityPost": "full", 
 | `correspondence.TechnicalItem` (RFI) | draft_only | `RaiseTechnical`, `UpdateTechnical` | Raise an RFI on site (Phase 5 mobile flow); submit, issue and answer online |
 | `correspondence.CommercialItem` | none | — | Every command is a `controller` act and items are restricted by default |
 | `quality.PunchItem` | draft_only | — | A walkdown raises items offline; clear, verify, reopen and void are central (P2-PUNCH) |
+| `permits.Permit` | none | — | A permit is an act on the authority, like a scaffold tag (P2-PTW) |
+| `permits.Isolation` | none | — | Applying, verifying and removing an isolation are acts on the authority (P2-PTW) |
+| `permits.GasTest` | none | — | A reading is recorded online against its permit (P2-PTW) |
 | `correspondence.CorrespondenceThread`, `ResponseClock`, `ContractClause`, `Party` | none | — | Clocks recompute on the authority; threads, clauses and parties are reference data |
 | `engineering.Tag` | full | — | Field tagging; duplicates merge by natural key (`natural_key` policy, Phase 3) |
 | `engineering.CodeList`, `Mnemonic`, `NumberingPattern`, `CodeValue`, `TagClass` | none | — | Registry: admin data, company scope |

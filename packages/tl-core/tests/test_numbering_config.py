@@ -169,6 +169,19 @@ def test_the_shipped_file_numbers_core_records() -> None:
     assert registry.find("company", "core.Record") is None
 
 
+def test_the_shipped_file_numbers_the_three_permits_types() -> None:
+    registry = load_numbering(FIXTURE)
+    for record_type, code in (
+        ("permits.Permit", "PTW"),
+        ("permits.Isolation", "ISL"),
+        ("permits.GasTest", "GAS"),
+    ):
+        found = registry.find("project:P123", record_type)
+        assert found is not None and found.type_code == code
+        assert found.compiled().render({"project": "P123", "type": code}, 1) == f"P123-{code}-0001"
+        assert registry.find("company", record_type) is None
+
+
 def test_get_numbering_reads_the_schema_directory(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

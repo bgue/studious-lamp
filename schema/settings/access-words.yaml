@@ -73,3 +73,16 @@ words:
   requisitions.complete: user
   requisitions.close: controller
   requisitions.fulfil: user
+  # permits: permit to work, isolations, gas tests (P2-PTW)
+  permits.view: read
+  permits.request: user
+  permits.revalidate: user
+  permits.suspend: user
+  permits.handback: user
+  permits.isolation.apply: user
+  permits.gastest.record: user
+  permits.approve: controller
+  permits.issue: controller
+  permits.resume: controller
+  permits.close: controller
+  permits.isolation.verify: controller

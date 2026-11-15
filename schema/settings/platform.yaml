@@ -442,3 +442,113 @@ settings:
       maximum: 90
     risk: advanced
     since: "0.1.0"
+
+  # P2-PTW S1: permit to work (docs/build-spec/module-designs/permits.md section 5)
+
+  - key: permits.shift_hours
+    type: int
+    default: 12
+    description: How many hours a shift lasts, which is how long a permit stays valid before it is revalidated. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      A permit is valid to the end of the current shift; the shift starts at `permits.shift_start` and lasts this many hours.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 4
+      maximum: 24
+    since: "0.1.0"
+
+  - key: permits.shift_start
+    type: string
+    default: "06:00"
+    description: The time of day (HH:MM, 24 hours) a shift starts. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      The first shift of the day starts at this time; later shifts follow at `permits.shift_hours`.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+    since: "0.1.0"
+
+  - key: permits.gas_test.valid_minutes
+    type: int
+    default: 240
+    description: How many minutes a passing gas test counts for an issue or a revalidation. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      A permit of a type that needs a gas test is refused unless a passing test is newer than this.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 15
+      maximum: 1440
+    since: "0.1.0"
+
+  - key: permits.required_for_iwp
+    type: bool
+    default: false
+    description: Whether an interim work package needs a permit before it is ready. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      When on, the readiness check `permits_planned` answers blocked for an IWP that no permit names.
+    scopes: [platform, company, project]
+    lockable: true
+    since: "0.1.0"
+
+  - key: permits.gas.o2_min_pct
+    type: decimal
+    default: 19.5
+    description: The lowest oxygen reading (percent) that passes a gas test. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      The result of a gas test is computed from this limit and its siblings, never typed.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 0
+    since: "0.1.0"
+
+  - key: permits.gas.o2_max_pct
+    type: decimal
+    default: 23.5
+    description: The highest oxygen reading (percent) that passes a gas test. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      The result of a gas test is computed from this limit and its siblings, never typed.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 0
+    since: "0.1.0"
+
+  - key: permits.gas.lel_max_pct
+    type: decimal
+    default: 5
+    description: The highest flammables reading (percent of the lower explosive limit) that passes a gas test. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      The result of a gas test is computed from this limit and its siblings, never typed.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 0
+    since: "0.1.0"
+
+  - key: permits.gas.h2s_max_ppm
+    type: decimal
+    default: 5
+    description: The highest hydrogen sulphide reading (ppm) that passes a gas test. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      The result of a gas test is computed from this limit and its siblings, never typed.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 0
+    since: "0.1.0"
+
+  - key: permits.gas.co_max_ppm
+    type: decimal
+    default: 25
+    description: The highest carbon monoxide reading (ppm) that passes a gas test. Proposed default; the project's safety lead owns the value.
+    docs: >-
+      The result of a gas test is computed from this limit and its siblings, never typed.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 0
+    since: "0.1.0"

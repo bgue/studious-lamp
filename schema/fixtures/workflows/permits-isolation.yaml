@@ -1,0 +1,21 @@
+# Workflow of an isolation (design permits.md section 4): Applied, Verified by a controller who did not apply it,
+# Removed. A verified or an applied isolation can be removed; Removed is final. Every move is a command of the
+# permits module (by_module); who may do what is the access word of each command (ADR-0013).
+id: permits.isolation
+version: 1
+record_type: permits.Isolation
+scope: company
+initial_state: Applied
+states:
+  - name: Applied
+  - name: Verified
+  - name: Removed
+transitions:
+  - name: verify
+    label: Verify the isolation
+    from: [Applied]
+    to: Verified
+  - name: remove
+    label: Remove the isolation
+    from: [Applied, Verified]
+    to: Removed

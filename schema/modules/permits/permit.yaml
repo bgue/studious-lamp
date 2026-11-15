@@ -1,0 +1,136 @@
+id: https://example.org/throughline/modules/permits/permit
+name: tl_mod_permits_permit
+title: Permits (permit to work)
+description: >-
+  A permit is the authority to do one piece of work in one place for a time. Its life is the workflow `permits-permit`. The title and the description of the record (the work description) are on the envelope. Dates are `YYYY-MM-DD`; times are aware (UTC).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: permits
+
+enums:
+  PermitType:
+    description: "What the permit is for; the type table (`schema/fixtures/permits/types.yaml`) says what each type demands."
+    permissible_values:
+      hot_work:
+        description: Hot work (flammables; a gas test).
+      confined_space:
+        description: Confined space entry (a gas test and an isolation).
+      work_at_height:
+        description: Work at height.
+      excavation:
+        description: Excavation.
+      isolation:
+        description: Lockout of energy (an isolation).
+      general:
+        description: Cold work, the catch-all.
+
+classes:
+  Permit:
+    title: Permit
+    description: >-
+      One permit. Record type `permits.Permit`; its key is the number the allocator gives it (`P123-PTW-0001`,
+      gap-free). Offline class `none`: a permit is an act on the authority, online only. It is hidden through the
+      record it is for (`for_record_id`). Lapsed is derived, not a state: `lapse_flagged_for` is the `valid_until`
+      a lapse was last flagged for.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "permits.Permit"
+      tl:offline: none
+      tl:table: cur_permits_permit
+      tl:ix_permit_type: "permit_type"
+      tl:ix_for_record: "for_record_id"
+      tl:ix_area: "area"
+      tl:ix_valid_until: "valid_until"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      permit_type:
+        range: PermitType
+        required: true
+        description: "The type of permit (`PermitType`)."
+      for_record_id:
+        range: Ulid
+        description: "The record the work belongs to (an IWP, say); null when none. The confidentiality subject."
+      area:
+        pattern: "^.{1,64}$"
+        description: "Area of the site, at most 64 characters; null when none."
+      location_text:
+        pattern: "^.{1,120}$"
+        description: "Where the work is, at most 120 characters; null when none."
+      holder:
+        pattern: "^.{1,120}$"
+        description: "The permit holder (the foreman), at most 120 characters; null when none."
+      requested_by:
+        pattern: "^.{1,64}$"
+        description: "Actor text of who asked for the permit."
+      needed_from:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "First day the permit is needed, `YYYY-MM-DD`; null when none."
+      needed_until:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Last day the permit is needed, `YYYY-MM-DD`; null when none."
+      approved_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who approved it; null until approved."
+      issued_by:
+        pattern: "^.{1,64}$"
+        description: "Actor (the permit authority) who issued it; null until issued."
+      issued_at:
+        range: datetime
+        description: "When it was issued; null until issued."
+      valid_until:
+        range: datetime
+        description: "End of validity, an aware time; null until issued. Moved by revalidation and resumption."
+      precautions:
+        range: Any
+        required: true
+        ifabsent: string([])
+        annotations:
+          tl:json: true
+        description: "JSON list of the precautions ticked at issue; default `[]`. Column `precautions_json`."
+      revalidation_count:
+        range: integer
+        required: true
+        minimum_value: 0
+        ifabsent: int(0)
+        description: "How many times it was revalidated; default 0."
+      last_revalidated_at:
+        range: datetime
+        description: "When it was last revalidated; null when never."
+      suspend_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Why it was suspended, at most 300 characters; null unless suspended."
+      handback_note:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "The holder's note at hand back, at most 300 characters; null until handed back."
+      closed_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who closed it; null until closed."
+      reject_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Why it was rejected, at most 300 characters; null unless rejected."
+      cancel_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Why it was cancelled, at most 300 characters; null unless cancelled."
+      lapse_flagged_for:
+        range: datetime
+        description: "The `valid_until` the last lapse was flagged for (set by the job's event); null when never flagged."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

@@ -1,0 +1,57 @@
+# Workflow of a permit to work (design permits.md section 4): Requested, Approved by a controller, Issued (Active)
+# by the permit authority, revalidated each shift, suspended and resumed, handed back by the holder and Closed.
+# A requested or approved permit can be rejected or cancelled. Closed, Rejected and Cancelled are final. Lapsed is
+# not a state: it is derived from Active, `valid_until` and the clock. Every move is a command of the permits module
+# (by_module), so the file states the moves and names no role: who may do what is the access word of each command
+# (ADR-0013).
+id: permits.permit
+version: 1
+record_type: permits.Permit
+scope: company
+initial_state: Requested
+states:
+  - name: Requested
+  - name: Approved
+  - name: Active
+  - name: Suspended
+  - name: Handed back
+  - name: Closed
+  - name: Rejected
+  - name: Cancelled
+transitions:
+  - name: approve
+    label: Approve the request
+    from: [Requested]
+    to: Approved
+  - name: reject
+    label: Reject the request
+    from: [Requested]
+    to: Rejected
+  - name: issue
+    label: Issue the permit
+    from: [Approved]
+    to: Active
+  - name: revalidate
+    label: Revalidate the permit for the next shift
+    from: [Active]
+    to: Active
+  - name: suspend
+    label: Suspend the permit
+    from: [Active]
+    to: Suspended
+  - name: resume
+    label: Resume the permit
+    from: [Suspended]
+    to: Active
+  - name: hand_back
+    label: Hand the permit back
+    from: [Active, Suspended]
+    to: Handed back
+  - name: close
+    label: Close the permit
+    from: [Handed back]
+    to: Closed
+  - name: cancel
+    label: Cancel the permit
+    from: [Requested, Approved]
+    to: Cancelled

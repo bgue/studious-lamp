@@ -1,0 +1,508 @@
+id: https://example.org/throughline/modules/permits/events
+name: tl_mod_permits_events
+title: Permits module events
+description: >-
+  The ledger events of the permits module (brief 18.3), in the same form as `schema/core/events.yaml`. A record is
+  created by `Record.Created` followed in the same append by its first event (`Permit.Requested`,
+  `Isolation.Applied`, `GasTest.Recorded`). Every event carries `feed_policy: none`: permits make no feed card here.
+  Each payload names the stream's `record_id`. The world time of a fact (ADR-0026) is `issued_at`, `at`, `applied_at`,
+  `verified_at`, `removed_at` or `taken_at`; where an event has none, an optional `at` says when it happened in the
+  field. `valid_until`, `needed_from` and `needed_until` are plans or limits, not valid time. `Permit.Lapsed` is written
+  by the job only.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+  - permit
+  - isolation
+  - gas_test
+default_range: string
+annotations:
+  tl:module: permits
+
+classes:
+  PermitRequestedPayload:
+    is_a: EventPayload
+    description: >-
+      A permit was asked for. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Requested
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      permit_type:
+        range: PermitType
+        description: "The type (`PermitType`)."
+        required: true
+      for_record_id:
+        description: "The record the work belongs to, or null."
+      area:
+        description: "Area, or null."
+      location_text:
+        description: "Where the work is, or null."
+      holder:
+        description: "The permit holder, or null."
+      needed_from:
+        description: "YYYY-MM-DD, or null."
+      needed_until:
+        description: "YYYY-MM-DD, or null."
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"area\": \"A1\", \"feed_policy\": \"none\", \"for_record_id\": null, \"holder\": \"Rob\", \"location_text\": \"Pump room\", \"needed_from\": \"2026-12-01\", \"needed_until\": \"2026-12-01\", \"permit_type\": \"hot_work\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PermitApprovedPayload:
+    is_a: EventPayload
+    description: >-
+      A requested permit was approved by a controller. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Approved
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PermitRejectedPayload:
+    is_a: EventPayload
+    description: >-
+      A requested permit was rejected. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Rejected
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      reason:
+        description: "Why it was rejected."
+        required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Not this week\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PermitIssuedPayload:
+    is_a: EventPayload
+    description: >-
+      An approved permit was issued and is Active. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Issued
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      issued_at:
+        range: datetime
+        description: "When it was issued."
+        required: true
+        annotations:
+          tl:valid_time: at
+      valid_until:
+        range: datetime
+        description: "End of validity."
+        required: true
+      precautions:
+        range: Any
+        description: "The precautions ticked at issue (list)."
+        required: true
+        annotations:
+          tl:json: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"issued_at\": \"2026-12-01T06:30:00Z\", \"precautions\": [{\"id\": \"fire_watch\", \"text\": \"Fire watch named\"}], \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"valid_until\": \"2026-12-01T18:00:00Z\"}"
+  PermitRevalidatedPayload:
+    is_a: EventPayload
+    description: >-
+      The holder confirmed conditions are unchanged for the next shift. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Revalidated
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      at:
+        range: datetime
+        description: "When it was revalidated."
+        required: true
+        annotations:
+          tl:valid_time: at
+      valid_until:
+        range: datetime
+        description: "New end of validity."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-12-01T18:00:00Z\", \"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"valid_until\": \"2026-12-02T06:00:00Z\"}"
+  PermitSuspendedPayload:
+    is_a: EventPayload
+    description: >-
+      An active permit was suspended (stop work). Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Suspended
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      reason:
+        description: "Why it was suspended."
+        required: true
+      gas_test_id:
+        description: "The failing gas test that caused it, or null."
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"gas_test_id\": null, \"reason\": \"Gas alarm\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PermitResumedPayload:
+    is_a: EventPayload
+    description: >-
+      A suspended permit was resumed by the permit authority. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Resumed
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      at:
+        range: datetime
+        description: "When it was resumed."
+        required: true
+        annotations:
+          tl:valid_time: at
+      valid_until:
+        range: datetime
+        description: "New end of validity."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-12-01T10:00:00Z\", \"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"valid_until\": \"2026-12-01T18:00:00Z\"}"
+  PermitHandedBackPayload:
+    is_a: EventPayload
+    description: >-
+      The holder handed the permit back with a note that the site is safe. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.HandedBack
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      note:
+        description: "The hand-back note."
+        required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"note\": \"Site clear\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PermitClosedPayload:
+    is_a: EventPayload
+    description: >-
+      The permit authority closed a handed-back permit. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Closed
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PermitCancelledPayload:
+    is_a: EventPayload
+    description: >-
+      A requested or approved permit was cancelled. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Cancelled
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      reason:
+        description: "Why it was cancelled."
+        required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Work moved\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PermitLapsedPayload:
+    is_a: EventPayload
+    description: >-
+      The daily-and-shift job flagged an active permit whose validity passed (job only). Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.Lapsed
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      valid_until:
+        range: datetime
+        description: "The `valid_until` that passed."
+        required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"valid_until\": \"2026-12-01T18:00:00Z\"}"
+  PermitIsolationLinkedPayload:
+    is_a: EventPayload
+    description: >-
+      An isolation was linked to the permit. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.IsolationLinked
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      isolation_id:
+        description: "The isolation."
+        required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"isolation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PermitIsolationUnlinkedPayload:
+    is_a: EventPayload
+    description: >-
+      An isolation was unlinked from the permit. Stream type `permits.Permit`.
+    annotations:
+      tl:event_type: Permit.IsolationUnlinked
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The permit."
+        required: true
+      isolation_id:
+        description: "The isolation."
+        required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"isolation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  IsolationAppliedPayload:
+    is_a: EventPayload
+    description: >-
+      An isolation was applied. Stream type `permits.Isolation`.
+    annotations:
+      tl:event_type: Isolation.Applied
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The isolation."
+        required: true
+      point_text:
+        description: "What is isolated."
+        required: true
+      point_record_id:
+        description: "A tag or equipment record, or null."
+      energy:
+        range: EnergyKind
+        description: "The kind of energy (`EnergyKind`)."
+        required: true
+      method:
+        description: "How, or null."
+      lock_number:
+        description: "Lock number, or null."
+      tag_number:
+        description: "Tag number, or null."
+      applied_at:
+        range: datetime
+        description: "When it was applied."
+        required: true
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"applied_at\": \"2026-12-01T06:00:00Z\", \"energy\": \"electrical\", \"feed_policy\": \"none\", \"lock_number\": \"L-12\", \"method\": \"Lock and tag\", \"point_record_id\": null, \"point_text\": \"Pump P-101 breaker\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"tag_number\": \"T-12\"}"
+  IsolationVerifiedPayload:
+    is_a: EventPayload
+    description: >-
+      An applied isolation was verified by a controller. Stream type `permits.Isolation`.
+    annotations:
+      tl:event_type: Isolation.Verified
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The isolation."
+        required: true
+      verified_at:
+        range: datetime
+        description: "When it was verified."
+        required: true
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"verified_at\": \"2026-12-01T06:20:00Z\"}"
+  IsolationRemovedPayload:
+    is_a: EventPayload
+    description: >-
+      An isolation was removed. Stream type `permits.Isolation`.
+    annotations:
+      tl:event_type: Isolation.Removed
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The isolation."
+        required: true
+      removed_at:
+        range: datetime
+        description: "When it was removed."
+        required: true
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"removed_at\": \"2026-12-01T17:00:00Z\"}"
+  GasTestRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      A gas test was recorded. Stream type `permits.GasTest`.
+    annotations:
+      tl:event_type: GasTest.Recorded
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The gastest."
+        required: true
+      permit_id:
+        description: "The permit the test is for."
+        required: true
+      taken_at:
+        range: datetime
+        description: "When the reading was taken."
+        required: true
+        annotations:
+          tl:valid_time: at
+      tester:
+        description: "Who took it."
+        required: true
+      instrument_text:
+        description: "The instrument, or null."
+      o2_pct:
+        pattern: "^[0-9]{1,6}(\\.[0-9]{1,3})?$"
+        description: "Oxygen percent (decimal text), or null."
+      lel_pct:
+        pattern: "^[0-9]{1,6}(\\.[0-9]{1,3})?$"
+        description: "LEL percent (decimal text), or null."
+      h2s_ppm:
+        pattern: "^[0-9]{1,6}(\\.[0-9]{1,3})?$"
+        description: "H2S ppm (decimal text), or null."
+      co_ppm:
+        pattern: "^[0-9]{1,6}(\\.[0-9]{1,3})?$"
+        description: "CO ppm (decimal text), or null."
+      result:
+        range: GasResult
+        description: "`pass` or `fail` (`GasResult`)."
+        required: true
+      note:
+        description: "A note, or null."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: permits make no feed card here."
+        required: true
+    examples:
+      - value: "{\"co_ppm\": \"2\", \"feed_policy\": \"none\", \"h2s_ppm\": \"0\", \"instrument_text\": \"MX6\", \"lel_pct\": \"0\", \"note\": null, \"o2_pct\": \"20.9\", \"permit_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"result\": \"pass\", \"taken_at\": \"2026-12-01T06:10:00Z\", \"tester\": \"Gus\"}"

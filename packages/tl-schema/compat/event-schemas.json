@@ -1773,6 +1773,58 @@
    "type": "object"
   }
  },
+ "Cwp.PartyAssigned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "party": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Cwp.SubcontractProgressRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "rows": {}
+   },
+   "required": [
+    "rows",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "DerivedDocument.ContentRecorded": {
   "1": {
    "additionalProperties": true,
@@ -2818,6 +2870,86 @@
    "type": "object"
   }
  },
+ "GasTest.Recorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "co_ppm": {
+     "pattern": "^[0-9]{1,6}(\\.[0-9]{1,3})?$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "h2s_ppm": {
+     "pattern": "^[0-9]{1,6}(\\.[0-9]{1,3})?$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "instrument_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "lel_pct": {
+     "pattern": "^[0-9]{1,6}(\\.[0-9]{1,3})?$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "o2_pct": {
+     "pattern": "^[0-9]{1,6}(\\.[0-9]{1,3})?$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "permit_id": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "result": {
+     "enum": [
+      "pass",
+      "fail"
+     ],
+     "type": "string"
+    },
+    "taken_at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "tester": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "permit_id",
+    "taken_at",
+    "tester",
+    "result",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "IWP.Created": {
   "1": {
    "additionalProperties": true,
@@ -2886,6 +3018,26 @@
    "type": "object"
   }
  },
+ "IWP.FieldCompleted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    }
+   },
+   "required": [
+    "at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "IWP.Held": {
   "1": {
    "additionalProperties": true,
@@ -2924,6 +3076,39 @@
    "required": [
     "by",
     "foreman"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.ProgressRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "earned_pct": {
+     "type": "string"
+    },
+    "edition": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "iwp_id": {
+     "type": "string"
+    },
+    "manual": {}
+   },
+   "required": [
+    "iwp_id",
+    "earned_pct",
+    "edition",
+    "at",
+    "feed_policy"
    ],
    "type": "object"
   }
@@ -3072,6 +3257,71 @@
    "required": [
     "new_ids"
    ],
+   "type": "object"
+  }
+ },
+ "IWP.Started": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    }
+   },
+   "required": [
+    "at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IWPCloseout.Recorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "actual_hours": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "actuals_file_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feedback": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "redlines_file_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "remaining_punch": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    }
+   },
    "type": "object"
   }
  },
@@ -3498,6 +3748,116 @@
      ]
     }
    },
+   "type": "object"
+  }
+ },
+ "Isolation.Applied": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "applied_at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "energy": {
+     "enum": [
+      "electrical",
+      "mechanical",
+      "process",
+      "other"
+     ],
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "lock_number": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "method": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "point_record_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "point_text": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "tag_number": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "record_id",
+    "point_text",
+    "energy",
+    "applied_at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Isolation.Removed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "removed_at": {
+     "format": "date-time",
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "removed_at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Isolation.Verified": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "verified_at": {
+     "format": "date-time",
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "verified_at",
+    "feed_policy"
+   ],
    "type": "object"
   }
  },
@@ -4438,6 +4798,438 @@
     "version",
     "steps",
     "reason_code",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Approved": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Cancelled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Closed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.HandedBack": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "note": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "note",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.IsolationLinked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "isolation_id": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "isolation_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.IsolationUnlinked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "isolation_id": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "isolation_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Issued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "issued_at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "precautions": {},
+    "record_id": {
+     "type": "string"
+    },
+    "valid_until": {
+     "format": "date-time",
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "issued_at",
+    "valid_until",
+    "precautions",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Lapsed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "valid_until": {
+     "format": "date-time",
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "valid_until",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Rejected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Requested": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "area": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "for_record_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "holder": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "location_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "needed_from": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "needed_until": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "permit_type": {
+     "enum": [
+      "hot_work",
+      "confined_space",
+      "work_at_height",
+      "excavation",
+      "isolation",
+      "general"
+     ],
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "permit_type",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Resumed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "valid_until": {
+     "format": "date-time",
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "at",
+    "valid_until",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Revalidated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "valid_until": {
+     "format": "date-time",
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "at",
+    "valid_until",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Permit.Suspended": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "gas_test_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
     "feed_policy"
    ],
    "type": "object"
@@ -8223,6 +9015,127 @@
    },
    "required": [
     "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "WeeklyPlan.Closed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "ppc": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "ppc"
+   ],
+   "type": "object"
+  }
+ },
+ "WeeklyPlan.IwpCommitted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "committed_hours": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "foreman": {
+     "type": "string"
+    },
+    "iwp_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "iwp_id",
+    "foreman",
+    "committed_hours",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WeeklyPlan.Opened": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "week": {
+     "type": "string"
+    },
+    "week_start": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "week",
+    "week_start",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WeeklyPlan.OutcomeRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "iwp_id": {
+     "type": "string"
+    },
+    "miss_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "outcome": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "iwp_id",
+    "outcome",
+    "feed_policy"
    ],
    "type": "object"
   }

@@ -19,6 +19,7 @@ dependencies = [
   "tl-mod-legacy",
   "tl-mod-materials",
   "tl-mod-quality",
+  "tl-mod-permits",
   "httpx2",
   "pypdfium2",
   "rich-pixels==3.0.1",

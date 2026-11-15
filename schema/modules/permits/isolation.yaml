@@ -1,0 +1,94 @@
+id: https://example.org/throughline/modules/permits/isolation
+name: tl_mod_permits_isolation
+title: Isolations (lockout of energy)
+description: >-
+  An isolation is one point of one kind of energy, locked and tagged so that work can be done. A permit depends on isolations by a link; one isolation can serve several permits. Its life is the workflow `permits-isolation`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: permits
+
+enums:
+  EnergyKind:
+    description: "The kind of energy isolated."
+    permissible_values:
+      electrical:
+        description: Electrical.
+      mechanical:
+        description: Mechanical.
+      process:
+        description: Process (pressure, flow, heat).
+      other:
+        description: Any other.
+
+classes:
+  Isolation:
+    title: Isolation
+    description: >-
+      One isolation. Record type `permits.Isolation`; its key is the number the allocator gives it (`P123-ISL-0001`,
+      gap-free). Offline class `none`. When `point_record_id` is set it is the confidentiality subject.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "permits.Isolation"
+      tl:offline: none
+      tl:table: cur_permits_isolation
+      tl:ix_point_record: "point_record_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      point_text:
+        pattern: "^.{1,120}$"
+        required: true
+        description: "What is isolated, at most 120 characters."
+      point_record_id:
+        range: Ulid
+        description: "A tag or equipment record when one exists; null when none."
+      energy:
+        range: EnergyKind
+        required: true
+        description: "The kind of energy (`EnergyKind`)."
+      method:
+        pattern: "^.{1,120}$"
+        description: "How it is isolated, at most 120 characters; null when none."
+      lock_number:
+        pattern: "^.{1,32}$"
+        description: "Number of the lock, at most 32 characters; null when none."
+      tag_number:
+        pattern: "^.{1,32}$"
+        description: "Number of the tag, at most 32 characters; null when none."
+      applied_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who applied it."
+      applied_at:
+        range: datetime
+        description: "When it was applied."
+      verified_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who verified it; null until verified."
+      verified_at:
+        range: datetime
+        description: "When it was verified; null until verified."
+      removed_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who removed it; null until removed."
+      removed_at:
+        range: datetime
+        description: "When it was removed; null until removed."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

@@ -766,6 +766,15 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.GasTest.Recorded.v1",
+      "event_type": "GasTest.Recorded",
+      "payload_class": "GasTestRecordedPayload",
+      "sample": "samples/GasTest.Recorded.v1.json",
+      "schema": "schemas/GasTest.Recorded.v1.json",
+      "title": "A gas test was recorded.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.IWP.Created.v1",
       "event_type": "IWP.Created",
       "payload_class": "IWPCreatedPayload",
@@ -1051,6 +1060,33 @@
       "sample": "samples/InventoryLocation.Revised.v1.json",
       "schema": "schemas/InventoryLocation.Revised.v1.json",
       "title": "A location was renamed or its kind changed; only the fields that changed are present.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Isolation.Applied.v1",
+      "event_type": "Isolation.Applied",
+      "payload_class": "IsolationAppliedPayload",
+      "sample": "samples/Isolation.Applied.v1.json",
+      "schema": "schemas/Isolation.Applied.v1.json",
+      "title": "An isolation was applied.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Isolation.Removed.v1",
+      "event_type": "Isolation.Removed",
+      "payload_class": "IsolationRemovedPayload",
+      "sample": "samples/Isolation.Removed.v1.json",
+      "schema": "schemas/Isolation.Removed.v1.json",
+      "title": "An isolation was removed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Isolation.Verified.v1",
+      "event_type": "Isolation.Verified",
+      "payload_class": "IsolationVerifiedPayload",
+      "sample": "samples/Isolation.Verified.v1.json",
+      "schema": "schemas/Isolation.Verified.v1.json",
+      "title": "An applied isolation was verified by a controller.",
       "version": 1
     },
     {
@@ -1366,6 +1402,123 @@
       "sample": "samples/PathOfConstruction.Resequenced.v1.json",
       "schema": "schemas/PathOfConstruction.Resequenced.v1.json",
       "title": "A CWA was moved in the path; the event holds the full new list.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Approved.v1",
+      "event_type": "Permit.Approved",
+      "payload_class": "PermitApprovedPayload",
+      "sample": "samples/Permit.Approved.v1.json",
+      "schema": "schemas/Permit.Approved.v1.json",
+      "title": "A requested permit was approved by a controller.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Cancelled.v1",
+      "event_type": "Permit.Cancelled",
+      "payload_class": "PermitCancelledPayload",
+      "sample": "samples/Permit.Cancelled.v1.json",
+      "schema": "schemas/Permit.Cancelled.v1.json",
+      "title": "A requested or approved permit was cancelled.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Closed.v1",
+      "event_type": "Permit.Closed",
+      "payload_class": "PermitClosedPayload",
+      "sample": "samples/Permit.Closed.v1.json",
+      "schema": "schemas/Permit.Closed.v1.json",
+      "title": "The permit authority closed a handed-back permit.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.HandedBack.v1",
+      "event_type": "Permit.HandedBack",
+      "payload_class": "PermitHandedBackPayload",
+      "sample": "samples/Permit.HandedBack.v1.json",
+      "schema": "schemas/Permit.HandedBack.v1.json",
+      "title": "The holder handed the permit back with a note that the site is safe.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.IsolationLinked.v1",
+      "event_type": "Permit.IsolationLinked",
+      "payload_class": "PermitIsolationLinkedPayload",
+      "sample": "samples/Permit.IsolationLinked.v1.json",
+      "schema": "schemas/Permit.IsolationLinked.v1.json",
+      "title": "An isolation was linked to the permit.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.IsolationUnlinked.v1",
+      "event_type": "Permit.IsolationUnlinked",
+      "payload_class": "PermitIsolationUnlinkedPayload",
+      "sample": "samples/Permit.IsolationUnlinked.v1.json",
+      "schema": "schemas/Permit.IsolationUnlinked.v1.json",
+      "title": "An isolation was unlinked from the permit.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Issued.v1",
+      "event_type": "Permit.Issued",
+      "payload_class": "PermitIssuedPayload",
+      "sample": "samples/Permit.Issued.v1.json",
+      "schema": "schemas/Permit.Issued.v1.json",
+      "title": "An approved permit was issued and is Active.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Lapsed.v1",
+      "event_type": "Permit.Lapsed",
+      "payload_class": "PermitLapsedPayload",
+      "sample": "samples/Permit.Lapsed.v1.json",
+      "schema": "schemas/Permit.Lapsed.v1.json",
+      "title": "The daily-and-shift job flagged an active permit whose validity passed (job only).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Rejected.v1",
+      "event_type": "Permit.Rejected",
+      "payload_class": "PermitRejectedPayload",
+      "sample": "samples/Permit.Rejected.v1.json",
+      "schema": "schemas/Permit.Rejected.v1.json",
+      "title": "A requested permit was rejected.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Requested.v1",
+      "event_type": "Permit.Requested",
+      "payload_class": "PermitRequestedPayload",
+      "sample": "samples/Permit.Requested.v1.json",
+      "schema": "schemas/Permit.Requested.v1.json",
+      "title": "A permit was asked for.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Resumed.v1",
+      "event_type": "Permit.Resumed",
+      "payload_class": "PermitResumedPayload",
+      "sample": "samples/Permit.Resumed.v1.json",
+      "schema": "schemas/Permit.Resumed.v1.json",
+      "title": "A suspended permit was resumed by the permit authority.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Revalidated.v1",
+      "event_type": "Permit.Revalidated",
+      "payload_class": "PermitRevalidatedPayload",
+      "sample": "samples/Permit.Revalidated.v1.json",
+      "schema": "schemas/Permit.Revalidated.v1.json",
+      "title": "The holder confirmed conditions are unchanged for the next shift.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Permit.Suspended.v1",
+      "event_type": "Permit.Suspended",
+      "payload_class": "PermitSuspendedPayload",
+      "sample": "samples/Permit.Suspended.v1.json",
+      "schema": "schemas/Permit.Suspended.v1.json",
+      "title": "An active permit was suspended (stop work).",
       "version": 1
     },
     {
