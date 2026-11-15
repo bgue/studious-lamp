@@ -7,7 +7,7 @@ T05a t mrg f 7e1651ce review P; amend 1; rename test_nine_checks later
 T05b t mrg f de6ff369 review P; amend 1+2 (seed labour reqs)
 T09a t mrg f fcbb52e0 review P
 T09b1 t mrg f 49ab7045 review P
-T09b2 t stg f - client methods and fakes (+export_scaffolds); after T09b1
+T09b2 t mrg f 7480bded review P
 T07a t mrg f f4b66174 review P
 T07b t stg f - scaffold register, record view, palette; after T09b2, T07a
 T10 t stg f - sim actor, demo clauses 2 3 6; after T05b, T07b, T09a
