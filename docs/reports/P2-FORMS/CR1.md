@@ -40,24 +40,20 @@ holds). Not measured: the twin walks on the base, so a slow-down or a pre-existi
 ## Mutation
 Sentinel (`hidden_sql` returns None for everyone) killed. 5/5 targeted killed: answer-class check skipped in list; in get; in the
 event filter; draft card made (`is_draft_plumbing` off); `forms.Submission` row removed (killed by the pin and by two behaviour tests).
-
 ## Rulings applied (coordinator)
 - Q1: the author always reads their own submission, draft or submitted, whatever its class (`_own_draft` now tests the author only,
   in the source part and `_own_hidden`; a hidden subject still hides it). Test: a plain user completes `SubmitForm` for a restricted and
   a privileged template and reads it back; other readers see it as missing. The `as_system` helper stays for one test only.
-- Q2: accepted as is (hidden == missing; tests seed proposals under `system_view`).
 - Q3: `run_nested_command` catches `ValidationError` and raises `NestedCommandError` with the fixed `MSG_ARGS`; test with an unknown key
   marker and value markers. (`nested.py` added to the touched files by ruling.)
 - Q4 (deferred): a privileged answer class on a submission with a subject hides it from everyone but its author until forms has a
   clearance table; the orchestrator logs it.
 - Q5 stands (Postgres twin walks; PID 8782 still alive, `gate-pg` not run).
-
 ## Review round (security review: changes)
 - F1: `insights/activity.py` `_visible` also drops `core.Proposal` events that hit `hidden_answer_templates` (same helper). Other
   hand-written filters: `integration/visibility.py` and `webhooks/dispatch.py` use `names_hidden_record` (covered);
   `threads/queries.py` scans `dispatch_json` of core thread commands only, not a forms proposal. Tests with a subject: service
   `record_activity` and `GET /records/{id}/activity` (an agent gets 403), five readers.
 - F3: test: a plain user files on an internal item, a controller reclassifies it restricted, the author then gets never-existed.
-- F4 mutants, all killed: author check removed; `submitted_on IS NOT NULL`; own class skipped; filter after LIMIT; activity check removed.
-- F5: `hidden_answer_templates` names the template columns (`_TEMPLATE_ID`, `_TEMPLATE_CLASS`).
+- F5: template columns named. F4 mutants, all killed: author check removed; `submitted_on IS NOT NULL`; own class skipped; filter after LIMIT; activity check removed.
 - F2 gates: `tests/confidentiality` 144 passed, 4 xfailed; forms 120; proposals 50; punch visibility 13; API walk 41; MCP walk + `test_modules` 27.
