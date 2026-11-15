@@ -70,3 +70,9 @@ Standard report; first line: test copy byte-identical or not (phrase 101). Note 
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15)
+The provided test failed `just check` where it lands (ruff E501 and format; pyright on the deliberate `required="yes"`
+call). Decision: the landed copy is reformatted (`ruff format`, docstring wrap) and that call carries
+`# pyright: ignore[reportArgumentType]`; no assertion changed. `docs/tickets/P2-INSP/provided/T00_test_insp_rules.py` is
+updated to the same bytes. Allowed paths gain that provided file and this ticket file for this purpose only.

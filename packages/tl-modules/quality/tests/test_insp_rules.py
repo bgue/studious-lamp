@@ -1,4 +1,7 @@
-"""The pure inspection rules (P2-INSP T00): question and answer validation, failed questions, the result."""
+"""The pure inspection rules (P2-INSP T00).
+
+Question and answer validation, failed questions, the result.
+"""
 
 from __future__ import annotations
 
@@ -66,13 +69,15 @@ def test_more_than_sixty_questions_is_a_problem() -> None:
         q("q1", "choice", choices=[str(i) for i in range(9)]),
         q("q1", "choice", choices=["a", "a"]),
         q("q1", "text", fails_when="no"),
-        q("q1", required="yes"),
+        q("q1", required="yes"),  # pyright: ignore[reportArgumentType]
     ],
 )
 def test_malformed_question_is_a_problem_naming_it(bad: dict[str, Any]) -> None:
     problems = r.validate_questions([bad])
     assert problems
-    assert all(p.startswith("q1:") or p.startswith("x1:") or p.startswith("question") for p in problems)
+    assert all(
+        p.startswith("q1:") or p.startswith("x1:") or p.startswith("question") for p in problems
+    )
 
 
 def test_duplicate_question_ids_are_a_problem() -> None:
@@ -140,7 +145,9 @@ def test_yes_no_without_fails_when_never_fails() -> None:
     assert r.failed_questions([q("q1")], [a("q1", "no")]) == []
 
 
-@pytest.mark.parametrize(("value", "fails"), [(0, True), (1, False), (5, False), (5.01, True), (3, False)])
+@pytest.mark.parametrize(
+    ("value", "fails"), [(0, True), (1, False), (5, False), (5.01, True), (3, False)]
+)
 def test_number_bounds_are_inclusive(value: float, fails: bool) -> None:
     got = r.failed_questions(QS, [a("q1", "yes"), a("q2", value)])
     assert got == (["q2"] if fails else [])
