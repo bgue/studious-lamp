@@ -93,3 +93,8 @@ for any reader; if a shared harness must change; if a walk cannot be built witho
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15)
+`packages/tl-api/tests/test_api_agent_stop.py` (T01's) failed 8 cases on the base after S1 (its `file_proposal` filed as an
+agent with no explicit grant). Its helper now calls `ensure_agent(harness, agent)`; no assertion changed. That file is
+allowed for that line only.
