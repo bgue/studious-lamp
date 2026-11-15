@@ -1,4 +1,4 @@
-# P2-I4B STATE  r=3 base=098acdf8 C=1 ck=- gate=n/a wt=/home/user/wt/p2-i4b
+# P2-I4B STATE  r=4 base=485b85b5 C=1 ck=- gate=n/a wt=/home/user/wt/p2-i4b
 ## BOARD   (S1 = plan B4; `todo` ready to dispatch, `stg` staged)
 S1 p mrg f 256d9014 C1; findings dec by orch; APPROVALS
 T06 t mrg f 1c3e1294 review P; F2 ctrl+i is Tab -> T07a (D11)
@@ -10,9 +10,12 @@ T09b1 t mrg f 49ab7045 review P
 T09b2 t mrg f 7480bded review P
 T07a t mrg f f4b66174 review P
 T07b t mrg f 3fc897e2 review P
-T10 t stg f - sim actor, demo clauses 2 3 6; after T05b, T07b, T09a
-T11 t stg l - tour shots (owner rule); after T07b, T06
-T12 t stg l - docs, runbook, AGENTS row; last
+T09c t disp f - error rows for scaffold refusals (T09a open question); D18
+T11a t disp f - demo project `scaffold` section (P200 data for tour); D19
+T12 t disp l - docs, runbook, contracts As-built; root AGENTS row at DONE
+T10a t stg f - demo clauses 5, 6 (lifecycle, due, dismantle); after T09c
+T10b t stg f - demo clause 7 toolcrib; after T10a
+T11b t stg l - tour shots 13-15; after T11a
 ## DEC
 D1 2026-11-15 TagScaffoldGreen is its own command (word scaffold.tag.green, controller); InspectScaffold takes conditional or fail only: one word per command (W3-2); S1, contract §3
 D2 2026-11-15 states Requested Designed Erecting Inspected In Use Modify Dismantle Removed; fail on Inspected or In Use moves to Modify; fail on Erecting stays; Release needs a green tag; S1
@@ -30,8 +33,11 @@ D13 2026-11-15 r3: scaffold commands are not in the API door and no CLI group ex
 D14 2026-11-15 r3: T09b1 also serves GET scaffold-export (csv|jsonl over views.export_rows) so the owner export rule is reachable without a CLI; T09b2 adds client export_scaffolds; T09b1
 D15 2026-11-15 r3: plan T07a split: T07a = toolcrib keys (F2 issue, F3 return, Ctrl+R kept; app-level F2/F3 panel toggles lose to the modal) + palette entry; T07b = scaffold register and record screens; D6 registration stays with T07a/T07b (one owner of app.py/commands.py per ticket, sequential); T07a, T07b
 D16 2026-11-15 r3: `just demo P2-I2` failure (awp.worker.run word) does not touch this DONE demo: T10 clause 3 runs job scaffold.inspections_due in-process (JobRunner, as dev/accept/P2-I4B/S1.py), never `tl awp run`; no fix ticket; T10
+D17 2026-11-15 r4: demo clause numbers 5 (plan 2), 6 (plan 3), 7 (plan 6) follow A's 1-4; IWP "closes" = Cancelled via `tl awp iwp cancel` (Closed needs signoffs); IWP to Issued by by_module TransitionWorkflow in the driver; scaffold commands over the API door; new driver `dev/demos/p2_i4b_demo.py` (A's driver untouched); T10a
+D18 2026-11-15 r4: T09c added (T09a Q): scaffold errors map to 422 scaffold_error, scaffold_scope, scaffold_rule; 409 scaffold_state, scaffold_dismantle_refused, scaffold_stale_version; plan 10 -> 14 items (T09c, T10 split a/b, T11 split a/b), still pieces=1; no PLANCHK (items are small, one batch per seam)
+D19 2026-11-15 r4: P200 has 4 scaffold requisitions and no scaffolds, so the tour needs data: T11a adds a demo-project section with no `requires` links (IWP readiness unchanged); T11b the shots
 ## SEC
-(none yet; SR4 rows: S1 confidentiality part (hidden IWP hides its scaffold and the dismantle text), green-tag word, dismantle guard; T09b1 five-reader walk; one wave review)
+(none yet; T09a Q (500 on a domain refusal) -> T09c; SR4 rows: S1 confidentiality part (hidden IWP hides its scaffold and the dismantle text), green-tag word, dismantle guard; T09b1 five-reader walk; one wave review)
 ## OPEN
 Q3 closed 2026-11-15 (orch): accept D10 (blocked when hours and no labour requisition). T05b adds labour requisitions to demo/accept/tour data that expects ready; if more than 3 scripts are affected it stops and lists them.
 Q1 Offline-class and `valid_time` choices for scaffold are the supervisor's (D7); orchestrator may veto at the S1 human gate | needs orch | raised r1
@@ -43,14 +49,15 @@ S1-F4 scaffold reads cur_requisitions_scaffold_request directly: record in phase
 S1-F5 hidden-IWP test patches _hidden (no confidential IWP exists yet): report says so; real path when IWPs carry classes
 T06 size (654 lines, mostly the acceptance script) accepted; its lint block clears once S1 is in p2/i4b
 ## NEXT
-## NEXT
-1. Orch: merge T09a, T09b1, T07a when passed (T09a and T09b1 both regenerate docs/reference/openapi.json: conflict there only, regenerate, code 131). Then round 4.
-2. Round 4: dispatch T09b2 (needs T09b1 merged; refine from its report), then T07b (needs T09b2 and T07a); check X4 trunk state again.
-3. Then T10 (needs T05b, T07b, T09a; clause 3 in-process job, D16; commands over the door or embedded client), T11, T12; DONE round writes `docs/reports/P2-I4B.md` and the AGENTS.md table row (scaffold module: runbook, API routes, TUI, demo).
-4. X4 C2 on trunk: add one ticket moving the command splat and the router line into module.py hooks (commands, read_routers) and the IN_TREE_SURFACES entry; MCP tools and `tl scaffold` CLI stay DEFERRED (Q2).
-5. Close: `just check`, whole gate split by package, `just gate-pg` on touched dirs, `just demo P2-I4` (clauses 2, 3, 6 added), SR4 (S1 confidentiality, green-tag word, dismantle guard, T09b1 five-reader walk).
+1. Orch: merge T09c, T11a, T12 when passed (T12 and T11a touch disjoint paths; no known conflicts).
+2. Round 5: dispatch T10a (needs T09c), T11b (needs T11a), then T10b (needs T10a; same script and driver, sequential).
+3. DONE round after all merged: `docs/reports/P2-I4B.md` (<=80 lines), root AGENTS.md table row (scaffold: module, runbook, API, TUI, demo, tour), learnings, README status; `88`.
+4. Close gates (orch): `just check`; whole gate split by package; `just gate-pg` on packages/tl-modules/scaffold/tests packages/tl-api/tests/test_api_scaffold_commands.py tests/api/test_client_scaffold.py; `just demo P2-I4`; `just tour phase2`; SR4 (S1 confidentiality, green-tag word, dismantle guard, T09b1 five-reader walk).
+5. X4 C2 on trunk (still not at r4): ticket to move command splat and router line into module.py hooks; MCP tools and `tl scaffold` stay DEFERRED (Q2).
+6. Open from reports (decide at DONE, no ticket now): T07b register_page tuple shape accepted as built; T09b2 non-empty due list in client tests not added (T09b1 and fakes cover it); T05b/T05a rename test_nine_checks later.
 ## REFS
 Specs `docs/tickets/P2-I4B/{S1-scaffold-schema-and-lifecycle,T06-toolcrib-screen,T01-read-views,T05a-scaffold-tagged,T05b-labour-requested}.md`; stubs `tl_mod_scaffold/{views,readiness,labour}.py` (bodies raise NotImplementedError); provided tests `docs/tickets/P2-I4B/provided/S1_test_rules.py` (copy to `packages/tl-modules/scaffold/tests/test_rules.py`) `provided/T06_test_toolcrib_text.py` (copy to `packages/tl-tui/tests/test_toolcrib_text.py`), `provided/T01_test_views.py`, `T05a_test_scaffold_tagged.py`, `T05b_test_labour_requested.py` (each linted and type-checked where it lands, then the landing copy removed; the ticket makes the copy; ruff extend-exclude skips `provided/`).
+Round 4 specs `T09c-scaffold-error-rows`, `T11a-demo-project-scaffold-section`, `T12-docs`, staged `T10a-demo-scaffold-clauses`, `T10b-demo-toolcrib-clause`, `T11b-tour-scaffold-toolcrib` (all under `docs/tickets/P2-I4B/`). Gate paths (ls checked): `packages/tl-api/tests/{test_error_table,test_api_scaffold_commands,test_openapi_baseline}.py`, `tests/tools/test_demo_project{,_quality}.py`; demos and tour: `TL_DEMO_BACKENDS=sqlite just demo P2-I4`, `just tour phase2 /tmp/phase2-tour` (background).
 Round 3 specs `T09a-command-door`, `T09b1-api-read-routes`, `T09b2-client-methods`, `T07a-toolcrib-keys-and-nav`, `T07b-scaffold-screens` (all under `docs/tickets/P2-I4B/`; no provided tests: the tickets copy the punch tests' shape).
 Patterns: `docs/tickets/P2-PUNCH/` (S1 S2, T01 T03 T04 T06), `docs/tickets/P2-I4A/` (T04c1 T04c2 T07a), `packages/tl-modules/quality/`, `tl_mod_awp/readiness/job.py`, `phase2-contracts-draft.md` §3.
 Gate paths checked with ls: `packages/tl-schema/tests`, `tests/services/test_modules.py`, `packages/tl-core/tests/auth/test_access_words.py`, `packages/tl-core/tests/test_numbering_config.py`, `packages/tl-tui/tests`; created by items: `packages/tl-modules/scaffold/tests`, `packages/tl-schema/tests/test_scaffold_schema.py`, `packages/tl-tui/tests/test_toolcrib_text.py`.
