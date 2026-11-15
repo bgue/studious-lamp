@@ -106,6 +106,7 @@ from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
 from tl_mod_engineering.commands import API_COMMANDS
 from tl_mod_materials.commands import MATERIALS_COMMANDS
 from tl_mod_quality.module import PUNCH_COMMANDS
+from tl_mod_scaffold.module import SCAFFOLD_COMMANDS
 from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS
 
@@ -231,6 +232,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     *_module_specs("quality", PUNCH_COMMANDS),
     *_module_specs("schedule", SCHEDULE_COMMANDS),
     *_module_specs("schemareg", SCHEMAREG_COMMANDS),
+    *_module_specs("scaffold", SCAFFOLD_COMMANDS),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have

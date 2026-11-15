@@ -117,9 +117,20 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     }  # fmt: skip
     # the quality module (P2-PUNCH): verify, reopen and void of a punch item
     quality = {"VerifyPunchItem", "ReopenPunchItem", "VoidPunchItem"}
+    # the scaffold module (P2-I4B S1): tagging a scaffold green (scaffold.tag.green)
+    scaffold = {"TagScaffoldGreen"}
     assert controller_actions() == {
         f"control.command.{n}"
-        for n in CONTROLLING | scheduling | correspondence | registry | awp | materials | quality
+        for n in (
+            CONTROLLING
+            | scheduling
+            | correspondence
+            | registry
+            | awp
+            | materials
+            | quality
+            | scaffold
+        )
     }
 
 
