@@ -144,9 +144,9 @@ def _only(only: str | None) -> str:
 
 
 # A part also answers for the records that name a subject (ADR-0024 constraints; requisitions,
-# their work orders (P2-I4A F1) and punch items (P2-PUNCH)): such a record is hidden when its
-# subject is, class by join, no copy. ``k`` is the constraint row (NULL for any other record).
-# Each ``SUBJECT_LINKS`` row is a
+# their work orders (P2-I4A F1), punch items (P2-PUNCH) and scaffolds with their inspections
+# (P2-I4B)): such a record is hidden when its subject is, class by join, no copy. ``k`` is the
+# constraint row (NULL for any other record). Each ``SUBJECT_LINKS`` row is a
 # table with one row per record of a type and the column naming that record's subject. The subject
 # is followed ``_HOPS`` times (constraint -> work order -> requisition -> work package), each hop
 # one flat LEFT JOIN per table on its primary key (nesting subqueries overflows SQLite's parser
@@ -169,6 +169,10 @@ SUBJECT_LINKS: Final = (
     ("requisitions.ScaffoldRequest", "cur_requisitions_scaffold_request", "id", "for_record_id"),
     ("requisitions.WorkOrder", "cur_requisitions_work_order", "id", "requisition_id"),
     ("quality.PunchItem", "cur_quality_punch_item", "id", "source_id"),
+    # a scaffold is hidden with the record its request serves; an inspection with its scaffold
+    # (P2-I4B)
+    ("scaffold.Scaffold", "cur_scaffold_scaffold", "id", "for_record_id"),
+    ("scaffold.ScaffoldInspection", "cur_scaffold_scaffold_inspection", "id", "scaffold_id"),
 )
 _HOPS: Final = 2
 

@@ -162,6 +162,8 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
         "v_requisitions_material_requisition",
         "v_requisitions_scaffold_request",
         "v_requisitions_work_order",
+        "v_scaffold_scaffold",
+        "v_scaffold_scaffold_inspection",
         "v_schedule_activity_ref",
         "v_schedule_schedule",
         "v_schedule_schedule_snapshot",

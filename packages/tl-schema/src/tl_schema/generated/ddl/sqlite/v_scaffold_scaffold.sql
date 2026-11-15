@@ -1,0 +1,31 @@
+CREATE VIEW IF NOT EXISTS v_scaffold_scaffold AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.request_id AS request_id,
+  t.for_record_id AS for_record_id,
+  t.location_text AS location_text,
+  t.elevation AS elevation,
+  t.gridline AS gridline,
+  t.load_class AS load_class,
+  t.tag AS tag,
+  t.tagged_on AS tagged_on,
+  t.last_inspected_on AS last_inspected_on,
+  t.next_due_on AS next_due_on,
+  t.flagged_due_on AS flagged_due_on,
+  t.inspection_count AS inspection_count,
+  t.modify_reason AS modify_reason,
+  t.dismantle_reason AS dismantle_reason
+FROM cur_scaffold_scaffold AS t
+JOIN cur_core_record AS r ON r.id = t.id;
