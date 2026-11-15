@@ -62,5 +62,9 @@ def spec() -> ModuleSpec:
         actions={TAG: tag_actions},
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
+        commands="tl_mod_engineering.commands:API_COMMANDS",
+        read_routers=("tl_api.routes.engineering:router",),
+        tools=("tl_mcp.engineering_tools:register_engineering_tools",),
+        cli_groups=("tl_cli.tag:app",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )

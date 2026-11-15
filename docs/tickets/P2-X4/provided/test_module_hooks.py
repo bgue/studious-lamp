@@ -144,8 +144,9 @@ def test_a_ref_outside_its_surface_or_malformed_is_refused(hooks: dict[str, Any]
 
 
 def test_in_tree_surface_refs_are_accepted() -> None:
+    # an in-tree module (IN_TREE_SURFACES, orchestrator Q1) may name the surface packages
     _fake(
-        "fake",
+        "quality",
         read_routers=("tl_api.routes.punch:router",),
         tools=("tl_mcp.punch_tools:register_punch_tools",),
         cli_groups=("tl_cli.punch:app",),

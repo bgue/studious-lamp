@@ -30,12 +30,14 @@ projector would leave tables empty without a trace.
 
 from __future__ import annotations
 
+import importlib
 import re
 import threading
 from collections.abc import Callable, Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
 
 from sqlalchemy import Connection, text
@@ -178,6 +180,58 @@ class ModuleLoadError(RuntimeError):
     """An installed module could not be loaded, or two modules claim the same name or type."""
 
 
+class ModuleHookError(ModuleLoadError):
+    """A hook reference of an installed module does not resolve (fixed text, no ref echoed)."""
+
+
+HookKind = Literal["commands", "read_routers", "tools", "cli_groups"]
+
+_REF = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*:[A-Za-z][A-Za-z0-9_]*")
+
+#: The modules shipped in this repository (ADR-0029, P2-X4 decision Q1). Only these may name a
+#: surface package (``tl_api.routes.``, ``tl_mcp.``, ``tl_cli.``) for a hook; any other module may
+#: name its own ``tl_mod_<name>`` package and nothing else.
+IN_TREE_SURFACES = frozenset(
+    {
+        "awp",
+        "correspondence",
+        "cost",
+        "documents",
+        "engineering",
+        "legacy",
+        "materials",
+        "quality",
+        "requisitions",
+        "schedule",
+        "schemareg",
+    }
+)
+
+_SURFACE_PREFIX: dict[str, str] = {
+    "read_routers": "tl_api.routes.",
+    "tools": "tl_mcp.",
+    "cli_groups": "tl_cli.",
+}
+
+
+def _check_ref(name: str, kind: str, ref: str) -> None:
+    """Refuse a hook ref of the wrong shape or outside the places ``kind`` may load from.
+
+    The one function that holds the prefix rule: a different rule is a change here only. The
+    error names the module and the field, never the ref.
+    """
+    if _REF.fullmatch(ref) is None:
+        raise ModuleLoadError(f"module {name!r}: {kind} has a malformed reference")
+    package = ref.split(":", 1)[0]
+    own = f"tl_mod_{name}"
+    if package == own or package.startswith(own + "."):
+        return
+    surface = _SURFACE_PREFIX.get(kind)
+    if surface is not None and name in IN_TREE_SURFACES and package.startswith(surface):
+        return
+    raise ModuleLoadError(f"module {name!r}: {kind} names a place it may not load from")
+
+
 def _no_commands() -> dict[str, frozenset[str]]:
     return {}
 
@@ -192,6 +246,31 @@ def _no_actions() -> dict[str, ActionsHook]:
 
 def _no_words() -> dict[str, str]:
     return {}
+
+
+def _no_meta() -> Mapping[str, str]:
+    return {}
+
+
+@dataclass(frozen=True)
+class ModuleCommand:
+    """A command a module owns, as the module declares it (ADR-0029).
+
+    ``handler`` keeps its signature ``(UnitOfWork, Any) -> CommandResult``. ``meta`` carries
+    ``delegation`` (``eligible`` or ``excluded:<reason>``; missing means excluded).
+    """
+
+    module: str
+    model: type[Command]
+    handler: ProposalHandler
+    access: str
+    needs_holds: bool = False
+    takes_roles: bool = False
+    meta: Mapping[str, str] = field(default_factory=_no_meta)
+
+    @property
+    def name(self) -> str:
+        return self.model.__name__
 
 
 @dataclass(frozen=True)
@@ -236,8 +315,23 @@ class ModuleSpec:
     #: section 4). A key is a type of this module whose class is ``draft_only``; every command is a
     #: ``command_words`` entry with the word ``user``. ``check_offline`` validates it at load.
     offline_drafts: Mapping[str, frozenset[str]] = field(default_factory=_no_commands)
+    #: Hook references, `"<dotted.module>:<Name>"`, resolved lazily by `resolve_hook` (ADR-0029).
+    #: ``commands`` names a tuple of command rows, or a zero-argument callable that returns one.
+    commands: str | None = None
+    #: Read routers, MCP tool registrars and CLI groups, in registration order.
+    read_routers: Sequence[str] = ()
+    tools: Sequence[str] = ()
+    cli_groups: Sequence[str] = ()
 
     def __post_init__(self) -> None:
+        if self.commands is not None:
+            _check_ref(self.name, "commands", self.commands)
+        for kind in ("read_routers", "tools", "cli_groups"):
+            refs = getattr(self, kind)
+            if isinstance(refs, str):
+                raise ModuleLoadError(f"module {self.name!r}: {kind} must be a sequence")
+            for ref in refs:
+                _check_ref(self.name, kind, ref)
         for record_type, commands in self.generic_commands.items():
             if record_type not in self.record_types:
                 raise ModuleLoadError(
@@ -531,3 +625,87 @@ def confidential_sources() -> list[ConfidentialSource]:
 def schema_sources() -> list[Callable[[UowFactory], RegistrySource]]:
     """The modules' schema source factories, in module name order (P1-I8)."""
     return [spec.schema_source for spec in load_modules() if spec.schema_source is not None]
+
+
+def _unresolved(spec: ModuleSpec, kind: str) -> ModuleHookError:
+    return ModuleHookError(f"module {spec.name!r}: hook {kind!r} cannot be resolved")
+
+
+def _refs(spec: ModuleSpec, kind: str) -> tuple[str, ...]:
+    if kind == "commands":
+        return (spec.commands,) if spec.commands else ()
+    if kind in _SURFACE_PREFIX:
+        return tuple(getattr(spec, kind))
+    raise ValueError(f"unknown hook kind {kind!r}")
+
+
+def _as_command(spec: ModuleSpec, row: Any) -> ModuleCommand:
+    meta = getattr(row, "meta", None)
+    return ModuleCommand(
+        module=spec.name,
+        model=row.model,
+        handler=row.handler,
+        access=row.access,
+        needs_holds=bool(getattr(row, "needs_holds", False)),
+        takes_roles=bool(getattr(row, "takes_roles", False)),
+        meta=MappingProxyType(dict(meta)) if meta else MappingProxyType({}),
+    )
+
+
+def resolve_hook(spec: ModuleSpec, kind: str) -> tuple[object, ...]:
+    """Import and return the objects a spec's hook names (lazily; never at ``ModuleSpec`` build).
+
+    For ``commands`` the rows become ``ModuleCommand``. Any failure raises ``ModuleHookError``
+    with a fixed text that carries neither the ref nor the exception.
+    """
+    refs = _refs(spec, kind)
+    try:
+        found: list[object] = []
+        for ref in refs:
+            package, attr = ref.split(":", 1)
+            found.append(getattr(importlib.import_module(package), attr))
+        if kind != "commands":
+            return tuple(found)
+        if not found:
+            return ()
+        table = found[0]
+        if callable(table):
+            table = table()
+        return tuple(_as_command(spec, row) for row in table)  # type: ignore[attr-defined]
+    except Exception:
+        raise _unresolved(spec, kind) from None
+
+
+def _collect_commands() -> tuple[list[ModuleCommand], dict[str, str]]:
+    rows: list[ModuleCommand] = []
+    failures: dict[str, str] = {}
+    for spec in load_modules():
+        try:
+            resolved = resolve_hook(spec, "commands")
+        except ModuleHookError as exc:
+            failures[spec.name] = str(exc)
+            continue
+        rows.extend(row for row in resolved if isinstance(row, ModuleCommand))
+    return rows, failures
+
+
+def module_commands() -> tuple[ModuleCommand, ...]:
+    """Every module's commands, module by module in name order, rows in declared order.
+
+    A module whose ``commands`` hook fails is skipped (see ``hook_failures``). A command name
+    declared twice, by two modules or twice in one, raises ``ModuleLoadError``: an ambiguous
+    name stops the process.
+    """
+    rows, _ = _collect_commands()
+    owner: dict[str, str] = {}
+    for row in rows:
+        if row.name in owner:
+            first, second = sorted((owner[row.name], row.module))
+            raise ModuleLoadError(f"command {row.name!r} is declared by {first!r} and {second!r}")
+        owner[row.name] = row.module
+    return tuple(rows)
+
+
+def hook_failures() -> dict[str, str]:
+    """Module name to the fixed message, for modules whose ``commands`` hook did not resolve."""
+    return _collect_commands()[1]
