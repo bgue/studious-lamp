@@ -6,7 +6,7 @@ S2 p mrg f 2224887f review P; APPROVALS
 T01 t mrg f a9dc1eca admin stop routes+client; orch fixed wording
 T02 t mrg f 11c163b9 tl agent stop|resume|stopped; 42 P
 T03 t mrg f 12b0a7bb accounts screen stopped flag + held; 91 P
-T04 t disp f - walks A/B/C; merged names pasted r4
+T04 t mrg f 3404c59d review P; amend 1 (T01 helper grant)
 T05 t stg f - demo sh+py, both adapters; behind T04; names pasted
 T06 t stg l - runbook, steps 15-21; behind T05; outputs pasted
 ## DEC
