@@ -76,15 +76,16 @@ def definitions() -> dict[str, SettingDefinition]:
 P2_I5 = {"awp.pack.pdf", "tui.landing"}
 
 
-def test_the_platform_file_defines_33_keys_17_old_12_new_telemetry_idempotency_two_of_p2_i5(
+def test_the_platform_file_defines_34_keys_17_old_12_new_and_five_later(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert len(PHASE2) == 12
     # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
     # idempotency.retention_days is the P2-X1 S1 key: neither old nor wave-0.
-    assert len(definitions) == 33 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5)
+    # ai.agents.max_pending_per_project is the P2-X2 S2 key: neither old nor wave-0.
+    assert len(definitions) == 34 == OLD_KEYS + len(PHASE2) + 3 + len(P2_I5)
     assert set(PHASE2) <= set(definitions) and P2_I5 <= set(definitions)
-    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 2 + len(P2_I5)
+    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 3 + len(P2_I5)
 
 
 def test_the_p2_i5_keys_have_their_defaults_scopes_and_choices(

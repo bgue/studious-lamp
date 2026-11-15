@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from harness import ALICE, SCOPE, Harness
+from harness import ALICE, SCOPE, Harness, ensure_agent
 from tl_api.client import ApiClient
 from tl_api.tokens import add_token
 from tl_core.proposals.types import ProposalView
@@ -31,6 +31,7 @@ def propose_create(h: Harness, key: str = "P123-REC-0042", scope: str = SCOPE) -
         title="Weld NCR",
         key=key,
     )
+    ensure_agent(h)
     return proposals.submit(
         h.backend, tool="create_record", agent=AGENT, command=command, summary="Create NCR"
     )
@@ -94,6 +95,7 @@ def test_a_command_that_cannot_be_applied_comes_back_failed_not_raised(harness: 
         layer="standard",
         values={"manufacturer": "Acme"},
     )
+    ensure_agent(harness)
     made = proposals.submit(
         harness.backend, tool="update_psets", agent=AGENT, command=command, summary="Set maker"
     )

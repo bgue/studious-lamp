@@ -42,6 +42,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from agent_grant import grant_agent
 from mcp_types import CallToolResult
 from sqlalchemy import text
 from textual.pilot import Pilot
@@ -417,6 +418,7 @@ async def clause_mcp(
     target: dict[str, Any],
 ) -> None:
     step("exit-1 (MCP): agent:triage proposes, user:bob accepts (MCP writes are propose-only)")
+    grant_agent(str(DB), "triage", [SCOPE])  # S1: an agent files only under an explicit grant
     factory = SqliteUowFactory(Path(DB))
     server = build_server(factory, actor="agent:triage")
 

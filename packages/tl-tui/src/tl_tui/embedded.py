@@ -104,6 +104,7 @@ from tl_core.numbering.detect import KeyChip, suggest_chips
 from tl_core.offline import RecordTypeRow, record_type_rows
 from tl_core.query import QuerySpec, count_query, parse, run_query
 from tl_core.services import (
+    agent_stop,
     feed_completion,
     feed_queries,
     link_queries,
@@ -2656,6 +2657,13 @@ class EmbeddedClient:
             self._admin_gate(uow)
             return account_queries.list_agent_tokens(
                 uow.conn(), account_id=account_id, include_revoked=include_revoked
+            )
+
+    def list_stopped_agents(self, limit: int = 200) -> list[agent_stop.StoppedAgent]:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return agent_stop.list_stopped(
+                uow.conn(), confidentiality.current_viewer(), limit=limit
             )
 
     def issue_agent_token(

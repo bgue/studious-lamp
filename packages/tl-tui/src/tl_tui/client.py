@@ -35,6 +35,7 @@ from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
 from tl_core.offline import RecordTypeRow
+from tl_core.services.agent_stop import StoppedAgent
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
 from tl_core.services.feed import EditPost, PostToFeed
@@ -1487,6 +1488,10 @@ class ClientInterface(Protocol):
         self, account_id: str | None = None, *, include_revoked: bool = True
     ) -> list[AgentTokenView]:
         """Agent token metadata, oldest first. The tokens themselves cannot be read back."""
+        ...
+
+    def list_stopped_agents(self, limit: int = 200) -> list[StoppedAgent]:
+        """Agents stopped now with the held count the viewer may see; admin only."""
         ...
 
     def issue_agent_token(

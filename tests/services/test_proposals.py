@@ -77,8 +77,16 @@ def flow() -> Iterator[None]:
 
 
 class World:
-    def __init__(self, db: DbTarget) -> None:
+    def __init__(self, db: DbTarget, grant_filing: Callable[..., None]) -> None:
         self.db = db
+        for name in (
+            "triage",
+            "bot",
+            "other",
+            "fresh",
+        ):  # an agent files only where it holds a module role (P2-X2)
+            with open_uow(db) as uow:
+                grant_filing(uow, name)
 
     def factory(self, readonly: bool = False) -> Any:
         return open_uow(self.db, readonly=readonly)
@@ -138,10 +146,10 @@ class World:
 
 
 @pytest.fixture
-def world(new_db: Callable[[], DbTarget]) -> World:
+def world(new_db: Callable[[], DbTarget], grant_filing: Callable[..., None]) -> World:
     db = new_db()
     create_schema(db)
-    return World(db)
+    return World(db, grant_filing)
 
 
 def create_cmd(key: str | None = "P123-REC-0042", **extra: Any) -> CreateRecord:

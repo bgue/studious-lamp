@@ -19,6 +19,9 @@ from tl_api.app import create_app
 from tl_api.client import ApiClient
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore, add_token
+from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.types import AccountKind
 from tl_core.files.service import FileService
 from tl_sim.client import HttpSimClient, Keys, install_stamp
 from tl_sim.clock import SimClock
@@ -97,6 +100,7 @@ def build_suite(tmp_path: Path, *, standards: bool = False, objects: bool = Fals
             load_standards(
                 uow, load_standards_file(ACME_DOCUMENTS), actor="user:seed", source="test"
             )
+    _grant_assistant(backend)
     store = FsObjectStore(tmp_path / "objects", secret=b"k") if objects else None
     files = FileService(store, secret=b"s") if store is not None else None
     app = create_app(
@@ -107,6 +111,32 @@ def build_suite(tmp_path: Path, *, standards: bool = False, objects: bool = Fals
         files_service=files,
     )
     return Suite(tokens, backend, TestClient(app), Keys(RUN_ID, {}), [], db)
+
+
+def _grant_assistant(backend: SqliteUowFactory) -> None:
+    """As an admin would: the assistant gets an account and an explicit ``user`` grant here.
+
+    S1: an agent files only under a module grant; a derived account role does not count.
+    """
+    with backend() as uow:
+        people: list[tuple[str, AccountKind, list[str]]] = [
+            ("sim-admin", "person", ["admin"]),
+            ("sim-assistant", "agent", ["user"]),
+        ]
+        for name, kind, roles in people:
+            made = accounts.create_account(
+                uow, username=name, display_name=name, kind=kind, roles=roles,
+                password=None, by="svc:seed",
+            )  # fmt: skip
+            if name == "sim-assistant":
+                grant_module_role(
+                    uow,
+                    GrantModuleRole(
+                        actor="user:sim-admin", source="test", scope="company",
+                        account_id=made.account_id, project=SCOPE, module="*",
+                        role="user", reason="sim assistant files proposals",
+                    ),
+                )  # fmt: skip
 
 
 def close_suite(built: Suite) -> None:

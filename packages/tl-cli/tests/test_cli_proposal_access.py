@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+from filing_support import grant_filing
 from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core.services import proposals
@@ -38,6 +39,7 @@ def test_without_an_admin_session_a_tag_publication_proposal_stays_pending(
         expected_content_rev=1,
     )
     with open_uow(env["TL_DB"]) as uow:
+        grant_filing(uow, "triage")
         pid = proposals.propose(
             uow, tool="propose_import_tags", agent=AGENT, command=command, summary="publish"
         ).proposal_id

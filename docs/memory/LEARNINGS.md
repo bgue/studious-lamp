@@ -286,3 +286,18 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P2-I4B-4** · 2026-11-15 · tags: api, tests
   Module role `derive` gives every `user` account the `user` word per module unless an explicit grant exists; an explicit module grant replaces the derived roles. A viewer grant therefore removes `register`, which is the easy way to build a person with no word.
   Evidence: T09a report. Status: active
+- **L-P2-X2-1** · 2026-11-15 · tags: api, tests
+  An agent's right to file comes from an explicit grant (`GrantModuleRole`), never from a role derived from its account. Any fixture, demo or script that files as an agent must grant it first, and a missing grant reads as a missing scope (404).
+  Evidence: D2, D7; T08 to T11 grant fallout. Status: active
+
+- **L-P2-X2-2** · 2026-11-15 · tags: env, tests
+  The whole-suite DONE gate on a 16 GB box is OOM-killed when run as one session. Run `just gate` per test directory and keep one summary each.
+  Evidence: P2-X2 DONE round; same cause as L-P2-I3-2. Status: active
+
+- **L-P2-X2-3** · 2026-11-15 · tags: tests, process
+  A provided test is linted where it lands, not where it was written. Stub-style or long lines that pass in the spec directory fail `just check` in the target package; run lint on the copy when staging it.
+  Evidence: S1 seam docstring E501 wrapped by the orchestrator; T07 to T11 pins. Status: active
+
+- **L-P2-X2-4** · 2026-11-15 · tags: tests, api
+  Admin-only streams (`Agent.*`) never reach webhooks. A webhook contract or scenario test must exclude them, or it fails on the stream and not on the code under test.
+  Evidence: T07 report; `docs/reports/P2-X2/T07.md`. Status: active

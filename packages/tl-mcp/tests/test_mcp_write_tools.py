@@ -36,7 +36,12 @@ PROPOSING = (
 def events(env: McpHarness, event_type: str | None = None) -> list[Any]:
     with env.factory(True) as uow:
         found = uow.ledger.read_after(0, limit=1000)
-    return [e for e in found if event_type is None or e.event_type == event_type]
+    return [
+        e
+        for e in found
+        if (event_type is None and not e.event_type.startswith("Account."))
+        or e.event_type == event_type
+    ]  # the account and grant the harness makes on first use are not the filing under test
 
 
 def accept(env: McpHarness, proposal_id: str) -> ProposalView:
@@ -427,6 +432,7 @@ def test_every_string_the_tools_accept_has_a_length_limit(env: McpHarness) -> No
 def test_a_user_actor_server_also_proposes_and_tags_its_source(tmp_path: Path) -> None:
     env = McpHarness.build(tmp_path)
     try:
+        env.ensure_agent("user:carol")  # a person's account and grant: filing needs both
         server = build_server(env.factory, actor="user:carol")
         result = asyncio.run(
             server.call_tool(

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from harness import Harness
+from harness import Harness, ensure_agent
 from sqlalchemy import event as sa_event
 from tl_api_walk import (  # pyright: ignore[reportMissingImports]
     FAKE_ID,
@@ -118,6 +118,7 @@ def grow(h: Harness, record: str, *, posts: int, links: int, proposed: int, tag:
                     actor="user:seed", source="t", scope=SCOPE, record_id=record, body=f"{tag} {n}"
                 ),
             )
+    ensure_agent(h)  # S1: an agent files only under an explicit grant
     for n in range(links + proposed):
         other = h.create_record(f"{tag}-{n}", "other").stream_id
         with h.backend(False) as uow:

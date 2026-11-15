@@ -7,7 +7,7 @@ import json
 from typing import Any
 
 from fastapi.testclient import TestClient
-from harness import ALICE, BOB, SCOPE, Harness
+from harness import ALICE, BOB, SCOPE, Harness, ensure_agent
 from test_stream import open_stream
 from tl_api.tokens import add_token
 from tl_core import settings
@@ -247,7 +247,7 @@ def test_a_filter_hides_the_thread_of_an_unreadable_record_everywhere(harness: H
 
 def test_an_agent_token_can_neither_preview_nor_confirm_a_dispatch(harness: Harness) -> None:
     switch_on(harness)
-    make_account(harness, "triage", "agent")
+    ensure_agent(harness, AGENT)  # S1: an explicit grant
     rid = harness.create_record("P123-REC-0001").stream_id
     harness.create_record("P123-REC-0002")
     agent = agent_client(harness)
@@ -272,7 +272,7 @@ def test_a_person_accepts_an_agents_dispatch_proposal_over_http(harness: Harness
 
     switch_on(harness)
     make_account(harness, "alice")
-    make_account(harness, "triage", "agent")
+    ensure_agent(harness, AGENT)  # S1: an explicit grant
     rid = harness.create_record("P123-REC-0001").stream_id
     other = harness.create_record("P123-REC-0002").stream_id
     runner = thread_runner()
@@ -309,7 +309,7 @@ def test_a_token_with_no_account_cannot_accept_even_an_effect_only_dispatch(
 
     switch_on(harness)
     make_account(harness, "alice")
-    make_account(harness, "triage", "agent")
+    ensure_agent(harness, AGENT)  # S1: an explicit grant
     rid = harness.create_record("P123-REC-0001").stream_id
     assert post(harness.client, rid, "something to summarise").status_code == 200
     runner = thread_runner()

@@ -547,6 +547,40 @@
    "type": "object"
   }
  },
+ "Agent.Resumed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "agent": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "agent"
+   ],
+   "type": "object"
+  }
+ },
+ "Agent.Stopped": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "agent": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "agent"
+   ],
+   "type": "object"
+  }
+ },
  "AgentToken.Issued": {
   "1": {
    "additionalProperties": true,

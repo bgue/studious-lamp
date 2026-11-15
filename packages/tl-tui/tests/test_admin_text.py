@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from tl_core.auth.module_role_views import EffectiveRoleView
 from tl_core.auth.types import AccountView, AgentTokenView
+from tl_core.services.agent_stop import StoppedAgent
 from tl_tui.admin_text import (
     ACCOUNT_COLUMNS,
     TECHNICAL_TOKEN_COLUMNS,
@@ -131,8 +132,56 @@ def test_the_detail_panel_shows_a_lock_and_counts_an_agents_tokens() -> None:
         token(token_id="T4", account_id="other"),
     ]
     lines = detail_lines(bot, tokens, NOW)
-    assert lines[-1] == "Tokens    1 live, 1 revoked"
+    assert "Tokens    1 live, 1 revoked" in lines
+    assert lines[-1] == "Filing    allowed"  # an agent that may file says so, after its tokens
     assert not any(line.startswith("Tokens") for line in detail_lines(account(), tokens, NOW))
+
+
+def stopped(**changes: object) -> StoppedAgent:
+    values: dict[str, object] = {
+        "agent": "agent:triage",
+        "stopped_at": "2026-10-11T12:15:00.000000Z",
+        "stopped_by": "user:boss",
+        "reason": "bad batch",
+        "held": 2,
+    }
+    values.update(changes)
+    return StoppedAgent(**values)  # type: ignore[arg-type]
+
+
+def test_an_agent_that_may_file_reads_allowed_and_no_held_count() -> None:
+    lines = detail_lines(account(kind="agent", username="triage"), [], NOW, None)
+    assert lines[-1] == "Filing    allowed"
+    assert not any(line.startswith(("Held", "Reason", "By")) for line in lines)
+
+
+def test_a_stopped_agent_shows_the_flag_the_held_count_the_reason_and_who() -> None:
+    bot = account(kind="agent", username="triage")
+    lines = detail_lines(bot, [], NOW, stopped())
+    assert lines[-4:] == [
+        "Filing    ■ stopped since 2026-10-11 12:15 UTC",
+        "Held      2 pending",
+        "Reason    bad batch",
+        "By        user:boss",
+    ]
+
+
+def test_a_stopped_agent_with_no_reason_has_no_reason_line() -> None:
+    bot = account(kind="agent", username="triage")
+    lines = detail_lines(bot, [], NOW, stopped(reason=None, held=0))
+    assert "Held      0 pending" in lines
+    assert not any(line.startswith("Reason") for line in lines)
+
+
+def test_a_stopped_agent_with_no_stamp_shows_the_empty_mark() -> None:
+    bot = account(kind="agent", username="triage")
+    lines = detail_lines(bot, [], NOW, stopped(stopped_at=None))
+    assert "Filing    ■ stopped since —" in lines
+
+
+def test_a_person_gets_none_of_the_filing_lines_even_with_a_stopped_entry() -> None:
+    lines = detail_lines(account(), [], NOW, stopped(agent="agent:amy"))
+    assert not any(line.startswith(("Filing", "Held", "Reason", "By")) for line in lines)
 
 
 # --- the effective roles panel (T07 lows) --------------------------------------------------------

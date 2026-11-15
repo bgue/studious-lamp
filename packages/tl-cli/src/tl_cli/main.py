@@ -42,6 +42,7 @@ from tl_cli import (
     admin_roles,
     admin_token,
     admin_user,
+    agent_stop,
     archive,
     awp,
     backup,
@@ -201,6 +202,7 @@ app.add_typer(integration.app, name="integration")
 sim_cli.AGENT_TOKEN_SOURCE = sim_agent.provider  # the simulated assistant's MCP token
 app.add_typer(sim_cli.app, name="sim")
 app.add_typer(admin.app, name="admin")
+app.add_typer(agent_stop.app, name="agent")
 admin.app.add_typer(admin_user.app, name="user")
 admin.app.add_typer(admin_token.app, name="token")
 admin.app.add_typer(admin_roles.app, name="roles")

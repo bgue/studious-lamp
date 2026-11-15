@@ -1119,6 +1119,114 @@
             "title": "ActivityPost",
             "type": "object"
         },
+        "AgentResumedPayload": {
+            "additionalProperties": false,
+            "description": "An admin resumed a stopped agent. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"agent\": \"agent:site-bot\"}"
+            ],
+            "properties": {
+                "agent": {
+                    "description": "The agent actor string, `agent:<name>`.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "agent"
+            ],
+            "title": "AgentResumedPayload",
+            "type": "object"
+        },
+        "AgentStop": {
+            "additionalProperties": false,
+            "description": "The stop state of one agent (`agent:<name>`). One row per agent that was ever stopped: a resume sets `stopped` to 0 and keeps the row. Written by `Agent.Stopped` and `Agent.Resumed`.",
+            "properties": {
+                "account_id": {
+                    "description": "The agent's account.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "agent": {
+                    "description": "The agent actor string, `agent:<name>`.",
+                    "type": "string"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "description": "Short reason given at the stop.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "resumed_at": {
+                    "description": "ISO-8601 UTC of the last resume.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "resumed_by": {
+                    "description": "Actor that resumed it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "stopped": {
+                    "description": "1 while stopped.",
+                    "type": "integer"
+                },
+                "stopped_at": {
+                    "description": "ISO-8601 UTC of the last stop.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "stopped_by": {
+                    "description": "Actor that stopped it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "agent",
+                "account_id",
+                "stopped",
+                "last_seq"
+            ],
+            "title": "AgentStop",
+            "type": "object"
+        },
+        "AgentStoppedPayload": {
+            "additionalProperties": false,
+            "description": "An admin stopped an agent. New filings and accepts of its proposals are refused until `Agent.Resumed`. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"agent\": \"agent:site-bot\", \"reason\": \"filing the wrong packages\"}"
+            ],
+            "properties": {
+                "agent": {
+                    "description": "The agent actor string, `agent:<name>`.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Short reason, no record text.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "agent"
+            ],
+            "title": "AgentStoppedPayload",
+            "type": "object"
+        },
         "AgentToken": {
             "additionalProperties": false,
             "description": "The metadata of one agent token. The token itself is only in `auth_token_secret`, as a hash.",

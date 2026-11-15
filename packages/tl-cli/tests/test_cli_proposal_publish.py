@@ -23,6 +23,7 @@ from derivecli_support import (
     schema_file,
     seed,
 )
+from filing_support import grant_filing
 from tl_adapters.db import DbTarget, open_uow
 from tl_core.services import proposals
 from tl_mod_documents.derivation import store, views
@@ -69,6 +70,7 @@ def test_an_admin_accepts_a_publication_proposal_in_a_process_that_configured_no
         expected_content_rev=derived.content_rev,
     )
     with open_uow(env["TL_DB"]) as uow:
+        grant_filing(uow, "triage")
         pid = proposals.propose(
             uow, tool="propose_import_tags", agent="agent:triage", command=command, summary="s"
         ).proposal_id

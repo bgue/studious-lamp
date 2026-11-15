@@ -11,6 +11,8 @@ from typing import Any
 
 import pytest
 from tl_adapters.db import DbTarget, open_uow
+from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.services.commands import UpdateRecord, VoidRecord
 from tl_core.services.errors import UnsupportedRecordTypeError
 from tl_core.services.links import AddLink, handle_add_link
@@ -144,6 +146,22 @@ def test_a_proposal_that_targets_a_registry_record_is_refused_when_proposed_and_
     def factory(readonly: bool = False) -> Any:
         return open_uow(ledger, readonly=readonly)
 
+    with open_uow(ledger) as uow:  # P2-X2 S1: an agent files only under an explicit grant
+        view = accounts.create_account(
+            uow, username="triage", display_name="triage", kind="agent",
+            roles=["user"], password=None, by="svc:test",
+        )  # fmt: skip
+        accounts.create_account(
+            uow, username="gadmin", display_name="gadmin", kind="person",
+            roles=["admin"], password=None, by="svc:test",
+        )  # fmt: skip
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project="company", module="materials", role="user", reason="test",
+            ),
+        )  # fmt: skip
     submit: Callable[..., Any] = proposals.submit
     with pytest.raises(UnsupportedRecordTypeError, match="engineering.TagClass"):
         submit(
