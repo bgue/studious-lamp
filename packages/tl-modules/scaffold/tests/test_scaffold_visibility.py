@@ -79,6 +79,7 @@ def test_a_scaffold_of_an_open_record_is_visible_to_all(world: World) -> None:
     ("name", "extra"),
     [
         ("DesignScaffold", {}),
+        ("TagScaffoldGreen", {}),
         ("ErectScaffold", {}),
         ("InspectScaffold", {"result": "fail"}),
         ("ReleaseScaffold", {}),
@@ -91,10 +92,11 @@ def test_every_command_on_a_hidden_scaffold_answers_as_for_one_that_is_not_there
     world: World, name: str, extra: dict
 ) -> None:  # type: ignore[type-arg]
     sid, _, _ = hidden_scaffold(world)
+    who = "sue" if name == "TagScaffoldGreen" else "uma"  # tagging needs the controller word
     with pytest.raises(RecordNotFoundError) as absent:
-        world.call("uma", name, scaffold=MISSING, **extra)
+        world.call(who, name, scaffold=MISSING, **extra)
     with pytest.raises(RecordNotFoundError) as hidden:
-        world.call("uma", name, scaffold=sid, **extra)
+        world.call(who, name, scaffold=sid, **extra)
     assert str(hidden.value) == str(absent.value)
     assert sid not in str(hidden.value)
 

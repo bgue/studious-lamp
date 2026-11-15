@@ -53,16 +53,28 @@ def due_state(state: str, last_inspected_on: date | None, today: date, interval_
     return "due" if today == due else "overdue"
 
 
+MSG_HIDDEN_IWP = "a work package you cannot see"
+
+
 def dismantle_blockers(
-    iwp_states: Mapping[str, str], other_open_requests: Sequence[str]
+    iwp_states: Mapping[str, str],
+    other_open_requests: Sequence[str],
+    hidden_iwp_states: Sequence[str] = (),
 ) -> list[str]:
     """The reasons not to dismantle: one per requiring work package that holds the scaffold, one
-    per other scaffold request of such a package still open. Empty means go ahead."""
+    per other scaffold request of such a package still open. A hidden package (its state is
+    in ``hidden_iwp_states``, one entry each) is counted, never named and never given a state.
+    Empty means go ahead."""
     reasons = [
         f"work package {number} is {state} and requires this scaffold"
         for number, state in sorted(iwp_states.items())
         if state in HOLDING_IWP_STATES
     ]
+    held = sum(1 for state in hidden_iwp_states if state in HOLDING_IWP_STATES)
+    if held == 1:
+        reasons.append(f"{MSG_HIDDEN_IWP} requires this scaffold")
+    elif held:
+        reasons.append(f"{held} work packages you cannot see require this scaffold")
     reasons.extend(
         f"scaffold request {number} is still open" for number in sorted(other_open_requests)
     )

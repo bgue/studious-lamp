@@ -68,7 +68,7 @@ _ROW_COLUMNS: Final = (
     "t.location_text AS location, t.elevation, t.gridline, t.load_class, "
     "rq.key AS request_key"
 )
-_GUARD: Final = ("=", "+", "-", "@")
+_GUARD: Final = ("=", "+", "-", "@", "\t", "\r")
 
 
 @dataclass(frozen=True)

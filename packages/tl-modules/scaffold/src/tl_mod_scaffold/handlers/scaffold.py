@@ -94,7 +94,7 @@ if TYPE_CHECKING:
 MSG_REQUEST_STATE = "a scaffold needs an approved scaffold request"
 MSG_ONE_PER_REQUEST = "that scaffold request already has a scaffold"
 MSG_NOT_GREEN = "a scaffold is released only with a green tag"
-MSG_HIDDEN_IWP = "a work package you cannot see"
+MSG_HIDDEN_IWP = rules.MSG_HIDDEN_IWP
 MSG_FAILED_INSPECTION = "failed inspection"
 _ROW_SQL = text(f"SELECT * FROM {SCAFFOLD_TABLE} WHERE id = :id")
 _REQUEST_SQL = text(
@@ -105,7 +105,8 @@ _REQUIRING_SQL = text(
     "SELECT cr.id, cr.key, COALESCE(cr.status, :initial) AS state FROM cur_links l "
     "JOIN cur_core_record cr ON cr.id = l.from_id "
     "WHERE l.scope = :scope AND l.relation = :relation AND l.to_id = :scaffold "
-    "AND l.status <> 'retracted' AND cr.type = :iwp AND cr.voided = :no"
+    "AND l.status <> 'retracted' AND cr.type = :iwp AND cr.voided = :no "
+    "ORDER BY cr.key, cr.id"
 )
 
 
@@ -347,10 +348,11 @@ def _hidden(conn: Connection, record_ids: list[str]) -> set[str]:
 
 def dismantle_inputs(
     conn: Connection, scope: str, scaffold: Scaffold
-) -> tuple[dict[str, str], list[str]]:
-    """What ``rules.dismantle_blockers`` takes: the states of the work packages with a live
-    ``requires`` link to this scaffold, and the keys of the other open scaffold requests of those
-    packages. A package the actor cannot see counts and is named only as ``MSG_HIDDEN_IWP``; the
+) -> tuple[dict[str, str], list[str], list[str]]:
+    """What ``rules.dismantle_blockers`` takes: the states of the visible work packages with a live
+    ``requires`` link to this scaffold, the states of the hidden ones (a list: they are counted,
+    never named), and the keys of the other open scaffold requests of those
+    packages. The
     requests are read as the lowest viewer, so a hidden one is left out."""
     rows = conn.execute(
         _REQUIRING_SQL,
@@ -365,24 +367,27 @@ def dismantle_inputs(
     ).all()
     hidden = _hidden(conn, [str(r.id) for r in rows])
     states: dict[str, str] = {}
+    hidden_states: list[str] = []
     requests: set[str] = set()
     own = str(scaffold.row["request_id"])
     for r in rows:
-        name = MSG_HIDDEN_IWP if str(r.id) in hidden else str(r.key)
-        states[name] = str(r.state)
+        if str(r.id) in hidden:
+            hidden_states.append(str(r.state))
+        else:
+            states[str(r.key)] = str(r.state)
         for found in requisitions_api.open_requisitions_for(
             conn, str(r.id), kinds=["scaffold"], viewer=confidentiality.LOWEST
         ):
             if found.id != own:
                 requests.add(found.key)
-    return states, sorted(requests)
+    return states, sorted(requests), hidden_states
 
 
 def handle_dismantle_scaffold(uow: UnitOfWork, cmd: DismantleScaffold) -> CommandResult:
     """The dismantle check, then Inspected, In Use or Modify to Dismantle."""
     cmd, scaffold = _start(uow, cmd, "DismantleScaffold")
-    states, requests = dismantle_inputs(uow.conn(), cmd.scope, scaffold)
-    reasons = rules.dismantle_blockers(states, requests)
+    states, requests, hidden_states = dismantle_inputs(uow.conn(), cmd.scope, scaffold)
+    reasons = rules.dismantle_blockers(states, requests, hidden_states)
     if reasons:
         raise DismantleRefused("; ".join(reasons))
     return _step(uow, cmd, scaffold, T_DISMANTLE, [(DISMANTLE_STARTED, {"reason": cmd.reason})])
