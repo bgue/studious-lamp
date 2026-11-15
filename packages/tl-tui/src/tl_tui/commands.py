@@ -36,6 +36,8 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("receipts", "Receipts: deliveries, inspection, MTR", "E", "receipts"),
     AppCommand("items", "Items: the company item library", "I", "items"),
     AppCommand("locations", "Locations: storage places and what they hold", "W", "locations"),
+    # P2-I4B toolcrib (T07a; the crib keys are in `tl_tui/widgets/toolcrib_screen.py`).
+    AppCommand("toolcrib", "Toolcrib: issue and return a tool in one line", "", "toolcrib"),
     AppCommand("cwps", "Work packages: CWPs, state, budget, allocation", "", "cwps"),
     AppCommand("wbs", "WBS: the work breakdown tree and its cost codes", "", "wbs"),
     AppCommand("cwas", "Work areas: CWAs and their order on the path", "", "cwas"),

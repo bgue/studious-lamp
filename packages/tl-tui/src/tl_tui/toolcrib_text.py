@@ -20,7 +20,7 @@ from tl_mod_materials.views import LocationView, StockRowView
 
 #: The two modes, in the order the status keys name them.
 MODES: tuple[str, ...] = ("issue", "return")
-KEYS = "Enter send  Ctrl+I issue  Ctrl+R return  Esc close"
+KEYS = "Enter send  F2 issue  F3 return  Ctrl+R return  Esc close"
 
 NEED_TOOL = "Type the tool: its lot key, or its item code when the crib holds one lot of it."
 NEED_PERSON = "Type the person who takes the tool, after the tool."

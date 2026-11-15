@@ -706,6 +706,34 @@ class TlApp(App[None]):
     def action_stock(self) -> None:
         self._push_materials("stock")
 
+    def action_toolcrib(self) -> None:
+        """The toolcrib line on the project's first toolcrib code (P2-I4B-T07a; palette only)."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.errors import CLIENT_ERRORS, describe_error
+        from tl_tui.toolcrib_text import crib_choices
+        from tl_tui.widgets.toolcrib_screen import ToolcribScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The toolcrib needs a project.", severity="warning")
+            return
+        try:
+            locations = self.client.list_materials_locations(project)
+        except CLIENT_ERRORS as exc:
+            self.notify(describe_error(exc), severity="error")
+            return
+        cribs = crib_choices(locations)
+        if not cribs:
+            self.notify(
+                "No toolcrib in this project. Add a location of kind toolcrib.",
+                severity="warning",
+            )
+            return
+        self.push_screen(ToolcribScreen(self.client, project, self.actor, cribs[0]))
+
     def action_movements(self) -> None:
         self._push_materials("movements")
 
