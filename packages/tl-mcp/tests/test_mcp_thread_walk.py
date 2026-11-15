@@ -46,6 +46,7 @@ def test_the_walk_lists_the_thread_tools(env: McpHarness) -> None:
 
 @pytest.mark.parametrize("tool", sorted(TOOLS))
 def test_no_thread_tool_takes_what_only_the_server_sets(env: McpHarness, tool: str) -> None:
+    env.ensure_agent()  # the agent's account is made before the ledger is measured
     with env.factory(True) as uow:
         before = len(uow.ledger.read_after(0, limit=10_000))
     for extra in EXTRAS:

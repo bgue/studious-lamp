@@ -16,6 +16,9 @@ from awp_world import SCOPE, hidden_record  # noqa: E402  # pyright: ignore[repo
 from tl_adapters.db import as_target, open_uow  # noqa: E402
 from tl_core import confidentiality as cf  # noqa: E402
 from tl_core import settings  # noqa: E402
+from tl_core.auth import accounts  # noqa: E402
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role  # noqa: E402
+from tl_core.auth.queries import find_account  # noqa: E402
 from tl_core.ledger import NewEvent  # noqa: E402
 from tl_core.services import proposals  # noqa: E402
 from tl_core.services.commands import CreateRecord  # noqa: E402
@@ -139,8 +142,34 @@ def upload(world: World) -> str:
     return file_id
 
 
+def grant_agent(world: World) -> None:
+    """The agent's account and an explicit ``user`` grant on the scope (P2-X2 S1 filing check)."""
+    with open_uow(world.w.db) as uow:
+        conn = uow.conn()
+        name = AGENT.split(":", 1)[1]
+        view = find_account(conn, username=name)
+        if view is None:
+            view = accounts.create_account(
+                uow, username=name, display_name=name, kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
+        if find_account(conn, username="gadmin") is None:
+            accounts.create_account(
+                uow, username="gadmin", display_name="gadmin", kind="person",
+                roles=["admin"], password=None, by="svc:test",
+            )  # fmt: skip
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=SCOPE, module="*", role="user", reason="test",
+            ),
+        )  # fmt: skip
+
+
 def propose_link(world: World, *, accept: bool) -> str:
     """An agent proposes a link from the IWP; a person accepts or rejects it."""
+    grant_agent(world)
     with open_uow(world.w.db) as uow:
         cmd = AddLink(
             actor=AGENT, source="mcp:triage", scope=SCOPE, from_id=world.iwp,

@@ -51,3 +51,15 @@ Mutation: one sentinel plus at most 4 targeted mutants (check skipped, word `use
 
 ## Report
 Builder return ≤ 15 lines; report ≤ 60 lines; commit `P2-X2-S1: ...` with the session trailers; no model names in committed text.
+
+## Amendment 1 (orchestrator, 2026-11-14, after attempt 2)
+Q-S1-1 answered: **for filing, only explicit grants count.** `module-roles.yaml` `derive` gives every account with the
+account role `user` the module `user` role everywhere, so the check as built refuses almost no agent; the plan (12 §1
+P2-X2 demo 2, "a pilot agent that lacks the grant is refused until an admin runs `GrantModuleRole`") and closed by
+default (ADR-0009) need the grant. In `check_filing`, read `module_roles.effective_roles(...)` and accept only when
+`source` is `granted`, `granted_all_modules` or `admin`, and (module command) `user` is in `words`; core command: any
+module with such a source on the scope. Do not change `effective_roles`, `derive`, or any reader other than filing.
+Fixtures: the agent helpers you added (`ensure_agent`, harness, confseed) also run `GrantModuleRole` for the agent with
+role `user` on the scopes the test files in (module `*` if the existing command supports it, else the modules used);
+keep it in the shared helpers, not per test. Tests: add "account with derived user role only is refused" (module and
+core) and "explicit grant files". The gate path is `tests/services/test_proposals.py` (the spec's tl-core path was wrong).

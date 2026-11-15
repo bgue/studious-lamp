@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi.testclient import TestClient
-from harness import ALICE, BOB, SCOPE, Harness
+from harness import ALICE, BOB, SCOPE, Harness, ensure_agent
 from tl_api.tokens import add_token
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
@@ -24,6 +24,7 @@ def propose_create(h: Harness, key: str = "P123-REC-0042", scope: str = SCOPE) -
         title="Weld NCR",
         key=key,
     )
+    ensure_agent(h)
     return proposals.submit(
         h.backend, tool="create_record", agent=AGENT, command=command, summary="Create NCR"
     )
@@ -89,6 +90,7 @@ def test_a_proposal_the_command_can_no_longer_satisfy_is_answered_failed(
         layer="standard",
         values={"manufacturer": "Acme"},
     )
+    ensure_agent(harness)
     proposal = proposals.submit(
         harness.backend, tool="update_psets", agent=AGENT, command=command, summary="Set maker"
     )

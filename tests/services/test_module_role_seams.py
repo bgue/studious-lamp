@@ -218,7 +218,7 @@ class Seams:
 
 
 @pytest.fixture
-def seams(db: DbTarget) -> Iterator[Seams]:
+def seams(db: DbTarget, grant_filing: Callable[..., None]) -> Iterator[Seams]:
     create_schema(db)
     with use_provider(DirectorySchemaProvider(FIXTURES)):
         world = Seams(db)
@@ -228,6 +228,8 @@ def seams(db: DbTarget) -> Iterator[Seams]:
         world.person("sue")
         world.grant("pia", P1, "*", "superuser")
         world.grant("pia", P2, "*", "viewer")
+        with open_uow(db) as uow:
+            grant_filing(uow, "triage", (P1, P2))  # the filing agent of the proposals
         yield world
 
 

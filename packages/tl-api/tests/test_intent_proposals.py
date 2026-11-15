@@ -6,7 +6,7 @@ import json
 from typing import Any
 
 import pytest
-from harness import ALICE, SCOPE, Harness
+from harness import ALICE, SCOPE, Harness, ensure_agent
 from sqlalchemy import text
 from tl_core.intent import Intent, IntentInvalid, IntentReferenceUnknown
 from tl_core.proposals.types import ProposalView
@@ -26,6 +26,7 @@ def propose(h: Harness, key: str, intent: dict[str, Any] | None) -> ProposalView
         key=key,
         intent=Intent.model_validate(intent) if intent is not None else None,
     )
+    ensure_agent(h)
     return proposals.submit(
         h.backend, tool="create_record", agent=AGENT, command=command, summary="Create NCR"
     )

@@ -75,6 +75,9 @@ def test_a_reset_and_a_scheduled_change_are_proposed(env: McpHarness) -> None:
 
 
 def test_what_could_never_apply_is_refused_when_proposing(env: McpHarness) -> None:
+    env.ensure_agent()  # the agent's account is made before the ledger is measured
+    with env.factory(True) as uow:
+        before = uow.ledger.head_seq()
     for args, message in (
         ({"key": "no.such"}, "no setting"),
         ({"value": "yes"}, "takes a bool"),
@@ -89,7 +92,7 @@ def test_what_could_never_apply_is_refused_when_proposing(env: McpHarness) -> No
                 "propose_setting_change", **{"key": KEY, "layer": SCOPE, "value": False, **args}
             )
     with env.factory(True) as uow:
-        assert uow.ledger.head_seq() == 0
+        assert uow.ledger.head_seq() == before
 
 
 def test_a_locked_key_is_refused_now(env: McpHarness) -> None:
