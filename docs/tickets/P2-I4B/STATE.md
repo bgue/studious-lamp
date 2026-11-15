@@ -24,6 +24,12 @@ D8 2026-11-15 toolcrib tool = lot key (a serialised tool has its own lot) or an 
 ## OPEN
 Q1 Offline-class and `valid_time` choices for scaffold are the supervisor's (D7); orchestrator may veto at the S1 human gate | needs orch | raised r1
 Q2 DEFERRED line proposed: scaffold MCP read tools and a `tl scaffold` CLI group (X4 cli_groups hook) | needs orch | raised r1
+## DEC-ORCH 2026-11-15 (S1 review 2s)
+S1-F2 ruff extend-exclude docs/tickets/*/provided accepted (provided copies are linted where they land)
+S1-F3 optional `at` on all scaffold events and the extra optional fields accepted (additive; frozen baseline test)
+S1-F4 scaffold reads cur_requisitions_scaffold_request directly: record in phase2-contracts-draft.md §3 As-built (T12)
+S1-F5 hidden-IWP test patches _hidden (no confidential IWP exists yet): report says so; real path when IWPs carry classes
+T06 size (654 lines, mostly the acceptance script) accepted; its lint block clears once S1 is in p2/i4b
 ## NEXT
 1. Orchestrator: dispatch S1 (builder, `/home/user/wt/i4b/s1`) and T06 (`/home/user/wt/i4b/t06`); T06 gets the provided test copied byte-identical; S1 gets `provided/S1_test_rules.py` copied to `packages/tl-modules/scaffold/tests/test_rules.py`.
 2. After S1 merges (C1): round 2 writes T01 and T05 (with their provided tests from S1's names), then refines T09b1 and T09b2 from the merged report.
