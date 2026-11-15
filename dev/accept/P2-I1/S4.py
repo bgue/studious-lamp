@@ -465,6 +465,18 @@ def offers(w: World, ids: dict[str, str]) -> None:
 def proposal(w: World) -> None:
     cmd = CreateCwp(actor="agent:planner", source="mcp:planner", scope=SCOPE,
                     discipline="PIP", title="Proposed piping", cwa_code="A2")  # fmt: skip
+    with open_uow(w.db) as uow:  # P2-X2 S1: an agent files only under an explicit grant
+        planner = accounts.create_account(
+            uow, username="planner", display_name="Planner", kind="agent",
+            roles=["user"], password=None, by="svc:accept",
+        )  # fmt: skip
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:ada", source="accept", account_id=planner.account_id,
+                project=SCOPE, module="awp", role="user", reason="acceptance",
+            ),
+        )  # fmt: skip
     with open_uow(w.db) as uow:
         made = proposals.propose(uow, tool="propose_cwp", agent="agent:planner", command=cmd,
                                  summary="A new piping package")  # fmt: skip

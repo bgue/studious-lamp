@@ -23,6 +23,9 @@ from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.module_roles import holder_for_actor, require_command_access
 from tl_core.services import proposals
 from tl_mcp.server import build_server
+
+sys.path.insert(0, str(Path(__file__).parents[3] / "packages/tl-modules/awp/tests"))
+from progress_world import grant_bot  # noqa: E402
 from tl_mod_awp.commands import CreateCwp
 
 SCOPE = "project:P123"
@@ -106,6 +109,21 @@ def main(db_path: Path) -> None:
         need(path is not None and path["version"] == 1 and len(path["steps"]) > 0, "path v1")
         passed(f"path_of_construction v{path['version']} {len(path['steps'])} steps")
 
+        # --- the agent, with no grant yet, cannot make a CWP itself ---------------------
+        command = CreateCwp(
+            actor=AGENT,
+            source="mcp:triage",
+            scope=SCOPE,
+            discipline="PIP",
+            title="Agent piping",
+            cwa_code="A2",
+        )
+        with open_uow(db) as uow:
+            refuses(ForbiddenError, lambda: require_command_access(uow.conn(), command))
+        need(len(call("list_cwps", project=PROJECT)["result"]) == 6, "agent created a CWP")
+        passed("agent cannot create a CWP directly (ForbiddenError; list_cwps still 6)")
+        grant_bot(db, AGENT.split(":", 1)[1])  # P2-X2 S1: from here the agent holds a grant
+
         # --- the proposal ------------------------------------------------------------------
         before = cwp_count(db)
         need(before == 6, f"seed has {before} CWPs")
@@ -138,20 +156,6 @@ def main(db_path: Path) -> None:
         after = len(call("list_cwps", project=PROJECT)["result"])
         need(after == 7, f"list_cwps after accept: {after}")
         passed("accepted by a person (user:uma; list_cwps 7)")
-
-        # --- the agent cannot make a CWP itself -------------------------------------------
-        command = CreateCwp(
-            actor=AGENT,
-            source="mcp:triage",
-            scope=SCOPE,
-            discipline="PIP",
-            title="Agent piping",
-            cwa_code="A2",
-        )
-        with open_uow(db) as uow:
-            refuses(ForbiddenError, lambda: require_command_access(uow.conn(), command))
-        need(len(call("list_cwps", project=PROJECT)["result"]) == 7, "agent created a CWP")
-        passed("agent cannot create a CWP directly (ForbiddenError; list_cwps still 7)")
 
 
 def parse() -> Path:
