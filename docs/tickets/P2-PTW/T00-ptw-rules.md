@@ -77,3 +77,8 @@ Standard report; first line: test copy byte-identical or not (phrase 101).
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15)
+The provided test was reformatted with `ruff format` before dispatch (no assertion changed). If pyright rejects a
+deliberate wrong-type call in it, add `# pyright: ignore[<rule>]` on that line only and copy the result back to
+`docs/tickets/P2-PTW/provided/T00_test_rules.py` so the two stay byte-identical; both paths are allowed for that.

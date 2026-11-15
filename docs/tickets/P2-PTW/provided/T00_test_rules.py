@@ -63,7 +63,9 @@ def test_shift_end_refuses_a_naive_time() -> None:
         r.shift_end(datetime(2026, 12, 10, 9, 0), "06:00", 12)
 
 
-@pytest.mark.parametrize(("start", "hours"), [("6:00", 12), ("24:00", 12), ("06:60", 12), ("06:00", 3), ("06:00", 25)])
+@pytest.mark.parametrize(
+    ("start", "hours"), [("6:00", 12), ("24:00", 12), ("06:60", 12), ("06:00", 3), ("06:00", 25)]
+)
 def test_shift_end_refuses_bad_settings(start: str, hours: int) -> None:
     with pytest.raises(ValueError):
         r.shift_end(at(9), start, hours)
@@ -86,7 +88,8 @@ def test_active_without_valid_until_fails_closed_as_lapsed() -> None:
 
 
 @pytest.mark.parametrize(
-    "state", ["Requested", "Approved", "Rejected", "Suspended", "Handed back", "Closed", "Cancelled"]
+    "state",
+    ["Requested", "Approved", "Rejected", "Suspended", "Handed back", "Closed", "Cancelled"],
 )
 def test_other_states_never_lapse(state: str) -> None:
     assert r.effective_state(state, at(1), at(23)) == state
@@ -100,7 +103,11 @@ def test_effective_state_refuses_naive_times() -> None:
 # ---- gas_result ------------------------------------------------------------------------------
 
 LIMITS = r.GasLimits(
-    o2_min_pct=D("19.5"), o2_max_pct=D("23.5"), lel_max_pct=D("5"), h2s_max_ppm=D("5"), co_max_ppm=D("25")
+    o2_min_pct=D("19.5"),
+    o2_max_pct=D("23.5"),
+    lel_max_pct=D("5"),
+    h2s_max_ppm=D("5"),
+    co_max_ppm=D("25"),
 )
 
 
@@ -145,7 +152,11 @@ def test_negative_reading_is_an_error() -> None:
 
 def test_limits_come_from_the_caller_not_from_the_module() -> None:
     tight = r.GasLimits(
-        o2_min_pct=D("20"), o2_max_pct=D("21"), lel_max_pct=D("1"), h2s_max_ppm=D("1"), co_max_ppm=D("1")
+        o2_min_pct=D("20"),
+        o2_max_pct=D("21"),
+        lel_max_pct=D("1"),
+        h2s_max_ppm=D("1"),
+        co_max_ppm=D("1"),
     )
     assert r.gas_result(tight, o2=D("19.9")) == "fail"
     assert r.gas_result(LIMITS, o2=D("19.9")) == "pass"
@@ -218,7 +229,9 @@ def test_isolation_missing_when_none_linked_or_all_removed() -> None:
 
 
 def test_isolation_unverified_when_any_live_one_is_not_verified() -> None:
-    assert blockers(needs_isolation=True, isolation_states=["Verified", "Applied"]) == ["isolation_unverified"]
+    assert blockers(needs_isolation=True, isolation_states=["Verified", "Applied"]) == [
+        "isolation_unverified"
+    ]
     assert blockers(needs_isolation=True, isolation_states=["Applied"]) == ["isolation_unverified"]
 
 
