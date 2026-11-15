@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 
+from agent_grant import grant_agent
 from sqlalchemy import text
 from tl_adapters.db import make_uow_factory, open_uow
 from tl_api.thread_runner import thread_runner
@@ -35,6 +36,7 @@ def propose(db: str, project: str, key: str, line: str) -> None:
             )
         except UsernameTakenError:
             pass
+    grant_agent(db, AGENT, [project])  # S1: an agent files only under an explicit grant
     with open_uow(db, readonly=True) as uow:
         record_id = str(
             uow.conn()

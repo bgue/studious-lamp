@@ -17,6 +17,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from filing_support import grant_filing
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, as_target, is_postgres, open_uow
 from tl_cli import session
@@ -33,6 +34,14 @@ PASSWORD = "correct horse battery"
 P = "P123"
 SCOPE = f"project:{P}"
 AGENT = "agent:triage"
+
+
+def ensure_agent(db: str) -> None:
+    """The agent's account (role user): an agent files only where it holds a module role."""
+    with open_uow(db) as uow:
+        grant_filing(uow, "triage")
+
+
 CLAIM_REFUSED = "does not hold it"
 runner = CliRunner()
 
@@ -263,6 +272,7 @@ def propose_issue(cast: Cast, key: str) -> str:
         actor=AGENT, source="mcp:triage", scope=SCOPE, stream_id=row.id,
         expected_version=row.version, transition="issue",
     )  # fmt: skip
+    ensure_agent(cast.base["TL_DB"])
     made = proposals.submit(
         factory, tool="transition_workflow", agent=AGENT, command=command, summary="Issue it"
     )

@@ -386,6 +386,12 @@ AGENT_MAY_NOT = {
     "admin.tokens.list",
     "admin.tokens.issue",
     "admin.tokens.revoke",
+    "admin.agents.stop",  # P2-X2 T01: an agent never stops or resumes an agent, nor lists the stops
+    "admin.agents.resume",
+    "admin.agents.list",
+    # P2-X2 T01: the command route actions of the S3 stop commands are closed to agents as well
+    "admin.command.StopAgent",
+    "admin.command.ResumeAgent",
     # the engineering registry commands (P1-I1): one action per admin-only command
     "admin.command.RegisterCodeList",
     "admin.command.RegisterMnemonic",

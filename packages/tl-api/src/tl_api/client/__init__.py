@@ -9,6 +9,7 @@ See ``tl_api.client.base`` for how errors map back to exceptions.
 
 from tl_api.client.activity import ActivityApi
 from tl_api.client.admin import AdminApi
+from tl_api.client.agent_stop import AgentStopApi
 from tl_api.client.auth import AuthApi
 from tl_api.client.awp import AwpApi
 from tl_api.client.awp_weeks import AwpWeeksApi
@@ -60,6 +61,7 @@ class ApiClient(
     SchemaRegistryApi,
     AuthApi,
     AdminApi,
+    AgentStopApi,
     IntegrationApi,
     IwpApi,
     RequisitionsApi,

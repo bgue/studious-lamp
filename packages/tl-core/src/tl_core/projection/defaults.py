@@ -7,6 +7,7 @@ from tl_core.constraints.projector import ConstraintProjector
 from tl_core.integration.projectors import IntegrationStateTables, integration_projectors
 from tl_core.jobs.state import JobQueueTables
 from tl_core.modules import module_projectors
+from tl_core.projection.agent_stop import AgentStopProjector
 from tl_core.projection.extypes import (
     BodyQuarantineTable,
     RecordBodyProjector,
@@ -44,6 +45,7 @@ def default_registry() -> InMemoryRegistry:
     )  # independent: subscriptions are their own streams
     registry.register(WebhookStateTables())  # operational tables; never reset by a rebuild
     registry.register(AccountProjector())  # independent: accounts are their own streams
+    registry.register(AgentStopProjector())  # after AccountProjector: it bumps the account version
     registry.register(AuthStateTables())  # operational tables; never reset by a rebuild
     registry.register(TelemetryStateTables())  # telemetry_need; never reset by a rebuild
     registry.register(ProposalProjector())  # independent: proposals are their own streams

@@ -25,6 +25,7 @@ from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Static
 from tl_core.auth.types import ROLES, AccountView, AgentTokenView
+from tl_core.services.agent_stop import StoppedAgent
 from tl_core.util import utcnow
 
 from tl_tui.admin_text import (
@@ -87,6 +88,7 @@ class AdminScreen(ModalScreen[None]):
         self.now = now
         self.accounts: list[AccountView] = []
         self.tokens: list[AgentTokenView] = []
+        self.stopped: list[StoppedAgent] = []
         self.showing_tokens = False
 
     # --- layout --------------------------------------------------------------------------
@@ -135,9 +137,11 @@ class AdminScreen(ModalScreen[None]):
         try:
             self.accounts = self.client.list_accounts()
             self.tokens = self.client.list_agent_tokens()
+            self.stopped = self.client.list_stopped_agents()
         except CLIENT_ERRORS as exc:
             self.accounts = []
             self.tokens = []
+            self.stopped = []
             self._fill(None)
             self._say(describe_error(exc), error=True)
             return
@@ -191,7 +195,9 @@ class AdminScreen(ModalScreen[None]):
         if view is None:
             detail.update("No accounts.")
             return
-        detail.update("\n".join(detail_lines(view, self.tokens, self._stamp())))
+        agent = f"agent:{view.username}"
+        stopped = next((entry for entry in self.stopped if entry.agent == agent), None)
+        detail.update("\n".join(detail_lines(view, self.tokens, self._stamp(), stopped)))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#admin-status", Static).update(("! " if error else "") + text)

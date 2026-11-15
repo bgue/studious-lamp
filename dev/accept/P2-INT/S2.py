@@ -22,6 +22,8 @@ from tl_adapters.db import DbTarget, create_schema
 from tl_api.app import create_app
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore, add_token
+from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.intent import Intent
 from tl_core.services import proposals
 from tl_core.services.commands import CreateRecord
@@ -50,6 +52,26 @@ def intents(backend: Any, stream: str) -> list[str | None]:
             {"s": stream},
         ).all()  # fmt: skip
     return [r[0] for r in rows]
+
+
+def grant_agent(backend: Any) -> None:
+    """The agent's account and an explicit ``user`` grant on the scope (P2-X2 S1 filing check)."""
+    with backend(False) as uow:
+        view = accounts.create_account(
+            uow, username="accept", display_name="accept", kind="agent",
+            roles=["user"], password=None, by="svc:test",
+        )  # fmt: skip
+        accounts.create_account(
+            uow, username="gadmin", display_name="gadmin", kind="person",
+            roles=["admin"], password=None, by="svc:test",
+        )  # fmt: skip
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=SCOPE, module="*", role="user", reason="test",
+            ),
+        )  # fmt: skip
 
 
 def run(name: str, target: DbTarget, root: Path) -> None:
@@ -96,6 +118,7 @@ def run(name: str, target: DbTarget, root: Path) -> None:
             title="Agent NCR", key="ACC-6",
             intent=Intent.model_validate({"why": "agent saw a defect"}),
         )  # fmt: skip
+        grant_agent(backend)
         proposal = proposals.submit(
             backend, tool="create_record", agent=AGENT, command=command, summary="NCR"
         )

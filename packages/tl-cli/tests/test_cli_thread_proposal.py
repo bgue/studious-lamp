@@ -6,11 +6,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from filing_support import grant_filing
 from sqlalchemy import text
 from thread_cli_support import P, create, run, thread_env
 from tl_adapters.db import DbTarget, is_postgres, make_uow_factory, open_uow
 from tl_api.thread_runner import thread_runner
-from tl_core.auth import accounts
 from tl_core.services import proposals
 from tl_core.threads.dispatch import build_dispatch_proposal
 
@@ -18,15 +18,7 @@ from tl_core.threads.dispatch import build_dispatch_proposal
 def agent_proposal(env: dict[str, str], key: str, line: str) -> str:
     """The id of a pending proposal of `line` on record `key`, filed by agent triage."""
     with open_uow(env["TL_DB"]) as uow:
-        accounts.create_account(
-            uow,
-            username="triage",
-            display_name="triage",
-            kind="agent",
-            roles=["user"],
-            password=None,
-            by="user:a",
-        )
+        grant_filing(uow, "triage")
         rid = (
             uow.conn()
             .execute(

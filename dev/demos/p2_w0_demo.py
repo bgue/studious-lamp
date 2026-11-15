@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 import yaml
+from agent_grant import grant_agent
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import StaticPool
@@ -175,6 +176,7 @@ def accept(client: TestClient, proposal_id: str) -> Any:
 
 def clause5(key: str) -> None:
     """An agent proposes the publication of a valid derived register into documents (P1)."""
+    grant_agent(os.environ["TL_DB"], AGENT, [P1])  # S1: an agent files only under a grant
     world = World()
     try:
         with world.backend(True) as uow:

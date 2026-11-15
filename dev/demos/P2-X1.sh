@@ -83,6 +83,7 @@ run_backend() {
   printf '%s\n' "a long passphrase for amy" | as demo tl admin user add amy --display-name "Amy" --password-stdin >/dev/null
   printf '%s\n' "a long passphrase for bob" | as demo tl admin user add bob --display-name "Bob" --password-stdin >/dev/null
   as demo tl admin user add triage --kind agent >/dev/null
+  as demo tl admin roles grant triage --project P123 --module '*' --role user --reason "the demo agent may file proposals" >/dev/null
   # the agent token is written to a file the driver reads; it is never printed
   as demo tl admin token issue triage --label p2-x1-demo >"$workdir/agent-token" 2>"$workdir/token.err" \
     || { cat "$workdir/token.err" >&2; fail "tl admin token issue"; }

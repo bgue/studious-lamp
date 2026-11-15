@@ -49,6 +49,7 @@ def test_the_same_key_from_another_agent_is_a_separate_proposal(
     mine = create(env, idempotency_key=KEY)
     other_server = build_server(env.factory, actor=OTHER_ACTOR, lake_dir=tmp_path / "lake")
     other = McpHarness(env.db, env.factory, other_server)
+    other.ensure_agent(OTHER_ACTOR)
     theirs = other.structured(
         "create_record", scope=SCOPE, title="Weld NCR", key="P123-REC-0043", idempotency_key=KEY
     )

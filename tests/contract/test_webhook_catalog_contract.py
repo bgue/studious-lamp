@@ -14,19 +14,21 @@ from typing import Any
 import pytest
 from jsonschema import Draft202012Validator
 from scenario import run_scenario
-from tl_core.auth.projector import ACCOUNT_EVENT_TYPES
+from tl_core.auth.projector import ACCOUNT_EVENT_TYPES, STREAM_BUMP_EVENT_TYPES
 from tl_core.integration.streams import INTEGRATION_INTERNAL_EVENT_TYPES
 from tl_core.threads.contract import THREAD_EVENT_TYPES, THREAD_WEBHOOK_EVENT_TYPES
 from tl_core.webhooks.signing import SigningSecret, verify
 from tl_schema import catalog
 from world import World
 
-#: Account events are in the catalog but internal: the dispatcher never delivers them (ADR-0009).
+#: Account events (and `Agent.Stopped`/`Agent.Resumed`, on the account stream) are in the catalog
+#: but internal: the dispatcher never delivers them (ADR-0009).
 #: So are the configuration and bookkeeping events of the integration layer (P1-I7, ADR-0017), and a
 #: thread's edits and retractions, which are in the catalog but not delivered (brief 21.5).
 DELIVERABLE = (
     set(catalog.event_types())
     - ACCOUNT_EVENT_TYPES
+    - STREAM_BUMP_EVENT_TYPES
     - INTEGRATION_INTERNAL_EVENT_TYPES
     - (set(THREAD_EVENT_TYPES) - set(THREAD_WEBHOOK_EVENT_TYPES))
 )
@@ -53,6 +55,15 @@ def test_the_scenario_delivers_every_event_type_of_the_catalog(
     # disabled and re-enabled in the scenario and, by design, does not receive its own `Enabled`.)
     seen = {event_type_of(body) for body in delivered["thin"]}
     assert seen == DELIVERABLE
+
+
+def test_the_agent_stop_events_are_written_but_never_delivered(
+    world: World, delivered: dict[str, list[dict[str, Any]]]
+) -> None:
+    written = {row["event_type"] for row in world.query("SELECT event_type FROM events")}
+    assert STREAM_BUMP_EVENT_TYPES <= written
+    for bodies in delivered.values():
+        assert not {event_type_of(body) for body in bodies} & STREAM_BUMP_EVENT_TYPES
 
 
 def test_every_delivered_body_validates_against_the_catalog_schema_of_its_type(
