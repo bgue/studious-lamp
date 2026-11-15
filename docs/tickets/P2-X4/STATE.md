@@ -28,6 +28,7 @@ Q3 error rows: ModuleSpec has no errors hook; module error rows stay hand-listed
 ## DEC-ORCH
 Q1 closed 2026-11-15 orch: own package always; surface prefixes only for an explicit in-tree set (IN_TREE_SURFACES)
 Q2 closed 2026-11-15 orch: S2 serves REQUISITIONS_COMMANDS (additive); S4 walks them
+Q3 closed 2026-11-15 orch: no errors hook now; new modules raise core error classes (rows exist); T04 guide says so; hook in DEFERRED
 ## NEXT
 1. Orch: dispatch S3 (p2/x4-s3-mcp-tools) and T01 (p2/x4-t01-cli-groups) now; disjoint paths (tl_mcp vs tl_cli); full review each. Answer Q3.
 2. Orch: when X2 C2 is merged to trunk, merge trunk into p2/x4, then dispatch S2 (spec staged, branch p2/x4-s2-api-table, wt /home/user/wt/x4/s2).
