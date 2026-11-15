@@ -220,7 +220,8 @@ def test_the_check_runs_one_statement(rig: Rig) -> None:
     seen: list[str] = []
 
     def listen(_c: Any, _cur: Any, statement: str, *_rest: Any) -> None:
-        seen.append(statement)
+        if not statement.lstrip().upper().startswith(("BEGIN", "COMMIT", "ROLLBACK")):
+            seen.append(statement)  # the adapter's transaction statements are not reads
 
     with rig.engine.connect() as conn:
         event.listen(conn, "before_cursor_execute", listen)

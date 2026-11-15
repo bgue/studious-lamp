@@ -61,3 +61,7 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15)
+As in T05a: the statement-count listener ignores BEGIN, COMMIT and ROLLBACK (the SQLite adapter's `BEGIN DEFERRED`); the
+bound stays at one read. The provided copy is updated to the same bytes; both paths are allowed for that.
