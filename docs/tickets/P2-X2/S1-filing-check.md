@@ -46,7 +46,7 @@ Read-only: `proposals.py` (wiring is committed), `module_roles.py`, ADR-0027, AD
 6. Five readers: the refusal is identical for a viewer with clearance and one without (it reads no record text).
 
 ## Gate
-`just check` (with `NODE_OPTIONS=--max-old-space-size=6144`); `just gate packages/tl-core/tests/test_agent_filing_check.py packages/tl-core/tests/test_proposals.py packages/tl-core/tests/test_idempotency_submit_order.py packages/tl-mcp/tests packages/tl-api/tests/test_confidentiality_walk.py`.
+`just check` (with `NODE_OPTIONS=--max-old-space-size=6144`); `just gate packages/tl-core/tests/test_agent_filing_check.py tests/services/test_proposals.py packages/tl-core/tests/test_idempotency_submit_order.py packages/tl-mcp/tests packages/tl-api/tests/test_confidentiality_walk.py`.
 Mutation: one sentinel plus at most 4 targeted mutants (check skipped, word `user` swapped for the command's word, refusal text differs from missing, check moved before replay), 3 lines in the report.
 
 ## Report

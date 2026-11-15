@@ -1,6 +1,6 @@
 # P2-X2-T04 — Walking tests: refusals look like missing, cap text without counts, five-reader walk of held count and stopped list
 
-Status: staged (dispatch after S1, S2, S3, T03 are merged; the supervisor re-reads the merged helper names below before dispatch, round 4)
+Status: ready (S1, S2, S3, T01, T02, T03 merged; helper names below re-read from the merged tree, round 4)
 Tier: haiku
 kind: ticket
 review: full
@@ -21,14 +21,29 @@ The `AGENT_MAY_NOT` rows were added by T01 (D9); this ticket asserts they are pr
 > P2-X2 demo 1: an agent without the module `user` word files: refused, the same as a scope that does not exist. 3: the cap is reached: refused with a fixed text that shows no counts.
 > 6: held count and stopped list, read as five kinds of reader, name no hidden record and count none.
 
-## Interfaces (names; the supervisor pastes the merged signatures at dispatch)
-- Filing check (S1, `tl_core/services/agent_scope.check_filing`): refusal equals the missing-scope refusal (class, text, API status). Agent fixtures hold `GrantModuleRole` through the shared helpers
-  (`ensure_agent` in `packages/tl-mcp/tests/mcp_harness.py`, `packages/tl-api/tests/harness.py`, `tl_mod_correspondence.confseed`); a test of "no word" revokes or never grants it.
-- Cap (S2): `QueueFullError`, API row `queue_full` 429, fixed text `this review queue is full; ask a reviewer to clear it, then file again`; setting `ai.agents.max_pending_per_project` (set with `ChangeSetting` at the project layer).
-- Stop (S3/T01): `agent_stop.list_stopped(conn, viewer, limit=200) -> list[StoppedAgent]`, `held_count(conn, agent, viewer)`; routes `GET /admin/agents/stopped`, `POST /admin/agents/stop|resume`; `AGENT_MAY_NOT` rows in
-  `packages/tl-api/tests/test_auth_review.py` for `admin.agents.stop`, `admin.agents.resume`, `admin.agents.list`, `admin.command.StopAgent`, `admin.command.ResumeAgent`.
-- Seed the hidden world and five readers as `packages/tl-api/tests/test_confidentiality_walk.py` and `packages/tl-mcp/tests/test_confidentiality_walk.py` do (`seed_hidden_world`, `TOKENS`); file a proposal that
-  carries a privileged record under `confidentiality.system_view()` (a plain `propose` reads back through the caller's viewer and would raise `ProposalNotFoundError`).
+## Interfaces (merged names, copied from the tree at round 4; use these, invent none)
+- Filing check, `tl_core.services.agent_scope`: `check_filing(conn: Connection, agent: str, command: Command) -> None` (refusal is `RecordNotFoundError`, built by `_refusal(scope)`, equal to the
+  missing-scope answer); `QUEUE_CAP_SETTING = "ai.agents.max_pending_per_project"`; `QUEUE_FULL_TEXT = "this review queue is full; ask a reviewer to clear it, then file again"`;
+  `check_queue_cap(conn, agent, command) -> None` (raises `QueueFullError`, API row `queue_full` 429); `pending_visible_count(conn, scope: str, viewer: confidentiality.Viewer) -> int`.
+- Stop, `tl_core.services.agent_stop`: `STOPPED_TEXT = "this agent is stopped"`; `is_stopped(conn, agent: str) -> bool`; `require_not_stopped(conn, agent) -> None` (`ForbiddenError`);
+  `held_count(conn, agent: str, viewer: confidentiality.Viewer) -> int`; `list_stopped(conn, viewer, *, limit: int = 200) -> list[StoppedAgent]`;
+  `StoppedAgent(agent, stopped_at, stopped_by, reason, held)`; commands `StopAgent(actor, source, agent, reason=None)`, `ResumeAgent(actor, source, agent)`; `handle_stop_agent(uow, cmd)`, `handle_resume_agent(uow, cmd)`.
+  Routes `GET /admin/agents/stopped`, `POST /admin/agents/stop|resume`; `AGENT_MAY_NOT` (in `packages/tl-api/tests/test_auth_review.py`, line 360) holds `admin.agents.stop`, `admin.agents.resume`,
+  `admin.agents.list`, `admin.command.StopAgent`, `admin.command.ResumeAgent`; `route_actions(app)` is defined there (line 311).
+- Shared test helpers (S1; import, never copy): API `from harness import ensure_agent` (`ensure_agent(h: Harness, actor: str = "agent:triage") -> None`, grants `user` on `project:P123`, `P1`, `P2`, `P999` and one company module);
+  MCP `McpHarness.ensure_agent(self, actor=ACTOR)`; service level `tests/services/conftest.py` fixture `grant_filing` (`grant_filing(uow, name, projects=PROJECTS)`), CLI `packages/tl-cli/tests/filing_support.py`
+  `grant_filing(uow, name, projects=PROJECTS)`. Revoke with `tl_core.auth.module_grants.RevokeModuleRole` / `revoke_module_role` (see `_cmd` and `revoke` in `packages/tl-core/tests/test_agent_filing_check.py`, line 94).
+- Setting the cap: `from tl_core.services.settings import ChangeSetting, handle_change_setting`; `ChangeSetting(actor=ADA, source="test", scope=scope, key=QUEUE_CAP_SETTING, layer=layer, value=2, reason="test", accept_risk=True)`
+  (copy the helper at `packages/tl-core/tests/test_agent_queue_cap.py` line 90-99; layer `project`).
+- Five readers and the hidden world: copy from `packages/tl-api/tests/test_api_agent_stop.py` (`Cast`, `file_proposal` with `confidentiality.system_view()`, `PublishDerivedTags` carrying a privileged `derived_id`);
+  `tl_mod_correspondence.confseed.seed_hidden_world`, `confseed.TOKENS`; viewers through `tl_core.confidentiality.viewer_for_actor(conn, actor)`.
+- Traps (read before writing):
+  1. `McpHarness.call`, `structured` and `wire_call` call `ensure_agent` before every non-read tool, so they grant the word. For the no-word MCP case call the server directly:
+     `asyncio.run(env.server.call_tool(tool, arguments))` (raises `ToolError`), and never call `ensure_agent` in that test. The word case may use `env.call`.
+  2. In the API walk the stop-test `Cast` makes the agent account without a grant: that is the no-word agent. `ensure_agent(harness)` turns it into the granted one. `project:P999` IS granted by the helper;
+     a scope that does not exist is a name outside `PROJECTS`, for instance `project:NOPE`.
+  3. File a proposal that carries a privileged record only under `confidentiality.system_view()`; a plain `propose` raises `ProposalNotFoundError`.
+  4. Every file you add must pass `uv run ruff format`, `uv run ruff check` and `uv run pyright`; a deliberate bad-type call carries `# pyright: ignore[<rule>]`.
 
 ## Context (read these, nothing else; may exceed six because it is tests only, each file is read in part)
 - `packages/tl-api/tests/test_api_agent_stop.py` (the five-reader seed and `held` assertions: copy, do not import) and `packages/tl-api/tests/test_confidentiality_walk.py` (lines 1-120)

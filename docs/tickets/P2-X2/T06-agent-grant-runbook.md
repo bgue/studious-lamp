@@ -1,6 +1,6 @@
 # P2-X2-T06 — Runbook: agent grant checklist, stop switch, queue cap
 
-Status: staged (dispatch after T05 is merged)
+Status: staged behind T05 (dispatch when T05 is merged; names below re-read from the merged tree, round 4)
 Tier: haiku
 kind: ticket
 review: lite
@@ -33,6 +33,14 @@ uv run tl agent resume triage
 uv run tl config set ai.agents.max_pending_per_project 50 --project P1 --reason "pilot queue"
 ```
 (`--module '*'` grants every module; the role table in step 11 says an agent may hold `viewer` and `user`, never `superuser`.)
+
+## Merged outputs for the `Expected:` lines (round 4, copied from the CLI source)
+- `roles grant` prints `granted user on documents for project:P1 to triage` (a repeat: `already held: user on documents for project:P1 to triage`); options are `--project`, `--module`, `--role`, `--reason`, all required.
+- `roles effective triage --project P1` prints one line per module, `<module>  <roles or ->  <source>`; the source for an agent must read `granted` (or `granted_all_modules` after `--module '*'`); `derived` is not enough (D7).
+- `agent stop` prints `stopped agent:triage`; `agent resume` prints `resumed agent:triage`; `agent stopped` prints `agent:triage  since <ts>  by <actor>  held N  <reason or ->` or `none stopped`; `--json` gives a list.
+- `config set` prints `set`, `scheduled` or `unchanged` with the key, the layer and the value; the cap is `risk: advanced`, so `--reason` is required.
+- Numbering: the last numbered step in `accounts-and-access.md` is 14 (revoke a grant), so the new steps are 15 to 21. A step is a command and its `Expected:` line; keep the section under about 45 lines.
+- Gate paths exist: `tests/ci/test_ci_workflow.py`, `tests/tools/test_relay_lint.py` (run `just gate tests/ci tests/tools/test_relay_lint.py`).
 
 ## Context (read these, nothing else)
 - `docs/runbooks/accounts-and-access.md` (lines 1-45 and 60-135) and `docs/runbooks/settings.md` (lines 20-45 and 83-90)

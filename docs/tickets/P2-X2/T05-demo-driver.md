@@ -1,6 +1,6 @@
 # P2-X2-T05 — Demo driver `dev/demos/P2-X2.sh`
 
-Status: staged (dispatch after T02 and T04 are merged)
+Status: staged behind T04 (T02 merged; dispatch when T04 is merged; names below re-read from the merged tree, round 4)
 Tier: haiku
 kind: ticket
 review: full
@@ -38,6 +38,17 @@ The admin acts go through the `tl` CLI (clauses 2, 4, 5); the agent's filings an
    with N equal to the pending count, accept refused); clause 5 (`tl agent resume triage`, driver: files again, accept works, ledger types in order `Agent.Stopped`, `Agent.Resumed`, no event rewritten:
    the hash chain verifies with the existing verify call the X1 driver or `tl` offers; if none exists in the X1 driver, count events before and after and assert only appends); clause 6 (driver, five readers).
 4. Do not edit the `justfile` (`just demo <id>` already runs `dev/demos/<id>.sh`). Consequential pin: if a test lists the demo scripts, update it and list it in the report.
+
+## Merged names and outputs (round 4, copied from the tree)
+- CLI output lines: `tl agent stop triage` prints `stopped agent:triage` (a repeat: `already stopped: agent:triage`); `tl agent resume triage` prints `resumed agent:triage` (a repeat: `not stopped: agent:triage`);
+  `tl agent stopped` prints `none stopped` or `agent:triage  since <ts>  by <actor>  held N  <reason or ->`. `tl admin roles grant triage --project P1 --module '*' --role user --reason TEXT` prints
+  `granted user on * for project:P1 to triage` (a repeat starts `already held:`). Use `--module '*'`: `create_record` is a core command, which needs any explicit module role on the scope (D2).
+- Services the driver may import: `tl_core.services.agent_scope` (`QUEUE_FULL_TEXT`, `QUEUE_CAP_SETTING`, `pending_visible_count(conn, scope, viewer)`), `tl_core.services.agent_stop`
+  (`STOPPED_TEXT = "this agent is stopped"`, `held_count(conn, agent, viewer)`, `list_stopped(conn, viewer, *, limit=200)`), `tl_core.confidentiality.viewer_for_actor(conn, actor)`.
+- Helpers in `dev/demos/p2_x1_demo.py` to copy: `ok(text_)`, `miss(what) -> NoReturn`, `check(condition, what)`, `mcp_server(world, actor)`, `mcp_call(server, tool, **arguments)` (raises `RuntimeError`),
+  `send(url, token, body, key=None)`, `title_rows(world, title)`, `main(argv)` with `MODES` and `HANDLERS`; shell helpers `driver MODE`, `as NAME cmd...`, `run_backend`, loop `for backend in ${TL_DEMO_BACKENDS:-sqlite postgres}`.
+- No test lists the demo scripts (grep of `tests/` for `demos` found none that enumerate them); the consequential-pin step is a no-op unless the grep at dispatch time says otherwise.
+- Do not use `grant_filing` test helpers in the demo: grants go through the CLI, as an admin would.
 
 ## Context (read these, nothing else)
 - `dev/demos/P2-X1.sh`, `dev/demos/p2_x1_demo.py` (lines 1-135, 167-190, 413-421)
