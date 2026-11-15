@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from harness import Harness
+from harness import Harness, ensure_agent
 from tl_api.tokens import add_token
 from tl_core import confidentiality as cf
 from tl_core.auth import accounts, sessions
@@ -80,6 +80,7 @@ def cast(harness: Harness) -> Cast:
 
 def file_proposal(harness: Harness, agent: str, derived_id: str) -> str:
     """File one pending proposal of ``agent`` that carries ``derived_id`` (nothing is checked)."""
+    ensure_agent(harness, agent)  # S1: an agent files only under an explicit grant
     command = PublishDerivedTags(
         actor=agent, source="mcp:triage", scope=SCOPE, derived_id=derived_id, expected_content_rev=1
     )
