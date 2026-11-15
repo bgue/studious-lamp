@@ -468,3 +468,22 @@ known party, one command); a web page for the controller queue (terminal and CLI
 | 2 | Allow one photo on a public form? It needs an image library (a new dependency) to strip EXIF | No in v1; the setting stays off |
 | 3 | May a public form ask for a phone number, kept at most 30 days unless a controller accepts it into a record? | Yes, optional per template |
 | 4 | Is a poster sign-on to a permit briefing attendance only until a signed-in controller confirms it? | Yes |
+
+## Plan check
+4 PLANCHK forms-eval.md (2026-11-15), 15 findings; answers are applied by the design round that follows.
+- F1 HI INTAKE slice held until the owner accepts ADR-0032 (and its phone default).
+- F2 HI body_hash: HMAC with a per-item salt kept and purged with the body, never a plain hash in the event.
+- F3 HI name the piece that owns the uow hook for Delivery.Received / IntakeItem.Accepted (run_command opens its own uow).
+- F4 HI on_behalf_of_claim and matched_person_id live on IntakeItem.Accepted only, never in other modules' command payloads.
+- F5 HI settings+purge job folds into S6 (job kind + DELETE path = piece); offline QR shell (SW scope /web/q/) moves into S5 with a Sec row.
+- F6 MD quality/permits form sources and SurveyJS vendoring are pieces (or name the dependency and its approver).
+- F7 HI intake depends on QR C2; code generate/hash lifted into tl_core/qr.
+- F8 MD one owner for confidentiality.py SUBJECT_LINKS rows; rows serialised across QR S2, INSP, PTW, forms S2/S7.
+- F9 MD name the owner of tl_api/app.py and tl_web mount edits for the fill page and /i/.
+- F10 MD forms S1 starts at INSP C1; source tickets wait INSP/PTW C2; routes wait X4 C2.
+- F11 MD exit demo per slice; cut the intake outbox; defer submissions export, ?as=surveyjs before FORMS-WEB, intake merge/match.
+- F12 MD human gates name an approver; Sec rows listed with commit ranges.
+- F13 MD backup retention bounded under retention_days (runbook); per-code limiter keyed so a 429 does not reveal a live code.
+- F14 MD drafts: Sec row and five-reader walk; draft saves are ledger text.
+- F15 LO render time signed with the item key.
+- COST cut list: S4 receipt time only in v1; S6 drops photo and fill-time paths; FORMS-SF to Phase 3; fold S7 into S2 if ADR-0032 accepted first.
