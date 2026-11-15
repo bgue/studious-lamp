@@ -79,6 +79,10 @@ class StoppedAgent(BaseModel):
     held: int
 
 
+class AgentStoppedError(ForbiddenError):
+    """The stop refusal: a ``ForbiddenError`` to every caller; ``accept_or_fail`` tells it apart."""
+
+
 def is_stopped(conn: Connection, agent: str) -> bool:
     """True while ``Agent.Stopped`` has no later ``Agent.Resumed`` for ``agent:<name>``."""
     row = conn.execute(
@@ -90,7 +94,7 @@ def is_stopped(conn: Connection, agent: str) -> bool:
 def require_not_stopped(conn: Connection, agent: str) -> None:
     """Refuse (fixed text, no counts, no id) a filing or an accept for a stopped agent."""
     if is_stopped(conn, agent):
-        raise ForbiddenError(STOPPED_TEXT)
+        raise AgentStoppedError(STOPPED_TEXT)
 
 
 # --- commands ----------------------------------------------------------------------------------
