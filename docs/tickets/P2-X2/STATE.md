@@ -2,7 +2,7 @@
 ## BOARD
 S1 p mrg f 8b71e3b9 review P; F1 F2 LO accepted
 S3 p mrg f a03515d2 stop switch; review P 3 LO; 52 P 2a; APPROVALS
-S2 p todo f - queue cap spec written r2; dispatch after S1 merged; setting gated (95)
+S2 p mrg f 2224887f review P; APPROVALS
 T01 t mrg f a9dc1eca admin stop routes+client; orch fixed wording
 T02 t mrg f 11c163b9 tl agent stop|resume|stopped; 42 P
 T03 t mrg f 12b0a7bb accounts screen stopped flag + held; 91 P
