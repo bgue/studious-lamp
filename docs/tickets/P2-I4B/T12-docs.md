@@ -49,3 +49,9 @@ Standard report; list each doc and its line count; any fact in the brief you cou
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15; review F1-F2)
+The code is the source of truth: the register and record screens bind what T07b built (record screen: Esc and F5), and
+F2 (issue), F3 (return) and Ctrl+R belong to the toolcrib modal (T07a). The brief's key list and D15 wording were wrong;
+the docs as written follow the code and are accepted. F2 inside the toolcrib modal wins over the app-level F2 toggle,
+which is not a priority binding (T07a decision, covered by its nav tests).
