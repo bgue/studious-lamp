@@ -1,6 +1,7 @@
 # P2-I4B STATE  r=5 base=485b85b5 C=3 ck=- gate=n/a wt=/home/user/wt/p2-i4b
 ## BOARD   (S1 = plan B4; `todo` ready to dispatch, `stg` staged)
 S1 p mrg f 256d9014 C1; findings dec by orch; APPROVALS
+S1b p mrg f 6260c4de SR-I4B F1 F3 F4 F6; orch read diff
 T06 t mrg f 1c3e1294 review P; F2 ctrl+i is Tab -> T07a (D11)
 T01 t mrg f f6bf1990 review P
 T05a t mrg f 7e1651ce review P; amend 1; rename test_nine_checks later
