@@ -9,6 +9,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, make_uow_factory, rebuild_projections
+from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.queries import find_account
 from tl_core.services.agent_stop import (
     ResumeAgent,
     StopAgent,
@@ -36,6 +39,16 @@ def world(db: DbTarget) -> Iterator[World]:
     made.create("ada", roles=("admin",))
     for name in ("bot", "bot2"):
         made.create(name, kind="agent")
+        with factory() as uow:  # an agent files only on an explicit grant (P2-X2 S1)
+            found = find_account(uow.conn(), username=name)
+            assert found is not None
+            grant_module_role(
+                uow,
+                GrantModuleRole(
+                    actor=ADA, source="test", scope="company", account_id=found.account_id,
+                    project="project:P1", module="*", role="user", reason="test",
+                ),
+            )  # fmt: skip
     try:
         yield made
     finally:
@@ -96,3 +109,22 @@ def test_the_events_are_append_only_rows(world: World) -> None:
             uow.conn().execute(
                 text("UPDATE events SET actor = 'x' WHERE event_type = 'Agent.Stopped'")
             )
+
+
+@pytest.mark.parametrize("only", [["accounts"], ["agent_stop"], ["accounts", "agent_stop"]])
+def test_a_partial_rebuild_leaves_stop_resume_and_account_commands_working(
+    world: World, db: DbTarget, only: list[str]
+) -> None:
+    file(world, "agent:bot")
+    stop(world, "agent:bot")
+    resume(world, "agent:bot")
+    stop(world, "agent:bot")
+    live = world.rows(ACCOUNT_SQL)
+    rebuild_projections(db, types=only)
+    assert world.rows(ACCOUNT_SQL) == live  # the version is the stream head again
+    resume(world, "agent:bot")
+    stop(world, "agent:bot")
+    resume(world, "agent:bot")
+    bot = str(world.rows("SELECT account_id FROM cur_account WHERE username = 'bot'")[0][0])
+    with world.factory() as uow:
+        accounts.disable(uow, account_id=bot, by=ADA, reason=None)
