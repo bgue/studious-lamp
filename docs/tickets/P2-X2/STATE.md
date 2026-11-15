@@ -5,7 +5,7 @@ S3 p mrg f a03515d2 stop switch; review P 3 LO; 52 P 2a; APPROVALS
 S2 p todo f - queue cap spec written r2; dispatch after S1 merged; setting gated (95)
 T01 t mrg f a9dc1eca admin stop routes+client; orch fixed wording
 T02 t mrg f 11c163b9 tl agent stop|resume|stopped; 42 P
-T03 t stg f - accounts screen Filing line + held; dispatchable now
+T03 t mrg f 12b0a7bb accounts screen stopped flag + held; 91 P
 T04 t stg f - walks A/B/C; re-read merged helpers before dispatch
 T05 t stg f - demo sh+py, both adapters; waits T04
 T06 t stg l - runbook grant checklist + settings key; waits T05
