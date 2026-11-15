@@ -60,6 +60,10 @@ words:
   quality.punch.verify: controller
   quality.punch.reopen: controller
   quality.punch.void: controller
+  # qr: scan codes (P2-QR, ADR-0030)
+  qr.view: read
+  qr.issue: user
+  qr.revoke: controller
   # requisitions: requests, approval and work orders (phase2 plan, I4-A; one word per command, no chain)
   requisitions.view: read
   requisitions.raise: user

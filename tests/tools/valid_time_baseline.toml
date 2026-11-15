@@ -141,6 +141,8 @@
 "tl_mod_materials_events.ReceiptRevisedPayload" = "pre-wave-3, untagged"
 "tl_mod_materials_events.StockLotDefinedPayload" = "pre-wave-3, untagged"
 "tl_mod_materials_events.StockLotMovedPayload" = "pre-wave-3, untagged"
+"tl_mod_qr_events.ScanCodeIssuedPayload" = "a system act, transaction time is the fact"
+"tl_mod_qr_events.ScanCodeRevokedPayload" = "a system act, transaction time is the fact"
 "tl_mod_schedule_events.ActivityRefDefinedPayload" = "pre-wave-3, untagged"
 "tl_mod_schedule_events.ActivityRefPresencePayload" = "pre-wave-3, untagged"
 "tl_mod_schedule_events.ScheduleDefinedPayload" = "pre-wave-3, untagged"

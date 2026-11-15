@@ -1855,6 +1855,24 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.ScanCode.Issued.v1",
+      "event_type": "ScanCode.Issued",
+      "payload_class": "ScanCodeIssuedPayload",
+      "sample": "samples/ScanCode.Issued.v1.json",
+      "schema": "schemas/ScanCode.Issued.v1.json",
+      "title": "A scan code was issued.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScanCode.Revoked.v1",
+      "event_type": "ScanCode.Revoked",
+      "payload_class": "ScanCodeRevokedPayload",
+      "sample": "samples/ScanCode.Revoked.v1.json",
+      "schema": "schemas/ScanCode.Revoked.v1.json",
+      "title": "A scan code was revoked.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Schedule.Defined.v1",
       "event_type": "Schedule.Defined",
       "payload_class": "ScheduleDefinedPayload",

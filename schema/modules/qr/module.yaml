@@ -1,0 +1,23 @@
+id: https://example.org/throughline/modules/qr
+name: tl_mod_qr
+title: "The QR module (scan codes for the work face)"
+description: >-
+  Scan codes (ADR-0030, `docs/build-spec/specs/qr-workface.md`). A printed QR holds an opaque code; the server keeps
+  only its hash in a ledgered `ScanCode` record that names the record it opens. A scan shows a status card that the
+  target record's own module supplies.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the
+  module's own current-state table, joined on `id`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - scan_code
+  - events
+default_range: string
+annotations:
+  tl:module: qr

@@ -74,17 +74,19 @@ def definitions() -> dict[str, SettingDefinition]:
 
 #: The two keys P2-I5 S1 added: neither old nor wave-0.
 P2_I5 = {"awp.pack.pdf", "tui.landing"}
+P2_QR = {"api.public_base_url", "qr.codes_per_record_max"}
 
 
-def test_the_platform_file_defines_33_keys_17_old_12_new_telemetry_idempotency_two_of_p2_i5(
+def test_the_platform_file_defines_35_keys_two_of_them_of_p2_qr(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert len(PHASE2) == 12
     # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
     # idempotency.retention_days is the P2-X1 S1 key: neither old nor wave-0.
-    assert len(definitions) == 33 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5)
+    assert len(definitions) == 35 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5) + len(P2_QR)
     assert set(PHASE2) <= set(definitions) and P2_I5 <= set(definitions)
-    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 2 + len(P2_I5)
+    assert P2_QR <= set(definitions)
+    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 2 + len(P2_I5) + len(P2_QR)
 
 
 def test_the_p2_i5_keys_have_their_defaults_scopes_and_choices(
@@ -254,3 +256,46 @@ def test_the_two_risky_keys_are_the_only_advanced_ones_among_the_new_twelve(
         "awp.release.signoff_roles",
         "awp.release.allow_unknown_checks",
     }
+
+
+def test_p2_qr_keys_have_their_defaults_scopes_and_bounds(
+    definitions: dict[str, SettingDefinition],
+) -> None:
+    base = definitions["api.public_base_url"]
+    assert (base.type, base.default, base.lockable, list(base.scopes)) == (
+        "string",
+        "",
+        False,
+        ["platform"],
+    )
+    cap = definitions["qr.codes_per_record_max"]
+    assert (cap.type, cap.default, cap.lockable) == ("int", 20, True)
+    assert list(cap.scopes) == ["platform", "company", "project"]
+    assert cap.validation is not None
+    assert (cap.validation.minimum, cap.validation.maximum) == (1, 100)
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["", "https://tl.example.com", "https://tl.example.com:8443", "http://localhost:8000"]
+    + ["http://127.0.0.1", "http://localhost"],
+)
+def test_public_base_url_accepts(definitions: dict[str, SettingDefinition], value: str) -> None:
+    assert normalise(definitions["api.public_base_url"], value) == value
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://tl.example.com",
+        "https://tl.example.com/",
+        "https://tl.example.com/path",
+        "https://tl.example.com?x=1",
+        "https://user@tl.example.com",
+        "http://localhost/",
+        "ftp://tl.example.com",
+    ],
+)
+def test_public_base_url_refuses(definitions: dict[str, SettingDefinition], value: str) -> None:
+    with pytest.raises(InvalidSettingValueError):
+        normalise(definitions["api.public_base_url"], value)

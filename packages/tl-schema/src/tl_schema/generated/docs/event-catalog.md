@@ -212,6 +212,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Rule.Disabled`](#ruledisabled) | `tl.core.Rule.Disabled.v1` | A rule was switched off. |
 | [`Rule.Enabled`](#ruleenabled) | `tl.core.Rule.Enabled.v1` | A rule was switched on, from this event on. |
 | [`Rule.Revised`](#rulerevised) | `tl.core.Rule.Revised.v1` | A rule was revised; the event carries the whole new rule. |
+| [`ScanCode.Issued`](#scancodeissued) | `tl.core.ScanCode.Issued.v1` | A scan code was issued. |
+| [`ScanCode.Revoked`](#scancoderevoked) | `tl.core.ScanCode.Revoked.v1` | A scan code was revoked. |
 | [`Schedule.Defined`](#scheduledefined) | `tl.core.Schedule.Defined.v1` | A schedule was registered. |
 | [`Schedule.OrphansChecked`](#scheduleorphanschecked) | `tl.core.Schedule.OrphansChecked.v1` | One run of the job that makes the links to a schedule's activities agree with its current snapshot (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity is gone) and links restored (it came back). |
 | [`Schedule.SnapshotPublished`](#schedulesnapshotpublished) | `tl.core.Schedule.SnapshotPublished.v1` | A snapshot became the schedule's current one. |
@@ -11971,6 +11973,122 @@ A rule was revised; the event carries the whole new rule. Switching to act mode 
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Rule.Revised.v1"
+}
+```
+
+## ScanCode.Issued
+
+A scan code was issued. Stream type `qr.ScanCode`.
+
+- CloudEvents type: `tl.core.ScanCode.Issued.v1`
+- Ledger payload class: `ScanCodeIssuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code_hash` | string | yes | SHA-256 of the code, 64 lower case hex characters. |
+| `expires_on` | string or null | no | Last day the code works, or null. |
+| `feed_policy` | string | yes | Always `none`: a scan code makes no feed card. |
+| `label_text` | string or null | no | Text printed on the label, or null. |
+| `record_id` | string | yes | The scan code. |
+| `size` | string | yes | tag, card or sheet. |
+| `target_id` | string | yes | The record the code opens. |
+| `target_type` | string | yes | Record type of the target. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expires_on": null,
+      "feed_policy": "none",
+      "label_text": "Pump P-101",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "size": "tag",
+      "target_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "target_type": "engineering.Tag"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScanCode.Issued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScanCode.Issued.v1"
+}
+```
+
+## ScanCode.Revoked
+
+A scan code was revoked. Stream type `qr.ScanCode`.
+
+- CloudEvents type: `tl.core.ScanCode.Revoked.v1`
+- Ledger payload class: `ScanCodeRevokedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: a scan code makes no feed card. |
+| `reason` | string | yes | Why it was revoked. |
+| `record_id` | string | yes | The scan code. |
+| `replaced_by_id` | string or null | no | The scan code that replaces it, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Label lost",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "replaced_by_id": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScanCode.Revoked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScanCode.Revoked.v1"
 }
 ```
 

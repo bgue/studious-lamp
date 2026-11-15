@@ -1,0 +1,103 @@
+id: https://example.org/throughline/modules/qr/scan_code
+name: tl_mod_qr_scan_code
+title: Scan codes (ADR-0030)
+description: >-
+  A scan code is the server's record of one printed QR: the hash of the code (never the code), the record it opens,
+  who issued it and, if it was taken out of use, who revoked it. Its id is the record id; it has no project key.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: qr
+
+enums:
+  LabelSize:
+    description: Label size. T02 renders `tag` only; `card` and `sheet` stay so the schema does not change later.
+    permissible_values:
+      tag:
+        description: A small tag.
+      card:
+        description: A card.
+      sheet:
+        description: A sheet.
+
+classes:
+  ScanCode:
+    title: Scan code
+    description: >-
+      One issued scan code. Record type `qr.ScanCode`. Offline class `none`: a code is issued and revoked on the
+      authority. A scan code is hidden through its target record (`target_id`). No field holds the code.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "qr.ScanCode"
+      tl:offline: none
+      tl:table: cur_qr_scan_code
+      tl:ix_target: "target_id"
+    unique_keys:
+      code_hash:
+        description: "A code hash is used once."
+        unique_key_slots:
+          - code_hash
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The scope of the target record."
+      code_hash:
+        pattern: "^[0-9a-f]{64}$"
+        required: true
+        description: "SHA-256 of the code, 64 lower case hex characters."
+      target_id:
+        range: Ulid
+        required: true
+        description: "The record the code opens. The confidentiality subject."
+      target_type:
+        pattern: "^.{1,64}$"
+        required: true
+        description: "Record type of the target, at most 64 characters."
+      label_text:
+        pattern: "^.{1,40}$"
+        description: "Text printed on the label, at most 40 characters; null when none."
+      size:
+        range: LabelSize
+        required: true
+        ifabsent: string(tag)
+        description: "Label size (`LabelSize`); default tag."
+      issued_by:
+        pattern: "^.{1,64}$"
+        required: true
+        description: "Actor text of who issued it, at most 64 characters."
+      issued_at:
+        range: datetime
+        required: true
+        description: "When it was issued."
+      expires_on:
+        range: date
+        description: "Last day the code works; null when it does not expire."
+      revoked_at:
+        range: datetime
+        description: "When it was revoked; null unless revoked."
+      revoked_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who revoked it; null unless revoked."
+      revoke_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Why it was revoked, at most 300 characters; null unless revoked."
+      replaced_by_id:
+        range: Ulid
+        description: "The scan code that replaces this one; null when none."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

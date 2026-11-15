@@ -201,6 +201,9 @@ FROZEN: frozenset[str] = frozenset(
         "tl_mod_schemareg_events.WaiverApprovedPayload",
         "tl_mod_schemareg_events.WaiverRequestedPayload",
         "tl_mod_schemareg_events.WaiverRevokedPayload",
+        # P2-QR S1: a system act, transaction time is the fact (the spec adds these two by name)
+        "tl_mod_qr_events.ScanCodeIssuedPayload",
+        "tl_mod_qr_events.ScanCodeRevokedPayload",
     }
 )
 
