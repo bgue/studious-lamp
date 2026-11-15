@@ -8,6 +8,7 @@ contract tests validate delivered events against the schemas.
 from __future__ import annotations
 
 import json
+from functools import cache
 from importlib.resources import files
 from typing import Any, cast
 
@@ -45,3 +46,15 @@ def sample(event_type: str) -> dict[str, Any]:
 
 def asyncapi() -> dict[str, Any]:
     return cast("dict[str, Any]", _read("asyncapi.json"))
+
+
+def webhook_omit(event_type: str) -> frozenset[str]:
+    """The payload slots of ``event_type`` tagged ``tl:webhook: omit`` (never in a webhook body)."""
+    return _omit_table().get(event_type, frozenset())
+
+
+@cache
+def _omit_table() -> dict[str, frozenset[str]]:
+    return {
+        str(e["event_type"]): frozenset(e["webhook_omit"]) for e in index() if e.get("webhook_omit")
+    }

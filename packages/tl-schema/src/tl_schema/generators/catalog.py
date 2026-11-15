@@ -41,6 +41,7 @@ from tl_schema.modules import module_roots
 ROOT_SCHEMA = "core.yaml"
 DRAFT = "https://json-schema.org/draft/2020-12/schema"
 SCHEMA_HOST = "https://tl.example.com"
+WEBHOOK_TAG = "tl:webhook"
 SAMPLE_IDS = {
     "event": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
     "record": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
@@ -148,6 +149,14 @@ def _events_of(
         if not examples:
             raise CatalogError(f"{class_name}: an event class needs an `examples` sample")
         sample_payload = json.loads(examples[0].value)
+        attributes: Any = definition.attributes or {}
+        omit = tuple(
+            sorted(
+                name
+                for name, slot in attributes.items()
+                if _annotation(slot, WEBHOOK_TAG) == "omit"
+            )
+        )
         payload_schema = _open(_resolve(defs, class_name))
         title = _first_sentence(str(definition.description))
         changes = json.loads(_annotation(definition, "tl:sample_changes") or "{}")
@@ -164,8 +173,13 @@ def _events_of(
                 payload_schema=payload_schema,
                 envelope_schema=envelope_schema,
                 sample_payload=sample_payload,
+                webhook_omit=omit,
                 sample_envelope=_sample_envelope(
-                    event_type, version, sample_payload, changes, links
+                    event_type,
+                    version,
+                    sample_payload,
+                    changes,
+                    links,
                 ),
             )
         )
@@ -276,6 +290,7 @@ def generate_from(schema_dir: Path) -> dict[str, str]:
                 "ce_type": event.ce_type,
                 "title": event.title,
                 "payload_class": event.payload_class,
+                **({"webhook_omit": list(event.webhook_omit)} if event.webhook_omit else {}),
                 "schema": f"schemas/{stem}.json",
                 "sample": f"samples/{stem}.json",
             }

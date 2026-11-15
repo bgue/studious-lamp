@@ -20,6 +20,7 @@ class EventTypeInfo:
     ``title`` is the first sentence of ``description``. ``payload_schema`` is the JSON Schema of the
     ledger payload; ``envelope_schema`` the JSON Schema of the CloudEvent a subscriber receives
     (``type`` fixed to ``ce_type``, ``data.detail`` described by the payload schema);
+    ``webhook_omit`` names the payload slots tagged ``tl:webhook: omit`` (never in a webhook body).
     ``sample_payload`` and ``sample_envelope`` are examples that validate against them.
     """
 
@@ -33,3 +34,4 @@ class EventTypeInfo:
     envelope_schema: dict[str, Any]
     sample_payload: dict[str, Any]
     sample_envelope: dict[str, Any]
+    webhook_omit: tuple[str, ...] = ()

@@ -18,6 +18,8 @@ Payload modes (per subscription):
 
 Every mode carries the originating record URI, ``tlseq`` and ``tlstreamversion`` (brief 18.3).
 
+Slots the schema marks ``tl:webhook: omit`` are removed from ``data.detail`` (delta, full).
+
 **Confidentiality hook.** Brief 18.3: a record under restricted confidentiality only ever emits
 ``thin`` payloads, and only to subscriptions whose owner is cleared. Confidentiality classes are not
 modelled before Phase 1, so :class:`ConfidentialityPolicy` is a seam: ``forced_mode`` may lower the
@@ -32,6 +34,8 @@ import json
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
+
+from tl_schema.catalog import webhook_omit
 
 from tl_core.webhooks.rows import OutboxRow
 from tl_core.webhooks.uris import UriConfig, ce_type, urn
@@ -80,6 +84,12 @@ def rfc3339(stamp: str) -> str:
     return moment.isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
+def without_omitted(event_type: str, detail: Mapping[str, Any]) -> dict[str, Any]:
+    """``detail`` without the slots the schema marks ``tl:webhook: omit``: removed, not nulled."""
+    omit = webhook_omit(event_type)
+    return {key: value for key, value in detail.items() if key not in omit}
+
+
 def build_envelope(
     row: OutboxRow,
     mode: PayloadMode,
@@ -112,7 +122,8 @@ def build_envelope(
     if mode in ("delta", "full"):
         data["changes"] = dict(row.data.get("changes", {}))
         data["links"] = [_render_link(link, row, uris) for link in links]
-        data["detail"] = dict(row.data.get("detail", {}) if detail is None else detail)
+        raw = row.data.get("detail", {}) if detail is None else detail
+        data["detail"] = without_omitted(row.event_type, raw)
     if mode == "full":
         data["record"] = None if record is None else dict(record)
     return {

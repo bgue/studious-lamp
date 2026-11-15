@@ -47,6 +47,7 @@ from tl_core.webhooks.envelope import (
     build_envelope,
     effective_mode,
     to_body,
+    without_omitted,
 )
 from tl_core.webhooks.filters import WebhookFilter
 from tl_core.webhooks.rows import (
@@ -433,8 +434,9 @@ class Dispatcher:
     @staticmethod
     def _detail(conn: Connection, row: OutboxRow) -> dict[str, Any]:
         """The ledger payload with the references the current viewer (the subscription's owner,
-        set by ``_enqueue``) may not read set to null, as ``/events`` shows them (ADR-0016)."""
-        detail: dict[str, Any] = dict(row.data.get("detail", {}))
+        set by ``_enqueue``) may not read set to null, as ``/events`` shows them
+        (ADR-0016); slots the schema marks ``tl:webhook: omit`` are removed for every subscriber."""
+        detail: dict[str, Any] = without_omitted(row.event_type, row.data.get("detail", {}))
         ids = payload_ref_ids(row.stream_type, row.event_type, detail)
         if not ids:
             return detail
