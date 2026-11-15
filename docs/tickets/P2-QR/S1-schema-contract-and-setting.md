@@ -4,7 +4,8 @@ kind: piece
 review: full
 branch: p2/qr-s1-schema-contract
 worktree: /home/user/wt/qr/s1
-Depends on: `p2/ip`. Gated: schema, settings, access words, core interface (APPROVALS lines before merge; ADR-0030
+Depends on: `p2/ip`. Merge rule (P2-QR README, fan-out): the first S1 with signed APPROVALS merges first; a later S1 merges
+`p2/ip`, re-runs `just gen` and `just compat-update` and re-pins. Gated: schema, settings, access words, core interface (APPROVALS lines before merge; ADR-0030
 accepted first). Labels: schema, core.
 
 ## Why
@@ -19,7 +20,7 @@ P2-QR item, and one ticket each in P2-INSP and P2-PTW, is written against the na
    no workflow, no numbering pattern (a code has no project key; its id is the record id).
    Fields: `id`, `scope`, `code_hash` (64 lower hex, required, unique index), `target_id` (indexed; the
    confidentiality subject), `target_type` (≤ 64), `label_text` (≤ 40, null ok), `size` (enum `LabelSize` tag, card,
-   sheet), `issued_by` (actor text ≤ 64), `issued_at`, `expires_on` (date, null ok), `revoked_at`, `revoked_by`,
+   sheet; all three values stay so the schema does not change when `card` and `sheet` are built later, T02 renders `tag` only), `issued_by` (actor text ≤ 64), `issued_at`, `expires_on` (date, null ok), `revoked_at`, `revoked_by`,
    `revoke_reason` (≤ 300), `replaced_by_id`.
    Events (`feed_policy: none`, each payload names `record_id`): `ScanCode.Issued` {code_hash, target_id, target_type,
    label_text, size, expires_on}, `ScanCode.Revoked` {reason, replaced_by_id}. No field anywhere holds the code.
@@ -28,13 +29,14 @@ P2-QR item, and one ticket each in P2-INSP and P2-PTW, is written against the na
 2. **Settings** in `schema/settings/platform.yaml`:
    `api.public_base_url` (string, default empty, scopes `[platform]`, not lockable, pattern
    `^$|^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$|^http://(localhost|127\.0\.0\.1)(:[0-9]{1,5})?$`; docs say: the public
-   address of the web client; printing a QR label is refused while empty; changing it orphans printed labels);
+   address of the web client, and a label's QR is `<base>/web/q/<code>` (under `/web` because the session cookie is
+   `Path=/web`); printing a QR label is refused while empty; changing it orphans printed labels);
    `qr.codes_per_record_max` (int, default 20, 1..100, scopes `[platform, company, project]`, lockable).
 3. **Access words** (`schema/settings/access-words.yaml`, a `qr:` block): `qr.view: read`, `qr.issue: user`,
    `qr.revoke: controller`.
 4. **Package** `packages/tl-modules/qr` (`tl-mod-qr`, `tl_mod_qr`; copy the skeleton of `packages/tl-modules/quality`):
    `pyproject.toml` (entry point `throughline.modules` / `qr`; optional extra `labels = ["segno"]`, declared only, not
-   installed by default), `README.md`, `AGENTS.md`, `__init__.py` (`MODULE = "qr"`), `names.py` (record type, the
+   installed by default; the APPROVALS line for the `segno` dependency belongs to this piece), `README.md`, `AGENTS.md`, `__init__.py` (`MODULE = "qr"`), `names.py` (record type, the
    three words, event names), `projectors/` (the `ScanCode` projector: Issued inserts, Revoked sets the three revoke
    fields and `replaced_by_id`), `module.py` `spec()` with `record_types`, `projectors`, `command_words={}`,
    `proposable=()`, no generic commands on `qr.ScanCode`, no hook fields (S2 adds them).
@@ -42,6 +44,9 @@ P2-QR item, and one ticket each in P2-INSP and P2-PTW, is written against the na
    style of `tl_core/readiness/types.py`) and `tl_core/qr/registry.py`:
    - `SCAN_CARD_ENTRY_POINT = "throughline.scan_cards"`; bounds `MAX_LINES = 8`, `MAX_LABEL_CHARS = 24`,
      `MAX_VALUE_CHARS = 80`, `MAX_BANNER_CHARS = 40`, `MAX_TITLE_CHARS = 120`, `MAX_PROVIDERS = 32`.
+   - `SCAN_PATH_PREFIX = "/web/q/"` and `SCAN_NEXT_PATTERN = r"^/web/q/[A-Z0-9]{16}$"` (the only return address a sign-in
+     bounce may carry; S3 uses it, tested here with a match and with refusals: `//`, `..`, another path, 15 or 17 characters,
+     lower case, a scheme or host in front).
    - `Tone = Literal["go", "caution", "stop", "neutral"]`.
    - `class ScanLine(BaseModel)`: `label`, `value` (bounded).
    - `class ScanCard(BaseModel)`: `record_type`, `key`, `title`, `banner`, `tone: Tone`, `as_of: datetime` (aware),

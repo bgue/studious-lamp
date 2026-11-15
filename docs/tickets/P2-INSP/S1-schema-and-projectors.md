@@ -6,6 +6,8 @@ branch: p2/insp-s1-schema
 worktree: /home/user/wt/insp/s1
 Depends on: `p2/ip` (after P2-QR S1 is merged there, or merge it in and regenerate). Gated: schema, settings, access
 words (APPROVALS lines before merge). Labels: schema.
+Merge rule (P2-QR README, fan-out): the first S1 with signed APPROVALS merges first; a later S1 merges `p2/ip`, re-runs
+`just gen` and `just compat-update` and re-pins its counts. At most 2 heavy runs: INSP S1 runs with QR S1.
 
 ## Why
 `docs/build-spec/module-designs/inspections.md` §1, §3, §4: inspections extend the `quality` module beside the punch

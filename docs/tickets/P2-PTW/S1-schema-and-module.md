@@ -6,6 +6,8 @@ branch: p2/ptw-s1-schema
 worktree: /home/user/wt/ptw/s1
 Depends on: `p2/ip` (after P2-QR S1 and P2-INSP S1 are merged there, or merge them in and regenerate). Gated: schema,
 settings, access words (APPROVALS lines before merge). Labels: schema.
+Merge rule (P2-QR README, fan-out): the first S1 with signed APPROVALS merges first; a later S1 merges `p2/ip`, re-runs
+`just gen` and `just compat-update` and re-pins its counts. At most 2 heavy runs: PTW S1 starts when QR S1 or INSP S1 ends.
 
 ## Why
 `docs/build-spec/module-designs/permits.md` §1, §3, §4, §5: a permit-to-work module does not exist. The brief expects

@@ -18,10 +18,10 @@ by shipping one small "status card" function; nothing in the QR code or the scan
 
 ## 2. What a QR encodes
 
-Exactly one URL: `<api.public_base_url>/q/<code>`.
+Exactly one URL: `<api.public_base_url>/web/q/<code>`.
 
 - `<code>` is 16 characters from a 32-letter alphabet without look-alikes (80 random bits from the system's secure
-  generator). It is printed under the QR in four groups (`7KQ2-M9XA-4TTC-P0HV`) so it can be typed at `/q` when a
+  generator). It is printed under the QR in four groups (`7KQ2-M9XA-4TTC-P0HV`) so it can be typed at `/web/q` when a
   camera fails.
 - The code is opaque. It holds no company, project, record type, key, id, date or checksum of any of them. Nothing
   about the record can be learned from the label's QR, and two codes for one record look unrelated.
@@ -31,6 +31,9 @@ Exactly one URL: `<api.public_base_url>/q/<code>`.
   printer types (≤ 40 characters). For a record above the lowest confidentiality class the label carries the QR and
   the typed code only, no key and no text.
 - A label never prints the state ("Active", "green"). Paper cannot change when the record does.
+- The rule for what a label may print is one function, `label_fields(target, viewer)` in the qr module (S2): it
+  returns the key and typed text for a record at the lowest class and nothing else above it. Every label surface
+  (CLI, terminal, web) calls it; none repeats the rule.
 
 ## 3. What a scan shows
 
@@ -69,8 +72,12 @@ A scan needs a signed-in person. Reasons:
    site status (which areas have work at height today, which permits are suspended).
 3. It costs the crew one sign-in per phone per shift: the web session cookie persists, so later scans open at once.
 
-Flow: `/q/<anything>` without a session always answers with the sign-in page, whether or not the code exists; after
-sign-in the browser returns to the same address. Nothing about a code is revealed before sign-in. Agent tokens are
+Flow: `/web/q/<anything>` without a session always answers with the sign-in page, whether or not the code exists; after
+sign-in the browser returns to the same address only through a `next` value that matches `/web/q/[A-Z0-9]{16}`
+exactly; any other value is dropped (no open redirect). The URL lives under `/web` because the web session cookie is
+`Path=/web` (`tl_web/session.py`); a route outside it would never see the session. The sign-in bounce and the 404
+page are the web client's own, and the scan route overrides the app's referrer policy with `no-referrer`
+(`tl_web/app.py`). Nothing about a code is revealed before sign-in. Agent tokens are
 refused the scan route like any route nobody allowed.
 
 An anonymous "public status" mode (state word only, opt-in per project) is an owner question (§12), default off and
@@ -87,7 +94,10 @@ After sign-in, every one of these answers with **the same page**: status 404, th
 - a code whose provider is not installed.
 
 The resolver has one exit for all five (`resolve(...) -> ScanCard | None`), looks the hash up before any other work,
-and the route test compares the five responses byte for byte, as five kinds of reader. Listing the codes of a record
+and the route test compares the five responses byte for byte, as five kinds of reader. Lookups are rate-limited (S3): a miss counter per session and per client address, one 429 answer once a limit is
+passed (`tl_api/ratelimit.py` counts only failed sign-ins today, so S3 adds its own counter); the access-log filter
+for `/web/q/` paths is set where the access log is configured (`tl_api/main.py`), and the runbook notes that a proxy
+in front must strip or mask the path too. Listing the codes of a record
 (`GET /qr/codes?record=<key>`) first reads the record under the viewer; a hidden record gives the unknown-record
 answer and never a count.
 
@@ -116,7 +126,7 @@ At most `qr.codes_per_record_max` (20) live codes per record.
   the useful answer. A controller revokes when the label must die.
 - The register of codes (`tl qr ls <record key>`, `tl qr export`) shows id, label text, who issued, when, state and
   expiry. It can never show the code.
-- Scans are reads and are not ledgered. The web access log records `/q/…` with the code removed.
+- Scans are reads and are not ledgered. The web access log records `/web/q/…` with the code removed.
 
 ## 8. Offline at the workface
 
@@ -127,7 +137,7 @@ A QR needs the server. This increment is honest about that rather than half-solv
 - The page is small and script-free so it loads on a weak signal. It is sent `no-store`, so a phone never shows an
   old status as if it were current.
 - A site trailer with the terminal on a replica (the embedded client) can resolve a typed code locally:
-  `tl qr resolve <code>` prints the card with "as of last sync <time>". That is the offline path until Phase 3 sync
+  `tl qr resolve` (code read from standard input or a prompt, never argv) prints the card with "as of last sync <time>". That is the offline path until Phase 3 sync
   and the Phase 5 mobile work, where a site server on the site network becomes the `api.public_base_url`.
 - Labels never print state (§2), so a label is never wrong, only silent.
 
@@ -150,7 +160,7 @@ in dev only. It was planned in Phase 2 (risk T-11) and dropped from P2-I5; it is
 |---|---|
 | Contract (`ScanCard`, `ScanCardProvider`, bounds, entry-point group) | `packages/tl-core/src/tl_core/qr/types.py`, registry `tl_core/qr/registry.py` |
 | Module `qr`: record `qr.ScanCode`, events `ScanCode.Issued`, `ScanCode.Revoked`, commands, resolver, views, label renderer, CLI, JSON routes (through the hooks) | `packages/tl-modules/qr/` (`tl_mod_qr`), `schema/modules/qr/` |
-| Scan page `/q` and `/q/{code}`, print form | `packages/tl-web/src/tl_web/pages/scan.py`, `templates/scan.html` |
+| Scan page `/web/q` and `/web/q/{code}`, print form | `packages/tl-web/src/tl_web/pages/scan.py`, `templates/scan.html` |
 | Cards | In each owning module: `tl_mod_awp/scan_card.py`, `tl_mod_scaffold/scan_card.py`, `tl_mod_quality/scan_card.py`, `tl_mod_permits/scan_card.py` |
 
 `qr.ScanCode` fields: `code_hash` (unique), `target_id`, `target_type`, `label_text`, `size`, `issued_by`,

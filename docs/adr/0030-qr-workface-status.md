@@ -18,12 +18,14 @@ cannot be withdrawn once printed. The IWP pack today encodes the bare record key
 
 ## Decision
 
-1. **A QR holds one URL, `<api.public_base_url>/q/<code>`, and nothing else.** The code is 80 random bits in 16
+1. **A QR holds one URL, `<api.public_base_url>/web/q/<code>`, and nothing else.** The URL sits under `/web` because the web session cookie is `Path=/web`; a route outside it would
+   never see the session. The code is 80 random bits in 16
    look-alike-free characters. It carries no record data and no id. The server stores only its SHA-256, in a ledgered
    record `qr.ScanCode` (events `ScanCode.Issued`, `ScanCode.Revoked`). The code is shown once, at print; a reprint is
    a new code.
-2. **A scan needs a signed-in person.** Without a session, `/q/<anything>` answers with the sign-in page whether or
-   not the code exists. No anonymous status page is built. Agent tokens are refused.
+2. **A scan needs a signed-in person.** Without a session, `/web/q/<anything>` answers with the sign-in page whether or
+   not the code exists. No anonymous status page is built. Agent tokens are refused. After sign-in the return address is accepted only if
+   it matches `/web/q/[A-Z0-9]{16}`.
 3. **One answer for every miss.** Unknown, malformed, revoked, expired, hidden record, missing view word and missing
    provider all return the same 404 page, byte for byte. A missing view word is never a 403 on this route.
 4. **Status comes from a plugin per record type.** `tl_core/qr/types.py` defines `ScanCard` and `ScanCardProvider`
@@ -35,7 +37,8 @@ cannot be withdrawn once printed. The IWP pack today encodes the bare record key
    group through the ModuleSpec hooks. The scan page is a page of the web client. The awp module does not run it.
 7. **`api.public_base_url` is added as a platform setting.** Issuing a code is refused while it is unset.
 8. **Labels never print state**, and print no key or text for a record above the lowest class.
-9. **Scans are reads**: not ledgered, the code stripped from access logs, pages sent `no-store` and `no-referrer`.
+9. **Scans are reads**: not ledgered, the code stripped from access logs, pages sent `no-store` and `no-referrer`; misses are
+   counted per session and per address, with one 429 past the limit.
 10. **Offline is not solved here.** With no signal the paper on site rules. A replica can resolve a typed code
     locally. A site server and phone-side caching wait for Phase 3 sync and Phase 5.
 
