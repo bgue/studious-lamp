@@ -4,16 +4,22 @@ from __future__ import annotations
 
 from tl_core.modules import ModuleSpec, confidential_sources, load_modules
 from tl_mod_forms import MODULE
-from tl_mod_forms.module import projectors, spec
+from tl_mod_forms.commands import SubmitForm
+from tl_mod_forms.module import FORMS_COMMANDS, FORMS_GENERIC_COMMANDS, projectors, spec
 from tl_mod_forms.names import (
     EVENTS,
     INTAKE_ACTOR,
     INTAKE_CODE,
     INTAKE_ITEM,
     RECORD_TYPES,
+    REVIEW,
     SETTINGS,
     SUBMISSION,
+    SUBMIT,
     TEMPLATE,
+    TEMPLATE_EDIT,
+    TEMPLATE_PUBLISH,
+    VOID_WORD,
     WORDS,
 )
 from tl_mod_forms.projectors import (
@@ -37,12 +43,39 @@ def test_spec_loads_with_the_record_types_and_the_projectors() -> None:
     assert INTAKE_ACTOR == "svc:intake"
 
 
-def test_no_commands_no_proposable_no_generic_commands_no_hooks() -> None:
+def test_eleven_commands_with_their_words_the_one_proposable_row_and_the_offline_drafts() -> None:
     built = spec()
-    assert dict(built.command_words) == {}
-    assert tuple(built.proposable) == ()
-    assert not built.generic_commands
+    assert dict(built.command_words) == {
+        "DraftFormTemplate": TEMPLATE_EDIT,
+        "EditFormTemplate": TEMPLATE_EDIT,
+        "PublishFormTemplate": TEMPLATE_PUBLISH,
+        "ReviseFormTemplate": TEMPLATE_EDIT,
+        "RetireFormTemplate": TEMPLATE_PUBLISH,
+        "SaveFormDraft": SUBMIT,
+        "DiscardFormDraft": SUBMIT,
+        "SubmitForm": SUBMIT,
+        "AcceptFormSubmission": REVIEW,
+        "ReturnFormSubmission": REVIEW,
+        "VoidFormSubmission": VOID_WORD,
+    }
+    assert len(FORMS_COMMANDS) == 11
+    assert {c.model.__name__ for c in FORMS_COMMANDS} == set(built.command_words)
+    assert {c.access for c in FORMS_COMMANDS} <= set(WORDS)
+    (row,) = built.proposable
+    assert (row.tool, row.model, row.access) == ("propose_form_submission", SubmitForm, "user")
+    assert dict(built.offline_drafts) == {SUBMISSION: frozenset({"SaveFormDraft", "SubmitForm"})}
+    assert all(built.command_words[n] == SUBMIT for n in built.offline_drafts[SUBMISSION])
     assert not built.company_roles
+
+
+def test_the_generic_commands_are_those_of_a_submission_only() -> None:
+    built = spec()
+    assert set(built.generic_commands) == {SUBMISSION}
+    allowed = built.generic_commands[SUBMISSION]
+    assert allowed == FORMS_GENERIC_COMMANDS
+    assert {"SetPsetValues", "AddLink", "AttachFile"} <= allowed
+    assert not allowed & {"UpdateRecord", "VoidRecord", "TransitionWorkflow", "CreateRecord"}
+    assert {k for k in built.generic_guards} == {(SUBMISSION, c) for c in allowed}
 
 
 def test_no_confidential_declaration_yet() -> None:

@@ -120,3 +120,14 @@ SETTINGS: Final = (
 #: The service actor of the public intake endpoint. It holds no access word.
 INTAKE_ACTOR: Final = "svc:intake"
 FEED_NONE: Final = "none"
+
+#: Workflow transitions (``schema/fixtures/workflows/forms-*.yaml``).
+T_PUBLISH: Final = "publish"
+T_RETIRE: Final = "retire"
+T_SUBMIT: Final = "submit"
+T_ACCEPT: Final = "accept"
+T_RETURN: Final = "return"
+T_VOID: Final = "void"
+T_DISCARD: Final = "discard"
+
+PROPOSE_SUBMISSION: Final = "propose_form_submission"
