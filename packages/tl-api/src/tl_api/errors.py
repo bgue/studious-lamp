@@ -25,6 +25,7 @@ from tl_core.integration import errors as integ
 from tl_core.intent import IntentInvalid, IntentReferenceUnknown
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
+from tl_core.services import agent_stop as astop
 from tl_core.services import errors as svc
 from tl_core.services import idempotency as idem
 from tl_core.threads import errors as thr
@@ -177,6 +178,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(auth.AccountLockedError, "account_locked", 423),
         s(auth.AccountDisabledError, "account_disabled", 403),
         s(auth.ForbiddenError, "forbidden", 403),
+        s(astop.AgentStoppedError, "agent_stopped", 403),  # P2-X2 S3: a stopped agent files nothing
         s(auth.LastAdminError, "last_admin", 409),
         s(auth.WeakPasswordError, "weak_password", 422),
         s(auth.UsernameTakenError, "username_taken", 409),
