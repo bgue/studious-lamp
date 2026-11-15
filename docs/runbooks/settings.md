@@ -70,6 +70,11 @@ A setting has a platform default and may be set at the company, then the project
    The setting's own events are unaffected by a rebuild.
 9. **In the TUI and over HTTP.** `F9` (or `about:config` in the command palette) opens the list: `e` edit, `r` reset, `h` history with `u` to undo, `k` lock, `L` send changes to the company instead of the project, `m` modified only, `/` filter. Over HTTP: `GET /settings`, `PUT /settings/{key}`, `POST /settings/{key}/reset|lock|revert`, `GET /settings/{key}/history`, `GET /settings/diff`, `GET /settings/export`, `POST /settings/import`.
 
+### Agent limits
+- `ai.agents.max_pending_per_project` (int, default 100, 1 to 100000; scopes platform, company, project; advanced, so `--reason` is needed). It caps the pending proposals in a queue (a project, or the company) that the filing agent may read. A proposal the agent may not read does not count. At the cap a filing is refused with a fixed text that shows no counts (API 429 `queue_full`). Accepting or rejecting reopens the queue. The cap never switches filing off.
+- `ai.agents.daily_proposals` (int, default 500; scopes platform, company) is the agents' daily budget. `0` stops every agent from proposing; the cap cannot do that. Accepted, rejected and failed proposals count too.
+- Grants that let an agent file at all: [accounts runbook, Agents: grant checklist and stop switch](accounts-and-access.md#agents-grant-checklist-and-stop-switch).
+
 ## Verify
 - `uv run tl config get <key> --project P123 --long` shows the new value, its origin, and no `pending` line once the effect is carried out.
 - `uv run tl config history <key>` shows your change with your actor and reason; the change is a `Setting.Changed` event (`uv run tl events tail --project P123` shows a project change).
