@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from harness import Harness
+from harness import Harness, ensure_agent
 from tl_api.client import ApiClient
 from tl_api.client.auth import sign_in
 from tl_core.auth import accounts
@@ -33,10 +33,7 @@ def filed(harness: Harness) -> None:
                 uow, username=name, display_name=name.title(), kind="person", roles=roles,
                 password=prepare_password(PASSWORD), by="svc:test",
             )  # fmt: skip
-        accounts.create_account(
-            uow, username="triage", display_name="Triage", kind="agent", roles=["user"],
-            password=None, by="svc:test",
-        )  # fmt: skip
+    ensure_agent(harness, TRIAGE)  # the agent's account, and S1's explicit filing grant
     command = PublishDerivedTags(
         actor=TRIAGE, source="mcp:triage", scope="project:P123", derived_id="NOSUCH",
         expected_content_rev=1,
