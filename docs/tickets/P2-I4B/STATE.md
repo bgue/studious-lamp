@@ -1,6 +1,6 @@
 # P2-I4B STATE  r=1 base=d4e92ffc C=0 ck=- gate=n/a wt=/home/user/wt/p2-i4b
 ## BOARD   (S1 = plan B4; `stg` staged, spec not yet written)
-S1 p disp f - schema, lifecycle, tag, dismantle, job; spec written
+S1 p mrg f 256d9014 findings dec by orch; 2nd gate PASS per file; APPROVALS
 T06 t disp f - toolcrib screen; provided test; spec written
 T01 t stg f - read views and export_rows; after S1
 T05 t stg f - scaffold_tagged, labour_requested; after S1
