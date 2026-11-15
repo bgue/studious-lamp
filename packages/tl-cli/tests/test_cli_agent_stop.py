@@ -12,6 +12,7 @@ import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
+import filing_support
 import pytest
 from auth_support import GOOD, bootstrap, new_ledger, rows, separate_session, sign_in
 from auth_support import run as tl
@@ -49,6 +50,7 @@ def file_link(env: dict[str, str], from_id: str, to_id: str) -> str:
         actor=AGENT, source="mcp:triage", scope="project:P1", from_id=from_id, to_id=to_id
     )
     with open_uow(env["TL_DB"]) as uow:
+        filing_support.grant_filing(uow, "triage")  # an agent files only where it was granted
         view = proposals.propose(
             uow, tool="link_records", agent=AGENT, command=command, summary="Link two records"
         )
@@ -200,3 +202,30 @@ def test_stop_and_resume_are_recorded_on_the_account_stream(env: dict[str, str])
         )
     ]
     assert types == ["Agent.Stopped", "Agent.Resumed"]
+
+
+def test_accepting_a_stopped_agents_proposal_is_refused_and_it_stays_held(
+    env: dict[str, str],
+) -> None:
+    with open_uow(env["TL_DB"]) as uow:
+        command = CreateRecord(
+            actor=AGENT, source="mcp:triage", scope="project:P1", record_type="core.Record",
+            title="Held", key="HELD-1",
+        )  # fmt: skip
+        view = proposals.propose(
+            uow, tool="create_record", agent=AGENT, command=command, summary="Create HELD-1"
+        )
+    pid = str(view.proposal_id)
+    assert tl(env, "agent", "stop", "triage").exit_code == 0
+    held_before = json.loads(tl(env, "agent", "stopped", "--json").stdout)[0]["held"]
+    count = event_count(env)
+    refused = tl(env, "proposal", "accept", pid)
+    assert refused.exit_code == 1, refused.output
+    assert "this agent is stopped" in refused.output
+    assert "failed" not in refused.stdout
+    assert event_count(env) == count  # no Proposal.Failed, nothing appended
+    assert json.loads(tl(env, "agent", "stopped", "--json").stdout)[0]["held"] == held_before
+    assert "status pending" in tl(env, "proposal", "show", pid).stdout.splitlines()
+    assert tl(env, "agent", "resume", "triage").exit_code == 0
+    done = tl(env, "proposal", "accept", pid)
+    assert done.exit_code == 0 and done.stdout.splitlines()[0] == f"accepted {pid}"
