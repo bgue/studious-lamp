@@ -32,4 +32,8 @@ Branch `p2/x2-s3b-held-accept`, base `p2/x2@be36175a`. Spec: `docs/tickets/P2-X2
 ## Gate
 - `just check`: exit 0.
 - `just gate` test_agent_stop.py, tests/services/test_proposals.py, test_api_agent_stop.py: part 1 exit 0, 54 passed.
-- tl-cli run separately and gate-pg: see status return.
+- `just gate packages/tl-cli/tests` (own run, 51 min): 1412 passed, 1 failed:
+  `test_cli_config.py::test_ls_lists_every_key_sorted_with_its_origin[sqlite]` (config key order; fails alone too;
+  the diff touches no config code; not checked on the bare base, no venv there). Open question for the supervisor.
+  The log was garbled once by an overlapping run of mine; the counts above are from the finished run.
+- `just gate-pg packages/tl-core/tests/test_agent_stop.py`: exit 0, 48 passed.
