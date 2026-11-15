@@ -142,6 +142,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.ProposalNotPendingError, "proposal_not_pending", 409),
         s(svc.InvalidProposalError, "invalid_proposal", 422),
         s(svc.BudgetExceededError, "budget_exceeded", 429),
+        s(svc.QueueFullError, "queue_full", 429),
         s(svc.ProposalDeciderError, "proposal_decider", 403),
         s(svc.ProposalAccessError, "proposal_access", 403),
         # --- offline classes -----------------------------------------------------------------

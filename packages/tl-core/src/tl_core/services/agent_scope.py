@@ -1,13 +1,17 @@
-"""What an agent may file (P2-X2). S1: ``check_filing``; S2 adds the queue cap here."""
+"""What an agent may file (P2-X2). S1: ``check_filing``; S2: ``check_queue_cap``."""
 
 from __future__ import annotations
 
-from sqlalchemy import Connection
+import json
 
+from sqlalchemy import Connection, text
+
+from tl_core import confidentiality
 from tl_core.auth import module_roles
 from tl_core.modules import load_modules
 from tl_core.services.commands import Command
-from tl_core.services.errors import RecordNotFoundError
+from tl_core.services.errors import QueueFullError, RecordNotFoundError
+from tl_core.settings.resolver import value_of
 
 
 def _refusal(scope: str) -> RecordNotFoundError:
@@ -56,3 +60,56 @@ def check_filing(conn: Connection, agent: str, command: Command) -> None:
     granted = _explicit(conn, holder, command.scope, module)
     if granted is None or "user" not in granted.words:
         raise _refusal(command.scope)
+
+
+QUEUE_CAP_SETTING = "ai.agents.max_pending_per_project"
+#: The one refusal of a full queue: no number, no scope, no agent.
+QUEUE_FULL_TEXT = "this review queue is full; ask a reviewer to clear it, then file again"
+
+
+def _queue_limit(conn: Connection, scope: str) -> int:
+    project = scope.partition(":")[2] if scope.startswith("project:") else None
+    return int(value_of(conn, QUEUE_CAP_SETTING, project=project))
+
+
+def pending_visible_count(conn: Connection, scope: str, viewer: confidentiality.Viewer) -> int:
+    """Pending proposals in ``scope`` the viewer may read (one with a hidden record is not counted).
+
+    The filter runs over every pending row first and the count is taken after it; no LIMIT.
+    """
+    # lazy: proposals imports this module
+    from tl_core.services.proposals import _carried_ids  # pyright: ignore[reportPrivateUsage]
+
+    rows = conn.execute(
+        text(
+            "SELECT proposal_id, command_json FROM cur_proposals "
+            "WHERE scope = :s AND status = 'pending'"
+        ),
+        {"s": scope},
+    ).all()
+    carried: dict[str, set[str]] = {}
+    every: set[str] = set()
+    for row in rows:
+        ids: set[str] = set()
+        command = row.command_json
+        if isinstance(command, str):
+            command = json.loads(command)
+        _carried_ids(command, ids)
+        carried[row.proposal_id] = ids
+        every |= ids
+    hidden = confidentiality.hidden_among(conn, sorted(every), viewer)
+    return sum(1 for ids in carried.values() if not (ids & hidden))
+
+
+def check_queue_cap(conn: Connection, agent: str, command: Command) -> None:
+    """Refuse a filing when the queue holds the cap of pending proposals the agent may read.
+
+    The queue is ``command.scope``. Fixed text, no counts (a count can leak a hidden record).
+    """
+    # lazy: actor_access imports services
+    from tl_core.integration.actor_access import viewer_of
+
+    if pending_visible_count(conn, command.scope, viewer_of(conn, agent)) >= _queue_limit(
+        conn, command.scope
+    ):
+        raise QueueFullError(QUEUE_FULL_TEXT)
