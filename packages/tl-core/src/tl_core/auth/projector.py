@@ -35,6 +35,8 @@ ACCOUNT_MODULE_ROLE_REVOKED = "Account.ModuleRoleRevoked"
 
 ACCOUNT_STREAM_TYPE = "core.Account"
 ACCOUNT_STREAM_PREFIX = "account:"
+# Agent.Stopped / Agent.Resumed sit on the account stream; the account row must follow its head.
+STREAM_BUMP_EVENT_TYPES = frozenset({"Agent.Stopped", "Agent.Resumed"})
 ACCOUNT_EVENT_TYPES = frozenset(
     {
         ACCOUNT_CREATED,
@@ -90,7 +92,7 @@ _DELETE_MODULE_ROLE = text(
 
 class AccountProjector:
     name = "accounts"
-    handles = ACCOUNT_EVENT_TYPES
+    handles = ACCOUNT_EVENT_TYPES | STREAM_BUMP_EVENT_TYPES
 
     def ddl(self, dialect: str) -> list[str]:
         if dialect == "sqlite" or dialect == "postgres":
@@ -107,6 +109,15 @@ class AccountProjector:
         conn.execute(text("DELETE FROM cur_account"))
 
     def apply(self, conn: Connection, event: Event) -> None:
+        if event.event_type in STREAM_BUMP_EVENT_TYPES:
+            # agent stop/resume ride on the account stream: only the row's version moves
+            if not event.stream_id.startswith("account:"):
+                raise ValueError(f"{event.event_type} is on stream {event.stream_id}")
+            conn.execute(
+                text("UPDATE cur_account SET version = :version WHERE account_id = :account_id"),
+                {"version": event.stream_version, "account_id": event.stream_id[len("account:") :]},
+            )
+            return
         if event.event_type not in ACCOUNT_EVENT_TYPES:
             raise ValueError(f"AccountProjector cannot apply: {event.event_type}")
         payload = event.payload

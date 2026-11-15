@@ -2,9 +2,9 @@
 
 One row per agent that was ever stopped; a resume clears the flag and keeps the row. Every value
 comes from the event, so a rebuild equals the live table. The events sit on the agent's account
-stream (``account:<account_id>``), so each one also bumps the account row's ``version``: the next
-account command expects the stream's real head. That bump is the only write outside this table,
-and it relies on ``AccountProjector`` running first (registered earlier in ``default_registry``).
+stream (``account:<account_id>``); ``AccountProjector`` also handles them, to keep the account
+row's ``version`` at the stream head, so each projector rebuilds alone (``--only accounts`` or
+``--only agent_stop``) without leaving the version wrong. This projector writes only its table.
 """
 
 from __future__ import annotations
@@ -32,7 +32,6 @@ _RESUME = text(
     "UPDATE cur_agent_stop SET stopped = 0, resumed_at = :stamp, resumed_by = :by, "
     "last_seq = :seq WHERE agent = :agent"
 )
-_BUMP = text("UPDATE cur_account SET version = :version WHERE account_id = :account_id")
 
 
 class AgentStopProjector:
@@ -70,4 +69,3 @@ class AgentStopProjector:
         else:
             if conn.execute(_RESUME, params).rowcount == 0:
                 raise LookupError(f"no stop row for stream {event.stream_id}")
-        conn.execute(_BUMP, {"version": event.stream_version, "account_id": account_id})
