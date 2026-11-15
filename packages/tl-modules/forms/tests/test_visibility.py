@@ -145,13 +145,29 @@ def test_the_same_row_after_a_submit_is_read_per_class(world: World) -> None:
         assert not hidden(world, draft, viewer)  # internal class, no subject
 
 
+def test_the_author_of_a_restricted_or_privileged_form_completes_and_reads_it(
+    world: World,
+) -> None:
+    for cls in ("restricted", "privileged"):
+        tpl = world.template(answer_class=cls)
+        sub = str(world.submit("uma", tpl).stream_id)  # a plain user: completes the submit
+        assert world.state(sub) == "Submitted"
+        assert not hidden(world, sub, AUTHOR)
+        for viewer in (OTHER_USER, AGENT, NOBODY):
+            assert hidden(world, sub, viewer), cls
+        assert hidden(world, sub, ADMIN) or cls == "restricted"
+        draft = str(world.save("uma", tpl).stream_id)
+        assert not hidden(world, draft, AUTHOR) and hidden(world, draft, OTHER_USER)
+        world.submit("uma", draft_id=draft)  # a draft continues and submits
+
+
 def test_a_restricted_submission_is_read_per_class_once_submitted(world: World) -> None:
     tpl = world.template(answer_class="restricted")
     draft = str(world.save("dora", tpl).stream_id)  # a controller fills it: she may read the class
     assert hidden(world, draft, ADMIN)  # a draft: its author only
     assert not hidden(world, draft, CONTROLLER)
     world.submit("dora", draft_id=draft)
-    for viewer in (AUTHOR, OTHER_USER, AGENT, NOBODY):  # the class governs now
+    for viewer in (AUTHOR, OTHER_USER, AGENT, NOBODY):  # the class governs now (not her)
         assert hidden(world, draft, viewer)
     assert not hidden(world, draft, CONTROLLER) and not hidden(world, draft, ADMIN)
 
@@ -236,17 +252,16 @@ def test_a_failed_accept_of_a_stored_form_command_gives_a_fixed_text(world: Worl
 
 
 def test_a_marker_in_a_pydantic_refusal_on_the_seam_path_is_not_echoed(world: World) -> None:
-    from pydantic import ValidationError
+    from tl_core.services.nested import MSG_ARGS, NestedCommandError
 
     for args in (
         {"template_id": "t", "answers": [MARKER]},
         {"template_id": "t", "answers": MARKER},
         {"template_id": MARKER * 20, "answers": []},
         {"template_id": "t", "answers": [], "subject_id": MARKER * 20},
+        {"template_id": "t", "answers": [], MARKER: "x"},  # an unknown key
         {"template_id": "t", "answers": [{"q": "a", "value": MARKER}] * 500},
     ):
         error = _nested(world, args)
-        assert isinstance(error, ValidationError), args
-        assert MARKER not in str(error), args
-        shown = error.errors(include_input=False, include_url=False)
-        assert not [e for e in shown if MARKER in e["msg"]], args
+        assert isinstance(error, NestedCommandError), args
+        assert str(error) == MSG_ARGS and MARKER not in repr(error), args

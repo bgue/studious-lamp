@@ -1,6 +1,6 @@
 # P2-FORMS CR1 report
 
-Deviations: (1) `modules.py` untouched: `OWN_CLASS_TYPES` is a frozenset in `confidentiality.py` (spec's suggested name); the
+Deviations: (0) later rulings, see the end. (1) `modules.py` untouched: `OWN_CLASS_TYPES` is a frozenset in `confidentiality.py` (spec's suggested name); the
 module declares the source, core names the type. (2) Author exemption added: a draft is its author's whatever its class
 (`_own_draft`), else an author could not save a restricted draft again. (3) Feed cards: the rule is by stream
 (`cards.is_draft_plumbing`), not by adding forms events to `POLICY_EVENT_TYPES`, so the pinned awp test is unchanged. (4) Gate
@@ -41,16 +41,14 @@ holds). Not measured: the twin walks on the base, so a slow-down or a pre-existi
 Sentinel (`hidden_sql` returns None for everyone) killed. 5/5 targeted killed: answer-class check skipped in list; in get; in the
 event filter; draft card made (`is_draft_plumbing` off); `forms.Submission` row removed (killed by the pin and by two behaviour tests).
 
-## Open questions (4)
-- **Q1 (security, needs an owner decision):** after `SubmitForm` the class rules govern the author too, and the submit unit reads the
-  record back as its author (`handle_transition_workflow` `_load`). A person who may not read the template's `answer_class` (restricted
-  for a user, any privileged: no clearance table exists) cannot finish a submit (RecordNotFound), though a draft saves. Options: S3
-  handlers run the move under `system_view`, or the author reads their own submissions. Tests build such records with the handler
-  under `system_view` (`as_system`).
-- **Q2:** `propose()` reads its proposal back as the proposer, so an agent proposing for a restricted template gets
-  `ProposalNotFoundError` and the proposal rolls back. Consistent with hidden == missing; the tests seed under `system_view`.
-- **Q3 (LO, `nested.py`, not mine):** a stored key the command does not know (`{MARKER: 1}`) is echoed in `str(ValidationError)`
-  through `loc`; values are not. The accept path is safe (fixed text). Fix: wrap `model_validate` in `run_nested_command` and raise
-  `NestedCommandError`. Untested here for that reason; no test was weakened.
-- **Q5:** `gate-pg` of `tests/confidentiality` needs a long slot (or the twin walks run alone on Postgres, base against this branch).
-- **Q4:** `answer_class` privileged on a submission with a subject hides it from everyone (forms declares no clearance table).
+## Rulings applied (coordinator)
+- Q1: the author always reads their own submission, draft or submitted, whatever its class (`_own_draft` now tests the author only,
+  in the source part and `_own_hidden`; a hidden subject still hides it). Test: a plain user completes `SubmitForm` for a restricted and
+  a privileged template and reads it back; other readers see it as missing. The `as_system` helper stays for one test only.
+- Q2: accepted as is (hidden == missing; tests seed proposals under `system_view`).
+- Q3: `run_nested_command` catches `ValidationError` and raises `NestedCommandError` with the fixed `MSG_ARGS`; test with an unknown key
+  marker and value markers. (`nested.py` added to the touched files by ruling.)
+- Q4 (deferred): a privileged answer class on a submission with a subject hides it from everyone but its author until forms has a
+  clearance table; the orchestrator logs it.
+- Q5 stands: the Postgres twin walks. Re-gate after the rulings: `just check` rc 0; `tests/confidentiality` 141 passed, 4 xfailed; forms
+  tests 120 passed; proposals, API, CLI and `test_modules` 71 passed. `gate-pg` (twin walk + forms tests): see the return note.

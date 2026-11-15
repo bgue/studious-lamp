@@ -16,6 +16,8 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from pydantic import ValidationError
+
 from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.module_roles import Holder, require_command_access
 from tl_core.modules import module_proposables
@@ -24,6 +26,7 @@ from tl_core.services.errors import InvalidProposalError, ProposalAccessError
 from tl_core.uow import UnitOfWork
 
 MSG_NOT_NESTABLE = "that command cannot be run from another command"
+MSG_ARGS = "the stored arguments are not valid for that command"
 MSG_ACCESS = "the person lacks the access that command needs"
 
 
@@ -70,7 +73,11 @@ def run_nested_command(
         causation_id=causation_id,
         correlation_id=correlation_id,
     )
-    command = row.model.model_validate(data)
+    try:
+        command = row.model.model_validate(data)
+    except ValidationError:
+        # the text of a pydantic refusal names the keys and values it was given: say nothing of them
+        raise NestedCommandError(MSG_ARGS) from None
     if holder is not None:
         try:
             require_command_access(uow.conn(), command, holder=holder)

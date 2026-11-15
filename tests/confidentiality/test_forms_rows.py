@@ -222,8 +222,9 @@ def test_a_privileged_answer_class_with_no_subject_is_its_own_subject(world: Wor
     tpl = world.template(answer_class="privileged")
     sub = str(as_system(world, "dora", "SubmitForm", template_id=tpl,
                         answers=[answer("topic", "x")]).stream_id)  # fmt: skip
-    for viewer in (*LOWS.values(), CLEARED, ADMIN):  # no clearance table: nobody is named
+    for viewer in (*LOWS.values(), ADMIN):  # no clearance table: nobody is named
         assert hidden(world, sub, viewer)
+    assert not hidden(world, sub, CLEARED)  # but its author (dora) reads what she wrote
     with cf.system_view(), open_uow(world.db, readonly=True) as uow:
         assert queries.get_record_by_id(uow, sub) is not None
 

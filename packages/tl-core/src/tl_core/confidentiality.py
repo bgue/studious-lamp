@@ -221,13 +221,12 @@ def _of_types(types: frozenset[str]) -> str:
 
 
 def _own_draft(viewer: Viewer) -> str:
-    """SQL that is true when ``hr`` is a draft the viewer wrote: its class does not hide it from
-    its author (the author fills in a form of any class; once it is submitted the class governs)."""
+    """SQL that is true when ``hr`` is a submission the viewer wrote, a draft or submitted: its
+    class does not hide it from its author, who knows the answers (its subject still can)."""
     if not viewer.account or not is_module_record_type(DRAFT_TYPE):
         return "1 = 0"
     return (
-        f"EXISTS (SELECT 1 FROM {_DRAFT_TABLE} d WHERE d.id = hr.id AND d.submitted_on IS NULL "
-        f"AND d.author = :{ACTOR_PARAM})"
+        f"EXISTS (SELECT 1 FROM {_DRAFT_TABLE} d WHERE d.id = hr.id AND d.author = :{ACTOR_PARAM})"
     )
 
 
