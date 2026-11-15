@@ -135,3 +135,8 @@ Builder return ≤ 15 lines; report ≤ 60 lines at `docs/reports/P2-FORMS/S1.md
 whether the provided test copy is byte-identical. List the final public names (types, functions, constants) as one
 table for S3, the projection tickets and T13. Commit `P2-FORMS-S1: ...` with the session trailers; no model names in
 committed text.
+
+## Amendment 1 (orchestrator, 2026-11-15)
+The spec text wins: photo answers are 1 to MAX_PHOTOS distinct ULIDs. The provided test case `[ULID] * 10` is replaced
+with ten distinct ids, the eleven-id case uses distinct ids, and a duplicate pair is added as invalid. The provided copy
+`docs/tickets/P2-FORMS/provided/S1_test_forms_rules.py` is updated to the same bytes.

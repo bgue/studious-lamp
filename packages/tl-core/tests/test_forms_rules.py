@@ -8,6 +8,7 @@ import pytest
 from tl_core.forms import rules as r
 
 ULID = "01HZX3K9Q7M2N4P5R6S8T0V1WA"
+ULIDS = [ULID[:-2] + f"{i:02d}" for i in range(11)]  # distinct ids
 
 
 def f(fid: str, kind: str = "text", *, required: bool = True, **kw: Any) -> dict[str, Any]:
@@ -216,8 +217,9 @@ def test_partial_skips_required_but_not_shape_or_hidden() -> None:
         ("date", {}, "15/11/2026", False),
         ("date", {}, 20261115, False),
         ("photo", {}, [ULID], True),
-        ("photo", {}, [ULID] * 10, True),
-        ("photo", {}, [ULID] * 11, False),
+        ("photo", {}, ULIDS[:10], True),
+        ("photo", {}, ULIDS, False),
+        ("photo", {}, [ULID, ULID], False),
         ("photo", {}, [], False),
         ("photo", {}, ["not-a-file-id"], False),
         ("photo", {}, ULID, False),
