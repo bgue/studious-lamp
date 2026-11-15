@@ -122,7 +122,7 @@ PERMITS = {
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_69_words() -> None:
+def test_the_shipped_table_loads_78_words() -> None:
     words = load_access_words()
     expected = (
         len(AWP)
@@ -135,7 +135,7 @@ def test_the_shipped_table_loads_69_words() -> None:
         + len(QR)
         + len(PERMITS)
     )
-    assert len(words) == 69 == expected
+    assert len(words) == 78 == expected
     assert "awp.constraint.edit" not in words
 
 
