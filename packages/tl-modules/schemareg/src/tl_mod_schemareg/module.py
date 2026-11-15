@@ -43,5 +43,7 @@ def spec() -> ModuleSpec:
         schema_source=schema_source,
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
+        commands="tl_mod_schemareg.commands:API_COMMANDS",
+        read_routers=("tl_api.routes.schemareg:router",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )

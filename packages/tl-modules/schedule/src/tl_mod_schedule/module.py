@@ -66,5 +66,12 @@ def spec() -> ModuleSpec:
         proposable=PROPOSABLE,
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
+        commands="tl_mod_schedule.commands:API_COMMANDS",
+        read_routers=("tl_api.routes.schedule:router",),
+        tools=(
+            "tl_mcp.schedule_tools:register_schedule_tools",
+            "tl_mcp.schedule_read_tools:register_schedule_read_tools",
+        ),
+        cli_groups=("tl_cli.xer:app",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )

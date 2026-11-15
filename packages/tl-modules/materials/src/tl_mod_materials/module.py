@@ -101,6 +101,10 @@ def spec() -> ModuleSpec:
         proposable=PROPOSABLE,
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in MATERIALS_COMMANDS},
+        commands="tl_mod_materials.commands:MATERIALS_COMMANDS",
+        read_routers=("tl_api.routes.materials:router",),
+        tools=("tl_mcp.materials_tools:register_materials_tools",),
+        cli_groups=("tl_cli.mat:app",),
         company_roles=True,
         offline_drafts={STOCK_LOT: STOCK_LOT_DRAFTS},
     )

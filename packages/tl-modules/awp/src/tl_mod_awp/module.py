@@ -134,5 +134,17 @@ def spec() -> ModuleSpec:
         actions={record_type: awp_actions for record_type in RECORD_TYPES},
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in AWP_COMMANDS},
+        commands="tl_mod_awp.commands:AWP_COMMANDS",
+        read_routers=(
+            "tl_api.routes.awp_progress:router",
+            "tl_api.routes.awp_weeks:router",
+            "tl_api.routes.awp:router",
+        ),
+        tools=(
+            "tl_mcp.awp_tools:register_awp_tools",
+            "tl_mcp.iwp_tools:register_iwp_tools",
+            "tl_mcp.awp_week_tools:register_week_tools",
+        ),
+        cli_groups=("tl_cli.awp:app",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )
