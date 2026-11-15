@@ -21,6 +21,9 @@ none yet. Sec rows for SR-X3: ref prefix rule (Q1), closed-by-default tools (S3)
 ## OPEN
 Q1 ref rule: plan says refs refused outside the module's own package, but routers, tool registrars and CLI apps of the 10 in-tree modules live in tl_api.routes, tl_mcp, tl_cli (modules depend on tl-core only). S1 uses own package + per-kind surface prefix (routes tl_api.routes., tools tl_mcp., cli tl_cli.). Looser than Q1 text; alternatives: move surfaces into modules (adds fastapi/mcp/typer deps, big) or exact allowlist. needs orch raised r1
 Q2 requisitions commands are not in tl_api.COMMANDS (docstring says API builds routes; code does not). S2 equality test excepts it; serving them is additive new routes. needs orch (decide before S2 spec) raised r1
+## DEC-ORCH
+Q1 closed 2026-11-15 orch: own package always; surface prefixes only for an explicit in-tree set (IN_TREE_SURFACES)
+Q2 closed 2026-11-15 orch: S2 serves REQUISITIONS_COMMANDS (additive); S4 walks them
 ## NEXT
 1. Orch: APPROVALS line for ModuleSpec hooks and ModuleCommand.meta (12 §5), answer Q1 (hold S1 dispatch if the prefix rule is rejected).
 2. Run S1 (workflow, full review); merge to p2/x4 = C1.

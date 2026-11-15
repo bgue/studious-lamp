@@ -79,3 +79,14 @@ instead of being recorded; `_check_ref` allows `tools` under `tl_api.routes.`; `
 ## Report
 Builder return ≤ 15 lines; report ≤ 60 lines; first line: deviations or none; list the ref table per module. Commit
 `P2-X4-S1: ...` with the session trailers; no model names in committed text.
+
+## Orchestrator decisions (2026-11-15, before dispatch)
+- Q1 (ref rule): a module's hook ref may always name its own package (`tl_mod_<name>.`). The per-kind surface prefixes
+  (`tl_api.routes.` for `read_routers`, `tl_mcp.` for `tools`, `tl_cli.` for `cli_groups`) are accepted **only for the
+  in-tree modules, named in an explicit frozenset `IN_TREE_SURFACES` in `tl_core/modules.py`** (the 11 installed today).
+  Any other module naming `tl_api.`, `tl_mcp.` or `tl_cli.` is refused at load like any foreign ref (risk 3 of 12 §7:
+  no hook loads code outside the module the reviewer saw). Test both sides: an in-tree module with a surface prefix
+  loads; a test module not in the set with the same prefix is refused with the fixed message.
+- Q2 (requisitions): in scope for S2: S2 serves `REQUISITIONS_COMMANDS` on `/commands/` (additive routes, access words
+  as declared), the equality test lists them as the one expected addition, and S4's walks cover them. S1 declares the
+  hook as written.
