@@ -2,7 +2,7 @@
 ## BOARD   (S1 = plan B4; `todo` ready to dispatch, `stg` staged)
 S1 p mrg f 256d9014 C1; findings dec by orch; APPROVALS
 T06 t mrg f 1c3e1294 review P; F2 ctrl+i is Tab -> T07a (D11)
-T01 t todo f - views + export_rows; stub and 14 provided tests committed
+T01 t mrg f f6bf1990 review P
 T05a t todo f - scaffold_tagged check + entry point; 11 provided tests
 T05b t stg f - labour_requested replaces awp placeholder; after T05a; 12 provided tests
 T09b1 t stg f - API read routes, five-reader walk; spec written after T01 merges
