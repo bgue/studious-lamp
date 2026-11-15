@@ -11,7 +11,7 @@ from jsonschema import Draft202012Validator
 from scenario import run_scenario
 from sqlalchemy import text
 from tl_adapters.db import rebuild_projections
-from tl_core.auth.projector import ACCOUNT_EVENT_TYPES
+from tl_core.auth.projector import ACCOUNT_EVENT_TYPES, STREAM_BUMP_EVENT_TYPES
 from tl_core.integration.streams import INTEGRATION_INTERNAL_EVENT_TYPES
 from tl_core.threads.contract import THREAD_EVENT_TYPES, THREAD_WEBHOOK_EVENT_TYPES
 from tl_core.webhooks import queries
@@ -254,6 +254,7 @@ def test_every_catalog_event_type_is_delivered_and_valid(pworld: World) -> None:
         set(catalog.event_types())
         - ACCOUNT_EVENT_TYPES
         - INTEGRATION_INTERNAL_EVENT_TYPES
+        - STREAM_BUMP_EVENT_TYPES
         - (set(THREAD_EVENT_TYPES) - set(THREAD_WEBHOOK_EVENT_TYPES))
     )
 
