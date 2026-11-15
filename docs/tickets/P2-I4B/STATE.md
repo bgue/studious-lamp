@@ -11,7 +11,7 @@ T09b2 t mrg f 7480bded review P
 T07a t mrg f f4b66174 review P
 T07b t mrg f 3fc897e2 review P
 T09c t mrg f cb1e81ef review P
-T11a t disp f - demo project `scaffold` section (P200 data for tour); D19
+T11a t mrg f 9d5237e5 review P; 1 scaffold (Designed)
 T12 t mrg l d1484534 esc settled amend 1
 T10a t mrg f 863b91a3 review P; stale echo fix in T10b
 T10b t stg f - demo clause 7 toolcrib; after T10a
