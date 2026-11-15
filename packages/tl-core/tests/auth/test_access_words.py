@@ -119,10 +119,21 @@ PERMITS = {
     "permits.close": "controller",
     "permits.isolation.verify": "controller",
 }
+#: The eight words of the forms module (P2-FORMS S2); `svc:intake` holds none.
+FORMS = {
+    "forms.view": "read",
+    "forms.template.edit": "user",
+    "forms.template.publish": "controller",
+    "forms.submit": "user",
+    "forms.review": "controller",
+    "forms.void": "controller",
+    "forms.intake.issue": "controller",
+    "forms.intake.review": "controller",
+}
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_78_words() -> None:
+def test_the_shipped_table_loads_86_words() -> None:
     words = load_access_words()
     expected = (
         len(AWP)
@@ -134,8 +145,9 @@ def test_the_shipped_table_loads_78_words() -> None:
         + len(REQUISITIONS)
         + len(QR)
         + len(PERMITS)
+        + len(FORMS)
     )
-    assert len(words) == 78 == expected
+    assert len(words) == 86 == expected
     assert "awp.constraint.edit" not in words
 
 
@@ -151,6 +163,7 @@ def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> 
         **REQUISITIONS,
         **QR,
         **PERMITS,
+        **FORMS,
     }.items():
         assert words.get(word) == table, word
 

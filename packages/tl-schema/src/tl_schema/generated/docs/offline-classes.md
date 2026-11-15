@@ -47,6 +47,10 @@ Classes:
 | `engineering.NumberingPattern` | Numbering pattern | `none` | Online only. |
 | `engineering.Tag` | Tag | `full` | Created and edited offline, merged on sync. |
 | `engineering.TagClass` | Tag class | `none` | Online only. |
+| `forms.IntakeCode` | Intake code | `none` | Online only. |
+| `forms.IntakeItem` | Intake item | `none` | Online only. |
+| `forms.Submission` | Form submission | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `forms.Template` | Form template | `none` | Online only. |
 | `legacy.LoadRun` | Load run | `none` | Online only. |
 | `materials.InventoryLocation` | Inventory location | `none` | Online only. |
 | `materials.ItemMaster` | Item master | `none` | Online only. |

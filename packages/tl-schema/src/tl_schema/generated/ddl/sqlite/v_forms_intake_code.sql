@@ -1,0 +1,30 @@
+CREATE VIEW IF NOT EXISTS v_forms_intake_code AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.code_hash AS code_hash,
+  t.template_id AS template_id,
+  t.template_version AS template_version,
+  t.template_hash AS template_hash,
+  t.context_id AS context_id,
+  t.context_type AS context_type,
+  t.heading AS heading,
+  t.controller_role AS controller_role,
+  t.issued_by AS issued_by,
+  t.issued_at AS issued_at,
+  t.expires_on AS expires_on,
+  t.revoked_at AS revoked_at,
+  t.revoked_by AS revoked_by
+FROM cur_forms_intake_code AS t
+JOIN cur_core_record AS r ON r.id = t.id;

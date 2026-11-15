@@ -1081,6 +1081,60 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.IntakeCode.Issued.v1",
+      "event_type": "IntakeCode.Issued",
+      "payload_class": "IntakeCodeIssuedPayload",
+      "sample": "samples/IntakeCode.Issued.v1.json",
+      "schema": "schemas/IntakeCode.Issued.v1.json",
+      "title": "An intake code was issued.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntakeCode.Revoked.v1",
+      "event_type": "IntakeCode.Revoked",
+      "payload_class": "IntakeCodeRevokedPayload",
+      "sample": "samples/IntakeCode.Revoked.v1.json",
+      "schema": "schemas/IntakeCode.Revoked.v1.json",
+      "title": "An intake code was revoked.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntakeItem.Accepted.v1",
+      "event_type": "IntakeItem.Accepted",
+      "payload_class": "IntakeItemAcceptedPayload",
+      "sample": "samples/IntakeItem.Accepted.v1.json",
+      "schema": "schemas/IntakeItem.Accepted.v1.json",
+      "title": "An intake item was accepted as a command the template names.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntakeItem.Purged.v1",
+      "event_type": "IntakeItem.Purged",
+      "payload_class": "IntakeItemPurgedPayload",
+      "sample": "samples/IntakeItem.Purged.v1.json",
+      "schema": "schemas/IntakeItem.Purged.v1.json",
+      "title": "The body of an intake item was purged.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntakeItem.Received.v1",
+      "event_type": "IntakeItem.Received",
+      "payload_class": "IntakeItemReceivedPayload",
+      "sample": "samples/IntakeItem.Received.v1.json",
+      "schema": "schemas/IntakeItem.Received.v1.json",
+      "title": "An intake submission was received.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntakeItem.Rejected.v1",
+      "event_type": "IntakeItem.Rejected",
+      "payload_class": "IntakeItemRejectedPayload",
+      "sample": "samples/IntakeItem.Rejected.v1.json",
+      "schema": "schemas/IntakeItem.Rejected.v1.json",
+      "title": "An intake item was rejected.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.IntegrationApp.Disabled.v1",
       "event_type": "IntegrationApp.Disabled",
       "payload_class": "IntegrationAppDisabledPayload",
@@ -2359,6 +2413,60 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Submission.Accepted.v1",
+      "event_type": "Submission.Accepted",
+      "payload_class": "SubmissionAcceptedPayload",
+      "sample": "samples/Submission.Accepted.v1.json",
+      "schema": "schemas/Submission.Accepted.v1.json",
+      "title": "A submitted form was accepted by a controller.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Submission.DraftDiscarded.v1",
+      "event_type": "Submission.DraftDiscarded",
+      "payload_class": "SubmissionDraftDiscardedPayload",
+      "sample": "samples/Submission.DraftDiscarded.v1.json",
+      "schema": "schemas/Submission.DraftDiscarded.v1.json",
+      "title": "A draft submission was discarded.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Submission.DraftSaved.v1",
+      "event_type": "Submission.DraftSaved",
+      "payload_class": "SubmissionDraftSavedPayload",
+      "sample": "samples/Submission.DraftSaved.v1.json",
+      "schema": "schemas/Submission.DraftSaved.v1.json",
+      "title": "A draft of a submission was saved.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Submission.Returned.v1",
+      "event_type": "Submission.Returned",
+      "payload_class": "SubmissionReturnedPayload",
+      "sample": "samples/Submission.Returned.v1.json",
+      "schema": "schemas/Submission.Returned.v1.json",
+      "title": "A submitted form was returned to its author by a controller.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Submission.Submitted.v1",
+      "event_type": "Submission.Submitted",
+      "payload_class": "SubmissionSubmittedPayload",
+      "sample": "samples/Submission.Submitted.v1.json",
+      "schema": "schemas/Submission.Submitted.v1.json",
+      "title": "A submission was submitted.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Submission.Voided.v1",
+      "event_type": "Submission.Voided",
+      "payload_class": "SubmissionVoidedPayload",
+      "sample": "samples/Submission.Voided.v1.json",
+      "schema": "schemas/Submission.Voided.v1.json",
+      "title": "A submitted, accepted or returned form was voided by a controller.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Tag.Defined.v1",
       "event_type": "Tag.Defined",
       "payload_class": "TagDefinedPayload",
@@ -2455,6 +2563,42 @@
       "sample": "samples/Technical.Updated.v1.json",
       "schema": "schemas/Technical.Updated.v1.json",
       "title": "The domain fields of a Technical item that is a draft or in internal review changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Template.Created.v1",
+      "event_type": "Template.Created",
+      "payload_class": "TemplateCreatedPayload",
+      "sample": "samples/Template.Created.v1.json",
+      "schema": "schemas/Template.Created.v1.json",
+      "title": "A form template was created as a draft.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Template.Edited.v1",
+      "event_type": "Template.Edited",
+      "payload_class": "TemplateEditedPayload",
+      "sample": "samples/Template.Edited.v1.json",
+      "schema": "schemas/Template.Edited.v1.json",
+      "title": "A draft template was edited; only the fields that changed are present.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Template.Published.v1",
+      "event_type": "Template.Published",
+      "payload_class": "TemplatePublishedPayload",
+      "sample": "samples/Template.Published.v1.json",
+      "schema": "schemas/Template.Published.v1.json",
+      "title": "A draft template was published; its content hash is fixed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Template.Retired.v1",
+      "event_type": "Template.Retired",
+      "payload_class": "TemplateRetiredPayload",
+      "sample": "samples/Template.Retired.v1.json",
+      "schema": "schemas/Template.Retired.v1.json",
+      "title": "A draft or published template was retired.",
       "version": 1
     },
     {

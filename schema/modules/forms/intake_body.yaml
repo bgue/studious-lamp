@@ -1,0 +1,58 @@
+id: https://example.org/throughline/modules/forms/intake_body
+name: tl_mod_forms_intake_body
+title: Intake bodies (ADR-0032)
+description: >-
+  The received text of an intake item. Like `idempotency_key` (`schema/core/idempotency.yaml`) it is operational: no
+  event produces it, no projector writes it, a rebuild never clears it, and the archive, the lake, feeds and
+  webhooks never read it. It uses `tl:current_state` and `tl:table` only to get one DDL for both dialects. Rows are
+  kept for `forms.intake.retention_days` and then purged; backups that hold this table are kept no longer.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: forms
+
+classes:
+  IntakeBody:
+    title: Intake body
+    description: >-
+      One received body. Table `forms_intake_body`. It is no record type and has no offline class of its own: it
+      follows `forms.IntakeItem` (offline class `none`, operational). The body is at most 8192 bytes of JSON
+      text.
+    annotations:
+      tl:current_state: true
+      tl:table: forms_intake_body
+      tl:ix_code: "code_id"
+      tl:ix_received: "received_at"
+    unique_keys:
+      item_id:
+        description: "One body per item."
+        unique_key_slots:
+          - item_id
+    attributes:
+      item_id:
+        range: Ulid
+        required: true
+        description: "The intake item this body belongs to."
+      code_id:
+        range: Ulid
+        required: true
+        description: "The intake code it came through."
+      salt:
+        pattern: "^[0-9a-f]{32}$"
+        required: true
+        description: "Per-item salt of the body MAC, 32 lower case hex characters."
+      body:
+        pattern: "^[\\s\\S]{1,8192}$"
+        required: true
+        description: "The received text, at most 8192 bytes."
+      received_at:
+        range: datetime
+        required: true
+        description: "When it was received."

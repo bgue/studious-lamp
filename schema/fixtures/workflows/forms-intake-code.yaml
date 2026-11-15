@@ -1,0 +1,17 @@
+# Workflow of an intake code (ADR-0032): Active until a controller revokes it. Revoked is final; any move out of it is
+# not a move. Expiry is derived from `expires_on` and is never a state. Every move is a command of the forms module
+# (by_module), so the file states the moves and names no role: who may do what is the access word of each command
+# (ADR-0013).
+id: forms.intake-code
+version: 1
+record_type: forms.IntakeCode
+scope: company
+initial_state: Active
+states:
+  - name: Active
+  - name: Revoked
+transitions:
+  - name: revoke
+    label: Revoke the code
+    from: [Active]
+    to: Revoked

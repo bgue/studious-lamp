@@ -148,6 +148,7 @@ def test_the_installed_modules_are_found_through_their_entry_points() -> None:
         "cost",
         "documents",
         "engineering",
+        "forms",
         "legacy",
         "materials",
         "permits",

@@ -6,6 +6,7 @@ dependencies = [
   "tl-api",
   "tl-tui",
   "tl-mod-qr",
+  "tl-mod-forms",
   "jinja2",
   "python-multipart",
 ]

@@ -96,3 +96,12 @@ words:
   permits.resume: controller
   permits.close: controller
   permits.isolation.verify: controller
+  # forms: templates, submissions and public intake review (P2-FORMS, ADR-0031, ADR-0032; svc:intake holds no word)
+  forms.view: read
+  forms.template.edit: user
+  forms.template.publish: controller
+  forms.submit: user
+  forms.review: controller
+  forms.void: controller
+  forms.intake.issue: controller
+  forms.intake.review: controller

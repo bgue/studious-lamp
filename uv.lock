@@ -21,6 +21,7 @@ members = [
     "tl-mod-cost",
     "tl-mod-documents",
     "tl-mod-engineering",
+    "tl-mod-forms",
     "tl-mod-legacy",
     "tl-mod-materials",
     "tl-mod-permits",
@@ -2747,6 +2748,7 @@ dependencies = [
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
+    { name = "tl-mod-forms" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
     { name = "tl-mod-permits" },
@@ -2772,6 +2774,7 @@ requires-dist = [
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-mod-forms", editable = "packages/tl-modules/forms" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
     { name = "tl-mod-permits", editable = "packages/tl-modules/permits" },
@@ -2799,6 +2802,7 @@ dependencies = [
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
+    { name = "tl-mod-forms" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
     { name = "tl-mod-permits" },
@@ -2826,6 +2830,7 @@ requires-dist = [
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-mod-forms", editable = "packages/tl-modules/forms" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
     { name = "tl-mod-permits", editable = "packages/tl-modules/permits" },
@@ -2938,6 +2943,7 @@ dependencies = [
     { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-lake" },
+    { name = "tl-mod-forms" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
     { name = "tl-mod-permits" },
@@ -2957,6 +2963,7 @@ requires-dist = [
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
+    { name = "tl-mod-forms", editable = "packages/tl-modules/forms" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
     { name = "tl-mod-permits", editable = "packages/tl-modules/permits" },
@@ -3092,6 +3099,27 @@ dependencies = [
 requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "pyyaml", specifier = ">=6" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
+name = "tl-mod-forms"
+version = "0.1.0"
+source = { editable = "packages/tl-modules/forms" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
@@ -3363,6 +3391,7 @@ dependencies = [
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
+    { name = "tl-mod-forms" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
     { name = "tl-mod-permits" },
@@ -3388,6 +3417,7 @@ requires-dist = [
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-mod-forms", editable = "packages/tl-modules/forms" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
     { name = "tl-mod-permits", editable = "packages/tl-modules/permits" },
@@ -3406,6 +3436,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "python-multipart" },
     { name = "tl-api" },
+    { name = "tl-mod-forms" },
     { name = "tl-mod-qr" },
     { name = "tl-tui" },
 ]
@@ -3415,6 +3446,7 @@ requires-dist = [
     { name = "jinja2" },
     { name = "python-multipart" },
     { name = "tl-api", editable = "packages/tl-api" },
+    { name = "tl-mod-forms", editable = "packages/tl-modules/forms" },
     { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-tui", editable = "packages/tl-tui" },
 ]

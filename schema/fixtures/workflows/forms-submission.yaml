@@ -1,0 +1,38 @@
+# Workflow of a form submission (ADR-0031): Draft until it is submitted; a controller accepts it or returns it, and a
+# returned form is submitted again. A submitted, accepted or returned form can be voided. A draft can be discarded.
+# Voided and Discarded are final, and an accepted form can only be voided; Submitted to Draft, Discarded to Draft and
+# Accepted to Submitted are not moves. Every move is a command of the forms module (by_module), so the file states the moves and names no role: who
+# may do what is the access word of each command (ADR-0013).
+id: forms.submission
+version: 1
+record_type: forms.Submission
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Submitted
+  - name: Returned
+  - name: Accepted
+  - name: Voided
+  - name: Discarded
+transitions:
+  - name: submit
+    label: Submit the form
+    from: [Draft, Returned]
+    to: Submitted
+  - name: accept
+    label: Accept the form
+    from: [Submitted]
+    to: Accepted
+  - name: return
+    label: Return the form to its author
+    from: [Submitted]
+    to: Returned
+  - name: void
+    label: Void the form
+    from: [Submitted, Accepted, Returned]
+    to: Voided
+  - name: discard
+    label: Discard the draft
+    from: [Draft]
+    to: Discarded

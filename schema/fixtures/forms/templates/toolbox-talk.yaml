@@ -1,0 +1,107 @@
+# Sample form template (P2-FORMS S2): plain data {title, format_version, bound_record_type, answer_class, intake,
+# purpose, accepts_as, fields}. Fields are format 2 (docs/build-spec/module-designs/forms-eval.md section 2.3); a null
+# key is written out. A loader is not part of this piece.
+title: "Toolbox talk"
+format_version: 2
+bound_record_type: null
+answer_class: null
+intake: null
+purpose: null
+accepts_as: null
+fields:
+  - id: "topic"
+    text: "Topic of the talk"
+    kind: "text"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Talk"
+    help: "One line, for example Working at height."
+    visible_when: null
+  - id: "talk_date"
+    text: "Date of the talk"
+    kind: "date"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Talk"
+    help: null
+    visible_when: null
+  - id: "led_by"
+    text: "Led by"
+    kind: "text"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Talk"
+    help: null
+    visible_when: null
+  - id: "hazards_covered"
+    text: "Hazards covered"
+    kind: "multi"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: ["Falls", "Lifting", "Electrical", "Hot work", "Traffic", "Weather"]
+    fails_when: null
+    section: "Content"
+    help: null
+    visible_when: null
+  - id: "ppe_checked"
+    text: "PPE checked?"
+    kind: "yes_no_na"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Content"
+    help: null
+    visible_when: null
+  - id: "ppe_notes"
+    text: "Which PPE was missing?"
+    kind: "text"
+    required: false
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Content"
+    help: null
+    visible_when: {"q": "ppe_checked", "is": "no"}
+  - id: "questions_raised"
+    text: "Questions raised by the crew"
+    kind: "text"
+    required: false
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Close"
+    help: null
+    visible_when: null
+  - id: "attendees"
+    text: "Number of attendees"
+    kind: "number"
+    required: true
+    unit: "people"
+    min: 1
+    max: 200
+    choices: null
+    fails_when: null
+    section: "Close"
+    help: null
+    visible_when: null

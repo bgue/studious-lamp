@@ -1,0 +1,92 @@
+id: https://example.org/throughline/modules/forms/intake_code
+name: tl_mod_forms_intake_code
+title: Intake codes (ADR-0032)
+description: >-
+  An intake code is the server's record of one public address: the hash of the code (never the code), the template
+  version it serves, the record it is about and the role that reviews what arrives. Its life is the workflow
+  `forms.intake-code`. Expiry is derived from `expires_on`; it is never a state.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: forms
+
+classes:
+  IntakeCode:
+    title: Intake code
+    description: >-
+      One issued intake code. Record type `forms.IntakeCode`. Offline class `none`: a code is issued and revoked
+      on the authority. It takes no number. `context_id` is the confidentiality subject. No field holds the code.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "forms.IntakeCode"
+      tl:offline: none
+      tl:table: cur_forms_intake_code
+      tl:ix_context: "context_id"
+    unique_keys:
+      code_hash:
+        description: "A code hash is used once."
+        unique_key_slots:
+          - code_hash
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope of the context record, else `company`."
+      code_hash:
+        pattern: "^[0-9a-f]{64}$"
+        required: true
+        description: "SHA-256 of the code, 64 lower case hex characters."
+      template_id:
+        range: Ulid
+        description: "The template record the code serves."
+      template_version:
+        range: integer
+        minimum_value: 1
+        description: "The template version pinned at issue."
+      template_hash:
+        pattern: "^[0-9a-f]{64}$"
+        description: "The content hash of that version, 64 lower case hex characters."
+      context_id:
+        range: Ulid
+        description: "The record the code is about. The confidentiality subject."
+      context_type:
+        pattern: "^.{1,64}$"
+        description: "Record type of the context, at most 64 characters."
+      heading:
+        pattern: "^.{1,60}$"
+        description: "The heading the public page shows, at most 60 characters."
+      controller_role:
+        pattern: "^.{1,64}$"
+        description: "The role that reviews what arrives, at most 64 characters."
+      issued_by:
+        pattern: "^.{1,64}$"
+        description: "Actor text of who issued it, at most 64 characters."
+      issued_at:
+        range: datetime
+        description: "When it was issued."
+      expires_on:
+        range: date
+        required: true
+        description: "Last day the code works."
+      revoked_at:
+        range: datetime
+        description: "When it was revoked; null unless revoked."
+      revoked_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who revoked it; null unless revoked."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

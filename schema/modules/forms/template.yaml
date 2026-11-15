@@ -1,0 +1,133 @@
+id: https://example.org/throughline/modules/forms/template
+name: tl_mod_forms_template
+title: Form templates (ADR-0031)
+description: >-
+  A template is a published list of fields a person fills in. It is versioned: a changed template is a new record
+  that supersedes the old one, and a submission names the version and the content hash it was filled against. Its
+  life is the workflow `forms.template`. The title of the record is on the envelope. Dates are `YYYY-MM-DD`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: forms
+
+enums:
+  AnswerClass:
+    description: >-
+      The confidentiality class of the answers of a form (ADR-0016). A template with no class means `internal`.
+    permissible_values:
+      internal:
+        description: Visible to every reader of the subject.
+      restricted:
+        description: Visible to the restricted class and above.
+      privileged:
+        description: Visible to the privileged class only.
+  IntakeFlag:
+    description: Whether a template may be filled without signing in (ADR-0032 decision 2).
+    permissible_values:
+      public:
+        description: A code can address this template; the public page serves it.
+  IntakePurpose:
+    description: What a public intake template is for (ADR-0032 decision 2).
+    permissible_values:
+      request:
+        description: A request from a person outside the company.
+      sign_on:
+        description: A sign-on, for example to a toolbox talk.
+
+classes:
+  Template:
+    title: Form template
+    description: >-
+      One version of a form template. Record type `forms.Template`; its key is the number the allocator gives it
+      (`TPL-0001`, company scope). Offline class `none`: a template is written and published centrally.
+      `form_fields` holds a JSON list of at most 60 fields. Format 1 is the checklist question
+      `{id, text, kind, required, unit, min, max, choices, fails_when}`; format 2 adds the optional keys `section`,
+      `help` and `visible_when` and the kinds `multi`, `date` and `photo`
+      (`docs/build-spec/module-designs/forms-eval.md` section 2.3). The schema stores the JSON and
+      `tl_core.forms.rules` checks its shape. `field_count` is the length of that list. `content_hash` is set when the
+      template is published. `bound_record_type` names the record type a bound form is for; null for a general form.
+      A template with `intake: public` is the template of a public intake form; only then are `purpose` and
+      `accepts_as` (a JSON list of command names) set.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "forms.Template"
+      tl:offline: none
+      tl:table: cur_forms_template
+      tl:ix_content_hash: "content_hash"
+      tl:ix_supersedes: "supersedes_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "`company`."
+      version:
+        range: integer
+        required: true
+        minimum_value: 1
+        ifabsent: int(1)
+        annotations:
+          tl:column: template_version
+        description: "Version number, at least 1; default 1. Column `template_version` (`version` is the envelope's)."
+      format_version:
+        range: integer
+        required: true
+        minimum_value: 1
+        maximum_value: 2
+        ifabsent: int(1)
+        description: "Template document format, 1 or 2."
+      form_fields:
+        range: Any
+        required: true
+        ifabsent: string([])
+        annotations:
+          tl:json: true
+        description: 'JSON list of at most 60 fields. Column `form_fields_json`.'
+      field_count:
+        range: integer
+        minimum_value: 0
+        description: "How many fields the list holds; set from the event."
+      content_hash:
+        pattern: "^[0-9a-f]{64}$"
+        description: "SHA-256 of the canonical fields and format, 64 lower case hex characters; null until published."
+      supersedes_id:
+        range: Ulid
+        description: "The template this one replaces; null when none."
+      bound_record_type:
+        pattern: "^.{1,64}$"
+        description: "Record type the form is bound to, at most 64 characters; null for a general form."
+      answer_class:
+        range: AnswerClass
+        description: "Confidentiality class of the answers; null means `internal`."
+      intake:
+        range: IntakeFlag
+        description: "`public` for a public intake template; null otherwise."
+      purpose:
+        range: IntakePurpose
+        description: "request or sign_on; null unless the template is public."
+      accepts_as:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "JSON list of command names an accepted item may become; null unless the template is public."
+      published_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date it was published, `YYYY-MM-DD`; null until published."
+      retired_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date it was retired, `YYYY-MM-DD`; null unless retired."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

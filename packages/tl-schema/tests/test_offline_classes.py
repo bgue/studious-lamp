@@ -51,6 +51,10 @@ SPEC_RECORDS: dict[str, str] = {
     "engineering.NumberingPattern": "none",
     "engineering.Tag": "full",
     "engineering.TagClass": "none",
+    "forms.IntakeCode": "none",  # P2-FORMS S2
+    "forms.IntakeItem": "none",
+    "forms.Submission": "draft_only",
+    "forms.Template": "none",
     "legacy.LoadRun": "none",
     "materials.InventoryLocation": "none",
     "materials.ItemMaster": "none",
@@ -100,7 +104,7 @@ SPEC_STREAMS: dict[str, str] = {
 
 def test_every_labelled_record_type_has_a_class_and_nothing_else() -> None:
     assert set(OFFLINE_CLASSES) == set(TYPE_LABELS)
-    assert len(OFFLINE_CLASSES) == 62
+    assert len(OFFLINE_CLASSES) == 66
 
 
 def test_the_record_table_is_the_spec_table_cell_for_cell() -> None:

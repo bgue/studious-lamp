@@ -65,6 +65,11 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {"core.ActivityPost": "full", 
 | `correspondence.CommercialItem` | none | — | Every command is a `controller` act and items are restricted by default |
 | `quality.PunchItem` | draft_only | — | A walkdown raises items offline; clear, verify, reopen and void are central (P2-PUNCH) |
 | `qr.ScanCode` | none | — | Issued and revoked on the authority; a code is a server secret by hash (P2-QR S1) |
+| `forms.Template` | none | — | A template is written and published centrally, company scope (P2-FORMS) |
+| `forms.Submission` | draft_only | `SubmitForm`, `SaveFormDraft` | A form is filled and saved on site; accept, return and void are central (P2-FORMS) |
+| `forms.IntakeCode` | none | — | A code is issued and revoked on the authority; a code is a server secret by hash (P2-FORMS, ADR-0032) |
+| `forms.IntakeItem` | none | — | A received item is reviewed on the authority (P2-FORMS, ADR-0032) |
+| `forms.IntakeBody` (table `forms_intake_body`, no record type) | none (operational) | — | The received text: no event produces it, a rebuild never clears it (P2-FORMS, ADR-0032) |
 | `quality.Checklist` | none | — | A checklist is written and published centrally (P2-INSP) |
 | `quality.Inspection` | draft_only | — | An inspection is planned offline; schedule, record, verify and cancel are central (P2-INSP) |
 | `permits.Permit` | none | — | A permit is an act on the authority, like a scaffold tag (P2-PTW) |

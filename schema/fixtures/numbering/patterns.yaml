@@ -149,3 +149,18 @@ patterns:
     template: "{project}-WO-{seq:4}"
     type_code: WO
     gap_free: true
+  # Forms (P2-FORMS, ADR-0031): a template counts once for the company, TPL-0001; a submission counts per project,
+  # P123-FRM-0001, and takes its number when it is submitted, not at the first draft save. Intake codes and items
+  # take no number.
+  - id: forms.Template
+    record_type: forms.Template
+    scope: company
+    template: "{type}-{seq:4}"
+    type_code: TPL
+    gap_free: true
+  - id: forms.Submission
+    record_type: forms.Submission
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: FRM
+    gap_free: true
