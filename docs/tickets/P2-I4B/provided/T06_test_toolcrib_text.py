@@ -52,18 +52,35 @@ def test_a_tool_is_found_by_lot_key_first_then_by_item_code() -> None:
 
 def test_the_command_is_one_movement_from_or_to_the_crib() -> None:
     issue = t.build_command(
-        "issue", lot="L-1", uom="ea", qty="2", person="Ana Ruiz", crib="TC1",
-        actor="user:crib", project="P123",
+        "issue",
+        lot="L-1",
+        uom="ea",
+        qty="2",
+        person="Ana Ruiz",
+        crib="TC1",
+        actor="user:crib",
+        project="P123",
     )
     assert isinstance(issue, IssueStock)
     assert issue.scope == "project:P123" and issue.source == "tui" and issue.actor == "user:crib"
     (m,) = issue.movements
     assert (m.lot_key, m.qty, m.uom, m.from_location, m.to_location, m.person) == (
-        "L-1", "2", "ea", "TC1", None, "Ana Ruiz",
+        "L-1",
+        "2",
+        "ea",
+        "TC1",
+        None,
+        "Ana Ruiz",
     )
     back = t.build_command(
-        "return", lot="L-1", uom="ea", qty="1", person="", crib="TC1",
-        actor="user:crib", project="P123",
+        "return",
+        lot="L-1",
+        uom="ea",
+        qty="1",
+        person="",
+        crib="TC1",
+        actor="user:crib",
+        project="P123",
     )
     assert isinstance(back, ReturnStock)
     (m,) = back.movements
@@ -73,7 +90,10 @@ def test_the_command_is_one_movement_from_or_to_the_crib() -> None:
 def test_done_texts_are_words() -> None:
     assert t.done_text("issue", "2", "ea", "L-1", "Ana Ruiz") == "Issued 2 ea of L-1 to Ana Ruiz."
     assert t.done_text("return", "1", "ea", "L-1", "") == "Took back 1 ea of L-1."
-    assert t.done_text("return", "1", "ea", "L-1", "Ana Ruiz") == "Took back 1 ea of L-1 from Ana Ruiz."
+    assert (
+        t.done_text("return", "1", "ea", "L-1", "Ana Ruiz")
+        == "Took back 1 ea of L-1 from Ana Ruiz."
+    )
 
 
 def test_the_module_leaves_textual_out() -> None:

@@ -77,3 +77,8 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15)
+One assert in the provided test exceeded the ruff line limit where it lands. It is wrapped in parentheses (no assertion
+change) and `docs/tickets/P2-I4B/provided/T06_test_toolcrib_text.py` is updated to the same bytes; both paths are
+allowed for that.
