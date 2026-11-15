@@ -13,7 +13,7 @@ T07b t mrg f 3fc897e2 review P
 T09c t mrg f cb1e81ef review P
 T11a t disp f - demo project `scaffold` section (P200 data for tour); D19
 T12 t mrg l d1484534 esc settled amend 1
-T10a t stg f - demo clauses 5, 6 (lifecycle, due, dismantle); after T09c
+T10a t mrg f 863b91a3 review P; stale echo fix in T10b
 T10b t stg f - demo clause 7 toolcrib; after T10a
 T11b t stg l - tour shots 13-15; after T11a
 ## DEC
