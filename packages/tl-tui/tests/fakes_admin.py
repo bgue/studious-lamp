@@ -36,6 +36,7 @@ from tl_core.auth.names import MAX_DISPLAY_NAME, MAX_LABEL, check_reason, check_
 from tl_core.auth.password import check_policy
 from tl_core.auth.types import ROLES, AccountKind, AccountView, AgentTokenView, Role
 from tl_core.modules import load_modules
+from tl_core.services.agent_stop import StoppedAgent
 
 _ADMIN_T0 = datetime(2026, 10, 9, 9, 0, 0, tzinfo=UTC)
 _ROLES = ROLES
@@ -58,6 +59,7 @@ class FakeAdminSupport:
         self.last_issued_token: str | None = None
         self._module_grants: list[ModuleRoleGrantView] = []
         self.me_account_id: str | None = None  # who `my_roles` answers for; None: the first admin
+        self.stopped_agents: list[StoppedAgent] = []  # tests set it
 
     # --- seeding ----------------------------------------------------------------------------
 
@@ -226,6 +228,10 @@ class FakeAdminSupport:
             if (account_id is None or t.account_id == account_id)
             and (include_revoked or not t.revoked)
         ]
+
+    def list_stopped_agents(self, limit: int = 200) -> list[StoppedAgent]:
+        self._gate("list_stopped_agents", limit=limit)
+        return self.stopped_agents[:limit]
 
     def issue_agent_token(
         self, account_id: str, label: str, *, expires_in_days: int | None = 90

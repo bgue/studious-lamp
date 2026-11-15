@@ -11,6 +11,7 @@ from datetime import datetime
 
 from tl_core.auth.module_role_views import EffectiveRoleView, ModuleRoleGrantView
 from tl_core.auth.types import AccountView, AgentTokenView
+from tl_core.services.agent_stop import StoppedAgent
 
 from tl_tui.display import humanize
 from tl_tui.layout import EMPTY, Page, Prop, Section, join_facts, state_line
@@ -77,8 +78,14 @@ def token_cells(
     return (*cells, token.token_id) if technical else cells
 
 
-def detail_lines(view: AccountView, tokens: Sequence[AgentTokenView], now: str) -> list[str]:
-    """The panel under the table: one ``Label   value`` line per fact; agents also count tokens."""
+def detail_lines(
+    view: AccountView,
+    tokens: Sequence[AgentTokenView],
+    now: str,
+    stopped: StoppedAgent | None = None,
+) -> list[str]:
+    """The panel under the table: one ``Label   value`` line per fact; agents also count tokens
+    and show whether they may file, with the held count the service returned (no count here)."""
     lock = (
         "none" if view.locked_until is None else f"■ locked until {moment(view.locked_until)} UTC"
     )
@@ -96,6 +103,17 @@ def detail_lines(view: AccountView, tokens: Sequence[AgentTokenView], now: str) 
         live = sum(1 for token in mine if token_state(token, now) == "✓ active")
         revoked = sum(1 for token in mine if token.revoked)
         pairs.append(("Tokens", f"{live} live, {revoked} revoked"))
+        if stopped is None:
+            pairs.append(("Filing", "allowed"))
+        else:
+            # no stamp on record: the empty mark stands where the moment would be
+            since = EMPTY if stopped.stopped_at is None else f"{moment(stopped.stopped_at)} UTC"
+            pairs.append(("Filing", f"■ stopped since {since}"))
+            pairs.append(("Held", f"{stopped.held} pending"))
+            if stopped.reason:
+                pairs.append(("Reason", stopped.reason))
+            if stopped.stopped_by:
+                pairs.append(("By", stopped.stopped_by))
     return [f"{label:<10}{value}" for label, value in pairs]
 
 
