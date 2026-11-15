@@ -48,6 +48,8 @@ CLASSES: Final = (INTERNAL, RESTRICTED, PRIVILEGED)
 #: The clearance level that reads each class that has one (``privileged`` has none: it is named).
 _LEVELS: Final = {INTERNAL: 0, RESTRICTED: 1}
 ACCOUNT_PARAM: Final = "_cf_acct"
+#: The bind parameter that carries the viewer's actor for the author-only draft rule.
+ACTOR_PARAM: Final = "_cf_actor"
 
 
 @dataclass(frozen=True)
@@ -169,8 +171,30 @@ SUBJECT_LINKS: Final = (
     ("requisitions.ScaffoldRequest", "cur_requisitions_scaffold_request", "id", "for_record_id"),
     ("requisitions.WorkOrder", "cur_requisitions_work_order", "id", "requisition_id"),
     ("quality.PunchItem", "cur_quality_punch_item", "id", "source_id"),
+    # forms (P2-FORMS CR1). A submission is hidden when its subject is. An intake item is hidden
+    # when its code's context is: item -> code (hop one) -> context (hop two). A submission whose
+    # subject is a punch item follows the punch item's own subject on the second hop; a chain
+    # deeper than ``_HOPS`` stops there (the record reached on the last hop governs). A code with
+    # no context is its own subject, and no source classes it.
+    ("forms.Submission", "cur_forms_submission", "id", "subject_id"),
+    ("forms.IntakeItem", "cur_forms_intake_item", "id", "code_id"),
+    ("forms.IntakeCode", "cur_forms_intake_code", "id", "context_id"),
 )
 _HOPS: Final = 2
+#: Record types whose own source row is also checked when a subject governs: a submission's
+#: ``answer_class`` may be higher than its subject's class, and then it hides the submission from
+#: a viewer who may not read that class even when the subject is readable. A record of such a
+#: type is also hidden by its own source row alone, whatever its subject (one flat part, no join).
+#: Only types of a source a module declared count.
+OWN_CLASS_TYPES: Final = frozenset({"forms.Submission"})
+#: The author-only draft rule (P2-FORMS CR1, ADR-0032 decision 6): a submission with no
+#: ``submitted_on`` (a draft, kept or discarded) is read by its author alone. It is the one rule
+#: that depends on who asks and not on a class. The ``system`` viewer hides nothing, so jobs and
+#: rebuilds read drafts; no reader serves a person through it.
+DRAFT_TYPE: Final = "forms.Submission"
+_DRAFT_TABLE: Final = "cur_forms_submission"
+#: The template table: its ``answer_class`` is what a proposed submission's answers will be.
+_TEMPLATE_TABLE: Final = "cur_forms_template"
 
 
 def _subject_chain() -> tuple[str, str]:
@@ -196,12 +220,28 @@ def _of_types(types: frozenset[str]) -> str:
     return f"rr.type IN ({_types(types)})"
 
 
+def _own_draft(viewer: Viewer) -> str:
+    """SQL that is true when ``hr`` is a draft the viewer wrote: its class does not hide it from
+    its author (the author fills in a form of any class; once it is submitted the class governs)."""
+    if not viewer.account or not is_module_record_type(DRAFT_TYPE):
+        return "1 = 0"
+    return (
+        f"EXISTS (SELECT 1 FROM {_DRAFT_TABLE} d WHERE d.id = hr.id AND d.submitted_on IS NULL "
+        f"AND d.author = :{ACTOR_PARAM})"
+    )
+
+
 def _source_hidden(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> str:
     joins, subj = _subject_chain()
+    exempt = (
+        f" AND NOT (hr.id = rr.id AND {_own_draft(viewer)})"
+        if source.record_types & OWN_CLASS_TYPES
+        else ""
+    )
     return (
         f"SELECT hr.id FROM cur_core_record hr{joins} "
         f"WHERE {_of_types(source.record_types)}"
-        f"{_only(only)} "
+        f"{_only(only)}{exempt} "
         f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = {subj} "
         f"AND ({_allowed(source, viewer)}))"
     )
@@ -229,18 +269,56 @@ def _child_hidden(
     )
 
 
+def _own_hidden(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> str:
+    """The records of ``OWN_CLASS_TYPES`` whose own row is not readable (no subject, no join); a
+    draft is its author's whatever its class."""
+    types = source.record_types & OWN_CLASS_TYPES
+    return (
+        f"SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ({_types(types)})"
+        f"{_only(only)} AND NOT {_own_draft(viewer)} "
+        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = hr.id "
+        f"AND ({_allowed(source, viewer)}))"
+    )
+
+
+def _draft_parts(viewer: Viewer, only: str | None = None) -> list[str]:
+    """The drafts the viewer is not the author of: the draft itself, and a record whose governing
+    subject is such a draft. Nothing when the forms module is not installed."""
+    if not is_module_record_type(DRAFT_TYPE):
+        return []
+    # a viewer with no account (the default, an agent) is nobody's author; a draft with no
+    # author is nobody's too
+    other = f"(d.author IS NULL OR d.author <> :{ACTOR_PARAM})" if viewer.account else "1 = 1"
+    own = (
+        f"SELECT hr.id FROM cur_core_record hr JOIN {_DRAFT_TABLE} d ON d.id = hr.id "
+        f"WHERE hr.type = '{DRAFT_TYPE}'{_only(only)} AND d.submitted_on IS NULL "
+        f"AND {other}"
+    )
+    joins, subj = _subject_chain()
+    governed = (
+        f"SELECT hr.id FROM cur_core_record hr{joins} JOIN {_DRAFT_TABLE} d ON d.id = {subj} "
+        f"WHERE hr.id <> {subj} AND rr.type = '{DRAFT_TYPE}'{_only(only)} "
+        f"AND d.submitted_on IS NULL AND {other}"
+    )
+    return [own, governed]
+
+
 def _source_parts(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> list[str]:
-    """The root's hidden records, then each child's."""
-    return [_source_hidden(source, viewer, only)] + [
+    """The root's hidden records, then each child's, then the records of an own-class type whose
+    own row is not readable."""
+    parts = [_source_hidden(source, viewer, only)] + [
         _child_hidden(source, child, viewer, only) for child in source.children
     ]
+    if source.record_types & OWN_CLASS_TYPES:
+        parts.append(_own_hidden(source, viewer, only))
+    return parts
 
 
 def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str | None:
     """A ``SELECT id`` of every record ``viewer`` must not read; ``None`` when nothing is hidden.
 
     The text holds only names the modules declared and the bind parameter ``_cf_acct`` (see
-    ``params_for``). A system viewer hides nothing.
+    ``params_for``). A system viewer hides nothing (the author-only draft rule included).
 
     ``only`` is a condition on ``hr.id`` (``hr`` is the record under test) written by the caller
     (``hr.id = :_cf_id``, ``hr.id IN :_cf_ids`` or ``hr.id = l.from_id``, never user input): the
@@ -253,13 +331,21 @@ def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str 
     parts: list[str] = []
     for source in confidential_sources():
         parts.extend(_source_parts(source, who, only))
+    parts.extend(_draft_parts(who, only))
     return " UNION ALL ".join(parts) if parts else None
 
 
 def params_for(sql: str, viewer: Viewer | None = None) -> dict[str, Any]:
-    """The bind parameters ``sql`` (from this module) needs: the account, when it names one."""
+    """The bind parameters ``sql`` (from this module) needs: the account and the actor, when it
+    names them. A viewer with no account (the default, an agent) has no actor to match, and the
+    draft rule then does not bind it at all."""
     who = viewer if viewer is not None else current_viewer()
-    return {ACCOUNT_PARAM: who.account} if f":{ACCOUNT_PARAM}" in sql else {}
+    found: dict[str, Any] = {}
+    if f":{ACCOUNT_PARAM}" in sql:
+        found[ACCOUNT_PARAM] = who.account
+    if f":{ACTOR_PARAM}" in sql:
+        found[ACTOR_PARAM] = who.actor
+    return found
 
 
 def not_hidden(id_expr: str, viewer: Viewer | None = None) -> tuple[str, dict[str, Any]]:
@@ -477,14 +563,46 @@ def payload_record_ids(payload: Any) -> set[str]:
     return set(_ULID.findall(raw))
 
 
+def hidden_answer_templates(
+    conn: Connection, ids: Iterable[str], viewer: Viewer | None = None
+) -> set[str]:
+    """The ids among ``ids`` that are form templates whose answer class the viewer may not read.
+
+    A proposed submission (``cur_proposals.command_json``, the ``Proposal.Created`` event) holds
+    the answers of a form that does not exist yet, so it is classed by its template: the proposal
+    is as hidden as the answers will be (P2-FORMS CR1). Empty when no module declares an
+    own-class type (forms is not installed) or for the system viewer.
+    """
+    who = viewer if viewer is not None else current_viewer()
+    wanted = sorted({i for i in ids if i})
+    sources = [c for c in confidential_sources() if c.record_types & OWN_CLASS_TYPES]
+    if who.system or not wanted or not sources or not is_module_record_type(DRAFT_TYPE):
+        return set()
+    found: set[str] = set()
+    for source in sources:
+        sql = (
+            f"SELECT s.{source.id_column} FROM {_TEMPLATE_TABLE} s "
+            f"WHERE s.{source.id_column} IN :_cf_ids AND NOT ({_allowed(source, who)})"
+        )
+        statement = text(sql).bindparams(bindparam("_cf_ids", expanding=True))
+        rows = conn.execute(statement, {"_cf_ids": wanted, **params_for(sql, who)})
+        found.update(str(row[0]) for row in rows)
+    return found
+
+
 def names_hidden_record(
     conn: Connection, stream_type: str, payload: Any, viewer: Viewer | None = None
 ) -> bool:
-    """True when an event of a scanned stream type names a record the viewer must not read."""
+    """True when an event of a scanned stream type names a record the viewer must not read, or
+    (a proposal) a form template whose answer class the viewer must not read."""
     if stream_type not in SCANNED_STREAM_TYPES or hidden_sql(viewer) is None:
         return False
     ids = sorted(payload_record_ids(payload))
-    return bool(ids) and bool(hidden_among(conn, ids, viewer))
+    if not ids:
+        return False
+    if hidden_among(conn, ids, viewer):
+        return True
+    return stream_type == "core.Proposal" and bool(hidden_answer_templates(conn, ids, viewer))
 
 
 def hidden_event_ids(

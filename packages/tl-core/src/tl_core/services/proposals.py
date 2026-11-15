@@ -370,7 +370,8 @@ def _carried_ids(value: Any, found: set[str], depth: int = 0) -> None:
 
 
 def _readable(conn: Connection, views: list[ProposalView]) -> list[ProposalView]:
-    """The proposals that carry no id of a record the viewer may not read (ADR-0016)."""
+    """The proposals that carry no id of a record the viewer may not read, and no form template
+    whose answer class the viewer may not read (ADR-0016)."""
     carried: dict[str, set[str]] = {}
     for view in views:
         ids: set[str] = set()
@@ -381,7 +382,9 @@ def _readable(conn: Connection, views: list[ProposalView]) -> list[ProposalView]
         every |= ids
     results = {v.result_stream_id for v in views if v.result_stream_id}
     hidden = confidentiality.hidden_among(conn, sorted(every | results))
-    shown = [v for v in views if not (carried[v.proposal_id] & hidden)]
+    # a proposed submission holds answers: it is as hidden as its template's answer class says
+    classed = confidentiality.hidden_answer_templates(conn, sorted(every))
+    shown = [v for v in views if not (carried[v.proposal_id] & (hidden | classed))]
     # What an accepted command made may be a record the viewer cannot read (a restricted notice
     # made from an RFI): the proposal stays visible, the id of the new record does not.
     return [

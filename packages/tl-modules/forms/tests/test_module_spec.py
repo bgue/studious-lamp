@@ -78,11 +78,15 @@ def test_the_generic_commands_are_those_of_a_submission_only() -> None:
     assert {k for k in built.generic_guards} == {(SUBMISSION, c) for c in allowed}
 
 
-def test_no_confidential_declaration_yet() -> None:
-    """CR1 adds it with the subject rows, before any read path ships."""
+def test_one_confidential_source_classes_a_submission_by_its_answer_class() -> None:
     built = spec()
-    assert getattr(built, "confidential", None) in (None, (), [])
-    assert not [c for c in confidential_sources() if c.table.startswith(("cur_forms", "forms_"))]
+    assert [(c.table, c.class_column, c.null_class) for c in built.confidential] == [
+        ("cur_forms_submission", "answer_class", "internal")
+    ]
+    assert built.confidential[0].record_types == {SUBMISSION}
+    assert [c for c in confidential_sources() if c.table.startswith("cur_forms")] == list(
+        built.confidential
+    )
 
 
 def test_the_platform_discovers_the_module_through_its_entry_point() -> None:

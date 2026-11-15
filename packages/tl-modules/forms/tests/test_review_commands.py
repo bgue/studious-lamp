@@ -9,6 +9,7 @@ from forms_world import World
 from pydantic import ValidationError
 from sqlalchemy import text
 from tl_adapters.db import open_uow
+from tl_core import confidentiality as cf
 from tl_core.auth.errors import ForbiddenError
 from tl_core.modules import require_generic
 from tl_core.services.commands import UpdateRecord, VoidRecord
@@ -154,7 +155,10 @@ def test_the_generic_commands_are_the_listed_ones_and_wait_for_a_submit(world: W
         with open_uow(world.db, readonly=True) as uow:
             conn = uow.conn()
             require_generic(conn, "forms.Submission", name, done, actor="user:uma")
-            with pytest.raises(UnsupportedRecordTypeError, match=MSG_NOT_SUBMITTED):
+            with (
+                cf.use_viewer(cf.Viewer(actor="user:uma", account="user:uma")),
+                pytest.raises(UnsupportedRecordTypeError, match=MSG_NOT_SUBMITTED),
+            ):  # a draft is its author's alone (CR1)
                 require_generic(conn, "forms.Submission", name, draft, actor="user:uma")
     world.call("bea", "VoidFormSubmission", submission_id=done, reason="x")
     with open_uow(world.db, readonly=True) as uow, pytest.raises(UnsupportedRecordTypeError):

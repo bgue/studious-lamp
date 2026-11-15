@@ -72,6 +72,16 @@ POLICY_EVENT_TYPES: frozenset[str] = frozenset(
     }
 )
 
+#: A forms submission's stream. A draft makes no card (P2-FORMS CR1): its first save, its saves and
+#: its discard are the author's own work in progress, and ``feed_policy`` is not read for these
+#: events (see ``POLICY_EVENT_TYPES``), so the rule is by stream. The record events a submission
+#: takes are plumbing too: the number, when it is set, is no news. The card of a submit
+#: (``Submission.Submitted``) stays; it names no answer and is about the submission's record, so
+#: the class filter hides it with the submission (its subject, its answer class, the author-only
+#: rule once the stream is read as a draft).
+FORMS_SUBMISSION_STREAM = "forms.Submission"
+_FORMS_PLUMBING = frozenset({"Record.Created", "Record.Updated"})
+
 TRANSPARENT_EVENT_TYPES: frozenset[str] = frozenset({"Numbering.Allocated", "Link.Suggested"})
 TRANSPARENT_PREFIXES: tuple[str, ...] = (
     "Webhook.",
@@ -126,6 +136,18 @@ def is_transparent(event_type: str) -> bool:
     return event_type in TRANSPARENT_EVENT_TYPES or event_type.startswith(TRANSPARENT_PREFIXES)
 
 
+def is_draft_plumbing(event: Event) -> bool:
+    """True for an event of a forms submission that is a draft's life or the record plumbing
+    around it: no card (a discard is the move to ``Discarded``)."""
+    if event.stream_type != FORMS_SUBMISSION_STREAM:
+        return False
+    if event.event_type in _FORMS_PLUMBING or event.event_type.startswith("Submission.Draft"):
+        return True
+    return (
+        event.event_type == "Workflow.Transitioned" and event.payload.get("to_state") == "Discarded"
+    )
+
+
 def to_us(moment: datetime) -> int:
     """Microseconds since the Unix epoch, exactly (integer arithmetic). Naive means UTC."""
     aware = moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
@@ -160,7 +182,11 @@ def policy_text(event: Event) -> str:
 def disposition(open_card: OpenCard | None, event: Event) -> Disposition:
     """What ``event`` does to its scope's open card. See the module docstring."""
     event_type = event.event_type
-    if is_transparent(event_type) or is_shadow_proposal(event_type, event.payload):
+    if (
+        is_transparent(event_type)
+        or is_shadow_proposal(event_type, event.payload)
+        or is_draft_plumbing(event)
+    ):
         return "ignore"
     policy = policy_of(event)
     if policy == "none":
