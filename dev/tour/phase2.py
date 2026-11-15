@@ -6,9 +6,9 @@
 Same method as `wave1.py` (see `tourkit.py`): a fresh SQLite ledger in a temporary directory, the
 real TUI driven headless, the frozen clock, and the leak check on every plain screenshot. The
 project is built once by the demo project generator (`seed_demo_project` from `wave1`); no
-network, no Postgres. It writes twelve SVGs. Every actor is written ``user:<name>``: a bare name
+network, no Postgres. It writes fifteen SVGs. Every actor is written ``user:<name>``: a bare name
 resolves to no account, so a screen that checks a read word (constraints, requisitions, work
-orders, punch) refuses it:
+orders, punch, scaffolds, the toolcrib) refuses it:
 
     01-iwps          the IWP register                          user:lhartmann
     02-constraints   the constraints                           user:gwhitfield (viewer, all modules)
@@ -22,6 +22,9 @@ orders, punch) refuses it:
     10-punch         the punch list                            user:hsato
     11-schedule      the schedules                            user:lhartmann
     12-packages      the packages                             user:lhartmann
+    13-scaffolds     the scaffold register                     user:mokafor
+    14-scaffold-record  one scaffold with its inspections      user:lhartmann
+    15-toolcrib      the toolcrib TC1 after one issue line     user:treyes
 """
 
 from __future__ import annotations
@@ -50,6 +53,10 @@ DEFAULT_OUT = REPO / "docs/reports/tour/phase-2"
 TODAY = datetime(2026, 11, 6, 9, 0, 0, tzinfo=UTC)  # the project calendar's "today"
 AWP = "lhartmann"  # the project engineer: awp (IWPs, readiness, weekly cycle), schedules, packages
 IWP = "P200-IWP-CIV-0001"  # an IWP number from the 01-iwps shot
+STORES = "treyes"  # the materials coordinator: requisitions, work orders, the toolcrib
+SCAFFOLD = "P200-SCF-0001"  # the one scaffold of the demo project (scaffold section, T11a)
+CRIB = "TC1"  # the toolcrib of P200
+TOOL_PERSON = "Ana Ruiz"  # the person the toolcrib shot issues to (free text on the line)
 
 
 async def _open(pilot: Pilot[Any], app: Any, make: Callable[[Any], Any], what: str) -> None:
@@ -82,6 +89,56 @@ def scenario(
     tk.run_tui(ws, app, run_it)
 
 
+def scaffold_record(ws: Workspace) -> None:
+    """14: one scaffold opened on its record (the register's Enter does the same push)."""
+    from tl_tui.main import build_app
+    from tl_tui.widgets.scaffold_register import ScaffoldScreen
+
+    app = build_app(ws.db, PROJECT, live=False, actor=f"user:{AWP}")
+
+    async def run_it(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        app.push_screen(ScaffoldScreen(app.client, PROJECT, SCAFFOLD))
+        await tk.until(pilot, lambda: "Inspections" in tk.screen_text(app), "the scaffold record")
+        tk.shot_tui(
+            ws,
+            app,
+            "14-scaffold-record",
+            "One scaffold of P200 with its inspections",
+            SCAFFOLD,
+            "Inspections",
+        )
+
+    tk.run_tui(ws, app, run_it)
+
+
+def toolcrib(ws: Workspace) -> None:
+    """15: the toolcrib screen (a modal, so no ``rows``) after one issue line at TC1."""
+    from tl_tui.main import build_app
+    from tl_tui.toolcrib_text import done_text
+    from tl_tui.widgets.toolcrib_screen import ToolcribScreen
+
+    app = build_app(ws.db, PROJECT, live=False, actor=f"user:{STORES}")
+
+    async def run_it(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        app.push_screen(ToolcribScreen(app.client, PROJECT, f"user:{STORES}", CRIB))
+        await tk.until(pilot, lambda: len(app.screen.query("#tc-line")) > 0, "the toolcrib line")
+        stock = app.client.list_materials_stock(PROJECT, location=CRIB)
+        held = [r for r in stock if r.on_hand >= 1]
+        tk.expect(bool(held), f"no lot with stock at {CRIB} in {PROJECT}")
+        row = held[0]
+        await pilot.press(*f"{row.lot} {TOOL_PERSON} x1")
+        await pilot.press("enter")
+        want = done_text("issue", "1", row.uom, row.lot, TOOL_PERSON)
+        await tk.until(pilot, lambda: want in tk.screen_text(app), "the issue status line")
+        tk.shot_tui(
+            ws, app, "15-toolcrib", f"The toolcrib {CRIB} of P200 after one issue", CRIB, want
+        )
+
+    tk.run_tui(ws, app, run_it)
+
+
 def shots(ws: Workspace) -> None:
     from tl_tui.widgets.constraint_screen import ConstraintScreen
     from tl_tui.widgets.iwp_register import IwpRegisterScreen
@@ -89,6 +146,7 @@ def shots(ws: Workspace) -> None:
     from tl_tui.widgets.punch_log import PunchLogScreen
     from tl_tui.widgets.readiness_screen import ReadinessScreen
     from tl_tui.widgets.requisition_register import RequisitionLogScreen
+    from tl_tui.widgets.scaffold_register import ScaffoldLogScreen
     from tl_tui.widgets.schedule_screen import ScheduleScreen
     from tl_tui.widgets.weekly_screen import (
         CommitmentsScreen,
@@ -218,6 +276,18 @@ def shots(ws: Workspace) -> None:
         "EWP-0101",
         "Pipe rack structural steel",
     )
+    scenario(
+        ws,
+        "13-scaffolds",
+        "The scaffold register of P200: the scaffolds in their states",
+        "mokafor",  # lhartmann is refused the register's rows (T11b); the ticket's fallback
+        lambda c: ScaffoldLogScreen(c, PROJECT),
+        "the scaffolds",
+        SCAFFOLD,
+        "In Use",
+    )
+    scaffold_record(ws)
+    toolcrib(ws)
 
 
 def main(argv: list[str] | None = None) -> int:
