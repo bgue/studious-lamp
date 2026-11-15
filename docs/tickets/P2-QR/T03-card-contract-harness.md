@@ -68,3 +68,8 @@ Standard report; first line: test copy byte-identical or not (phrase 101).
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15)
+The provided test failed `just check` (ruff E501 and format) where it lands. Decision: the landed copy is reformatted with
+`ruff format` and docstring wraps only, no assertion changed, and `docs/tickets/P2-QR/provided/<this test>` is updated to
+the same bytes so the two stay identical. Allowed paths gain that provided file for this purpose only.
