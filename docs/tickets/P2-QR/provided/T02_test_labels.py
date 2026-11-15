@@ -17,7 +17,17 @@ def test_format_code_groups_of_four() -> None:
     assert labels.format_code(CODE) == "7KQ2-M9XA-4TTC-P0HV"
 
 
-@pytest.mark.parametrize("bad", ["", "7KQ2M9XA4TTCP0H", "7KQ2M9XA4TTCP0HVV", "7kq2m9xa4ttcp0hv", "7KQ2-M9XA-4TTC-P0H", "7KQ2M9XA4TTCP0H!"])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "",
+        "7KQ2M9XA4TTCP0H",
+        "7KQ2M9XA4TTCP0HVV",
+        "7kq2m9xa4ttcp0hv",
+        "7KQ2-M9XA-4TTC-P0H",
+        "7KQ2M9XA4TTCP0H!",
+    ],
+)
 def test_format_code_refuses_a_malformed_code(bad: str) -> None:
     with pytest.raises(labels.LabelError):
         labels.format_code(bad)
@@ -31,7 +41,14 @@ def test_label_url_is_base_web_q_code() -> None:
 
 @pytest.mark.parametrize(
     "base",
-    ["", "http://tl.example.com", "https://tl.example.com/", "https://tl.example.com/x", "https://tl.example.com?a=1", "https://u@tl.example.com"],
+    [
+        "",
+        "http://tl.example.com",
+        "https://tl.example.com/",
+        "https://tl.example.com/x",
+        "https://tl.example.com?a=1",
+        "https://u@tl.example.com",
+    ],
 )
 def test_label_url_refuses_a_base_the_setting_would_refuse(base: str) -> None:
     with pytest.raises(labels.LabelError):
@@ -53,7 +70,9 @@ def test_sizes_tag_only_for_now() -> None:
 
 
 def test_render_contains_the_svg_the_grouped_code_and_the_page_size() -> None:
-    html = labels.render_label(code=CODE, text="IWP P123-IWP-0042", size="tag", svg="<svg id='qr'></svg>")
+    html = labels.render_label(
+        code=CODE, text="IWP P123-IWP-0042", size="tag", svg="<svg id='qr'></svg>"
+    )
     assert "<svg id='qr'></svg>" in html
     assert "7KQ2-M9XA-4TTC-P0HV" in html
     assert "IWP P123-IWP-0042" in html
@@ -68,7 +87,9 @@ def test_render_never_prints_the_raw_code_run_together_or_the_url() -> None:
 
 
 def test_text_is_escaped_and_bounded() -> None:
-    html = labels.render_label(code=CODE, text="<script>alert(1)</script>&", size="tag", svg="<svg/>")
+    html = labels.render_label(
+        code=CODE, text="<script>alert(1)</script>&", size="tag", svg="<svg/>"
+    )
     assert "<script" not in html
     assert "&lt;script&gt;" in html and "&amp;" in html
     with pytest.raises(labels.LabelError):
@@ -83,7 +104,17 @@ def test_no_text_is_allowed_and_prints_no_text_line() -> None:
 
 def test_page_loads_nothing_from_outside_and_runs_no_script() -> None:
     html = labels.render_label(code=CODE, text="a", size="tag", svg="<svg/>").lower()
-    for needle in ("<script", "src=", "href=", "@import", "url(", "http://", "https://", "<link", "<img"):
+    for needle in (
+        "<script",
+        "src=",
+        "href=",
+        "@import",
+        "url(",
+        "http://",
+        "https://",
+        "<link",
+        "<img",
+    ):
         assert needle not in html
 
 
