@@ -4,7 +4,7 @@ Integration branch `p2/ip` created at this commit's parent chain head (not pushe
 ## BOARD
 QR-S1 p mrg f a34abf02 review P; ADR-0030 accepted; APPROVALS
 INSP-S1 p mrg f ed1ff779 review P; F1 MD `at` accepted; APPROVALS
-PTW-S1 p stg f - dispatch when QR-S1 or INSP-S1 ends
+PTW-S1 p mrg f 15962582 review P; APPROVALS (gas defaults pending safety lead)
 QR-T02 t mrg l 26266171 review P after amend 1 + report fix
 QR-T03 t mrg f 09182bee review P; 2 LO
 INSP-T00 t stg f - insp_rules.py; needs INSP-S1 merged; provided test staged
