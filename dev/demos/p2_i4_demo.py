@@ -27,6 +27,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NoReturn
 
+from agent_grant import grant_agent
 from fastapi.testclient import TestClient
 from textual.widgets import Input
 from tl_adapters.backend import open_backend
@@ -119,6 +120,8 @@ def allow(actor: str, action: str, resource: str) -> None:
 
 
 def mcp_server(world: World, actor: str) -> Any:
+    if actor.startswith("agent:"):  # S1: an agent files only under an explicit grant
+        grant_agent(os.environ["TL_DB"], actor, [PROJECT])
     lake = world.workdir / "lake"
     return build_server(
         make_uow_factory(world.target), actor=actor, authorize_hook=allow, lake_dir=lake

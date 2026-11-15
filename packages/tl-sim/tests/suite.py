@@ -21,6 +21,7 @@ from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore, add_token
 from tl_core.auth import accounts
 from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.types import AccountKind
 from tl_core.files.service import FileService
 from tl_sim.client import HttpSimClient, Keys, install_stamp
 from tl_sim.clock import SimClock
@@ -113,15 +114,16 @@ def build_suite(tmp_path: Path, *, standards: bool = False, objects: bool = Fals
 
 
 def _grant_assistant(backend: SqliteUowFactory) -> None:
-    """As an admin would: the assistant gets an account and an explicit ``user`` grant on the sim project.
+    """As an admin would: the assistant gets an account and an explicit ``user`` grant here.
 
-    S1: an agent files only under a module grant on the scope; a derived account role does not count.
+    S1: an agent files only under a module grant; a derived account role does not count.
     """
     with backend() as uow:
-        for name, kind, roles in (
+        people: list[tuple[str, AccountKind, list[str]]] = [
             ("sim-admin", "person", ["admin"]),
             ("sim-assistant", "agent", ["user"]),
-        ):
+        ]
+        for name, kind, roles in people:
             made = accounts.create_account(
                 uow, username=name, display_name=name, kind=kind, roles=roles,
                 password=None, by="svc:seed",

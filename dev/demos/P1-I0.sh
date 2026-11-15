@@ -96,6 +96,7 @@ run_backend() {
   export TL_DEMO_AMY_PASSWORD="a long passphrase for amy"
   printf '%s\n' "$TL_DEMO_AMY_PASSWORD" | as demo tl admin user add amy --display-name "Amy A" --password-stdin
   as demo tl admin user add triage --kind agent
+  as demo tl admin roles grant triage --project P123 --module '*' --role user --reason "the demo agent may file proposals" >/dev/null
   TL_DEMO_AGENT_TOKEN="$(as demo tl admin token issue triage --label demo 2>"$workdir/issue.err")"
   export TL_DEMO_AGENT_TOKEN
   cat "$workdir/issue.err"
