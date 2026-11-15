@@ -7,8 +7,16 @@ produces.
 
 P2-FORMS S2 holds the schema, the projectors and the names. P2-FORMS S3 (this piece) holds the eleven commands and the
 one seam that runs a module command inside the caller's unit of work (`tl_core.services.nested.run_nested_command`).
-Views, routes, the CLI, the tools and the intake endpoint come later. The module declares no `confidential` source yet:
-the confidentiality rows are added with the subject rows before any read path ships.
+Views, routes, the CLI, the tools and the intake endpoint come later.
+
+## Who reads what (P2-FORMS CR1)
+
+One `confidential` source (`confidential.py`) classes a submission by its `answer_class` (null is `internal`). The subject
+rows in `tl_core.confidentiality` hide a submission when its subject is hidden and an intake item when its code's context
+is (two hops; a chain deeper than that stops). `OWN_CLASS_TYPES` makes the submission's own class count even when its
+subject is readable. A draft (`submitted_on` null, kept or discarded) is read by its author alone; after `SubmitForm` the
+class rules govern. A proposal naming a template whose class the viewer may not read is absent for them, and a draft makes
+no feed card. An intake code or item with no context is not hidden by this module (S7c and T03 guard those reads).
 
 ## Commands (`module.py` `FORMS_COMMANDS`)
 
