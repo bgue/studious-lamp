@@ -22,9 +22,9 @@ orders, punch, scaffolds, the toolcrib) refuses it:
     10-punch         the punch list                            user:hsato
     11-schedule      the schedules                            user:lhartmann
     12-packages      the packages                             user:lhartmann
-    13-scaffolds     the scaffold register                     user:mokafor
+    13-scaffolds     the scaffold register                     user:lhartmann
     14-scaffold-record  one scaffold with its inspections      user:lhartmann
-    15-toolcrib      the toolcrib TC1 after one issue line     user:treyes
+    15-toolcrib      the toolcrib TC1 at the crib     user:treyes
 """
 
 from __future__ import annotations
@@ -56,14 +56,13 @@ IWP = "P200-IWP-CIV-0001"  # an IWP number from the 01-iwps shot
 STORES = "treyes"  # the materials coordinator: requisitions, work orders, the toolcrib
 SCAFFOLD = "P200-SCF-0001"  # the one scaffold of the demo project (scaffold section, T11a)
 CRIB = "TC1"  # the toolcrib of P200
-TOOL_PERSON = "Ana Ruiz"  # the person the toolcrib shot issues to (free text on the line)
 
 
 async def _open(pilot: Pilot[Any], app: Any, make: Callable[[Any], Any], what: str) -> None:
     """Wait for the shell, push the screen on the app's client and wait for its rows."""
     await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
     app.push_screen(make(app.client))
-    await tk.until(pilot, lambda: len(app.screen.rows) > 0, what)
+    await tk.until(pilot, lambda: len(app.screen.rows) > 0, what, timeout=60.0)
     await tk.settle(pilot, 3)
 
 
@@ -113,9 +112,8 @@ def scaffold_record(ws: Workspace) -> None:
 
 
 def toolcrib(ws: Workspace) -> None:
-    """15: the toolcrib screen (a modal, so no ``rows``) after one issue line at TC1."""
+    """15: the toolcrib screen (a modal, so no ``rows``) at TC1, before any issue or return."""
     from tl_tui.main import build_app
-    from tl_tui.toolcrib_text import done_text
     from tl_tui.widgets.toolcrib_screen import ToolcribScreen
 
     app = build_app(ws.db, PROJECT, live=False, actor=f"user:{STORES}")
@@ -124,17 +122,8 @@ def toolcrib(ws: Workspace) -> None:
         await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
         app.push_screen(ToolcribScreen(app.client, PROJECT, f"user:{STORES}", CRIB))
         await tk.until(pilot, lambda: len(app.screen.query("#tc-line")) > 0, "the toolcrib line")
-        stock = app.client.list_materials_stock(PROJECT, location=CRIB)
-        held = [r for r in stock if r.on_hand >= 1]
-        tk.expect(bool(held), f"no lot with stock at {CRIB} in {PROJECT}")
-        row = held[0]
-        await pilot.press(*f"{row.lot} {TOOL_PERSON} x1")
-        await pilot.press("enter")
-        want = done_text("issue", "1", row.uom, row.lot, TOOL_PERSON)
-        await tk.until(pilot, lambda: want in tk.screen_text(app), "the issue status line")
-        tk.shot_tui(
-            ws, app, "15-toolcrib", f"The toolcrib {CRIB} of P200 after one issue", CRIB, want
-        )
+        # before any issue or return: no done text, so no lot id on the screen
+        tk.shot_tui(ws, app, "15-toolcrib", f"The toolcrib {CRIB} of P200", CRIB)
 
     tk.run_tui(ws, app, run_it)
 
@@ -203,7 +192,7 @@ def shots(ws: Workspace) -> None:
         AWP,
         lambda c: ReleaseScreen(c, PROJECT),
         "the release",
-        "P200-IWP-ISL-0003",
+        "P200-IWP-ISL-0001",
         "signoffs 0 of 2",
     )
     scenario(
@@ -280,11 +269,11 @@ def shots(ws: Workspace) -> None:
         ws,
         "13-scaffolds",
         "The scaffold register of P200: the scaffolds in their states",
-        "mokafor",  # lhartmann is refused the register's rows (T11b); the ticket's fallback
+        f"user:{AWP}",
         lambda c: ScaffoldLogScreen(c, PROJECT),
         "the scaffolds",
         SCAFFOLD,
-        "In Use",
+        "Designed",
     )
     scaffold_record(ws)
     toolcrib(ws)

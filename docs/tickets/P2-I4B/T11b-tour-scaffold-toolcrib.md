@@ -48,3 +48,11 @@ Standard report; list the three file names and their needles.
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1
+Orchestrator rulings:
+1. Shot 05-release needle is `P200-IWP-ISL-0001` (the Ready set changed when the seed gained labour requisitions, T05b amendment 2).
+2. Shot 13 needle is `Designed` (P200 has one scaffold, in Designed; richer states deferred).
+3. Shot 15 is captured on the toolcrib screen before any issue or return, so no done text with a lot id appears. Screen code and the leak check are unchanged.
+4. (Found while running) the progress screen reads its rows in about 9 s on the full P200 seed, over the 8 s default of `tk.until`; `_open` in `dev/tour/phase2.py` now waits up to 60 s for the rows. No screen code changed.
+5. Shot 13 actor is `user:lhartmann` (the ticket's own): the first attempt's refusal came from the bare name `mokafor`/`lhartmann` (no `user:` prefix, so no access word), not from the register's view word.
