@@ -3,7 +3,7 @@ Fan-out across P2-QR, P2-INSP, P2-PTW. Plans: `docs/tickets/P2-{QR,INSP,PTW}/REA
 Integration branch `p2/ip` created at this commit's parent chain head (not pushed).
 ## BOARD
 QR-S1 p mrg f a34abf02 review P; ADR-0030 accepted; APPROVALS
-INSP-S1 p stg f - schema, projectors; dispatch now, with QR-S1
+INSP-S1 p mrg f ed1ff779 review P; F1 MD `at` accepted; APPROVALS
 PTW-S1 p stg f - dispatch when QR-S1 or INSP-S1 ends
 QR-T02 t stg l - labels.py; needs QR-S1 merged; provided test staged
 QR-T03 t stg f - card harness; needs QR-S1 merged; provided test staged
