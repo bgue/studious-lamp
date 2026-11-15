@@ -1023,9 +1023,10 @@ def accept_or_fail(
     Raises, without recording anything, for an unknown or already decided proposal, a decider that
     is not a person, a change to a ``dangerous`` setting without ``accept_risk``
     (``RiskNotAcceptedError``: the proposal stays pending, so the person can accept again after
-    reading what it changes), and a transient database failure (``RetryableTransactionError``:
-    running it again may work). A second person accepting at the same moment gets
-    ``ProposalNotPendingError``.
+    reading what it changes), an accept of a stopped agent's proposal (``AgentStoppedError``: it
+    stays pending, held until ``Agent.Resumed``), and a transient database failure
+    (``RetryableTransactionError``: running it again may work). A second person accepting at the
+    same moment gets ``ProposalNotPendingError``.
     """
     try:
         with factory(readonly=False) as uow:
@@ -1049,6 +1050,8 @@ def accept_or_fail(
         raise
     except RiskNotAcceptedError:
         raise  # the person has not confirmed the risk yet: the proposal stays pending
+    except agent_stop.AgentStoppedError:
+        raise  # the agent is stopped: the proposal stays pending, so it reads as held (P2-X2-S3b)
     except RetryableTransactionError:
         raise
     except (ServiceError, ConcurrencyError, ValidationError) as exc:

@@ -35,7 +35,7 @@ from tl_core.services.agent_stop import (
 from tl_core.services.commands import CreateRecord
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.links import AddLink
-from tl_core.services.proposals import accept_proposal, propose, submit
+from tl_core.services.proposals import accept_or_fail, accept_proposal, propose, submit
 from tl_core.services.records import handle_create_record
 
 _AUTH = str(Path(__file__).resolve().parents[3] / "tests" / "auth")
@@ -125,6 +125,10 @@ class Env:
         with self.factory() as uow:
             return accept_proposal(uow, proposal_id=proposal_id, by=ADA)
 
+    def held(self, agent: str) -> int:
+        with self.factory(readonly=True) as uow:
+            return held_count(uow.conn(), agent, cf.Viewer(actor=ADA, level=1, account=ADA))
+
     def rows(self, sql: str, **params: object) -> list[tuple[object, ...]]:
         return self.world.rows(sql, **params)
 
@@ -170,6 +174,24 @@ def test_stop_refuses_filing_and_accept_and_resume_lifts_both(env: Env) -> None:
     assert env.accept(pending.proposal_id).status == "accepted"
     assert env.types() == ["Agent.Stopped", "Agent.Resumed"]
     assert env.events()[: len(before)] == before  # nothing before was rewritten
+
+
+def test_accept_or_fail_of_a_stopped_agent_is_a_plain_refusal_and_the_proposal_stays_held(
+    env: Env,
+) -> None:
+    pending = env.file()
+    other = env.file()
+    env.stop()
+    before, held = env.events(), env.held(BOT)
+    assert held == 2
+    with pytest.raises(ForbiddenError) as refused:
+        accept_or_fail(env.factory, proposal_id=pending.proposal_id, by=ADA)
+    assert str(refused.value) == STOPPED_TEXT
+    assert env.events() == before  # no Proposal.Failed, nothing appended
+    assert env.status(pending.proposal_id) == env.status(other.proposal_id) == "pending"
+    assert env.held(BOT) == held
+    env.resume()
+    assert accept_or_fail(env.factory, proposal_id=pending.proposal_id, by=ADA).status == "accepted"
 
 
 def test_submit_of_a_stopped_agent_is_refused_before_the_dry_run(env: Env) -> None:
