@@ -50,12 +50,13 @@ tl-mod-materials = { workspace = true }
 tl-mod-quality = { workspace = true }
 tl-mod-awp = { workspace = true }
 tl-mod-requisitions = { workspace = true }
+tl-mod-scaffold = { workspace = true }
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
 include = ["*.py", "*.pyi", "**/pyproject.toml"]
-extend-exclude = ["packages/tl-schema/src/tl_schema/generated"]
+extend-exclude = ["packages/tl-schema/src/tl_schema/generated", "docs/tickets/*/provided"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -90,6 +91,7 @@ extraPaths = [
   "packages/tl-modules/cost/tests",
   "packages/tl-modules/materials/tests",
   "packages/tl-modules/quality/tests",
+  "packages/tl-modules/scaffold/tests",
   "packages/tl-modules/schedule/tests",
   "packages/tl-modules/schemareg/tests",
   "packages/tl-modules/legacy/tests",

@@ -55,6 +55,8 @@ TYPE_LABELS: Final[dict[str, str]] = {
     "requisitions.MaterialRequisition": "Material requisition",
     "requisitions.ScaffoldRequest": "Scaffold request",
     "requisitions.WorkOrder": "Work order",
+    "scaffold.Scaffold": "Scaffold",
+    "scaffold.ScaffoldInspection": "Scaffold inspection",
     "schedule.ActivityRef": "Activity reference",
     "schedule.Schedule": "Schedule",
     "schedule.ScheduleSnapshot": "Schedule snapshot",

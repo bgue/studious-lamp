@@ -267,6 +267,20 @@ The `scaffold` module: `scaffold.Scaffold` (asset) and `scaffold.ScaffoldInspect
 `tl_mod_requisitions.api` (read) and never its handlers. This is the first module-to-module import; it is recorded
 here so a later ADR can replace it with an entry point if a third consumer appears.
 
+**As built (P2-I4B S1, D1-D5 of the plan, supersedes the sketch above where they differ).** Nine commands, one fine
+word each: `RegisterScaffold` (an approved or later request, one scaffold per request), `DesignScaffold`,
+`ErectScaffold`, `InspectScaffold` (conditional or fail only), `TagScaffoldGreen` (`scaffold.tag.green`, the one
+controller word: a pass is a green tag; no new account role), `ReleaseScaffold` (needs a green tag), `ModifyScaffold`,
+`DismantleScaffold`, `RemoveScaffold`; plus `scaffold.view`. States: Requested, Designed, Erecting, Inspected, In Use,
+Modify, Dismantle, Removed (the only final state); a failed inspection of an Inspected or In Use scaffold moves it to
+Modify. The dismantle check is `rules.dismantle_blockers`: it refuses while an IWP with a live `requires` link to the
+scaffold is Issued, In progress or On hold, or another open scaffold request of such an IWP exists (the scaffold's own
+request is left out: it stays open until Closed); a work package the actor cannot see counts and is named only as "a
+work package you cannot see". No hire quantities (W3-3). The module reads the request's table and state names from
+`tl_mod_requisitions.names` and calls `api.open_requisitions_for(..., viewer=LOWEST)`; it imports no handler. The job
+`scaffold.inspections_due` (job id `inspdue:<project>:<YYYY-MM-DD>`) appends `Scaffold.InspectionDue` once per due day
+and never changes a tag or a state.
+
 ---
 
 ## 4. Inventory movements and reservations (I3; called by I4-A and the readiness check)
