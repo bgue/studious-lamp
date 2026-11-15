@@ -1,7 +1,7 @@
 """The toolcrib fast-entry screen: issue or return a tool in one line (P2-I4B-T06; brief §10.5).
 
-A full-size modal, not in the navigation yet. ``Ctrl+I`` (issue, the default) and ``Ctrl+R``
-(return) choose the mode; the line is ``<tool> <person> [xN]`` and ``Enter`` sends one
+A full-size modal, opened from the palette (``toolcrib``). ``F2`` (issue, the default) and ``F3``
+or ``Ctrl+R`` (return) choose the mode; the line is ``<tool> <person> [xN]`` and ``Enter`` sends one
 ``IssueStock`` or ``ReturnStock`` through ``client.materials_command``. The status line says what
 happened and the line is cleared with the focus kept in it; a refusal keeps what was typed. Every
 word, check and command lives in ``tl_tui.toolcrib_text``; this screen reads the crib's stock and
@@ -42,7 +42,8 @@ class ToolcribScreen(ModalScreen[None]):
     KEY_HINTS: ClassVar[str] = KEYS
 
     BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("ctrl+i", "mode('issue')", "Issue", show=False),
+        Binding("f2", "mode('issue')", "Issue", show=False),
+        Binding("f3", "mode('return')", "Return", show=False),
         Binding("ctrl+r", "mode('return')", "Return", show=False),
         Binding("escape", "close", "Close", show=False),
     ]
