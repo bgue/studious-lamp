@@ -1,6 +1,6 @@
 # P2-X2 STATE  r=3 base=27380224 C=0 ck=- gate=n/a wt=/home/user/wt/p2-x2
 ## BOARD
-S1 p disp f - re-dispatched amendment 1 (explicit grants only); branch p2/x2-s1-filing-check
+S1 p mrg f 8b71e3b9 review P; F1 F2 LO accepted
 S3 p mrg f a03515d2 stop switch; review P 3 LO; 52 P 2a; APPROVALS
 S2 p todo f - queue cap spec written r2; dispatch after S1 merged; setting gated (95)
 T01 t mrg f a9dc1eca admin stop routes+client; orch fixed wording
