@@ -24,7 +24,7 @@ INTAKE I00 S6 S7c I01-I07, WEB W1 W2 B1-B4: README tables; specs later (no board
 D1 2026-11-15 intake schema folded into S2 (ADR-0032 accepted): one schema gate; intake commands stay S7c (accept needs S3 seam); README, S2
 D2 2026-11-15 format 2 field id `^[a-z][a-z0-9_]{0,31}$` so claim_* ids fit; format 1 keeps q<digits>; S1 spec, README risks
 D3 2026-11-15 S1 does not wait for INSP T00: core writes format 1 rules itself; T13 re-exports later; S1 spec
-D4 2026-11-15 no Haiku ticket staged: every candidate reads S1 or S2 names (checklist 2); staged after they merge
+D4 2026-11-15 no implementer ticket staged: every candidate reads S1 or S2 names (checklist 2); staged after they merge
 D5 2026-11-15 S2 declares no `confidential` source: CR1 adds it with the subject rows before any reader exists
 ## SEC
 (none yet; wave review over b91ee33d..<p2/ip head> at C4; rows in README)
