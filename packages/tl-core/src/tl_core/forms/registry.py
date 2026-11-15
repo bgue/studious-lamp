@@ -30,9 +30,10 @@ def load_form_sources(
     """
     points = entry_points(group=FORM_SOURCE_ENTRY_POINT) if entry_points_ is None else entry_points_
     found: dict[str, FormSource] = {}
-    count = 0
-    for entry in sorted(points, key=lambda e: e.name):
-        count += 1
+    ordered = sorted(points, key=lambda e: e.name)
+    if len(ordered) > MAX_SOURCES:
+        raise FormSourceLoadError(f"more than {MAX_SOURCES} form sources are installed")
+    for entry in ordered:
         try:
             produced = entry.load()()
         except Exception as exc:
@@ -48,6 +49,4 @@ def load_form_sources(
         if record_type in found:
             raise FormSourceLoadError(f"form source for {record_type!r} is declared twice")
         found[record_type] = produced
-    if count > MAX_SOURCES:
-        raise FormSourceLoadError(f"more than {MAX_SOURCES} form sources are installed")
     return dict(sorted(found.items()))

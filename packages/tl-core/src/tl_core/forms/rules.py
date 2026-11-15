@@ -112,7 +112,7 @@ def _question_problems(
     fid = field.get("id")
     if not _id_ok(fid, fmt):
         out.append(f"{label}: bad id")
-    elif fid in seen:
+    if isinstance(fid, str) and fid in seen:
         out.append(f"{label}: duplicate id")
     text = field.get("text")
     if not isinstance(text, str) or not text.strip():
@@ -212,6 +212,8 @@ def _node_problems(node: Any, label: str, earlier: list[str], depth: int) -> tup
     if len(node) != 1 or len(ops) != 1 or ops[0] not in ("all", "any", "not"):
         return [f"{label}: visible_when node must be one operator"], 0
     op = ops[0]
+    if depth >= MAX_CONDITION_DEPTH:
+        return [f"{label}: visible_when is nested deeper than {MAX_CONDITION_DEPTH}"], depth + 1
     kids = node[op]
     if op == "not":
         children = [kids]
@@ -225,10 +227,7 @@ def _node_problems(node: Any, label: str, earlier: list[str], depth: int) -> tup
         sub, d = _node_problems(child, label, earlier, depth + 1)
         out.extend(sub)
         deepest = max(deepest, d)
-    mine = deepest + 1
-    if mine > MAX_CONDITION_DEPTH and depth == 0:
-        out.append(f"{label}: visible_when is nested deeper than {MAX_CONDITION_DEPTH}")
-    return out, mine
+    return out, deepest + 1
 
 
 # ---- visible_ids ----------------------------------------------------------------------------
@@ -240,15 +239,15 @@ def _same(a: Any, b: Any) -> bool:
     return bool(a == b)
 
 
-def _eval(node: Any, values: dict[str, Any]) -> bool:
-    if not isinstance(node, dict):
+def _eval(node: Any, values: dict[str, Any], depth: int = 0) -> bool:
+    if not isinstance(node, dict) or depth > MAX_CONDITION_DEPTH:
         return False
     if "all" in node:
-        return all(_eval(n, values) for n in node["all"])
+        return all(_eval(n, values, depth + 1) for n in node["all"])
     if "any" in node:
-        return any(_eval(n, values) for n in node["any"])
+        return any(_eval(n, values, depth + 1) for n in node["any"])
     if "not" in node:
-        return not _eval(node["not"], values)
+        return not _eval(node["not"], values, depth + 1)
     qid = str(node.get("q"))
     answered = qid in values
     value = values.get(qid)
@@ -267,8 +266,17 @@ def _eval(node: Any, values: dict[str, Any]) -> bool:
     return False
 
 
+def _usable(fields: Any) -> list[dict[str, Any]]:
+    """The fields that are objects with a text id; others are skipped."""
+    if not isinstance(fields, list):
+        return []
+    return [f for f in fields if isinstance(f, dict) and isinstance(f.get("id"), str)]
+
+
 def _answer_values(answers: list[dict[str, Any]]) -> dict[str, Any]:
     values: dict[str, Any] = {}
+    if not isinstance(answers, list):
+        return values
     for ans in answers:
         if isinstance(ans, dict) and isinstance(ans.get("q"), str) and ans.get("q") not in values:
             if ans.get("value") is not None:
@@ -281,7 +289,7 @@ def visible_ids(fields: list[dict[str, Any]], answers: list[dict[str, Any]]) -> 
     values = _answer_values(answers)
     shown: list[str] = []
     live: dict[str, Any] = {}
-    for field in fields:
+    for field in _usable(fields):
         fid = field["id"]
         cond = field.get("visible_when")
         if cond is None or _eval(cond, live):
@@ -304,6 +312,9 @@ def validate_answers(
 ) -> list[str]:
     """Problems with a set of answers; ``[]`` means acceptable."""
     _check_fmt(fmt)
+    if not isinstance(answers, list):
+        return ["answers: must be a list"]
+    fields = _usable(fields)
     by_id = {f["id"]: f for f in fields}
     shown = set(visible_ids(fields, answers))
     problems: list[str] = []
@@ -313,6 +324,10 @@ def validate_answers(
             problems.append("answer: must be an object naming a question")
             continue
         qid = ans["q"]
+        if fmt == FORMAT_1:
+            for key in ("q", "value", "note"):
+                if key not in ans:
+                    problems.append(f"{qid}: missing key {key!r} in answer")
         extra = set(ans) - {"q", "value", "note"}
         if extra:
             problems.append(f"{qid}: unknown key {sorted(extra)[0]!r} in answer")
@@ -403,6 +418,8 @@ def intake_problems(
     if len(fields) > INTAKE_MAX_FIELDS:
         out.append(f"intake: at most {INTAKE_MAX_FIELDS} fields")
     for i, field in enumerate(fields, start=1):
+        if not isinstance(field, dict):
+            continue
         label = _label(field, i, FORMAT_2)
         if field.get("kind") not in ("text", "choice", "number"):
             out.append(f"{label}: intake allows text, choice and number only")
