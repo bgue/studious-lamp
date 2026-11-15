@@ -55,3 +55,10 @@ Standard report; paste the state counts of the built scaffolds.
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1
+Orchestrator rulings after the first attempt was blocked:
+- `"scaffold"` is added to `ORDER` in `dev/seed/demo_project/registry.py` right after `"requisitions"` (allowed).
+- `needs=("scaffold.Scaffold", "requisitions.ScaffoldRequest")` (the type the requisitions section registers).
+- Actors: `lhartmann` (project engineer, `user` role) registers, designs, erects, releases and inspects; `mokafor` (administrator, holds the controller word) tags green. Section runs through commands only, deterministic, no `requires` links.
+- Fact found: of the 4 scaffold requisitions of P200 only 1 is Approved (`FINAL[20:24]` = Approved, Cancelled, Requested, Rejected), so the demo holds 1 scaffold (Designed). The In Use and Modify paths are coded but not reached in P200 data.
