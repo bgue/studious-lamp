@@ -110,9 +110,48 @@ In the TUI, open the accounts screen with `F10` and press `m` to open the module
 
 Errors: `unknown_role` 422, `unknown_module` 422, `no_such_grant` 404, `no_company_roles` 422.
 
+### Agents: grant checklist and stop switch
+An agent files only where it holds the module `user` word on the scope, from an explicit grant; a role derived from its account role does not count. Run these steps before a pilot agent files. Each command is from `tl admin` or `tl agent` (`tl agent --help`, `tl admin roles --help`).
+
+15. Create the agent and issue its token (the token is shown once):
+    ```
+    uv run tl admin user add triage --kind agent
+    uv run tl admin token issue triage --label pilot
+    ```
+    Expected: `created triage  agent  ...`; the token on stdout and `issued token <id> for agent:triage, expires <time>; this is the only time it is shown` on stderr.
+16. List the projects and modules the agent will file in (a plan, not a command). Check what it already holds on each project:
+    ```
+    uv run tl admin roles ls --project P1
+    ```
+    Expected: one row per explicit grant on P1; none for a new agent.
+17. Grant `user` per project and module, with a reason. Use `--module '*'` for every module. An agent may hold `viewer` or `user`, never `superuser`:
+    ```
+    uv run tl admin roles grant triage --project P1 --module documents --role user --reason "pilot agent files on P1 documents"
+    ```
+    Expected: `granted user on documents for project:P1 to triage`; a repeat prints `already held: user on documents for project:P1 to triage`.
+18. Check the source of each module the agent files in:
+    ```
+    uv run tl admin roles effective triage --project P1
+    ```
+    Expected: one line per module, `<module>  <roles or ->  <source>`. The source must read `granted` (or `granted_all_modules` after `--module '*'`). A `derived` source is not enough; the agent is refused there.
+19. What a missing grant looks like: the agent is refused with the refusal for a scope that does not exist (`no scope 'project:P1'`, error 140), the same as a project that is not there. A core command with no module needs at least one explicit module role on the scope. When a filing is refused, look at the grants with step 18, not at the project. No command runs in this step.
+20. Stop, list and resume. A stop refuses new filings, holds the agent's pending proposals (they show as held) and refuses accepts while stopped. A resume lifts both. An agent never runs these; a person does:
+    ```
+    uv run tl agent stop triage --reason "runaway filing"
+    uv run tl agent stopped
+    uv run tl agent resume triage
+    ```
+    Expected: `stopped agent:triage` (a repeat: `already stopped: agent:triage`); `agent:triage  since <ts>  by <actor>  held N  <reason or ->`, or `none stopped`; `resumed agent:triage`. `tl agent stopped --json` prints a list. The accounts screen (`F10`) shows an agent's Filing line and held count.
+21. The queue cap is a setting, not a grant. Set it per project, with a reason (it is an advanced key). Limits and what they mean: [settings runbook, Agent limits](settings.md#agent-limits).
+    ```
+    uv run tl config set ai.agents.max_pending_per_project 50 --project P1 --reason "pilot queue"
+    ```
+    Expected: `set ai.agents.max_pending_per_project <layer> 50`, or `unchanged ...` when the value is already that. When the queue is full, a filing is refused with `this review queue is full; ask a reviewer to clear it, then file again` (API 429 `queue_full`); accepting or rejecting a proposal reopens it.
+
 ### What a grant does not change
 - A `superuser` grant gives no restricted read (ADR-0016 is unchanged), and module roles do not filter reads.
 - A grant does not change the account role. A proposal is accepted only when the accepter holds the account role and the module word.
+- A grant gives an agent filing only. Accepting still needs the person's own word (the account role and the module word).
 - Grant events are hidden from `GET /events` for non-admins.
 - Agents still only propose.
 
@@ -130,7 +169,7 @@ Errors: `unknown_role` 422, `unknown_module` 422, `no_such_grant` 404, `no_compa
 - `GET /admin/accounts` shows no hash; the ledger events `Account.*` and `AgentToken.*` hold metadata only.
 
 ## Roll back
-- A wrong role or a disabled account: `tl admin user roles ...`, `tl admin user enable ...`. A leaked agent token: `tl admin token revoke`. A leaked password: `tl admin user reset-password` (ends the sessions).
+- A wrong role or a disabled account: `tl admin user roles ...`, `tl admin user enable ...`. A leaked agent token: `tl admin token revoke`. A leaked password: `tl admin user reset-password` (ends the sessions). A pilot agent that files wrongly: `uv run tl agent stop <name> --reason "..."` first (its pending proposals are held and accepts are refused), then revoke its grant (step 14).
 
 ## Related
 - `docs/adr/0009-authentication.md`, `docs/adr/0008-phase1-owner-decisions.md`
