@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi.testclient import TestClient
-from harness import ALICE, BOB, SCOPE, Harness
+from harness import ALICE, BOB, SCOPE, Harness, ensure_agent
 from tl_api.tokens import add_token
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
@@ -24,12 +24,14 @@ def propose_create(h: Harness, key: str = "P123-REC-0042", scope: str = SCOPE) -
         title="Weld NCR",
         key=key,
     )
+    ensure_agent(h)
     return proposals.submit(
         h.backend, tool="create_record", agent=AGENT, command=command, summary="Create NCR"
     )
 
 
 def as_agent(h: Harness) -> TestClient:
+    ensure_agent(h)  # S1: an agent files only under an explicit grant
     token = add_token(h.settings.tokens_path, AGENT)
     client = TestClient(h.app, raise_server_exceptions=False)
     client.headers.update({"Authorization": f"Bearer {token}"})
@@ -89,6 +91,7 @@ def test_a_proposal_the_command_can_no_longer_satisfy_is_answered_failed(
         layer="standard",
         values={"manufacturer": "Acme"},
     )
+    ensure_agent(harness)
     proposal = proposals.submit(
         harness.backend, tool="update_psets", agent=AGENT, command=command, summary="Set maker"
     )
@@ -234,13 +237,14 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
     assert (
         len(seen)
         == len(COMMANDS) - len(FEED_COMMANDS)
-        == 118 + 19 + 14 + 25 + 10 + 4 + 24 + 4 + 10 + 6
+        == 118 + 19 + 14 + 25 + 10 + 4 + 24 + 4 + 10 + 6 + 2
     )  # incl. P1-I5, P1-I7 WS-A, RFIs, Commercial (P1-I6: 19), the registry (P1-I8: 14), awp (25),
     # awp IWP and scope commands (P2-I2: 10, the constraint ones left for the core; S3: 4),
     # materials (P2-I3: 24), the core constraint commands (P2-I2 C2: 4),
     # awp weekly plan and progress entry (P2-I5: 10: OpenWeeklyPlan, CommitIwpToWeek,
     # RecordWeekOutcome, CloseWeek, InstallScopeItem, ReturnScopeItem, VerifyScopeItem,
-    # RecordManualProgress, StartIwpWork, CompleteIwpField)
+    # RecordManualProgress, StartIwpWork, CompleteIwpField), and the agent stop switch
+    # (P2-X2 S3: StopAgent, ResumeAgent: 2)
 
 
 def test_an_agent_is_refused_a_waive_and_a_week_close_with_the_reason(harness: Harness) -> None:

@@ -102,6 +102,7 @@ run_backend() {
   export TL_DEMO_ANA_PASSWORD="a long passphrase for ana"
   printf '%s\n' "$TL_DEMO_ANA_PASSWORD" | as demo tl admin user add ana --display-name "Ana B" --password-stdin >/dev/null
   as demo tl admin user add triage --kind agent >/dev/null
+  as demo tl admin roles grant triage --project P123 --module '*' --role user --reason "the demo agent may file proposals" >/dev/null
   TL_DEMO_AGENT_TOKEN="$(as demo tl admin token issue triage --label demo 2>/dev/null)"
   export TL_DEMO_AGENT_TOKEN
   case "$TL_DEMO_AGENT_TOKEN" in tla_*) ;; *) fail "no agent token was issued" ;; esac

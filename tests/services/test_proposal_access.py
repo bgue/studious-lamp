@@ -32,7 +32,9 @@ def holds_only(*levels: str) -> Callable[[str], bool]:
 
 
 @pytest.fixture
-def world(db: DbTarget, tmp_path: Path) -> Iterator[DocumentsWorld]:
+def world(
+    db: DbTarget, tmp_path: Path, grant_filing: Callable[..., None]
+) -> Iterator[DocumentsWorld]:
     with use_provider(DirectorySchemaProvider(FIXTURES)), use_extractors(make_extractors()):
         found = DocumentsWorld(db, tmp_path / "objects")
         with use_files(found.files):
@@ -41,11 +43,11 @@ def world(db: DbTarget, tmp_path: Path) -> Iterator[DocumentsWorld]:
             found.create_revision("ISD-001")
             found.attach("ISD-001", "A")
             found.register_schema()
-            open_agent_account(found)
+            open_agent_account(found, grant_filing)
             yield found
 
 
-def open_agent_account(world: DocumentsWorld) -> None:
+def open_agent_account(world: DocumentsWorld, grant_filing: Callable[..., None]) -> None:
     """The agent is an account holding the module word ``user`` (ADR-0021): proposing runs the
     command as the agent first, and a plain agent name with no account holds nothing."""
     with open_uow(world.db) as uow:
@@ -53,6 +55,7 @@ def open_agent_account(world: DocumentsWorld) -> None:
             uow, username="triage", display_name="Triage", kind="agent",
             roles=["user"], password=None, by="user:root",
         )  # fmt: skip
+        grant_filing(uow, "triage")
 
 
 def factory(db: DbTarget) -> proposals.Factory:

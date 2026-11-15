@@ -18,8 +18,11 @@ from tl_adapters.db import DbTarget, open_uow, rebuild_projections
 from tl_adapters.objectstore.fs import FsObjectStore
 from tl_core import confidentiality
 from tl_core.actions import allowed_actions
+from tl_core.auth import accounts
 from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.module_roles import Holder, require_command_access
+from tl_core.auth.queries import find_account
 from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.modules import ConfidentialSource, load_modules, use_modules
@@ -1467,7 +1470,32 @@ def check_offers(w: World) -> None:
     assert {r.command: r.word for r in rule_rows()}["AdjustStock"] == "materials.adjust"
 
 
+def grant_agent(w: World, name: str) -> None:
+    """The agent's account and an explicit ``user`` grant on the project (P2-X2 S1 filing check)."""
+    with open_uow(w.target) as uow:
+        conn = uow.conn()
+        view = find_account(conn, username=name)
+        if view is None:
+            view = accounts.create_account(
+                uow, username=name, display_name=name, kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
+        if find_account(conn, username="gadmin") is None:
+            accounts.create_account(
+                uow, username="gadmin", display_name="gadmin", kind="person",
+                roles=["admin"], password=None, by="svc:test",
+            )  # fmt: skip
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=w.project, module="*", role="user", reason="test",
+            ),
+        )  # fmt: skip
+
+
 def check_proposal(w: World) -> None:
+    grant_agent(w, "helper")
     s = Stocked(w)
     command = ReserveStock(
         actor="agent:helper",

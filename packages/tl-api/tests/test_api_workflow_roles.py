@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from harness import SCOPE, Harness
+from harness import SCOPE, Harness, ensure_agent
 from tl_api.commands import COMMAND_BODIES
 from tl_core.auth import accounts, sessions
 from tl_core.auth.password import prepare_password
@@ -172,6 +172,7 @@ def propose_issue(harness: Harness, sid: str, version: int) -> str:
         actor=AGENT, source="mcp:triage", scope=SCOPE, stream_id=sid,
         expected_version=version, transition="issue",
     )  # fmt: skip
+    ensure_agent(harness)
     made = proposals.submit(
         harness.backend, tool="transition_workflow", agent=AGENT, command=command, summary="Issue"
     )

@@ -127,6 +127,7 @@ run_backend() {
   printf '%s\n' "a long passphrase for alice" | as demo tl admin user add alice --display-name "Alice" --password-stdin >/dev/null
   printf '%s\n' "a long passphrase for dora" | as demo tl admin user add dora --display-name "Dora" --role document_controller --password-stdin >/dev/null
   as demo tl admin user add triage --kind agent >/dev/null
+  as demo tl admin roles grant triage --project P123 --module '*' --role user --reason "the demo agent may file proposals" >/dev/null
   TL_DEMO_AGENT_TOKEN="$(as demo tl admin token issue triage --label demo 2>/dev/null)"
   export TL_DEMO_AGENT_TOKEN
   case "$TL_DEMO_AGENT_TOKEN" in tla_*) ;; *) fail "no agent token was issued" ;; esac
@@ -305,6 +306,7 @@ actors:
   approver: {accept_rate: 1.0}
 YAML
   out="$(as demo tl sim create "$workdir/workface-weeks.yaml" --run-id wk1)"; echo "$out"
+  quiet uv run python dev/demos/agent_grant.py "$TL_DB" sim-assistant sim-wk1  # S1: an agent files only under a grant
   out="$(as demo tl sim advance --run wk1 --days 2)"; echo "$out"
   out="$(as dora tl awp cwp ls --project sim-wk1)"; echo "$out"
   [ "$(grep -c 'CWP-' <<<"$out" || true)" -ge 1 ] || fail "the approver's accept made no CWP in sim-wk1"

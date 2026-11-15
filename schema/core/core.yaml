@@ -20,6 +20,7 @@ imports:
   - feed
   - threads
   - proposals
+  - agent_stop
   - settings
   - files
   - integration

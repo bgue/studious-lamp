@@ -47,6 +47,7 @@ step "tl init, a person (alice), an agent (triage) and the API on a free loopbac
 tl init
 alice="$(tl dev token add user:alice)"
 robot="$(tl dev token add agent:triage)"
+quiet uv run python dev/demos/agent_grant.py "$TL_DB" triage P123  # S1: an agent files only under an explicit grant
 port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
 export TL_DEMO_URL="http://127.0.0.1:$port"
 export TL_DEMO_TOKEN="$alice"

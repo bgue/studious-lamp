@@ -27,6 +27,8 @@ unset TL_SCHEMA_DIR TL_OBJECT_STORE TL_SEED_DIR
 
 # `uv` prints a harmless UV_NATIVE_TLS deprecation warning on every call in the build container.
 quiet() { "$@" 2> >(grep -v 'UV_NATIVE_TLS' >&2); }
+# S1: an agent files only under an explicit grant; the simulator's assistant gets one on its run's project.
+grant_sim() { quiet uv run python dev/demos/agent_grant.py "$TL_DB" sim-assistant "project:sim-$1"; }
 tl() { quiet uv run tl "$@"; }
 step() { printf '\n== %s\n' "$*"; }
 expect() { # expect <text> <pattern>: fail the demo if the pattern is missing
@@ -70,6 +72,7 @@ echo "$out"
 expect "$out" '^run r[0-9a-f]{6}$'
 expect "$out" '^seeded 8 records$'
 run="$(head -n1 <<<"$out" | cut -d' ' -f2)"
+grant_sim "$run"
 scope="project:sim-$run"
 
 step "one working day: three actors act through the API as user:sim-* identities"
@@ -138,7 +141,7 @@ stop_server
 
 step "the same seed on a second, empty ledger writes the identical ground truth"
 new_world two
-tl sim create north-unit-small >/dev/null
+out="$(tl sim create north-unit-small)"; grant_sim "$(head -n1 <<<"$out" | cut -d' ' -f2)"
 tl sim advance --days 1 >/dev/null
 digest_two="$(tl sim status | grep '^digest:')"
 echo "$digest_two"

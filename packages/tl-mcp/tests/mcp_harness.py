@@ -19,15 +19,62 @@ from mcp_types import CallToolResult
 from tl_adapters.db import DbTarget, make_uow_factory
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_adapters.sqlite.uow import create_schema
+from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.queries import find_account
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
+from tl_core.modules import load_modules
 from tl_core.services.commands import CommandResult, CreateRecord
 from tl_core.services.links import AddLink, handle_add_link
 from tl_core.services.records import handle_create_record
+from tl_core.uow import UnitOfWork
 from tl_mcp.server import build_server
 
 SCOPE = "project:P123"
 ACTOR = "agent:triage"
+
+
+PROJECTS = (
+    "project:P123",
+    "project:P1",
+    "project:P2",
+    "project:P999",
+    "project:sim",
+    "project:sim-r1",
+)
+
+
+def grant_filing(
+    uow: UnitOfWork, name: str, projects: tuple[str, ...] = PROJECTS, kind: str = "agent"
+) -> None:
+    """The agent's account (role user) and an explicit ``user`` grant (P2-X2 S1).
+
+    An agent files only where an admin granted it a module role; a role derived from the account
+    role does not count."""
+    conn = uow.conn()
+    view = find_account(conn, username=name)
+    if view is None:
+        view = accounts.create_account(
+            uow, username=name, display_name=name, kind=kind,  # type: ignore[arg-type]
+
+            roles=["user"], password=None, by="svc:test",
+        )  # fmt: skip
+    if find_account(conn, username="gadmin") is None:
+        accounts.create_account(
+            uow, username="gadmin", display_name="gadmin", kind="person",
+            roles=["admin"], password=None, by="svc:test",
+        )  # fmt: skip
+    targets = [(p, "*") for p in projects]
+    targets += [("company", s.name) for s in load_modules() if s.company_roles][:1]
+    for project, module in targets:
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=project, module=module, role="user", reason="test",
+            ),
+        )  # fmt: skip
 
 
 @dataclass
@@ -109,8 +156,26 @@ class McpHarness:
 
     # --- calling the server -----------------------------------------------------------------
 
+    def ensure_agent(self, actor: str = ACTOR) -> None:
+        """The agent's account and its explicit grant on the harness scope, made on first use: an
+        agent files only on a grant (P2-X2 S1). A test that made the account itself keeps it."""
+        with self.factory(readonly=False) as uow:
+            grant_filing(
+                uow,
+                actor.partition(":")[2],
+                kind="agent" if actor.startswith("agent:") else "person",
+            )
+
+    def _writes(self, tool: str) -> bool:
+        """Whether ``tool`` is not read-only (only a filing needs the agent's account)."""
+        listed = {t.name: t for t in asyncio.run(self.server.list_tools())}
+        found = listed.get(tool)
+        return found is None or found.annotations is None or not found.annotations.read_only_hint
+
     def call(self, tool: str, **arguments: Any) -> CallToolResult:
         """Run a tool. A refusal raises ``ToolError`` as the SDK does before the transport."""
+        if self._writes(tool):
+            self.ensure_agent()
         result = asyncio.run(self.server.call_tool(tool, arguments))
         assert isinstance(result, CallToolResult)
         return result
@@ -130,6 +195,8 @@ class McpHarness:
         return content
 
     def wire_call(self, tool: str, **arguments: Any) -> CallToolResult:
+        if self._writes(tool):
+            self.ensure_agent()
         """The same call through an in-memory MCP client, errors included as results."""
 
         async def run() -> CallToolResult:

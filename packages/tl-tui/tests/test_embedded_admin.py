@@ -16,11 +16,13 @@ from typing import Any
 import pytest
 from fakes import FakeClient
 from tl_adapters.sqlite.uow import create_schema
+from tl_core import confidentiality
 from tl_core.auth import accounts, queries
 from tl_core.auth import password as pw
 from tl_core.auth.errors import ForbiddenError, WeakPasswordError
 from tl_core.auth.password import prepare_password
 from tl_core.auth.types import AccountView, AgentTokenView
+from tl_core.services import agent_stop
 from tl_tui.client import ClientInterface
 from tl_tui.embedded import EmbeddedClient
 
@@ -120,6 +122,7 @@ def script(client: ClientInterface) -> list[tuple[Any, ...]]:
     step(lambda: client.revoke_agent_token("nope"))
     step(lambda: client.list_agent_tokens(include_revoked=False))
     step(lambda: client.list_accounts())
+    step(lambda: client.list_stopped_agents())
     return out
 
 
@@ -164,6 +167,7 @@ def test_only_an_active_admin_account_may_call_and_everything_else_is_forbidden(
             lambda c=client: c.list_agent_tokens(),
             lambda c=client: c.issue_agent_token("x", "l"),
             lambda c=client: c.revoke_agent_token("x"),
+            lambda c=client: c.list_stopped_agents(),
         ):
             with pytest.raises(ForbiddenError, match="needs the admin role"):
                 call()
@@ -273,3 +277,31 @@ def test_the_fake_can_play_a_non_admin_and_records_calls_without_secrets() -> No
     fake.is_admin = False
     with pytest.raises(ForbiddenError):
         fake.list_accounts()
+
+
+def test_the_stopped_listing_is_empty_on_a_fresh_ledger_and_agrees_with_the_service(
+    tmp_path: Path,
+) -> None:
+    client = make_embedded(tmp_path)
+    listed = client.list_stopped_agents()
+    assert listed == []
+    with client._uow(True) as uow:  # pyright: ignore[reportPrivateUsage]
+        assert listed == agent_stop.list_stopped(uow.conn(), confidentiality.current_viewer())
+
+
+def test_the_viewer_and_the_limit_go_down_to_the_service(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = make_embedded(tmp_path)
+    received: list[tuple[Any, Any, int]] = []
+
+    def recording_list(conn: object, viewer: object, *, limit: int = 200) -> list[object]:
+        # read inside the call: the viewer the client opened its read with is the ambient one
+        received.append((viewer, confidentiality.current_viewer(), limit))
+        return []
+
+    monkeypatch.setattr(agent_stop, "list_stopped", recording_list)
+    assert client.list_stopped_agents(limit=7) == []
+    [(viewer, ambient, limit)] = received
+    assert viewer == ambient and viewer.actor == "user:boss"
+    assert limit == 7

@@ -10,6 +10,7 @@ from mcp_harness import ACTOR, SCOPE, McpHarness
 from tl_api.thread_runner import thread_runner
 from tl_core import settings
 from tl_core.auth import accounts
+from tl_core.auth.queries import find_account
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
 from tl_core.services.commands import UpdateRecord
@@ -23,6 +24,8 @@ def switch_on(env: McpHarness) -> None:
     """Threads on for records, and the accounts the runner reads what an actor holds from."""
     with env.factory(False) as uow:
         for name, kind in (("triage", "agent"), ("alice", "person")):
+            if find_account(uow.conn(), username=name) is not None:
+                continue  # the harness made the agent's account on its first filing
             accounts.create_account(
                 uow,
                 username=name,
