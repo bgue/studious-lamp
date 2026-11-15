@@ -49,3 +49,7 @@ Standard report; first line lists any deviation (who acted, how the crib stock w
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15; review F1)
+The demo world has no crib TC1 and T06.py creates none. Accepted as built: the driver defines TC1 with `DefineLocation`
+in the demo world (demo data only), and the script grants the demo's sue the role needed to do so. No product code changed.
