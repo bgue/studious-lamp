@@ -407,6 +407,20 @@ def test_a_hidden_work_package_blocks_and_is_not_named(
     monkeypatch.setattr("tl_mod_scaffold.handlers.scaffold._hidden", lambda conn, ids: set(ids))
     message = refuses(DismantleRefused, world, "uma", "DismantleScaffold", scaffold=sid, reason="x")
     assert MSG_HIDDEN_IWP in message and "IWP-SECRET" not in message
+    assert "In progress" not in message and "progress" not in message
+
+
+def test_two_hidden_work_packages_one_holding_still_refuse_and_say_no_state(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sid = world.advance(world.register(), "In Use")
+    world.require(world.iwp("IWP-A-HOLD", "In progress"), sid)
+    world.require(world.iwp("IWP-B-IDLE", "Draft"), sid)
+    world.require(world.iwp("IWP-C-HOLD", "In progress"), sid)
+    monkeypatch.setattr("tl_mod_scaffold.handlers.scaffold._hidden", lambda conn, ids: set(ids))
+    message = refuses(DismantleRefused, world, "uma", "DismantleScaffold", scaffold=sid, reason="x")
+    assert "2 work packages you cannot see" in message
+    assert "IWP-" not in message and "progress" not in message and "Draft" not in message
 
 
 # --- generic commands and versions ---

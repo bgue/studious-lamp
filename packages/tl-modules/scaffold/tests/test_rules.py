@@ -59,3 +59,13 @@ def test_dismantle_is_refused_while_an_iwp_in_use_or_another_request_is_open() -
     assert len(reasons) == 1 and "P1-REQ-SCF-0002" in reasons[0]
     both = rules.dismantle_blockers({"P1-IWP-0009": "Issued"}, ["P1-REQ-SCF-0002"])
     assert len(both) == 2
+
+
+def test_hidden_work_packages_are_counted_when_holding_and_never_given_a_state() -> None:
+    assert rules.dismantle_blockers({}, [], ["Draft"]) == []
+    assert rules.dismantle_blockers({}, [], ["Draft", "In progress"]) == [
+        f"{rules.MSG_HIDDEN_IWP} requires this scaffold"
+    ]
+    assert rules.dismantle_blockers({}, [], ["Issued", "In progress"]) == [
+        "2 work packages you cannot see require this scaffold"
+    ]

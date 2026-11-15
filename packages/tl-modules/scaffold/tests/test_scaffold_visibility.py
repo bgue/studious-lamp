@@ -79,6 +79,7 @@ def test_a_scaffold_of_an_open_record_is_visible_to_all(world: World) -> None:
     ("name", "extra"),
     [
         ("DesignScaffold", {}),
+        ("TagScaffoldGreen", {}),
         ("ErectScaffold", {}),
         ("InspectScaffold", {"result": "fail"}),
         ("ReleaseScaffold", {}),

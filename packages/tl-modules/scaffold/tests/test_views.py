@@ -304,6 +304,12 @@ def test_csv_quotes_and_guards_against_formulas() -> None:
     assert parsed[0]["state"] == "Erecting"
 
 
+def test_csv_guards_a_leading_tab_or_carriage_return() -> None:
+    out = export_rows([row(location="\t=1+1", subject="\r=2")], "csv")
+    parsed = list(csv.DictReader(io.StringIO(out, newline="")))
+    assert parsed[0]["location"] == "'\t=1+1" and parsed[0]["subject"] == "'\r=2"
+
+
 def test_jsonl_is_one_object_per_line_with_the_same_columns() -> None:
     out = export_rows([row(location="=1+1"), row(key="P123-SCF-0043", tag="green")], "jsonl")
     lines = out.split("\n")
