@@ -1,15 +1,17 @@
-# P2-I4B STATE  r=2 base=d4e92ffc C=1 ck=- gate=n/a wt=/home/user/wt/p2-i4b
+# P2-I4B STATE  r=3 base=098acdf8 C=1 ck=- gate=n/a wt=/home/user/wt/p2-i4b
 ## BOARD   (S1 = plan B4; `todo` ready to dispatch, `stg` staged)
 S1 p mrg f 256d9014 C1; findings dec by orch; APPROVALS
 T06 t mrg f 1c3e1294 review P; F2 ctrl+i is Tab -> T07a (D11)
 T01 t mrg f f6bf1990 review P
 T05a t mrg f 7e1651ce review P; amend 1; rename test_nine_checks later
 T05b t mrg f de6ff369 review P; amend 1+2 (seed labour reqs)
-T09b1 t stg f - API read routes, five-reader walk; spec written after T01 merges
-T09b2 t stg f - client methods and fakes; after T09b1
-T07a t stg f - TUI register, record view, nav for both screens; ctrl+i (D11)
-T10 t stg f - sim actor, demo clauses 2 3 6; after T05b, T07a
-T11 t stg l - tour shots (owner rule); after T07a, T06
+T09a t disp f - scaffold commands in API door (pre-hook); pins; r3 spec
+T09b1 t disp f - API read routes + export, five-reader walk; r3 spec
+T09b2 t stg f - client methods and fakes (+export_scaffolds); after T09b1
+T07a t disp f - toolcrib F2 issue F3 return Ctrl+R kept; palette entry; D11
+T07b t stg f - scaffold register, record view, palette; after T09b2, T07a
+T10 t stg f - sim actor, demo clauses 2 3 6; after T05b, T07b, T09a
+T11 t stg l - tour shots (owner rule); after T07b, T06
 T12 t stg l - docs, runbook, AGENTS row; last
 ## DEC
 D1 2026-11-15 TagScaffoldGreen is its own command (word scaffold.tag.green, controller); InspectScaffold takes conditional or fail only: one word per command (W3-2); S1, contract §3
@@ -24,6 +26,10 @@ D9 2026-11-15 T05 split: T05a scaffold_tagged, T05b labour_requested (one name h
 D10 2026-11-15 labour_requested: n_a when estimated_hours is None or 0; else ok if an approved-or-later labour requisition covers planned_start..planned_finish (any one when dates are missing), pending if one is Requested, else blocked; one SQL on the labour table (api has no dates); lives in tl_mod_scaffold/labour.py; T05b
 D11 2026-11-15 T07a settles the toolcrib mode keys: Ctrl+I is Tab in a terminal, so bind issue to a letter-free alternative (e.g. F2 issue, F3 return, keep Ctrl+R) and fix KEYS and the T06 text test in T07a; T06 F2
 D12 2026-11-15 views: list, detail (+inspections), due_list, export_rows (CSV with formula guard, JSONL; no id column); statement bounds 2/2/1; T01
+D13 2026-11-15 r3: scaffold commands are not in the API door and no CLI group exists (X4 hook not on trunk), so T09a splats SCAFFOLD_COMMANDS into tl_api/commands.py (pre-hook form, as quality); T09b1 adds routes/scaffold.py and one app.py line; both move into module.py hooks when X4 C2 reaches trunk (later ticket); T09a, T09b1
+D14 2026-11-15 r3: T09b1 also serves GET scaffold-export (csv|jsonl over views.export_rows) so the owner export rule is reachable without a CLI; T09b2 adds client export_scaffolds; T09b1
+D15 2026-11-15 r3: plan T07a split: T07a = toolcrib keys (F2 issue, F3 return, Ctrl+R kept; app-level F2/F3 panel toggles lose to the modal) + palette entry; T07b = scaffold register and record screens; D6 registration stays with T07a/T07b (one owner of app.py/commands.py per ticket, sequential); T07a, T07b
+D16 2026-11-15 r3: `just demo P2-I2` failure (awp.worker.run word) does not touch this DONE demo: T10 clause 3 runs job scaffold.inspections_due in-process (JobRunner, as dev/accept/P2-I4B/S1.py), never `tl awp run`; no fix ticket; T10
 ## SEC
 (none yet; SR4 rows: S1 confidentiality part (hidden IWP hides its scaffold and the dismantle text), green-tag word, dismantle guard; T09b1 five-reader walk; one wave review)
 ## OPEN
@@ -37,17 +43,19 @@ S1-F4 scaffold reads cur_requisitions_scaffold_request directly: record in phase
 S1-F5 hidden-IWP test patches _hidden (no confidential IWP exists yet): report says so; real path when IWPs carry classes
 T06 size (654 lines, mostly the acceptance script) accepted; its lint block clears once S1 is in p2/i4b
 ## NEXT
-1. Dispatch now: T01 (`provided/T01_test_views.py` -> `packages/tl-modules/scaffold/tests/test_views.py`) and T05a (`provided/T05a_test_scaffold_tagged.py` -> `.../tests/test_scaffold_tagged.py`); disjoint except the exact-set pins T05a edits.
-2. After T05a merges: T05b (provided test staged; decide Q3 first). After T01 merges: round 3 writes T09b1 (routes over views.py, five-reader walk: no clearance, cleared, restricted subject, company admin, agent token) and T09b2 (client methods, fakes) from the merged T01 report; check X4 hooks on trunk first (TRAPS).
-3. T05b reads `phase2-contracts-draft.md` §1; T10 needs T05b and T07a.
-4. After T09b2: T07a (needs T06; settles D11), then T10, T11, T12; DONE round writes `docs/reports/P2-I4B.md` and the AGENTS.md table row.
-5. Close: `just check`, whole gate split by package, `just gate-pg` on touched dirs, `just demo P2-I4` (clauses 2, 3, 6 added), SR4.
+## NEXT
+1. Orch: merge T09a, T09b1, T07a when passed (T09a and T09b1 both regenerate docs/reference/openapi.json: conflict there only, regenerate, code 131). Then round 4.
+2. Round 4: dispatch T09b2 (needs T09b1 merged; refine from its report), then T07b (needs T09b2 and T07a); check X4 trunk state again.
+3. Then T10 (needs T05b, T07b, T09a; clause 3 in-process job, D16; commands over the door or embedded client), T11, T12; DONE round writes `docs/reports/P2-I4B.md` and the AGENTS.md table row (scaffold module: runbook, API routes, TUI, demo).
+4. X4 C2 on trunk: add one ticket moving the command splat and the router line into module.py hooks (commands, read_routers) and the IN_TREE_SURFACES entry; MCP tools and `tl scaffold` CLI stay DEFERRED (Q2).
+5. Close: `just check`, whole gate split by package, `just gate-pg` on touched dirs, `just demo P2-I4` (clauses 2, 3, 6 added), SR4 (S1 confidentiality, green-tag word, dismantle guard, T09b1 five-reader walk).
 ## REFS
 Specs `docs/tickets/P2-I4B/{S1-scaffold-schema-and-lifecycle,T06-toolcrib-screen,T01-read-views,T05a-scaffold-tagged,T05b-labour-requested}.md`; stubs `tl_mod_scaffold/{views,readiness,labour}.py` (bodies raise NotImplementedError); provided tests `docs/tickets/P2-I4B/provided/S1_test_rules.py` (copy to `packages/tl-modules/scaffold/tests/test_rules.py`) `provided/T06_test_toolcrib_text.py` (copy to `packages/tl-tui/tests/test_toolcrib_text.py`), `provided/T01_test_views.py`, `T05a_test_scaffold_tagged.py`, `T05b_test_labour_requested.py` (each linted and type-checked where it lands, then the landing copy removed; the ticket makes the copy; ruff extend-exclude skips `provided/`).
+Round 3 specs `T09a-command-door`, `T09b1-api-read-routes`, `T09b2-client-methods`, `T07a-toolcrib-keys-and-nav`, `T07b-scaffold-screens` (all under `docs/tickets/P2-I4B/`; no provided tests: the tickets copy the punch tests' shape).
 Patterns: `docs/tickets/P2-PUNCH/` (S1 S2, T01 T03 T04 T06), `docs/tickets/P2-I4A/` (T04c1 T04c2 T07a), `packages/tl-modules/quality/`, `tl_mod_awp/readiness/job.py`, `phase2-contracts-draft.md` §3.
 Gate paths checked with ls: `packages/tl-schema/tests`, `tests/services/test_modules.py`, `packages/tl-core/tests/auth/test_access_words.py`, `packages/tl-core/tests/test_numbering_config.py`, `packages/tl-tui/tests`; created by items: `packages/tl-modules/scaffold/tests`, `packages/tl-schema/tests/test_scaffold_schema.py`, `packages/tl-tui/tests/test_toolcrib_text.py`.
 ## TRAPS
 Provided tests are formatted and pyright-clean at their landing path before commit; the stubs pass ruff and pyright; fixtures were exercised once (only the stub bodies fail). Scaffold dates come from the real clock: provided tests use fixed far/past days or the row's own `next_due_on`.
-X4 (p2/x4, in progress): `ModuleSpec` gains hooks `commands`, `read_routers`, `tools`, `cli_groups` and an `IN_TREE_SURFACES` set. When X4 merges the scaffold module needs its hooks and a set entry (routes, any CLI group): not built now; S1 must not touch `tl_core/modules.py`; a round after X4 C-merge adds a ticket, and T09b1 and T07a registration lines follow whichever form is on the trunk then.
+X4 (p2/x4: S1, S3, T01 merged there; not on trunk, C2 waits X2 C2; checked r3): `ModuleSpec` gains hooks `commands`, `read_routers`, `tools`, `cli_groups` and an `IN_TREE_SURFACES` set. When X4 merges the scaffold module needs its hooks and a set entry (routes, any CLI group): not built now; S1 must not touch `tl_core/modules.py`; a round after X4 C-merge adds a ticket, and T09b1 and T07a registration lines follow whichever form is on the trunk then.
 Gates name test files or one package (OOM on 16 GB); the `tests/tools` gate is slow (background); `gate-pg` is slow, name directories; never `pkill -f`; never delete /tmp/pytest-of-root; pinned lists as union.
 Commit trailers name the model each agent ran as (session attribution, D-r3e of I4A); reports and files carry no model names.
