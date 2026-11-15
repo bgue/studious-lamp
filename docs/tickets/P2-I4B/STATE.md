@@ -9,7 +9,7 @@ T09a t mrg f fcbb52e0 review P
 T09b1 t mrg f 49ab7045 review P
 T09b2 t mrg f 7480bded review P
 T07a t mrg f f4b66174 review P
-T07b t stg f - scaffold register, record view, palette; after T09b2, T07a
+T07b t mrg f 3fc897e2 review P
 T10 t stg f - sim actor, demo clauses 2 3 6; after T05b, T07b, T09a
 T11 t stg l - tour shots (owner rule); after T07b, T06
 T12 t stg l - docs, runbook, AGENTS row; last
