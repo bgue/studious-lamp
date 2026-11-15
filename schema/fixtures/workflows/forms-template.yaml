@@ -1,0 +1,22 @@
+# Workflow of a form template (ADR-0031): Draft, Published by a controller, Retired. A draft or a published template
+# can be retired. Retired is the only final state; any move out of it is not a move. Every move is a command of the
+# forms module (by_module), so the file states the moves and names no role: who may do what is the access word of
+# each command (ADR-0013).
+id: forms.template
+version: 1
+record_type: forms.Template
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Published
+  - name: Retired
+transitions:
+  - name: publish
+    label: Publish the template
+    from: [Draft]
+    to: Published
+  - name: retire
+    label: Retire the template
+    from: [Published, Draft]
+    to: Retired

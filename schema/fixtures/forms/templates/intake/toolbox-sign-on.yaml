@@ -1,0 +1,59 @@
+# Sample public intake template (P2-FORMS S2, ADR-0032 decision 2): intake is public, so the fields are text, choice
+# and number only, at most 8, no visible_when, and a number carries min and max. `purpose` and `accepts_as` name what
+# an accepted item becomes. The claim_* ids hold what the sender says about themselves; they are never verified.
+title: "Toolbox talk sign-on"
+format_version: 2
+bound_record_type: null
+answer_class: "internal"
+intake: "public"
+purpose: "sign_on"
+accepts_as: ["SubmitForm"]
+fields:
+  - id: "claim_name"
+    text: "Your name"
+    kind: "text"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: null
+    help: null
+    visible_when: null
+  - id: "claim_company"
+    text: "Your company"
+    kind: "text"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: null
+    help: null
+    visible_when: null
+  - id: "trade"
+    text: "Your trade"
+    kind: "choice"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: ["Scaffolder", "Rigger", "Electrician", "Pipefitter", "Labourer", "Other"]
+    fails_when: null
+    section: null
+    help: null
+    visible_when: null
+  - id: "understood"
+    text: "I understood the talk"
+    kind: "choice"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: ["Yes", "No"]
+    fails_when: null
+    section: null
+    help: null
+    visible_when: null

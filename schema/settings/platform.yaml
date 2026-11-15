@@ -592,3 +592,95 @@ settings:
     validation:
       minimum: 0
     since: "0.1.0"
+
+  # P2-FORMS S2: forms and public intake (ADR-0031, ADR-0032)
+  - key: forms.draft_saves_max
+    type: int
+    default: 50
+    description: How many times one form draft may be saved.
+    docs: >-
+      Saving a draft that has already been saved this many times is refused; submit it or discard it.
+    scopes: [platform, company]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 500
+    since: "0.1.0"
+
+  - key: forms.intake.enabled
+    type: bool
+    default: false
+    description: Whether public intake addresses work.
+    docs: >-
+      Off: every /i/ address answers as a dead code, whatever codes exist. On: an active, unexpired code serves its
+      form without a login.
+    scopes: [platform]
+    lockable: false
+    since: "0.1.0"
+
+  - key: forms.intake.rate_per_address_per_hour
+    type: int
+    default: 20
+    description: How many intake submissions one network address may send in an hour.
+    docs: >-
+      A further submission from the same address in the same hour is refused.
+    scopes: [platform]
+    lockable: false
+    validation:
+      minimum: 1
+      maximum: 1000
+    since: "0.1.0"
+
+  - key: forms.intake.rate_per_code_per_hour
+    type: int
+    default: 60
+    description: How many intake submissions one code may receive in an hour.
+    docs: >-
+      A further submission through the same code in the same hour is refused.
+    scopes: [platform]
+    lockable: false
+    validation:
+      minimum: 1
+      maximum: 10000
+    since: "0.1.0"
+
+  - key: forms.intake.pending_per_code_max
+    type: int
+    default: 200
+    description: How many intake items one code may hold waiting for review.
+    docs: >-
+      A submission through a code that already holds this many pending items is refused until a person accepts or
+      rejects some.
+    scopes: [platform, company]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 5000
+    since: "0.1.0"
+
+  - key: forms.intake.retention_days
+    type: int
+    default: 30
+    description: How many days the received text of an intake item is kept.
+    docs: >-
+      After this many days the body of an intake item is purged. Backups that hold the body table are kept no
+      longer than this.
+    scopes: [platform, company]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 90
+    since: "0.1.0"
+
+  - key: forms.intake.code_max_days
+    type: int
+    default: 90
+    description: The longest an intake code may stay valid after it is issued.
+    docs: >-
+      Issuing a code that expires later than this many days from today is refused.
+    scopes: [platform, company]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 365
+    since: "0.1.0"

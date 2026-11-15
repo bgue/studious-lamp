@@ -1,0 +1,30 @@
+CREATE VIEW IF NOT EXISTS v_forms_submission AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.template_id AS template_id,
+  t.template_version AS template_version,
+  t.template_hash AS template_hash,
+  t.subject_id AS subject_id,
+  t.answers_json AS answers_json,
+  t.answer_class AS answer_class,
+  t.draft_saves AS draft_saves,
+  t.author AS author,
+  t.submitted_on AS submitted_on,
+  t.reviewed_by AS reviewed_by,
+  t.reviewed_on AS reviewed_on,
+  t.review_note AS review_note,
+  t.void_reason AS void_reason
+FROM cur_forms_submission AS t
+JOIN cur_core_record AS r ON r.id = t.id;

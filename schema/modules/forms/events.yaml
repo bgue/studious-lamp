@@ -1,0 +1,477 @@
+id: https://example.org/throughline/modules/forms/events
+name: tl_mod_forms_events
+title: Forms module events
+description: >-
+  The ledger events of the forms module (brief 18.3), in the same form as `schema/core/events.yaml`. A record is
+  created by `Record.Created` followed in the same append by its `<Type>.Created`, `DraftSaved`, `Submitted`,
+  `Issued` or `Received` event (a submission starts with `DraftSaved` or `Submitted`). Every event carries
+  `feed_policy: none`. Each payload names the stream's `record_id`. No payload slot is named `code`, `token`, `url`,
+  `body` or `salt`; `IntakeItem.Received` carries no typed text. Valid time (ADR-0026): nothing is tagged; a form
+  event is a system act and transaction time is the fact (receipt time is the only time in v1).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+  - template
+  - submission
+  - intake_code
+  - intake_item
+default_range: string
+annotations:
+  tl:module: forms
+
+classes:
+  TemplateCreatedPayload:
+    is_a: EventPayload
+    description: >-
+      A form template was created as a draft. Stream type `forms.Template`.
+    annotations:
+      tl:event_type: Template.Created
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The template."
+        required: true
+      format_version:
+        description: "Document format, 1 or 2."
+        range: integer
+        required: true
+      form_fields:
+        description: "List of fields."
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+      field_count:
+        description: "Number of fields."
+        range: integer
+        required: true
+      version:
+        description: "Version number."
+        range: integer
+        required: true
+      supersedes_id:
+        description: "The template it replaces, or null."
+      bound_record_type:
+        description: "Record type it is bound to, or null."
+      answer_class:
+        description: "internal, restricted or privileged; null means internal."
+        range: AnswerClass
+      intake:
+        description: "public, or null."
+        range: IntakeFlag
+      purpose:
+        description: "request or sign_on, or null."
+        range: IntakePurpose
+      accepts_as:
+        description: "List of command names, or null."
+        range: Any
+        annotations:
+          tl:json: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"accepts_as\": null, \"answer_class\": null, \"bound_record_type\": null, \"feed_policy\": \"none\", \"field_count\": 1, \"form_fields\": [{\"choices\": null, \"fails_when\": null, \"id\": \"q1\", \"kind\": \"yes_no_na\", \"max\": null, \"min\": null, \"required\": true, \"text\": \"Guard fitted?\", \"unit\": null}], \"format_version\": 2, \"intake\": null, \"purpose\": null, \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"supersedes_id\": null, \"version\": 1}"
+  TemplateEditedPayload:
+    is_a: EventPayload
+    description: >-
+      A draft template was edited; only the fields that changed are present. Stream type `forms.Template`.
+    annotations:
+      tl:event_type: Template.Edited
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The template."
+        required: true
+      changes:
+        description: "Object of field -> [old, new]."
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"changes\": {\"field_count\": [1, 2]}, \"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  TemplatePublishedPayload:
+    is_a: EventPayload
+    description: >-
+      A draft template was published; its content hash is fixed. Stream type `forms.Template`.
+    annotations:
+      tl:event_type: Template.Published
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The template."
+        required: true
+      published_on:
+        description: "YYYY-MM-DD."
+        required: true
+      content_hash:
+        description: "SHA-256 of the canonical fields and format."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"content_hash\": \"abababababababababababababababababababababababababababababababab\", \"feed_policy\": \"none\", \"published_on\": \"2026-12-01\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  TemplateRetiredPayload:
+    is_a: EventPayload
+    description: >-
+      A draft or published template was retired. Stream type `forms.Template`.
+    annotations:
+      tl:event_type: Template.Retired
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The template."
+        required: true
+      retired_on:
+        description: "YYYY-MM-DD."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"retired_on\": \"2026-12-09\"}"
+  SubmissionDraftSavedPayload:
+    is_a: EventPayload
+    description: >-
+      A draft of a submission was saved. The first save starts the stream. Stream type `forms.Submission`.
+    annotations:
+      tl:event_type: Submission.DraftSaved
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The submission."
+        required: true
+      template_id:
+        description: "The template record."
+      template_version:
+        description: "The template version."
+        range: integer
+      template_hash:
+        description: "The content hash of that version."
+      subject_id:
+        description: "The confidentiality subject, or null."
+      answers:
+        description: "List of answers `{q, value, note}`."
+        range: Any
+        annotations:
+          tl:json: true
+      answer_class:
+        description: "Confidentiality class of the answers."
+        range: AnswerClass
+      save_no:
+        description: "How many times the draft has been saved, counting this save."
+        range: integer
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"answer_class\": null, \"answers\": [{\"note\": null, \"q\": \"q1\", \"value\": \"yes\"}], \"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"save_no\": 1, \"subject_id\": null, \"template_hash\": \"abababababababababababababababababababababababababababababababab\", \"template_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"template_version\": 1}"
+  SubmissionDraftDiscardedPayload:
+    is_a: EventPayload
+    description: >-
+      A draft submission was discarded. Stream type `forms.Submission`.
+    annotations:
+      tl:event_type: Submission.DraftDiscarded
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The submission."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  SubmissionSubmittedPayload:
+    is_a: EventPayload
+    description: >-
+      A submission was submitted. It may be the first event of its stream. Stream type `forms.Submission`.
+    annotations:
+      tl:event_type: Submission.Submitted
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The submission."
+        required: true
+      template_id:
+        description: "The template record."
+      template_version:
+        description: "The template version."
+        range: integer
+      template_hash:
+        description: "The content hash of that version."
+      subject_id:
+        description: "The confidentiality subject, or null."
+      answers:
+        description: "List of answers `{q, value, note}`."
+        range: Any
+        annotations:
+          tl:json: true
+      answer_class:
+        description: "Confidentiality class of the answers."
+        range: AnswerClass
+      submitted_on:
+        description: "YYYY-MM-DD."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"answer_class\": null, \"answers\": [{\"note\": null, \"q\": \"q1\", \"value\": \"yes\"}], \"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"subject_id\": null, \"submitted_on\": \"2026-12-01\", \"template_hash\": \"abababababababababababababababababababababababababababababababab\", \"template_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"template_version\": 1}"
+  SubmissionAcceptedPayload:
+    is_a: EventPayload
+    description: >-
+      A submitted form was accepted by a controller. Stream type `forms.Submission`.
+    annotations:
+      tl:event_type: Submission.Accepted
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The submission."
+        required: true
+      note:
+        description: "The reviewer's note, or null."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"note\": null, \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  SubmissionReturnedPayload:
+    is_a: EventPayload
+    description: >-
+      A submitted form was returned to its author by a controller. Stream type `forms.Submission`.
+    annotations:
+      tl:event_type: Submission.Returned
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The submission."
+        required: true
+      note:
+        description: "Why it was returned."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"note\": \"Section 2 is unclear\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  SubmissionVoidedPayload:
+    is_a: EventPayload
+    description: >-
+      A submitted, accepted or returned form was voided by a controller. Stream type `forms.Submission`.
+    annotations:
+      tl:event_type: Submission.Voided
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The submission."
+        required: true
+      reason:
+        description: "Why it was voided."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Entered on the wrong form\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  IntakeCodeIssuedPayload:
+    is_a: EventPayload
+    description: >-
+      An intake code was issued. No payload holds the code, only its hash. Stream type `forms.IntakeCode`.
+    annotations:
+      tl:event_type: IntakeCode.Issued
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The intake code."
+        required: true
+      code_hash:
+        description: "SHA-256 of the code, 64 lower case hex characters."
+        required: true
+      template_id:
+        description: "The template record."
+        required: true
+      template_version:
+        description: "The template version."
+        range: integer
+        required: true
+      template_hash:
+        description: "The content hash of that version."
+        required: true
+      context_id:
+        description: "The record the code is about."
+        required: true
+      context_type:
+        description: "Record type of the context."
+        required: true
+      heading:
+        description: "The heading the public page shows."
+        required: true
+      controller_role:
+        description: "The role that reviews what arrives."
+        required: true
+      expires_on:
+        description: "Last day the code works."
+        range: date
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"code_hash\": \"abababababababababababababababababababababababababababababababab\", \"context_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"context_type\": \"engineering.Tag\", \"controller_role\": \"controller\", \"expires_on\": \"2027-01-31\", \"feed_policy\": \"none\", \"heading\": \"Scaffold request\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"template_hash\": \"abababababababababababababababababababababababababababababababab\", \"template_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"template_version\": 1}"
+  IntakeCodeRevokedPayload:
+    is_a: EventPayload
+    description: >-
+      An intake code was revoked. Stream type `forms.IntakeCode`.
+    annotations:
+      tl:event_type: IntakeCode.Revoked
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The intake code."
+        required: true
+      reason:
+        description: "Why it was revoked."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Label lost\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  IntakeItemReceivedPayload:
+    is_a: EventPayload
+    description: >-
+      An intake submission was received. It carries no typed text: the body is in the operational table. Stream type `forms.IntakeItem`.
+    annotations:
+      tl:event_type: IntakeItem.Received
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The intake item."
+        required: true
+      item_id:
+        description: "The intake item (the stream id)."
+        required: true
+      code_id:
+        description: "The intake code it came through."
+        required: true
+      template_id:
+        description: "The template record."
+        required: true
+      template_version:
+        description: "The template version."
+        range: integer
+        required: true
+      template_hash:
+        description: "The content hash of that version."
+        required: true
+      body_mac:
+        description: "MAC of the received body, 64 lower case hex characters."
+        required: true
+      body_bytes:
+        description: "Size of the received body in bytes."
+        range: integer
+        required: true
+      received_at:
+        description: "When it was received."
+        range: datetime
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"body_bytes\": 120, \"body_mac\": \"abababababababababababababababababababababababababababababababab\", \"code_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"feed_policy\": \"none\", \"item_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"received_at\": \"2026-12-01T09:00:00Z\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"template_hash\": \"abababababababababababababababababababababababababababababababab\", \"template_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"template_version\": 1}"
+  IntakeItemAcceptedPayload:
+    is_a: EventPayload
+    description: >-
+      An intake item was accepted as a command the template names. Stream type `forms.IntakeItem`.
+    annotations:
+      tl:event_type: IntakeItem.Accepted
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The intake item."
+        required: true
+      accepted_as:
+        description: "Name of the command it became."
+        required: true
+      on_behalf_of_claim:
+        description: "Object `{name, company}` the sender claimed, or null."
+        range: Any
+        annotations:
+          tl:json: true
+      cause_event_id:
+        description: "The event of the command it became."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"accepted_as\": \"SubmitForm\", \"cause_event_id\": null, \"feed_policy\": \"none\", \"on_behalf_of_claim\": {\"company\": \"Acme\", \"name\": \"Sam\"}, \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  IntakeItemRejectedPayload:
+    is_a: EventPayload
+    description: >-
+      An intake item was rejected. Stream type `forms.IntakeItem`.
+    annotations:
+      tl:event_type: IntakeItem.Rejected
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The intake item."
+        required: true
+      reason:
+        description: "spam, duplicate, not_ours or unclear."
+        range: IntakeRejectReason
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"spam\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  IntakeItemPurgedPayload:
+    is_a: EventPayload
+    description: >-
+      The body of an intake item was purged. Stream type `forms.IntakeItem`.
+    annotations:
+      tl:event_type: IntakeItem.Purged
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The intake item."
+        required: true
+      purged_at:
+        description: "When it was purged."
+        range: datetime
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"purged_at\": \"2026-12-31T00:00:00Z\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"

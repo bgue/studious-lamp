@@ -1,0 +1,29 @@
+id: https://example.org/throughline/modules/forms
+name: tl_mod_forms
+title: "The forms module (templates, submissions with drafts, zero-login intake)"
+description: >-
+  Forms (ADR-0031, ADR-0032, `docs/build-spec/module-designs/forms-eval.md`). A `Template` is a published, versioned
+  list of fields (format 1 or 2). A `Submission` holds the answers one person gives to one template version: it is
+  saved as a draft any number of times, submitted, then accepted or returned by a controller. Public intake adds
+  `IntakeCode` (a hashed, expiring address), `IntakeItem` (one received submission, held until a person accepts or
+  rejects it) and `IntakeBody` (the received text, operational: no event produces it).
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the module's own
+  current-state table, joined on `id`. `IntakeBody` is the one table with no record: see its description.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - template
+  - submission
+  - intake_code
+  - intake_item
+  - intake_body
+  - events
+default_range: string
+annotations:
+  tl:module: forms

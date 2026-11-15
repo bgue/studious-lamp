@@ -17,6 +17,7 @@ dependencies = [
   "tl-mod-materials",
   "tl-mod-quality",
   "tl-mod-qr",
+  "tl-mod-forms",
   "tl-mod-permits",
 ]
 

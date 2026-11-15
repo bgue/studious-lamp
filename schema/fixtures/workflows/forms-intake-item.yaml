@@ -1,0 +1,22 @@
+# Workflow of a received intake item (ADR-0032): Pending until a controller accepts it (it becomes a command the
+# template names) or rejects it. Accepted and Rejected are final; any move out of them is not a move. A purge of the
+# body is `purged_at` on the record, not a move. Every move is a command of the forms module (by_module), so the file
+# states the moves and names no role: who may do what is the access word of each command (ADR-0013).
+id: forms.intake-item
+version: 1
+record_type: forms.IntakeItem
+scope: company
+initial_state: Pending
+states:
+  - name: Pending
+  - name: Accepted
+  - name: Rejected
+transitions:
+  - name: accept
+    label: Accept the item
+    from: [Pending]
+    to: Accepted
+  - name: reject
+    label: Reject the item
+    from: [Pending]
+    to: Rejected

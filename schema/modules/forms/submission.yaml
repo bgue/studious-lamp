@@ -1,0 +1,97 @@
+id: https://example.org/throughline/modules/forms/submission
+name: tl_mod_forms_submission
+title: Form submissions (ADR-0031)
+description: >-
+  A submission holds the answers of one person to one template version. It is saved as a draft any number of times,
+  submitted, then accepted or returned by a controller, or voided. A draft takes no number until it is submitted. Its
+  life is the workflow `forms.submission`. The title of the record is on the envelope.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - template
+default_range: string
+annotations:
+  tl:module: forms
+
+classes:
+  Submission:
+    title: Form submission
+    description: >-
+      One submission. Record type `forms.Submission`; its key is the number the allocator gives it (`P123-FRM-0001`).
+      Offline class `draft_only`: a form is filled and saved offline (`SaveFormDraft`, `SubmitForm`); accept,
+      return and void are central. `answers` holds a JSON list of `{q, value, note}`, one per answered field.
+      `subject_id` is the confidentiality subject (the record the form is about); null when none. `answer_class` is
+      copied from the template at the first save. `draft_saves` counts the draft saves.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "forms.Submission"
+      tl:offline: draft_only
+      tl:table: cur_forms_submission
+      tl:ix_template: "template_id"
+      tl:ix_subject: "subject_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope of the record the form is about, `project:<id>`; else `company`."
+      template_id:
+        range: Ulid
+        description: "The template record."
+      template_version:
+        range: integer
+        minimum_value: 1
+        description: "The template version the answers are for."
+      template_hash:
+        pattern: "^[0-9a-f]{64}$"
+        description: "The content hash of that template version, 64 lower case hex characters."
+      subject_id:
+        range: Ulid
+        description: "The confidentiality subject; null when none."
+      answers:
+        range: Any
+        required: true
+        ifabsent: string([])
+        annotations:
+          tl:json: true
+        description: 'JSON list of answers `{q, value, note}`. Column `answers_json`.'
+      answer_class:
+        range: AnswerClass
+        description: "Confidentiality class of the answers, copied from the template at the first save."
+      draft_saves:
+        range: integer
+        required: true
+        minimum_value: 0
+        ifabsent: int(0)
+        description: "How many times the draft was saved."
+      author:
+        pattern: "^.{1,64}$"
+        description: "Actor text of who filled the form, at most 64 characters."
+      submitted_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date it was submitted, `YYYY-MM-DD`; null while a draft."
+      reviewed_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who accepted or returned it; null until reviewed."
+      reviewed_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date it was reviewed, `YYYY-MM-DD`; null until reviewed."
+      review_note:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "The reviewer's note, at most 300 characters; null when none."
+      void_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Why it was voided, at most 300 characters; null unless voided."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

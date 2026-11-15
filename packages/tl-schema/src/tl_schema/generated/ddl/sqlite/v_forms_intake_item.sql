@@ -1,0 +1,31 @@
+CREATE VIEW IF NOT EXISTS v_forms_intake_item AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.code_id AS code_id,
+  t.template_id AS template_id,
+  t.template_version AS template_version,
+  t.template_hash AS template_hash,
+  t.body_mac AS body_mac,
+  t.body_bytes AS body_bytes,
+  t.received_at AS received_at,
+  t.accepted_as AS accepted_as,
+  t.accepted_by AS accepted_by,
+  t.accepted_on AS accepted_on,
+  t.on_behalf_of_claim_json AS on_behalf_of_claim_json,
+  t.rejected_reason AS rejected_reason,
+  t.rejected_by AS rejected_by,
+  t.purged_at AS purged_at
+FROM cur_forms_intake_item AS t
+JOIN cur_core_record AS r ON r.id = t.id;

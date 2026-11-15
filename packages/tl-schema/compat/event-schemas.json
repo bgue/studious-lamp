@@ -3972,6 +3972,220 @@
    "type": "object"
   }
  },
+ "IntakeCode.Issued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code_hash": {
+     "type": "string"
+    },
+    "context_id": {
+     "type": "string"
+    },
+    "context_type": {
+     "type": "string"
+    },
+    "controller_role": {
+     "type": "string"
+    },
+    "expires_on": {
+     "format": "date",
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "heading": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "template_hash": {
+     "type": "string"
+    },
+    "template_id": {
+     "type": "string"
+    },
+    "template_version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "record_id",
+    "code_hash",
+    "template_id",
+    "template_version",
+    "template_hash",
+    "context_id",
+    "context_type",
+    "heading",
+    "controller_role",
+    "expires_on",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IntakeCode.Revoked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IntakeItem.Accepted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "accepted_as": {
+     "type": "string"
+    },
+    "cause_event_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "on_behalf_of_claim": {},
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "accepted_as",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IntakeItem.Purged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "purged_at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "purged_at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IntakeItem.Received": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "body_bytes": {
+     "type": "integer"
+    },
+    "body_mac": {
+     "type": "string"
+    },
+    "code_id": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "item_id": {
+     "type": "string"
+    },
+    "received_at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "template_hash": {
+     "type": "string"
+    },
+    "template_id": {
+     "type": "string"
+    },
+    "template_version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "record_id",
+    "item_id",
+    "code_id",
+    "template_id",
+    "template_version",
+    "template_hash",
+    "body_mac",
+    "body_bytes",
+    "received_at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IntakeItem.Rejected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "enum": [
+      "spam",
+      "duplicate",
+      "not_ours",
+      "unclear"
+     ],
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "IntegrationApp.Disabled": {
   "1": {
    "additionalProperties": true,
@@ -8399,6 +8613,222 @@
    "type": "object"
   }
  },
+ "Submission.Accepted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Submission.DraftDiscarded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Submission.DraftSaved": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "answer_class": {
+     "anyOf": [
+      {
+       "enum": [
+        "internal",
+        "restricted",
+        "privileged"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "answers": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "save_no": {
+     "type": "integer"
+    },
+    "subject_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "template_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "template_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "template_version": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "record_id",
+    "save_no",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Submission.Returned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "note": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "note",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Submission.Submitted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "answer_class": {
+     "anyOf": [
+      {
+       "enum": [
+        "internal",
+        "restricted",
+        "privileged"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "answers": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "subject_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "submitted_on": {
+     "type": "string"
+    },
+    "template_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "template_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "template_version": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "record_id",
+    "submitted_on",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Submission.Voided": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "Tag.Defined": {
   "1": {
    "additionalProperties": true,
@@ -8747,6 +9177,165 @@
    },
    "required": [
     "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "Template.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "accepts_as": {},
+    "answer_class": {
+     "anyOf": [
+      {
+       "enum": [
+        "internal",
+        "restricted",
+        "privileged"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "bound_record_type": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "field_count": {
+     "type": "integer"
+    },
+    "form_fields": {},
+    "format_version": {
+     "type": "integer"
+    },
+    "intake": {
+     "anyOf": [
+      {
+       "enum": [
+        "public"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "purpose": {
+     "anyOf": [
+      {
+       "enum": [
+        "request",
+        "sign_on"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "supersedes_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "record_id",
+    "format_version",
+    "form_fields",
+    "field_count",
+    "version",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Template.Edited": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "changes",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Template.Published": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "content_hash": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "published_on": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "published_on",
+    "content_hash",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Template.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "retired_on": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "retired_on",
+    "feed_policy"
    ],
    "type": "object"
   }

@@ -1,0 +1,119 @@
+# Sample form template (P2-FORMS S2): plain data {title, format_version, bound_record_type, answer_class, intake,
+# purpose, accepts_as, fields}. Fields are format 2 (docs/build-spec/module-designs/forms-eval.md section 2.3); a null
+# key is written out. A loader is not part of this piece.
+title: "Job hazard assessment"
+format_version: 2
+bound_record_type: null
+answer_class: "restricted"
+intake: null
+purpose: null
+accepts_as: null
+fields:
+  - id: "task"
+    text: "Task being assessed"
+    kind: "text"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Task"
+    help: null
+    visible_when: null
+  - id: "work_area"
+    text: "Work area"
+    kind: "text"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Task"
+    help: null
+    visible_when: null
+  - id: "assess_date"
+    text: "Date of the assessment"
+    kind: "date"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Task"
+    help: null
+    visible_when: null
+  - id: "hazard_type"
+    text: "Main hazard"
+    kind: "choice"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: ["Height", "Energy", "Chemical", "Mechanical", "Environment", "Other"]
+    fails_when: null
+    section: "Hazards"
+    help: null
+    visible_when: null
+  - id: "hazard_other"
+    text: "Describe the other hazard"
+    kind: "text"
+    required: false
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Hazards"
+    help: null
+    visible_when: {"q": "hazard_type", "is": "Other"}
+  - id: "controls_in_place"
+    text: "Controls in place?"
+    kind: "yes_no_na"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: "no"
+    section: "Controls"
+    help: null
+    visible_when: null
+  - id: "controls_notes"
+    text: "Controls and who owns them"
+    kind: "text"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Controls"
+    help: "List each control and its owner."
+    visible_when: null
+  - id: "residual_risk"
+    text: "Residual risk"
+    kind: "choice"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: ["Low", "Medium", "High"]
+    fails_when: null
+    section: "Controls"
+    help: null
+    visible_when: null
+  - id: "workers_briefed"
+    text: "Workers briefed?"
+    kind: "yes_no_na"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Sign-off"
+    help: null
+    visible_when: null

@@ -1,0 +1,30 @@
+CREATE OR REPLACE VIEW v_forms_template AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.template_version AS template_version,
+  t.format_version AS format_version,
+  t.form_fields_json AS form_fields_json,
+  t.field_count AS field_count,
+  t.content_hash AS content_hash,
+  t.supersedes_id AS supersedes_id,
+  t.bound_record_type AS bound_record_type,
+  t.answer_class AS answer_class,
+  t.intake AS intake,
+  t.purpose AS purpose,
+  t.accepts_as_json AS accepts_as_json,
+  t.published_on AS published_on,
+  t.retired_on AS retired_on
+FROM cur_forms_template AS t
+JOIN cur_core_record AS r ON r.id = t.id;

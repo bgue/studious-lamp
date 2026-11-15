@@ -126,6 +126,12 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Inspection.ResultRecorded`](#inspectionresultrecorded) | `tl.core.Inspection.ResultRecorded.v1` | The result of an inspection was recorded. |
 | [`Inspection.Scheduled`](#inspectionscheduled) | `tl.core.Inspection.Scheduled.v1` | An inspection was scheduled or rescheduled. |
 | [`Inspection.Verified`](#inspectionverified) | `tl.core.Inspection.Verified.v1` | A recorded inspection was verified by a controller. |
+| [`IntakeCode.Issued`](#intakecodeissued) | `tl.core.IntakeCode.Issued.v1` | An intake code was issued. |
+| [`IntakeCode.Revoked`](#intakecoderevoked) | `tl.core.IntakeCode.Revoked.v1` | An intake code was revoked. |
+| [`IntakeItem.Accepted`](#intakeitemaccepted) | `tl.core.IntakeItem.Accepted.v1` | An intake item was accepted as a command the template names. |
+| [`IntakeItem.Purged`](#intakeitempurged) | `tl.core.IntakeItem.Purged.v1` | The body of an intake item was purged. |
+| [`IntakeItem.Received`](#intakeitemreceived) | `tl.core.IntakeItem.Received.v1` | An intake submission was received. |
+| [`IntakeItem.Rejected`](#intakeitemrejected) | `tl.core.IntakeItem.Rejected.v1` | An intake item was rejected. |
 | [`IntegrationApp.Disabled`](#integrationappdisabled) | `tl.core.IntegrationApp.Disabled.v1` | An app was switched off: its endpoints answer 404 and its rules, actions and enrichers do nothing. |
 | [`IntegrationApp.Enabled`](#integrationappenabled) | `tl.core.IntegrationApp.Enabled.v1` | An app was switched on: its endpoints, rules, actions and enrichers run again. |
 | [`IntegrationApp.Registered`](#integrationappregistered) | `tl.core.IntegrationApp.Registered.v1` | An integration app was registered. |
@@ -268,6 +274,12 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Standard.Defined`](#standarddefined) | `tl.core.Standard.Defined.v1` | A registry entry (a code list, a mnemonic or a numbering pattern) was defined. |
 | [`StockLot.Defined`](#stocklotdefined) | `tl.core.StockLot.Defined.v1` | A stock lot was made for one line of an accepted receipt. |
 | [`StockLot.Moved`](#stocklotmoved) | `tl.core.StockLot.Moved.v1` | Stock moved: one movement of a lot. |
+| [`Submission.Accepted`](#submissionaccepted) | `tl.core.Submission.Accepted.v1` | A submitted form was accepted by a controller. |
+| [`Submission.DraftDiscarded`](#submissiondraftdiscarded) | `tl.core.Submission.DraftDiscarded.v1` | A draft submission was discarded. |
+| [`Submission.DraftSaved`](#submissiondraftsaved) | `tl.core.Submission.DraftSaved.v1` | A draft of a submission was saved. |
+| [`Submission.Returned`](#submissionreturned) | `tl.core.Submission.Returned.v1` | A submitted form was returned to its author by a controller. |
+| [`Submission.Submitted`](#submissionsubmitted) | `tl.core.Submission.Submitted.v1` | A submission was submitted. |
+| [`Submission.Voided`](#submissionvoided) | `tl.core.Submission.Voided.v1` | A submitted, accepted or returned form was voided by a controller. |
 | [`Tag.Defined`](#tagdefined) | `tl.core.Tag.Defined.v1` | A tag was created, with its number parsed into segments and its class. |
 | [`Tag.Reclassified`](#tagreclassified) | `tl.core.Tag.Reclassified.v1` | A tag moved to another class; the new class may bind other property sets. |
 | [`Tag.Superseded`](#tagsuperseded) | `tl.core.Tag.Superseded.v1` | A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history. |
@@ -279,6 +291,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Technical.Reissued`](#technicalreissued) | `tl.core.Technical.Reissued.v1` | A rejected Technical item went back to internal review to be issued again. |
 | [`Technical.Reviewed`](#technicalreviewed) | `tl.core.Technical.Reviewed.v1` | The raiser accepted or rejected the answer. |
 | [`Technical.Updated`](#technicalupdated) | `tl.core.Technical.Updated.v1` | The domain fields of a Technical item that is a draft or in internal review changed. |
+| [`Template.Created`](#templatecreated) | `tl.core.Template.Created.v1` | A form template was created as a draft. |
+| [`Template.Edited`](#templateedited) | `tl.core.Template.Edited.v1` | A draft template was edited; only the fields that changed are present. |
+| [`Template.Published`](#templatepublished) | `tl.core.Template.Published.v1` | A draft template was published; its content hash is fixed. |
+| [`Template.Retired`](#templateretired) | `tl.core.Template.Retired.v1` | A draft or published template was retired. |
 | [`Thread.Dispatched`](#threaddispatched) | `tl.core.Thread.Dispatched.v1` | A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line. |
 | [`Thread.MessageEdited`](#threadmessageedited) | `tl.core.Thread.MessageEdited.v1` | The author replaced the body of a message. |
 | [`Thread.MessagePosted`](#threadmessageposted) | `tl.core.Thread.MessagePosted.v1` | A message was posted in a record thread. |
@@ -7237,6 +7253,355 @@ A recorded inspection was verified by a controller. Stream type `quality.Inspect
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Inspection.Verified.v1"
+}
+```
+
+## IntakeCode.Issued
+
+An intake code was issued. No payload holds the code, only its hash. Stream type `forms.IntakeCode`.
+
+- CloudEvents type: `tl.core.IntakeCode.Issued.v1`
+- Ledger payload class: `IntakeCodeIssuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code_hash` | string | yes | SHA-256 of the code, 64 lower case hex characters. |
+| `context_id` | string | yes | The record the code is about. |
+| `context_type` | string | yes | Record type of the context. |
+| `controller_role` | string | yes | The role that reviews what arrives. |
+| `expires_on` | string | yes | Last day the code works. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `heading` | string | yes | The heading the public page shows. |
+| `record_id` | string | yes | The intake code. |
+| `template_hash` | string | yes | The content hash of that version. |
+| `template_id` | string | yes | The template record. |
+| `template_version` | integer | yes | The template version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code_hash": "abababababababababababababababababababababababababababababababab",
+      "context_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "context_type": "engineering.Tag",
+      "controller_role": "controller",
+      "expires_on": "2027-01-31",
+      "feed_policy": "none",
+      "heading": "Scaffold request",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "template_hash": "abababababababababababababababababababababababababababababababab",
+      "template_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "template_version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntakeCode.Issued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntakeCode.Issued.v1"
+}
+```
+
+## IntakeCode.Revoked
+
+An intake code was revoked. Stream type `forms.IntakeCode`.
+
+- CloudEvents type: `tl.core.IntakeCode.Revoked.v1`
+- Ledger payload class: `IntakeCodeRevokedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `reason` | string | yes | Why it was revoked. |
+| `record_id` | string | yes | The intake code. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Label lost",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntakeCode.Revoked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntakeCode.Revoked.v1"
+}
+```
+
+## IntakeItem.Accepted
+
+An intake item was accepted as a command the template names. Stream type `forms.IntakeItem`.
+
+- CloudEvents type: `tl.core.IntakeItem.Accepted.v1`
+- Ledger payload class: `IntakeItemAcceptedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `accepted_as` | string | yes | Name of the command it became. |
+| `cause_event_id` | string or null | no | The event of the command it became. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `on_behalf_of_claim` | any | no | Object `{name, company}` the sender claimed, or null. |
+| `record_id` | string | yes | The intake item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "accepted_as": "SubmitForm",
+      "cause_event_id": null,
+      "feed_policy": "none",
+      "on_behalf_of_claim": {
+        "company": "Acme",
+        "name": "Sam"
+      },
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntakeItem.Accepted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntakeItem.Accepted.v1"
+}
+```
+
+## IntakeItem.Purged
+
+The body of an intake item was purged. Stream type `forms.IntakeItem`.
+
+- CloudEvents type: `tl.core.IntakeItem.Purged.v1`
+- Ledger payload class: `IntakeItemPurgedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `purged_at` | string | yes | When it was purged. |
+| `record_id` | string | yes | The intake item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "purged_at": "2026-12-31T00:00:00Z",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntakeItem.Purged/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntakeItem.Purged.v1"
+}
+```
+
+## IntakeItem.Received
+
+An intake submission was received. It carries no typed text: the body is in the operational table. Stream type `forms.IntakeItem`.
+
+- CloudEvents type: `tl.core.IntakeItem.Received.v1`
+- Ledger payload class: `IntakeItemReceivedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `body_bytes` | integer | yes | Size of the received body in bytes. |
+| `body_mac` | string | yes | MAC of the received body, 64 lower case hex characters. |
+| `code_id` | string | yes | The intake code it came through. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `item_id` | string | yes | The intake item (the stream id). |
+| `received_at` | string | yes | When it was received. |
+| `record_id` | string | yes | The intake item. |
+| `template_hash` | string | yes | The content hash of that version. |
+| `template_id` | string | yes | The template record. |
+| `template_version` | integer | yes | The template version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "body_bytes": 120,
+      "body_mac": "abababababababababababababababababababababababababababababababab",
+      "code_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "feed_policy": "none",
+      "item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "received_at": "2026-12-01T09:00:00Z",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "template_hash": "abababababababababababababababababababababababababababababababab",
+      "template_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "template_version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntakeItem.Received/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntakeItem.Received.v1"
+}
+```
+
+## IntakeItem.Rejected
+
+An intake item was rejected. Stream type `forms.IntakeItem`.
+
+- CloudEvents type: `tl.core.IntakeItem.Rejected.v1`
+- Ledger payload class: `IntakeItemRejectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `reason` | string | yes | spam, duplicate, not_ours or unclear. |
+| `record_id` | string | yes | The intake item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "spam",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntakeItem.Rejected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntakeItem.Rejected.v1"
 }
 ```
 
@@ -15182,6 +15547,352 @@ Stock moved: one movement of a lot. The single movement event (ADR-0022); `kind`
 }
 ```
 
+## Submission.Accepted
+
+A submitted form was accepted by a controller. Stream type `forms.Submission`.
+
+- CloudEvents type: `tl.core.Submission.Accepted.v1`
+- Ledger payload class: `SubmissionAcceptedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `note` | string or null | no | The reviewer's note, or null. |
+| `record_id` | string | yes | The submission. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "note": null,
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Submission.Accepted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Submission.Accepted.v1"
+}
+```
+
+## Submission.DraftDiscarded
+
+A draft submission was discarded. Stream type `forms.Submission`.
+
+- CloudEvents type: `tl.core.Submission.DraftDiscarded.v1`
+- Ledger payload class: `SubmissionDraftDiscardedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `record_id` | string | yes | The submission. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Submission.DraftDiscarded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Submission.DraftDiscarded.v1"
+}
+```
+
+## Submission.DraftSaved
+
+A draft of a submission was saved. The first save starts the stream. Stream type `forms.Submission`.
+
+- CloudEvents type: `tl.core.Submission.DraftSaved.v1`
+- Ledger payload class: `SubmissionDraftSavedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `answer_class` | string or null | no | Confidentiality class of the answers. |
+| `answers` | any | no | List of answers `{q, value, note}`. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `record_id` | string | yes | The submission. |
+| `save_no` | integer | yes | How many times the draft has been saved, counting this save. |
+| `subject_id` | string or null | no | The confidentiality subject, or null. |
+| `template_hash` | string or null | no | The content hash of that version. |
+| `template_id` | string or null | no | The template record. |
+| `template_version` | integer or null | no | The template version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "answer_class": null,
+      "answers": [
+        {
+          "note": null,
+          "q": "q1",
+          "value": "yes"
+        }
+      ],
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "save_no": 1,
+      "subject_id": null,
+      "template_hash": "abababababababababababababababababababababababababababababababab",
+      "template_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "template_version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Submission.DraftSaved/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Submission.DraftSaved.v1"
+}
+```
+
+## Submission.Returned
+
+A submitted form was returned to its author by a controller. Stream type `forms.Submission`.
+
+- CloudEvents type: `tl.core.Submission.Returned.v1`
+- Ledger payload class: `SubmissionReturnedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `note` | string | yes | Why it was returned. |
+| `record_id` | string | yes | The submission. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "note": "Section 2 is unclear",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Submission.Returned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Submission.Returned.v1"
+}
+```
+
+## Submission.Submitted
+
+A submission was submitted. It may be the first event of its stream. Stream type `forms.Submission`.
+
+- CloudEvents type: `tl.core.Submission.Submitted.v1`
+- Ledger payload class: `SubmissionSubmittedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `answer_class` | string or null | no | Confidentiality class of the answers. |
+| `answers` | any | no | List of answers `{q, value, note}`. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `record_id` | string | yes | The submission. |
+| `subject_id` | string or null | no | The confidentiality subject, or null. |
+| `submitted_on` | string | yes | YYYY-MM-DD. |
+| `template_hash` | string or null | no | The content hash of that version. |
+| `template_id` | string or null | no | The template record. |
+| `template_version` | integer or null | no | The template version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "answer_class": null,
+      "answers": [
+        {
+          "note": null,
+          "q": "q1",
+          "value": "yes"
+        }
+      ],
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "subject_id": null,
+      "submitted_on": "2026-12-01",
+      "template_hash": "abababababababababababababababababababababababababababababababab",
+      "template_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "template_version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Submission.Submitted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Submission.Submitted.v1"
+}
+```
+
+## Submission.Voided
+
+A submitted, accepted or returned form was voided by a controller. Stream type `forms.Submission`.
+
+- CloudEvents type: `tl.core.Submission.Voided.v1`
+- Ledger payload class: `SubmissionVoidedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `reason` | string | yes | Why it was voided. |
+| `record_id` | string | yes | The submission. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Entered on the wrong form",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Submission.Voided/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Submission.Voided.v1"
+}
+```
+
 ## Tag.Defined
 
 A tag was created, with its number parsed into segments and its class.
@@ -15848,6 +16559,251 @@ The domain fields of a Technical item that is a draft or in internal review chan
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Technical.Updated.v1"
+}
+```
+
+## Template.Created
+
+A form template was created as a draft. Stream type `forms.Template`.
+
+- CloudEvents type: `tl.core.Template.Created.v1`
+- Ledger payload class: `TemplateCreatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `accepts_as` | any | no | List of command names, or null. |
+| `answer_class` | string or null | no | internal, restricted or privileged; null means internal. |
+| `bound_record_type` | string or null | no | Record type it is bound to, or null. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `field_count` | integer | yes | Number of fields. |
+| `form_fields` | any | yes |  |
+| `format_version` | integer | yes | Document format, 1 or 2. |
+| `intake` | string or null | no | public, or null. |
+| `purpose` | string or null | no | request or sign_on, or null. |
+| `record_id` | string | yes | The template. |
+| `supersedes_id` | string or null | no | The template it replaces, or null. |
+| `version` | integer | yes | Version number. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "accepts_as": null,
+      "answer_class": null,
+      "bound_record_type": null,
+      "feed_policy": "none",
+      "field_count": 1,
+      "form_fields": [
+        {
+          "choices": null,
+          "fails_when": null,
+          "id": "q1",
+          "kind": "yes_no_na",
+          "max": null,
+          "min": null,
+          "required": true,
+          "text": "Guard fitted?",
+          "unit": null
+        }
+      ],
+      "format_version": 2,
+      "intake": null,
+      "purpose": null,
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "supersedes_id": null,
+      "version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Template.Created/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Template.Created.v1"
+}
+```
+
+## Template.Edited
+
+A draft template was edited; only the fields that changed are present. Stream type `forms.Template`.
+
+- CloudEvents type: `tl.core.Template.Edited.v1`
+- Ledger payload class: `TemplateEditedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `record_id` | string | yes | The template. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "field_count": [
+          1,
+          2
+        ]
+      },
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Template.Edited/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Template.Edited.v1"
+}
+```
+
+## Template.Published
+
+A draft template was published; its content hash is fixed. Stream type `forms.Template`.
+
+- CloudEvents type: `tl.core.Template.Published.v1`
+- Ledger payload class: `TemplatePublishedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `content_hash` | string | yes | SHA-256 of the canonical fields and format. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `published_on` | string | yes | YYYY-MM-DD. |
+| `record_id` | string | yes | The template. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "content_hash": "abababababababababababababababababababababababababababababababab",
+      "feed_policy": "none",
+      "published_on": "2026-12-01",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Template.Published/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Template.Published.v1"
+}
+```
+
+## Template.Retired
+
+A draft or published template was retired. Stream type `forms.Template`.
+
+- CloudEvents type: `tl.core.Template.Retired.v1`
+- Ledger payload class: `TemplateRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `record_id` | string | yes | The template. |
+| `retired_on` | string | yes | YYYY-MM-DD. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "retired_on": "2026-12-09"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Template.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Template.Retired.v1"
 }
 ```
 

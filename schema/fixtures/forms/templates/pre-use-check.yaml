@@ -1,0 +1,119 @@
+# Sample form template (P2-FORMS S2): plain data {title, format_version, bound_record_type, answer_class, intake,
+# purpose, accepts_as, fields}. Fields are format 2 (docs/build-spec/module-designs/forms-eval.md section 2.3); a null
+# key is written out. A loader is not part of this piece.
+title: "Pre-use equipment check"
+format_version: 2
+bound_record_type: null
+answer_class: null
+intake: null
+purpose: null
+accepts_as: null
+fields:
+  - id: "equipment"
+    text: "Equipment and tag"
+    kind: "text"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Equipment"
+    help: "The tag number is on the plate."
+    visible_when: null
+  - id: "check_date"
+    text: "Date of the check"
+    kind: "date"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Equipment"
+    help: null
+    visible_when: null
+  - id: "guards_fitted"
+    text: "Guards fitted?"
+    kind: "yes_no_na"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: "no"
+    section: "Condition"
+    help: null
+    visible_when: null
+  - id: "leaks"
+    text: "Any leaks?"
+    kind: "yes_no_na"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Condition"
+    help: null
+    visible_when: null
+  - id: "leak_photo"
+    text: "Photo of the leak"
+    kind: "photo"
+    required: false
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Condition"
+    help: null
+    visible_when: {"q": "leaks", "is": "yes"}
+  - id: "fault_kinds"
+    text: "Faults seen"
+    kind: "multi"
+    required: false
+    unit: null
+    min: null
+    max: null
+    choices: ["Cracks", "Wear", "Loose parts", "Noise", "Heat"]
+    fails_when: null
+    section: "Condition"
+    help: null
+    visible_when: null
+  - id: "run_hours"
+    text: "Hours on the meter"
+    kind: "number"
+    required: true
+    unit: "h"
+    min: 0
+    max: 100000
+    choices: null
+    fails_when: null
+    section: "Condition"
+    help: null
+    visible_when: null
+  - id: "fit_for_use"
+    text: "Fit for use"
+    kind: "choice"
+    required: true
+    unit: null
+    min: null
+    max: null
+    choices: ["Yes", "Yes with limits", "No"]
+    fails_when: null
+    section: "Result"
+    help: null
+    visible_when: null
+  - id: "remarks"
+    text: "Remarks"
+    kind: "text"
+    required: false
+    unit: null
+    min: null
+    max: null
+    choices: null
+    fails_when: null
+    section: "Result"
+    help: null
+    visible_when: null
