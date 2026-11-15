@@ -1,12 +1,14 @@
-"""The scan-card contract harness (P2-QR T03) on one good provider and the broken ones it must catch.
+"""The scan-card contract harness (P2-QR T03) on one good provider and the broken ones it
+must catch.
 
-P2-QR T04 and T05, P2-INSP T09 and P2-PTW T09 call ``check_scan_card_contract`` on their own provider the same way.
+P2-QR T04 and T05, P2-INSP T09 and P2-PTW T09 call ``check_scan_card_contract`` on their own
+provider the same way.
 """
 
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -41,26 +43,37 @@ def _card(record_type: str = "fake.Thing") -> ScanCard:
 
 
 class Fake:
-    """A provider with settable behaviour; the good one answers a card for VISIBLE only, for any viewer."""
+    """A provider with settable behaviour.
+
+    The good one answers a card for VISIBLE only, for any viewer.
+    """
 
     record_type = "fake.Thing"
     view_word = "fake.view"
 
-    def __init__(self, card: Callable[[Connection, str, Viewer, datetime], ScanCard | None] | None = None) -> None:
+    def __init__(
+        self, card: Callable[[Connection, str, Viewer, datetime], ScanCard | None] | None = None
+    ) -> None:
         self._card = card or self._good
 
-    def _good(self, conn: Connection, record_id: str, viewer: Viewer, now: datetime) -> ScanCard | None:
+    def _good(
+        self, conn: Connection, record_id: str, viewer: Viewer, now: datetime
+    ) -> ScanCard | None:
         if record_id == HIDDEN and viewer.level == 0:
             return None
         return _card() if record_id in (VISIBLE, HIDDEN) else None
 
-    def card(self, conn: Connection, record_id: str, viewer: Viewer, now: datetime) -> ScanCard | None:
+    def card(
+        self, conn: Connection, record_id: str, viewer: Viewer, now: datetime
+    ) -> ScanCard | None:
         return self._card(conn, record_id, viewer, now)
 
 
 @pytest.fixture
 def engine() -> Engine:
-    eng = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
+    eng = create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
     with eng.begin() as conn:
         conn.execute(text("CREATE TABLE thing (id INTEGER)"))
     return eng
@@ -86,7 +99,9 @@ def test_provider_without_the_protocol_members_is_refused(engine: Engine) -> Non
     class NoWord:
         record_type = "fake.Thing"
 
-        def card(self, conn: Connection, record_id: str, viewer: Viewer, now: datetime) -> ScanCard | None:
+        def card(
+            self, conn: Connection, record_id: str, viewer: Viewer, now: datetime
+        ) -> ScanCard | None:
             return None
 
     with pytest.raises(ScanCardContractViolation, match="protocol"):
