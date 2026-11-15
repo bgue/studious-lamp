@@ -81,4 +81,5 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 ## Amendment 1 (orchestrator, 2026-11-15)
 One assert in the provided test exceeded the ruff line limit where it lands. It is wrapped in parentheses (no assertion
 change) and `docs/tickets/P2-I4B/provided/T06_test_toolcrib_text.py` is updated to the same bytes; both paths are
-allowed for that.
+allowed for that. The file also opens with `# pyright: reportArgumentType=false` because its fake rows are
+SimpleNamespace objects, not StockRowView.

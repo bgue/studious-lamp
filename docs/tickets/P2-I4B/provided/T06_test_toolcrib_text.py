@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false
 """T06: the toolcrib line, its tool lookup and its command, as pure functions.
 
 Copied byte-identical to packages/tl-tui/tests/test_toolcrib_text.py. No Textual, no client.
