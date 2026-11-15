@@ -111,6 +111,16 @@ class World:
         body = content["result"] if set(content) == {"result"} else content
         return str(body["proposal"]["proposal_id"])
 
+    def punch(self, subject: str, from_key: str | None = None) -> str:
+        """One agent filing of a MODULE command (propose_punch_item, word quality.punch.raise)."""
+        args: dict[str, Any] = {"project": "P1", "subject": subject}
+        if from_key:
+            args["from_key"] = from_key
+        result = asyncio.run(self.agent_server().call_tool("propose_punch_item", args))
+        content = result.structured_content
+        body = content["result"] if set(content) == {"result"} else content
+        return str(body["proposal"]["proposal_id"])
+
     def refusal(self, scope: str, key: str) -> str:
         """The text a filing on ``scope`` is refused with; a filing that gets in is a miss."""
         try:
@@ -158,9 +168,12 @@ def clause2() -> None:
     try:
         record_id = world.amy_creates("X2 valve", "X2-PRIV")
         world.note("record-privileged.id", record_id)
-        pid = world.filing("X2 agent filing A", record_id)  # the key carries the record's id
+        # a module command: its accept needs quality.punch.raise; from_key carries amy's record
+        pid = world.punch("X2 agent punch A", "X2-PRIV")
         world.note("proposal-a.id", pid)
-        check(world.pending() == 1, f"{world.pending()} pending after the first filing")
+        world.note("proposal-a2.id", world.punch("X2 agent punch A2"))
+        pid_pending = world.pending()
+        check(pid_pending == 2, f"{pid_pending} pending after the two punch filings")
         ok(f"with the word the agent's filing is pending: {pid}")
         ok("the filing carries one of amy's records (the privileged one of clause 6)")
     finally:
@@ -170,7 +183,7 @@ def clause2() -> None:
 def clause3() -> None:
     world = World()
     try:
-        check(world.pending() == 1, f"{world.pending()} pending before the cap test")
+        check(world.pending() == 1, f"{world.pending()} pending before the cap test")  # A2 accepted
         filed: list[str] = []
         refusal = ""
         for n in range(5):

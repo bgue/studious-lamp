@@ -68,7 +68,7 @@ as() { # as NAME cmd...: run a command with that person's CLI session
 }
 
 run_backend() {
-  local backend="$1" api_port api_url out pid_a pid_b held
+  local backend="$1" pid_a2 api_port api_url out pid_a pid_b held
   step "[$backend] a new ledger, the people, the agent, the API on a free loopback port"
   drop_pg
   rm -rf "$workdir/objects" "$workdir/lake" "$workdir"/session-* "$workdir"/*.db "$workdir"/*.id \
@@ -108,16 +108,23 @@ run_backend() {
   clause 1 "no word on project:P1 is refused with the text of a scope that does not exist"
 
   step "[$backend] clause 2: the grant, the agent files, a person without the word cannot accept"
-  out="$(as demo tl admin roles grant triage --project P1 --module '*' --role user --reason "demo grant")"
+  out="$(as demo tl admin roles grant triage --project P1 --module "*" --role user --reason "demo grant")"
   [ "$out" = "granted user on * for project:P1 to triage" ] || fail "tl admin roles grant printed: $out"
+  echo "$out"
+  # a plain account derives the user word on every module, so amy lacks quality.punch.raise only
+  # through an explicit grant (it replaces the derived roles): a viewer grant on quality
+  out="$(as demo tl admin roles grant amy --project P1 --module quality --role viewer --reason "demo: read only")"
   echo "$out"
   driver clause2
   pid_a="$(read -r line <"$workdir/proposal-a.id"; echo "$line")"
   if as amy tl proposal accept "$pid_a" --actor user:amy >/dev/null 2>"$workdir/accept-amy.err"; then
-    fail "amy, without the word, accepted $pid_a"
+    fail "amy, with only a viewer grant on quality, accepted $pid_a"
   fi
   [ -s "$workdir/accept-amy.err" ] || fail "amy's accept refusal printed nothing"
-  clause 2 "with the word the agent files (pending); amy without the word cannot accept it"
+  pid_a2="$(read -r line <"$workdir/proposal-a2.id"; echo "$line")"
+  as demo tl proposal accept "$pid_a2" --actor user:demo | grep -q "^accepted $pid_a2$" \
+    || fail "demo, with the word, could not accept $pid_a2"
+  clause 2 "with the word the agent files (pending); amy (viewer on quality) cannot accept it"
 
   step "[$backend] clause 3: the queue cap is 2 for project:P1; the next filing is refused with the fixed text"
   out="$(as demo tl config set ai.agents.max_pending_per_project 2 --project P1 --reason "demo queue cap")"
