@@ -21,9 +21,14 @@ D5 2026-11-15 QR T03 helper is tests/contract/scan_card_harness.py (importable);
 D6 2026-11-15 LabelSize enum keeps tag, card, sheet; labels.py renders tag only
 ## SEC
 (none yet; one wave review over d4e92ffc..<p2/ip head> at C4)
+D-FORMS 2026-11-15 owner asked forms eval; verdict (a) capture-only engine; in-flight INSP/PTW/QR unchanged; forms path ~6p/24t after INSP C2, PTW C2, X4 C2; module-designs/forms-eval.md, ADR-0031 Proposed
 ## OPEN
 Q1 ADR-0030 acceptance and S1 APPROVALS lines (owner) needs owner raised QR-S1
 Q2 gas limit defaults signed by safety lead needs owner raised PTW-S1
+Q3 forms: accept ADR-0031 (capture-only forms engine in core; INSP thin, PTW typed) needs owner raised FORMS-EVAL
+Q4 forms: vendor the two MIT SurveyJS files (survey-core, survey-js-ui) into the web client, fallback server page needs owner raised FORMS-EVAL
+Q5 forms: server-side drafts (default no); queue anything for permits offline (default no); cached as-of status offline (default no) needs owner raised FORMS-EVAL
+Q6 forms: late window 72 h `forms.late_accept_hours` (< idempotency retention); general submissions reviewed by a controller, not the submitter needs owner raised FORMS-EVAL
 ## NEXT
 1. Orchestrator: dispatch QR-S1 and INSP-S1 (workflow items, builders), PTW-S1 when one ends.
 2. After QR-S1 merges: workflow {QR-T02, QR-T03}.
