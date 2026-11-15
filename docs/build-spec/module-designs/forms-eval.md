@@ -2,8 +2,10 @@
 
 This note answers the owner ask of 2026-11-15: "Permits and inspections might be special cases of a general 'forms'
 module; we should leverage something like survey.js and a custom api to serve general forms. Store and forward if
-connectivity is interrupted." Status: design evaluation v0.1, 2026-11-15. Design only; nothing here is built.
-Decision record: ADR-0031 (proposed). Read with `inspections.md`, `permits.md`, `specs/qr-workface.md` (ADR-0030),
+connectivity is interrupted." Status: design evaluation v0.3 (plan check applied), 2026-11-15. Design only; nothing here is built.
+Decision records: ADR-0031 (accepted by the owner, 2026-11-15) and ADR-0032 (public intake, proposed; §8). The
+plan of record is §8; where §4, §6 or §7 differ, §8 rules. Read with `inspections.md`, `permits.md`,
+`specs/qr-workface.md` (ADR-0030),
 `specs/offline-classes.md`, `docs/runbooks/api-retries.md` (P2-X1), `12-extension-plan.md` §0 (binding rules).
 
 ## 0. Verdict
@@ -68,19 +70,12 @@ is well formed for its field. It never decides what an answer causes.
 
 ### 1.3 Why (a), and not (b) or (c)
 
-- **(c) no forms module** leaves three template shapes in the product within a month (checklist questions, permit
-  precautions, the property-set extras of X5a) and a fill path per module and surface, the phone included (both
-  designs list it under Later).
-- **(b) forms for ad-hoc checklists only** adds a fourth shape next to the three and gives the store-and-forward
-  client nothing to send for inspections, punch walkdowns or requisitions. The offline queue is the costly part of
-  this ask; it must be built once and carry typed commands.
-- **(a)** costs one core contract and one ADR. It reworks nothing in flight because the engine adopts what INSP-S1
-  built.
-- The risk of (a) is the inner platform: a forms engine that grows states, rules and scripting until permits are
-  "configured" rather than built. ADR-0031 forbids it by contract: no workflow, no expression language beyond §2.3,
-  no computed fields, no code or URL in a template.
-- Property sets (X5a) stay: typed extra fields *on a record*, moved by schema packages. A form is a capture *event*
-  against a pinned template. Neither replaces the other.
+- **(c) no forms module** leaves three template shapes (checklist questions, permit precautions, X5a extras) and a
+  fill path per module and surface. **(b) ad-hoc forms only** adds a fourth shape and gives store and forward
+  nothing to send for inspections, punch or requisitions.
+- **(a)** costs one core contract and one ADR and reworks nothing in flight. Its risk is the inner platform;
+  ADR-0031 forbids it by contract: no workflow, no expression language beyond §2.3, no computed fields, no code or
+  URL in a template. Property sets (X5a) stay: typed extra fields on a record, not a capture event.
 
 ## 2. SurveyJS and the alternatives
 
@@ -107,17 +102,11 @@ commercial Creator is not needed.
 
 ### 2.2 Why SurveyJS for the web renderer, and why not as the stored format
 
-For: the two MIT packages ship prebuilt files with no runtime dependency, which fits the repository's rule of
-vendored, unedited files and no JavaScript build. Its model runs wholly in the browser, so a form can be filled with
-no server, which store and forward needs. It covers every field kind of §1.1 and pages, panels and visibility rules.
-
-Against as the source of truth: SurveyJS JSON is a large open format with a string expression language
-(`visibleIf`, `requiredIf`, calculated values, custom functions), HTML questions and choices loaded from a URL. There
-is no Python implementation. Storing it would mean either trusting the client's evaluation or running Node on the
-server for every submission. Neither is acceptable: the server validates, in Python, by rules it owns.
-
-JSON Forms and RJSF validate by JSON Schema (`jsonschema` is already a dependency) but need React and a bundler,
-which the repository does not have. Their good part is kept: every template projects to a JSON Schema (§2.5).
+For: the two MIT packages ship prebuilt files with no runtime dependency (vendored, unedited, no JavaScript build),
+and the model runs wholly in the browser, which store and forward needs. Against as the stored format: SurveyJS
+JSON is a large open format with a string expression language, HTML questions and URL-loaded choices, and has no
+Python implementation; the server must validate in Python by rules it owns. JSON Forms and RJSF need React and a
+bundler; their good part is kept: every template projects to a JSON Schema (§2.5).
 
 ### 2.3 The template document (format 1 and 2)
 
@@ -175,17 +164,21 @@ the hook declaration follows P2-X4 C2, as for permits).
 | Route | Answers |
 |---|---|
 | `GET /forms/templates` | Published templates the viewer may use: id, title, version, bound record type. Count after the filter |
-| `GET /forms/templates/{id}/versions/{n}` | The template document, `content_hash`, state. `?as=jsonschema\|surveyjs` gives a projection. Immutable for a Published version, so `ETag` = hash |
+| `GET /forms/templates/{id}/versions/{n}` | The template document, `content_hash`, state. `?as=jsonschema` gives the projection (`surveyjs` arrives with FORMS-WEB). Immutable for a Published version, so `ETag` = hash |
 | `GET /forms/for/{record key}` | The binding for this record and viewer: template ref, command name, fixed arguments, `expected_version`, prefilled answers. `available: false` with a fixed reason word when the record is visible but its state takes no form |
-| `GET /forms/submissions`, `/forms/submissions/{key}`, `/forms/submissions/export` | General-form submissions (list, one, CSV or JSONL) |
+| `GET /forms/submissions`, `/forms/submissions/{key}` | General-form submissions (list, one). The CSV and JSONL export is deferred (plan check F11) |
 | `POST /commands/{Name}` (exists) | The write, online. `Idempotency-Key` as in P2-X1 |
-| `POST /forms/deliveries` | The write, when it was queued offline (§4.2). Wraps the same dispatch; adds the late checks and the delivery record |
+| `POST /forms/deliveries` (Phase 3) | The write, when it was queued offline (§4.2). Wraps the same dispatch; adds the late checks and the delivery record |
 | `POST /uploads` … `/complete`, `POST /files/attach` (exist) | Attachments. A `photo` answer holds the file ids |
 
-**Drafts.** No server-side draft route in v1. A draft lives on the client (browser storage, or the runner's state).
-A draft is partial, private and frequent, and every stored thing here is a permanent event; typed records already
-have waiting states (an inspection is Scheduled until recorded). The additive path later is a `Draft` state on
-`forms.Submission` with `SaveFormDraft` (owner decision 3).
+**Drafts (owner decision 3: kept on the server).** `forms.Submission` has a `Draft` state; `SaveFormDraft` (word
+`forms.submit`) writes `Submission.DraftSaved` with the partial answers, checked for shape only (required fields may
+be missing). A draft is readable by its author alone, takes no number until submitted, and is discarded by
+`DiscardFormDraft`. Every save is a permanent event, so the client saves on "Save draft" and on leaving the page,
+not per keystroke, and a draft takes at most `forms.draft_saves_max` saves (default 50). Draft saves are ledger text: they take the template's `answer_class`,
+get a security review row and the five-reader walk (F14). Server drafts cover general
+forms; a typed record keeps its own waiting state (an inspection is Scheduled until recorded) and its partial
+answers stay on the device. `SaveFormDraft` is a drafting command, so it may be queued (§4.2).
 
 ### 3.2 Access words
 
@@ -232,95 +225,10 @@ controller word.
 
 ## 4. Store and forward
 
-### 4.1 What it is, and what it is not
-
-Store and forward is a **client outbox of commands**. Nothing is written to any ledger while offline. When the
-client can reach the server it delivers each queued command once, and the authority runs it then, under the rules
-of that moment. It is not the Phase 3 replica sync (`offline-classes.md` §6): no local segment, no merge, no second
-node kind, and `TL_NODE_KIND` stays `authority`. An outbox item has the shape Phase 3 calls `PendingCommand`, so the
-replica work later reuses it rather than replaces it.
-
-The client is the web client installed as a page with a service worker, scope `/web/forms/` in the first slice. It
-keeps: the app shell, the vendored renderer, the Published templates it was sent, the bindings fetched while online
-("my work today": inspections scheduled for me, the general forms of my project), an outbox and file blobs, all in
-browser storage keyed by account. A native app (Phase 5) or a terminal outbox would use the same routes; neither is
-in these slices.
-
-### 4.2 What may be queued
-
-One rule, already written: `tl_core.offline.capture_allowed(record_type, command, node="device")`. The delivery
-route refuses everything else, and `GET /record-types` already tells a client which commands those are.
-
-| Command | Class of its type | Queued? |
-|---|---|---|
-| `SubmitForm` (general form) | `forms.Submission`: `draft_only`, drafting command | Yes |
-| `RecordInspectionResult` | `quality.Inspection`: `draft_only`, drafting command (`inspections.md` §3) | Yes |
-| `RaisePunchItem`, `RaiseRequisition` (exist) | `draft_only` | Yes, once each has a form source |
-| `PlanInspection`, `ScheduleInspection` | `draft_only`, not drafting | No |
-| Every permit, isolation and gas-test command | `none` (`permits.md` §4) | **No** (owner decision 4) |
-| Any controller command (verify, approve, issue, publish, void) | any | **Never** (`central_act`) |
-
-### 4.3 Delivery and idempotency
-
-- The client mints one `Idempotency-Key` per outbox item when the person presses Submit, and reuses it on every
-  retry. The delivery route passes it to the same idempotency service as the command door, scoped to the actor, so
-  a retry through either door replays the first answer and writes nothing new (P2-X1).
-- Attachments are uploaded first through the existing upload routes (content-addressed, so a re-upload is harmless),
-  then the command is delivered with the file ids. A command whose files are not complete is not sent.
-- Each delivery carries `captured_at` (the device clock when Submit was pressed) and `device_now`. On success the
-  route writes one event of its own in the same unit of work, `forms.Delivery.Received`
-  `{command, target_id, captured_at, received_at, clock_skew_s, queued_s}`, caused by the command's event. No
-  existing event or envelope changes. A refusal writes nothing, as in X1; the item stays on the device.
-- A key must not outlive the idempotency window. `forms.late_accept_hours` (default 72, must be below
-  `idempotency.retention_days`) bounds how old a queued item may be; an older one is refused as `too_late` and the
-  person re-submits it by hand. The X1 purge job is deferred today, so this bound is what makes that job safe later.
-- The session lasts 12 hours. A device offline for longer signs in again before anything is sent. An outbox belongs
-  to one account; another account on the same device cannot read or send it; sign-out asks, then wipes.
-
-### 4.4 When the world moved while the device was offline
-
-Principle: **a fact is accepted late with its own time; an act is refused if its target moved; nothing is merged.**
-
-| Situation at delivery | Outcome |
-|---|---|
-| General form, template version still Published | Accepted |
-| General form, template superseded or retired since capture | Accepted late against the **pinned** version if it was Published at `captured_at` and the item is inside the late window; marked `template_superseded`. Otherwise refused `template_retired` |
-| Inspection result, inspection still Scheduled, `expected_version` matches | Accepted; answers validated against the version pinned at scheduling |
-| Inspection rescheduled or re-pinned meanwhile (`expected_version` differs) | Refused `stale_version`. Never auto-applied: the answers may belong to another checklist version |
-| Inspection already Done by someone else, or Cancelled | Refused by the state guard. The answers stay on the device, exportable, for the QA lead to judge |
-| The target is now hidden from the actor (class raised, access removed) | Refused as a missing record; the device learns nothing more |
-| The actor lost the command's word, or the account is disabled | Refused; nothing is written on a past permission |
-| A queued item names a permit command (an old client) | Refused `online_only`; never dropped silently |
-| An inspection whose subject is a permit that was suspended meanwhile | Accepted: it records what was seen at `captured_at`. The record view shows capture and receipt times beside the suspension |
-
-A refused item is never deleted by the client. It moves to "Needs attention" with the fixed reason word; the person
-may open it against the current record, carry the answers over by field id, and submit with a **new** key (X1).
-
-**Permits.** Nothing about a permit is queued. A late "suspend" and a late failing gas reading only make things
-stricter and are real wants, but both change `permits.md` (class `none`): owner decision 4, not a default. A queued
-"stop work" must never let a crew believe the permit is suspended for everyone; radio and the paper rule.
-
-### 4.5 Clocks and valid time
-
-- The authority's `recorded_at` is the only trusted time and is set as always. `captured_at` is a claim.
-- Skew is measured at delivery (`device_now` against the server clock). Within `forms.clock_skew_max_seconds`
-  (default 120) the claim is used for the typed valid-time field (`done_at`, later `taken_at`; the fields ADR-0026
-  would tag `tl:valid_time`). Outside it, or when `captured_at` is in the future or earlier than the target's last
-  event, the valid-time field takes the receipt time and the delivery record keeps the claim, marked
-  `clock_suspect`.
-- No guard that makes work *more* permitted may rest on a device time. "A passing gas test newer than 240 minutes"
-  is always counted from the receipt time. A device time may only make things stricter or be shown as information.
-
-### 4.6 QR scan at the workface while offline
-
-| Works offline | Does not, by design |
-|---|---|
-| Opening the forms page the person installed, and filling any form fetched while online | Any live status, above all whether a permit is live, suspended or lapsed. A card is `no-store` (ADR-0030 decision 9); no state is cached on the phone, not even "as of" |
-| After the second slice: a scan of a label whose record is in "my work today" opens that record's **form**, with a banner "Offline: status unknown. The paper on site rules." The server sends the SHA-256 of each such code with the binding, so the device matches a scan without storing a code | A scan of any other label: the phone's own error page, as today |
-| Typing or scanning in the trailer on a replica: `tl qr resolve` with "as of last sync" (ADR-0030 decision 10) | Signing in, or renewing an expired session |
-
-The second slice widens the service worker's scope to `/web/q/` for the offline shell only; online, the scan page
-stays script-free. That change to the web client is in ADR-0031's gate list.
+**Deferred to Phase 3 by the plan check; the design is in `forms-store-and-forward.md`, with its section numbers
+(§4.1 to §4.6) kept.** In one line: a client outbox of commands, delivered once with the P2-X1 key, run by the
+authority under the rules of the moment of receipt; a fact is accepted late, an act is refused if its target moved,
+nothing is merged. Its first version uses the receipt time only. Owner decisions 4, 5 and 6 land with it.
 
 ## 5. Fit with QR (ADR-0030)
 
@@ -333,7 +241,7 @@ Nothing in ADR-0030, the scan-card contract (`tl_core/qr/types.py`) or QR-S1 cha
 - A general form's subject (a scaffold, an area) works the same way through that record's card. A label for a blank
   form (a toolbox-talk sheet on the trailer door) is a later ticket: the code targets the `forms.Template` record.
 - Carried over unchanged: sign-in before any lookup, one 404 for every miss, agents refused on `/web`, no state on
-  paper, no anonymous route.
+  paper, no anonymous status route. Zero-login intake (§8.2, ADR-0032) is a separate write-only path, `/i/`.
 
 ## 6. Cost and plan delta
 
@@ -344,24 +252,16 @@ Nothing in ADR-0030, the scan-card contract (`tl_core/qr/types.py`) or QR-S1 cha
 | QR increment (3 pieces, tickets as planned) | Survives whole | Later: one ticket for the offline shell (forms second slice) |
 | INSP-S1 | Merge as-is | None |
 | INSP-T00 | Release | None now. Forms S1 later moves `validate_questions` and `validate_answers` to core and leaves re-exports |
-| INSP-S2 (not yet specified) | Survives | Its spec gains one optional input on `RecordInspectionResult`: `captured_at`, bounded by §4.5 |
+| INSP-S2 (not yet specified) | Survives | None (receipt time only; no `captured_at` input in the first version) |
 | INSP-S3, T01, T03–T10, T12–T15 | Survive | T04 `tl insp record` keeps its flags and calls the shared functions |
 | INSP T02, T11 (follow-up slice) | **Move** to forms | Built once as the generic runner; INSP gets it by registering a form source |
 | PTW-S1, PTW-T00, S2–S5, T01–T16 | Survive whole | Later: one ticket for a form source on `RequestPermit` and the precaution ticks |
 
 INSP goes from 3 pieces and 16 tickets to 3 pieces and 14. PTW stays at 5 pieces and 17. Neither waits for forms.
 
-### 6.2 The forms path (rough)
+### 6.2 The forms path
 
-| Slice | Pieces | Tickets | Holds |
-|---|---|---|---|
-| P2-FORMS first slice: engine and general forms, online | 3 | about 13 | S1 core contract `tl_core/forms/` (types, rules moved from quality, projections, source registry); S2 schema of module `forms` (`Template`, `Submission`, events, two workflows, numbering, six words); S3 commands. Tickets: `to_json_schema`, `to_surveyjs`, views, read routes, `tl form`, MCP tools, generic runner model, runner screen, form sources for quality and permits, generator, demo, docs |
-| P2-FORMS-WEB: fill page | 1 | about 4 | Vendor the two MIT files with manifest rows; the fill page; policy check; card `open_path` |
-| P2-FORMS-SF: store and forward | 2 | about 7 | S4 delivery route, late rules and the delivery event (sync-class code: builder tier with a human gate, never an implementer ticket); S5 service worker and outbox. Tickets: "my work today" read, needs-attention view, offline QR shell, a `node --test` step for the outbox logic, settings, runbook, demo |
-| Total | **6 pieces** | **about 24 tickets** | One ADR, six to eight APPROVALS lines, two security review rows |
-
-Order: the first slice starts after INSP C2 and PTW C2 (two real sources exist) and P2-X4 C2 (hooks). Store and
-forward is last and can slip to Phase 3 without hurting the rest. Forms before INSP and PTW would delay both.
+Slices, pieces, tickets and order are in §8.3 (the first table here was replaced by it).
 
 ### 6.3 Risks
 
@@ -379,22 +279,118 @@ forward is last and can slip to Phase 3 without hurting the rest. Forms before I
 ## 7. Recommended plan delta (concrete)
 
 1. **Now.** Merge QR-S1 and INSP-S1 as planned. Release INSP-T00, PTW-S1 and PTW-T00 from hold, unchanged.
-2. **Owner.** Read ADR-0031 and answer the decisions below. Nothing in step 1 waits for this.
-3. **INSP-S2 spec** (next round): add the optional `captured_at` input and its bound. Take T02 and T11 off the INSP
-   follow-up table and point them at the forms increment.
-4. **Card tickets** (INSP T09, PTW T09): `open_path` is the record page now, the forms page once it exists.
-5. **Plan P2-FORMS** (a planner-tier round, after ADR-0031 is accepted): the first slice of §6.2, starting after
-   INSP C2, PTW C2 and X4 C2; then FORMS-WEB, then FORMS-SF. No forms schema, vendored JavaScript or `tl-web` change
-   before the ADR is accepted.
+2. **INSP.** Take T02 and T11 (the runner) off the INSP follow-up table and point them at the forms increment.
+   Card tickets (INSP T09, PTW T09): `open_path` is the record page now, the forms page once it exists.
+3. **Plan P2-FORMS** as §8.3. No forms schema, vendored JavaScript or `tl-web` change before its gate.
 
-### Owner decisions
+### Owner decisions (decided 2026-11-15: "Yes to all")
 
-| # | Question | Default |
+| # | Question | Decided |
 |---|---|---|
-| 1 | Accept ADR-0031: engine contract in core, Throughline's own template format, no lifecycle in the engine? | Yes |
-| 2 | Vendor `survey-core` and `survey-js-ui` (MIT) into the web client as the fill renderer? It is the first large script on a client that is script-light today | Yes, for the fill page only; fall back to a server-rendered page if the security policy cannot hold |
-| 3 | Server-side drafts? | No in v1; drafts stay on the device |
-| 4 | May anything about a permit be queued offline (a late "suspend", a late failing gas reading)? | No; permits stay online only |
-| 5 | May a phone show a cached status "as of" for non-permit records when offline? | No; offline a scan opens the form only |
-| 6 | How old may a queued item be? | 72 hours (`forms.late_accept_hours`) |
-| 7 | Who reviews a general submission? | A `forms` controller who is not the submitter |
+| 1 | Accept ADR-0031: engine contract in core, Throughline's own template format, no lifecycle in the engine? | **Yes.** ADR-0031 is accepted |
+| 2 | Vendor `survey-core` and `survey-js-ui` (MIT) into the web client as the fill renderer? | **Yes**, for the fill page only; the fallback is a server-rendered page if the security policy cannot hold |
+| 3 | Server-side drafts? | **Yes.** A `Draft` state on `forms.Submission` (§3.1). This reverses the evaluation's default |
+| 4 | May anything about a permit be queued offline? | **Yes**, read narrowly: only facts that tighten (a late suspend, a late failing gas reading); nothing that makes work more permitted (§4.2, §4.4). Reverses the default |
+| 5 | May a phone show a cached status "as of" for non-permit records when offline? | **Yes**, always stamped "as of", never shown as live; permit status is never cached (§4.6). Reverses the default |
+| 6 | How old may a queued item be? | **72 hours** (`forms.late_accept_hours`) |
+| 7 | Who reviews a general submission? | **A `forms` controller who is not the submitter** |
+
+## 8. Plan of record, 2026-11-15: owner answers, zero-login intake (ADR-0032), plan check applied
+
+### 8.1 What the seven answers change
+
+| Decision | Change | Where |
+|---|---|---|
+| 3 server drafts | `Draft` state, `SaveFormDraft`, `DiscardFormDraft`, `forms.draft_saves_max`; resume in the runner and on the fill page; security row and walk | First slice S2, S3; +2 tickets |
+| 4 tightening permit facts | `TIGHTENING_COMMANDS`, pass-is-refused, the "use the radio" screen; one line each in `permits.md` §4 and `offline-classes.md` | FORMS-SF (Phase 3) |
+| 5 status "as of" | Status lines in the "my work today" payload; `forms.offline_status_max_hours` | FORMS-SF (Phase 3) |
+| 6 late window 72 h | `forms.late_accept_hours` | FORMS-SF (Phase 3) |
+| 1, 2, 7 | As the defaults | n/a |
+
+### 8.2 Zero-login intake (ADR-0032, proposed; the slice is held until the owner accepts it)
+
+A stranger opens `/i/<code>` from a poster, fills at most 8 plain fields ("I need an X", "Sign on to X") and gets a
+receipt word. The page tells nothing about any record (ADR-0030's sign-in rule is untouched). The submission is
+staged on its own stream `forms.IntakeItem`, not the proposal queue: a proposal is a whole command prechecked
+against the target (an oracle for an anonymous filer) and stored for ever. The typed text sits in a purgeable
+operational table; the event carries a keyed hash only. A signed-in controller accepts it as a typed command or
+rejects it. A name is a claim: it grants nothing, and a poster sign-on is attendance only. Controls: hourly limits
+per address and per presented code (one 429), a pending cap, 8 KB bodies, a honeypot, expiry on every code, off by
+default, one neutral 404 for every dead code. No photo, captcha, SurveyJS, outbox, merge or person matching in v1.
+
+### 8.3 Slices, pieces and tickets
+
+| Slice | Pieces | Tickets | Holds | Exit demo |
+|---|---|---|---|---|
+| P2-FORMS first slice | 4 | about 12 | S1 core contract and rules (with the `intake: public` profile check). S2 schema of `forms` (drafts included). S3 commands, and the one seam that runs a command inside the caller's unit of work (F3). S3s form sources for quality and permits (a piece: it writes in two other modules; approver: the INSP and PTW supervisors). Tickets: JSON Schema projection, views, read routes, `tl form`, MCP tools, runner model, runner screen, draft resume, generator, walks, demo, docs | Fill and submit a general form and an inspection result from the terminal and the CLI; save and resume a draft |
+| P2-FORMS-INTAKE (held, F1) | 2 (1 if S7 is folded into S2) | about 7 | S6 public route and `/i/` mount, staging table, limits, settings, the purge job and its delete path (security-class). S7 schema and commands for `IntakeCode` and `IntakeItem`: issue, revoke, accept-as, reject; folded into S2 if ADR-0032 is accepted before S2 is specified. Tickets: poster label, plain page render, queue views and routes, `tl intake`, terminal "Intake" log, walks with an anonymous reader, runbook and demo | Print a poster, submit with no login, accept it as a requisition, reject one, purge |
+| P2-FORMS-WEB | 2 | about 4 | W1 vendoring of the two MIT files, manifest rows and the content-policy check (a piece; licence gate). W2 fill page and its `/web/forms` mount. Tickets: `to_surveyjs` and `?as=surveyjs`, card `open_path`, draft resume on the page, demo and runbook | Fill an inspection from a scanned card in a browser |
+| Phase 2 total | **8 (or 7)** | **about 23** | Two ADRs | |
+| P2-FORMS-SF, moved to Phase 3 | 2 | about 9 | S4 delivery route, late rules, `forms.Delivery.Received` (uses the S3 seam; receipt time only). S5 service worker, outbox and the offline QR shell (scope `/web/q/`; security row, F5). Tickets: "my work today", needs-attention view, tightening permit facts (2), status "as of", `node --test` step, settings, runbook, demo | Queue offline, deliver once, refuse a moved target |
+
+Order and dependencies (F7, F10): S1 starts at INSP C1 (the checklist rules exist). S3s waits for INSP C2 and PTW
+C2. Routes and CLI groups wait for P2-X4 C2 (hooks). Intake waits for QR C2 (the code service); generating,
+normalising and hashing a code is lifted into `tl_core/qr` there, or by the first intake ticket as a move with
+re-exports, so `forms` never imports the `qr` module.
+
+Owners and gates (F8, F9, F12):
+- `tl_core/confidentiality.py` subject rows (QR scan codes, inspections, permits, `forms.Submission` and drafts,
+  `forms.IntakeItem`) are added by **one serialised builder piece per wave, CONF-ROWS**; no forms, QR, INSP or PTW
+  piece edits that file.
+- `tl_api/app.py` and the `tl_web` mount: W2 owns the `/web/forms` edit and S6 owns the `/i/` edit; each is the
+  only piece of its slice to touch those files, and they do not run in the same round.
+- Human gates name the **owner** as approver for the security ones (S6, S4, S5, CONF-ROWS, the draft row); the S3
+  seam and S1 are core-interface gates with an APPROVALS line. Each security review row lists its commit range.
+
+New names: words `forms.intake.issue`, `forms.intake.review` (controller); settings `forms.draft_saves_max`,
+`forms.intake.enabled` (off), `.rate_per_address_per_hour`, `.rate_per_code_per_hour`, `.pending_per_code_max`,
+`.retention_days`, `.code_max_days`; actor `svc:intake`. Phase 3: `forms.late_accept_hours`,
+`forms.offline_status_max_hours`.
+
+Stays out: a status or tracking page for a stranger; messages back to the submitter; accounts from a sign-on;
+captcha; photos and SurveyJS on `/i/`; agents reading staged text; guest links (Phase 3 I8: one known party, one
+command); a web page for the controller queue. Deferred: submissions export, intake merge and person matching, the
+intake outbox, device time as valid time.
+
+### 8.4 Owner questions on ADR-0032 (decided 2026-11-15: yes to all three; the intake slice is released)
+
+| # | Question | Default (owner: yes) |
+|---|---|---|
+| 1 | Accept ADR-0032 as written (write-only, staged, own stream, off by default)? | Yes |
+| 2 | May a public form ask for a phone number, kept at most 30 days unless a controller accepts it into a record? | Yes, optional per template |
+| 3 | Is a poster sign-on to a permit briefing attendance only until a signed-in controller confirms it? | Yes |
+
+## Plan check
+4 PLANCHK forms-eval.md (2026-11-15), 15 findings; all accepted by the orchestrator; answers applied 2026-11-15.
+- F1 HI INTAKE slice held until the owner accepts ADR-0032 (and its phone default).
+  Answer: §8.2, §8.3, §8.4 and ADR-0032 Consequences: the slice is held until the owner accepts the ADR and the phone default.
+- F2 HI body_hash: HMAC with a per-item salt kept and purged with the body, never a plain hash in the event.
+  Answer: ADR-0032 decision 5: `body_mac`, an HMAC-SHA-256 under a random per-item salt kept in the body row and purged with it.
+- F3 HI name the piece that owns the uow hook for Delivery.Received / IntakeItem.Accepted (run_command opens its own uow).
+  Answer: Forms S3 owns one seam that runs a command inside the caller's unit of work (the shape `accept_proposal` uses); S4 and intake accept reuse it (§8.3, both ADRs).
+- F4 HI on_behalf_of_claim and matched_person_id live on IntakeItem.Accepted only, never in other modules' command payloads.
+  Answer: ADR-0032 decisions 7 and 8: the claim lives on `IntakeItem.Accepted` only; no other module's command or event carries it.
+- F5 HI settings+purge job folds into S6 (job kind + DELETE path = piece); offline QR shell (SW scope /web/q/) moves into S5 with a Sec row.
+  Answer: Settings and the purge job are inside S6; the offline QR shell is inside S5 with a security row (§8.3).
+- F6 MD quality/permits form sources and SurveyJS vendoring are pieces (or name the dependency and its approver).
+  Answer: Form sources are piece S3s and vendoring is piece W1, each with a named approver (§8.3).
+- F7 HI intake depends on QR C2; code generate/hash lifted into tl_core/qr.
+  Answer: Intake waits for QR C2; code generate, normalise and hash move to `tl_core/qr` (§8.3, ADR-0032 decision 3).
+- F8 MD one owner for confidentiality.py SUBJECT_LINKS rows; rows serialised across QR S2, INSP, PTW, forms S2/S7.
+  Answer: One serialised builder piece per wave, CONF-ROWS, owns every subject row (§8.3).
+- F9 MD name the owner of tl_api/app.py and tl_web mount edits for the fill page and /i/.
+  Answer: W2 owns the `/web/forms` mount edit and S6 the `/i/` edit; never in the same round (§8.3).
+- F10 MD forms S1 starts at INSP C1; source tickets wait INSP/PTW C2; routes wait X4 C2.
+  Answer: Applied in §8.3 "Order and dependencies".
+- F11 MD exit demo per slice; cut the intake outbox; defer submissions export, ?as=surveyjs before FORMS-WEB, intake merge/match.
+  Answer: Exit demo column in §8.3; the intake outbox is cut; export, `?as=surveyjs` before FORMS-WEB, merge and match are deferred (§3.1, §8.3, ADR-0032).
+- F12 MD human gates name an approver; Sec rows listed with commit ranges.
+  Answer: The owner approves the security gates; each security row lists its commit range (§8.3).
+- F13 MD backup retention bounded under retention_days (runbook); per-code limiter keyed so a 429 does not reveal a live code.
+  Answer: ADR-0032 decisions 10 and 11: the per-code counter is keyed on the presented code whether or not it is live; backups that hold the body table are kept no longer than `forms.intake.retention_days` (runbook).
+- F14 MD drafts: Sec row and five-reader walk; draft saves are ledger text.
+  Answer: §3.1, §8.1 and ADR-0031 decision 13: drafts get a security row and the five-reader walk; a save is ledger text.
+- F15 LO render time signed with the item key.
+  Answer: Not applicable while the fill-time check is cut; if it returns, the render time is signed with the item key (ADR-0032 decision 10).
+- COST cut list: S4 receipt time only in v1; S6 drops photo and fill-time paths; FORMS-SF to Phase 3; fold S7 into S2 if ADR-0032 accepted first.
+  Answer: All four taken: receipt time only (§4.5); no photo or fill-time path in S6; FORMS-SF moved to Phase 3; S7 folds into S2 if ADR-0032 is accepted first (§8.3).
