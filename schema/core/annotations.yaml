@@ -85,6 +85,8 @@ description: >-
   - `tl:valid_time` (`at` | `from` | `to`): this payload slot is the world date of the fact the event records
     (ADR-0026). `at`: the moment it happened; `from` / `to`: the start / end of a span. Never a deadline, forecast or
     expiry. At most one `at`, or one `from` and one `to`, per payload class. No generator reads it yet.
+  - `tl:webhook` (`omit`): this event payload slot is never in a webhook body (P2-FORMS S2w). The catalog index lists it
+    as `webhook_omit`; the dispatcher removes the key in `delta` and `full` for every subscriber. Event payload slots only.
 prefixes:
   linkml: https://w3id.org/linkml/
   throughline: https://example.org/throughline/

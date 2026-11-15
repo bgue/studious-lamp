@@ -1087,7 +1087,10 @@
       "sample": "samples/IntakeCode.Issued.v1.json",
       "schema": "schemas/IntakeCode.Issued.v1.json",
       "title": "An intake code was issued.",
-      "version": 1
+      "version": 1,
+      "webhook_omit": [
+        "heading"
+      ]
     },
     {
       "ce_type": "tl.core.IntakeCode.Revoked.v1",
@@ -1105,7 +1108,10 @@
       "sample": "samples/IntakeItem.Accepted.v1.json",
       "schema": "schemas/IntakeItem.Accepted.v1.json",
       "title": "An intake item was accepted as a command the template names.",
-      "version": 1
+      "version": 1,
+      "webhook_omit": [
+        "on_behalf_of_claim"
+      ]
     },
     {
       "ce_type": "tl.core.IntakeItem.Purged.v1",
@@ -2437,7 +2443,10 @@
       "sample": "samples/Submission.DraftSaved.v1.json",
       "schema": "schemas/Submission.DraftSaved.v1.json",
       "title": "A draft of a submission was saved.",
-      "version": 1
+      "version": 1,
+      "webhook_omit": [
+        "answers"
+      ]
     },
     {
       "ce_type": "tl.core.Submission.Returned.v1",
@@ -2455,7 +2464,10 @@
       "sample": "samples/Submission.Submitted.v1.json",
       "schema": "schemas/Submission.Submitted.v1.json",
       "title": "A submission was submitted.",
-      "version": 1
+      "version": 1,
+      "webhook_omit": [
+        "answers"
+      ]
     },
     {
       "ce_type": "tl.core.Submission.Voided.v1",
@@ -2572,7 +2584,10 @@
       "sample": "samples/Template.Created.v1.json",
       "schema": "schemas/Template.Created.v1.json",
       "title": "A form template was created as a draft.",
-      "version": 1
+      "version": 1,
+      "webhook_omit": [
+        "form_fields"
+      ]
     },
     {
       "ce_type": "tl.core.Template.Edited.v1",
@@ -2581,7 +2596,10 @@
       "sample": "samples/Template.Edited.v1.json",
       "schema": "schemas/Template.Edited.v1.json",
       "title": "A draft template was edited; only the fields that changed are present.",
-      "version": 1
+      "version": 1,
+      "webhook_omit": [
+        "changes"
+      ]
     },
     {
       "ce_type": "tl.core.Template.Published.v1",

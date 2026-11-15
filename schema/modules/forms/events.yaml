@@ -47,6 +47,7 @@ classes:
         required: true
         annotations:
           tl:json: true
+          tl:webhook: omit
       field_count:
         description: "Number of fields."
         range: integer
@@ -96,6 +97,7 @@ classes:
         required: true
         annotations:
           tl:json: true
+          tl:webhook: omit
       feed_policy:
         equals_string: none
         description: "Always `none`: no feed card."
@@ -170,6 +172,7 @@ classes:
         range: Any
         annotations:
           tl:json: true
+          tl:webhook: omit
       answer_class:
         description: "Confidentiality class of the answers."
         range: AnswerClass
@@ -225,6 +228,7 @@ classes:
         range: Any
         annotations:
           tl:json: true
+          tl:webhook: omit
       answer_class:
         description: "Confidentiality class of the answers."
         range: AnswerClass
@@ -329,6 +333,8 @@ classes:
       heading:
         description: "The heading the public page shows."
         required: true
+        annotations:
+          tl:webhook: omit
       controller_role:
         description: "The role that reviews what arrives."
         required: true
@@ -425,6 +431,7 @@ classes:
         range: Any
         annotations:
           tl:json: true
+          tl:webhook: omit
       cause_event_id:
         description: "The event of the command it became."
       feed_policy:
