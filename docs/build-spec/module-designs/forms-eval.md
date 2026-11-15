@@ -2,8 +2,8 @@
 
 This note answers the owner ask of 2026-11-15: "Permits and inspections might be special cases of a general 'forms'
 module; we should leverage something like survey.js and a custom api to serve general forms. Store and forward if
-connectivity is interrupted." Status: design evaluation v0.1, 2026-11-15. Design only; nothing here is built.
-Decision record: ADR-0031 (proposed). Read with `inspections.md`, `permits.md`, `specs/qr-workface.md` (ADR-0030),
+connectivity is interrupted." Status: design evaluation v0.2, 2026-11-15. Design only; nothing here is built.
+Decision records: ADR-0031 (accepted by the owner, 2026-11-15) and ADR-0032 (public intake, proposed; §8). Read with `inspections.md`, `permits.md`, `specs/qr-workface.md` (ADR-0030),
 `specs/offline-classes.md`, `docs/runbooks/api-retries.md` (P2-X1), `12-extension-plan.md` §0 (binding rules).
 
 ## 0. Verdict
@@ -182,10 +182,13 @@ the hook declaration follows P2-X4 C2, as for permits).
 | `POST /forms/deliveries` | The write, when it was queued offline (§4.2). Wraps the same dispatch; adds the late checks and the delivery record |
 | `POST /uploads` … `/complete`, `POST /files/attach` (exist) | Attachments. A `photo` answer holds the file ids |
 
-**Drafts.** No server-side draft route in v1. A draft lives on the client (browser storage, or the runner's state).
-A draft is partial, private and frequent, and every stored thing here is a permanent event; typed records already
-have waiting states (an inspection is Scheduled until recorded). The additive path later is a `Draft` state on
-`forms.Submission` with `SaveFormDraft` (owner decision 3).
+**Drafts (owner decision 3: kept on the server).** `forms.Submission` has a `Draft` state; `SaveFormDraft` (word
+`forms.submit`) writes `Submission.DraftSaved` with the partial answers, checked for shape only (required fields may
+be missing). A draft is readable by its author alone, takes no number until submitted, and is discarded by
+`DiscardFormDraft`. Every save is a permanent event, so the client saves on "Save draft" and on leaving the page,
+not per keystroke, and a draft takes at most `forms.draft_saves_max` saves (default 50). Server drafts cover general
+forms; a typed record keeps its own waiting state (an inspection is Scheduled until recorded) and its partial
+answers stay on the device. `SaveFormDraft` is a drafting command, so it may be queued (§4.2).
 
 ### 3.2 Access words
 
@@ -253,11 +256,12 @@ route refuses everything else, and `GET /record-types` already tells a client wh
 
 | Command | Class of its type | Queued? |
 |---|---|---|
-| `SubmitForm` (general form) | `forms.Submission`: `draft_only`, drafting command | Yes |
+| `SubmitForm`, `SaveFormDraft` (general form) | `forms.Submission`: `draft_only`, drafting commands | Yes |
 | `RecordInspectionResult` | `quality.Inspection`: `draft_only`, drafting command (`inspections.md` §3) | Yes |
 | `RaisePunchItem`, `RaiseRequisition` (exist) | `draft_only` | Yes, once each has a form source |
 | `PlanInspection`, `ScheduleInspection` | `draft_only`, not drafting | No |
-| Every permit, isolation and gas-test command | `none` (`permits.md` §4) | **No** (owner decision 4) |
+| `SuspendPermit`; `RecordGasTest` whose reading fails | `none`, with a closed list of tightening commands (owner decision 4) | Yes, under §4.4 "Permits" |
+| Every other permit, isolation and gas-test command | `none` (`permits.md` §4) | **No** |
 | Any controller command (verify, approve, issue, publish, void) | any | **Never** (`central_act`) |
 
 ### 4.3 Delivery and idempotency
@@ -290,15 +294,24 @@ Principle: **a fact is accepted late with its own time; an act is refused if its
 | Inspection already Done by someone else, or Cancelled | Refused by the state guard. The answers stay on the device, exportable, for the QA lead to judge |
 | The target is now hidden from the actor (class raised, access removed) | Refused as a missing record; the device learns nothing more |
 | The actor lost the command's word, or the account is disabled | Refused; nothing is written on a past permission |
-| A queued item names a permit command (an old client) | Refused `online_only`; never dropped silently |
+| A queued permit command that is not on the tightening list | Refused `online_only`; never dropped silently |
 | An inspection whose subject is a permit that was suspended meanwhile | Accepted: it records what was seen at `captured_at`. The record view shows capture and receipt times beside the suspension |
 
 A refused item is never deleted by the client. It moves to "Needs attention" with the fixed reason word; the person
 may open it against the current record, carry the answers over by field id, and submit with a **new** key (X1).
 
-**Permits.** Nothing about a permit is queued. A late "suspend" and a late failing gas reading only make things
-stricter and are real wants, but both change `permits.md` (class `none`): owner decision 4, not a default. A queued
-"stop work" must never let a crew believe the permit is suspended for everyone; radio and the paper rule.
+**Permits (owner decision 4: yes, for facts that only tighten).** Two things may be queued and nothing else: a
+"suspend" (anyone may suspend) and a gas reading. The list is closed in code (`TIGHTENING_COMMANDS` beside
+`capture_allowed`); adding to it is a new owner decision. Rules at delivery:
+- A suspend takes effect at the receipt time; `captured_at` is shown beside it. If the permit is already Suspended,
+  Handed back or Closed the state guard refuses it and the device shows that state.
+- A gas reading is computed by the server as always. If it **fails**, it is recorded and suspends the permit. If it
+  computes as a pass it is refused `online_only` and stays on the device: a late pass could make work more permitted.
+- Resume, issue, revalidate, approve, every isolation command and every passing reading stay online only.
+- Until the server answers, the device says "Not sent. The permit is NOT suspended for anyone else. Use the radio."
+  A queued stop never replaces the radio and the paper.
+`permits.md` §4 and `specs/offline-classes.md` need one line each for this exception (a PTW spec change, not made
+here).
 
 ### 4.5 Clocks and valid time
 
@@ -315,12 +328,15 @@ stricter and are real wants, but both change `permits.md` (class `none`): owner 
 
 | Works offline | Does not, by design |
 |---|---|
-| Opening the forms page the person installed, and filling any form fetched while online | Any live status, above all whether a permit is live, suspended or lapsed. A card is `no-store` (ADR-0030 decision 9); no state is cached on the phone, not even "as of" |
+| Opening the forms page the person installed, and filling any form fetched while online | Any live status. Whether a permit, an isolation or a gas test is live, suspended or lapsed is never cached, not even "as of" |
+| A last-known status for a non-permit record in "my work today" (owner decision 5), always under the line "As of <time>. Not live." and never styled as current | A status older than `forms.offline_status_max_hours` (default 24): nothing is shown |
 | After the second slice: a scan of a label whose record is in "my work today" opens that record's **form**, with a banner "Offline: status unknown. The paper on site rules." The server sends the SHA-256 of each such code with the binding, so the device matches a scan without storing a code | A scan of any other label: the phone's own error page, as today |
 | Typing or scanning in the trailer on a replica: `tl qr resolve` with "as of last sync" (ADR-0030 decision 10) | Signing in, or renewing an expired session |
 
-The second slice widens the service worker's scope to `/web/q/` for the offline shell only; online, the scan page
-stays script-free. That change to the web client is in ADR-0031's gate list.
+The last-known status is not a cached scan page. The scan card stays `no-store` (ADR-0030 decision 9, unchanged);
+the status lines travel with the "my work today" payload, for lowest-class subjects only, in the account's storage,
+wiped at sign-out. The second slice widens the service worker's scope to `/web/q/` for the offline shell only;
+online, the scan page stays script-free. That change to the web client is in ADR-0031's gate list.
 
 ## 5. Fit with QR (ADR-0030)
 
@@ -333,7 +349,7 @@ Nothing in ADR-0030, the scan-card contract (`tl_core/qr/types.py`) or QR-S1 cha
 - A general form's subject (a scaffold, an area) works the same way through that record's card. A label for a blank
   form (a toolbox-talk sheet on the trailer door) is a later ticket: the code targets the `forms.Template` record.
 - Carried over unchanged: sign-in before any lookup, one 404 for every miss, agents refused on `/web`, no state on
-  paper, no anonymous route.
+  paper, no anonymous status route. Zero-login intake (§8.2, ADR-0032) is a separate write-only path, `/i/`.
 
 ## 6. Cost and plan delta
 
@@ -379,7 +395,7 @@ forward is last and can slip to Phase 3 without hurting the rest. Forms before I
 ## 7. Recommended plan delta (concrete)
 
 1. **Now.** Merge QR-S1 and INSP-S1 as planned. Release INSP-T00, PTW-S1 and PTW-T00 from hold, unchanged.
-2. **Owner.** Read ADR-0031 and answer the decisions below. Nothing in step 1 waits for this.
+2. **Owner.** ADR-0031 is accepted and the seven decisions below are answered (2026-11-15). Open: ADR-0032 (§8).
 3. **INSP-S2 spec** (next round): add the optional `captured_at` input and its bound. Take T02 and T11 off the INSP
    follow-up table and point them at the forms increment.
 4. **Card tickets** (INSP T09, PTW T09): `open_path` is the record page now, the forms page once it exists.
@@ -387,14 +403,68 @@ forward is last and can slip to Phase 3 without hurting the rest. Forms before I
    INSP C2, PTW C2 and X4 C2; then FORMS-WEB, then FORMS-SF. No forms schema, vendored JavaScript or `tl-web` change
    before the ADR is accepted.
 
-### Owner decisions
+### Owner decisions (decided 2026-11-15: "Yes to all")
+
+| # | Question | Decided |
+|---|---|---|
+| 1 | Accept ADR-0031: engine contract in core, Throughline's own template format, no lifecycle in the engine? | **Yes.** ADR-0031 is accepted |
+| 2 | Vendor `survey-core` and `survey-js-ui` (MIT) into the web client as the fill renderer? | **Yes**, for the fill page only; the fallback is a server-rendered page if the security policy cannot hold |
+| 3 | Server-side drafts? | **Yes.** A `Draft` state on `forms.Submission` (§3.1). This reverses the evaluation's default |
+| 4 | May anything about a permit be queued offline? | **Yes**, read narrowly: only facts that tighten (a late suspend, a late failing gas reading); nothing that makes work more permitted (§4.2, §4.4). Reverses the default |
+| 5 | May a phone show a cached status "as of" for non-permit records when offline? | **Yes**, always stamped "as of", never shown as live; permit status is never cached (§4.6). Reverses the default |
+| 6 | How old may a queued item be? | **72 hours** (`forms.late_accept_hours`) |
+| 7 | Who reviews a general submission? | **A `forms` controller who is not the submitter** |
+
+## 8. Plan delta, 2026-11-15: the owner's answers and zero-login intake (ADR-0032)
+
+### 8.1 What the seven answers change
+
+| Decision | Change to the plan | Where |
+|---|---|---|
+| 3 server drafts | `Draft` state, `SaveFormDraft`, `DiscardFormDraft`, setting `forms.draft_saves_max`; resume a draft in the runner and on the fill page | First slice: schema piece grows; +2 tickets |
+| 4 tightening permit facts | `TIGHTENING_COMMANDS` and the pass-is-refused rule in the delivery route (same gated piece); the "not sent, use the radio" screen; one line each in `permits.md` §4 and `offline-classes.md` | FORMS-SF: +2 tickets; a PTW spec note |
+| 5 status "as of" | Status lines in the "my work today" payload, lowest class, non-permit; setting `forms.offline_status_max_hours`; the stamped view | FORMS-SF: +1 ticket |
+| 1, 2, 6, 7 | As the defaults; no plan change | n/a |
+
+### 8.2 Zero-login intake (owner ask of 2026-11-15; ADR-0032, proposed)
+
+A stranger scans a poster or opens `/i/<code>`, fills at most 8 plain fields ("I need an X", "Sign on to X") and
+gets a receipt word. The submission is staged in an inbound queue; a signed-in controller for that context accepts
+it as a typed command "on behalf of" the claimed name, rejects it, or merges duplicates. The page tells the
+stranger nothing about any record, so ADR-0030's rule (status needs a sign-in) is untouched.
+
+| Question | Answer |
+|---|---|
+| Proposal queue or its own stream? | Its own stream `forms.IntakeItem`. A proposal is a whole command prechecked against the target (an oracle for an anonymous filer) and stored for ever (a stranger's phone number could not be purged). The meaning of accept and the batch review design are reused |
+| Where does the typed text live? | In an operational table that is purged (`forms.intake.retention_days`); the ledger keeps a hash, the decision and, on accept, the controller's own typed event |
+| Who is the submitter? | A typed-in claim. A controller may match it to a known person. It grants no access and satisfies no guard |
+| Permit crew sign-on by poster? | Attendance only, confirmed by the controller. A binding sign-on is a signed-in act or the authority's own typed command |
+| What stops abuse? | Hourly limits per address and per code with one 429, a pending cap, 8 KB bodies, a honeypot, expiry on every code, off by default, one neutral 404 for every dead code. No captcha, no third party |
+| Does it need SurveyJS? | No. Plain HTML that works with no script; the outbox script is optional and later |
+
+### 8.3 The forms path, revised (replaces the totals of §6.2)
+
+| Slice | Pieces | Tickets | Change |
+|---|---|---|---|
+| P2-FORMS first slice | 3 | about 15 | +2 (drafts). The rules piece also carries the `intake: public` profile check (pure) |
+| P2-FORMS-INTAKE (new; after the first slice and the QR code service; before or beside FORMS-WEB) | 2 | about 8 | S6 public route, staging table, limits, purge (security-class: builder tier, human gate). S7 schema and commands for `IntakeCode` and `IntakeItem` (issue, revoke, accept-as, reject, merge, match). Tickets: profile rule, poster label (one additive argument on the QR label renderer), plain page, queue views and routes, `tl intake`, terminal "Intake" log, settings and purge job, walks, runbook and demo |
+| P2-FORMS-WEB | 1 | about 4 | None |
+| P2-FORMS-SF | 2 | about 11 | +2 (tightening permit facts), +1 (status "as of"), +1 (intake outbox without a login) |
+| Total | **8 pieces** | **about 38 tickets** | Was 6 and 24. Two ADRs; two more security review rows |
+
+New names: words `forms.intake.issue`, `forms.intake.review` (controller); settings `forms.intake.enabled` (off),
+`.rate_per_address_per_hour`, `.rate_per_code_per_hour`, `.pending_per_code_max`, `.retention_days`,
+`.code_max_days`, `.photos` (off), `forms.draft_saves_max`, `forms.offline_status_max_hours`; actor `svc:intake`.
+
+Stays out: any status or tracking page for a stranger; messages back to the submitter; accounts made from a
+sign-on; captcha; SurveyJS on `/i/`; agents reading staged text; guest links (Phase 3 I8, a different thing: one
+known party, one command); a web page for the controller queue (terminal and CLI first).
+
+### 8.4 Owner questions on ADR-0032 (the plan proceeds on the default)
 
 | # | Question | Default |
 |---|---|---|
-| 1 | Accept ADR-0031: engine contract in core, Throughline's own template format, no lifecycle in the engine? | Yes |
-| 2 | Vendor `survey-core` and `survey-js-ui` (MIT) into the web client as the fill renderer? It is the first large script on a client that is script-light today | Yes, for the fill page only; fall back to a server-rendered page if the security policy cannot hold |
-| 3 | Server-side drafts? | No in v1; drafts stay on the device |
-| 4 | May anything about a permit be queued offline (a late "suspend", a late failing gas reading)? | No; permits stay online only |
-| 5 | May a phone show a cached status "as of" for non-permit records when offline? | No; offline a scan opens the form only |
-| 6 | How old may a queued item be? | 72 hours (`forms.late_accept_hours`) |
-| 7 | Who reviews a general submission? | A `forms` controller who is not the submitter |
+| 1 | Accept ADR-0032 as written (write-only, staged, own stream, off by default)? | Yes |
+| 2 | Allow one photo on a public form? It needs an image library (a new dependency) to strip EXIF | No in v1; the setting stays off |
+| 3 | May a public form ask for a phone number, kept at most 30 days unless a controller accepts it into a record? | Yes, optional per template |
+| 4 | Is a poster sign-on to a permit briefing attendance only until a signed-in controller confirms it? | Yes |
