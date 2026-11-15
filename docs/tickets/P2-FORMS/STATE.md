@@ -5,6 +5,7 @@ C1 reached: S1 and S2 merged with APPROVALS. Round 2 wrote S3, CR1, T01, T13, T1
 S1 p mrg f 10737874 review P after fix; APPROVALS
 S2 p mrg f 01b4bc46 review P; APPROVALS
 S2w p mrg f b7e4ce92 security review P; answers omitted from webhook bodies
+S3 p mrg f 38c22c8e security review P; APPROVALS
 S3 p stg f - commands, uow seam, D6-D11; spec S3-forms-commands-and-seam.md
 CR1 p stg f - conf rows, own class, author-only draft; after S3
 T14 t stg f - webhook scenario rows + envelope required fix

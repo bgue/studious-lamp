@@ -100,3 +100,6 @@ Two more items are CR1's, because CR1 is the one forms piece in `confidentiality
    shows "created a record". Drafts make no card; a submit card carries no answer text and follows the subject rule.
 Allowed paths gain `packages/tl-core/src/tl_core/services/proposals.py` and `packages/tl-core/src/tl_core/feed/cards.py`
 for these two items only.
+3. **S3 review F1 (LO):** a pydantic `ValidationError` from `nested.py` `model_validate` can echo input values; confirm the
+   accept path and any reader never surface that text to a low viewer (the direct path is covered by
+   `test_a_marker_in_a_pydantic_refusal_is_not_echoed`); add the same test on the seam path.
