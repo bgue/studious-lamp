@@ -7,6 +7,7 @@ T01 t mrg f a9dc1eca admin stop routes+client; orch fixed wording
 T02 t mrg f 11c163b9 tl agent stop|resume|stopped; 42 P
 T03 t mrg f 12b0a7bb accounts screen stopped flag + held; 91 P
 S3b p mrg f 2bfd7f61 review P; held accept fix; APPROVALS
+S3c p mrg f 59c63a8d SR-X2 F1 fix; orch read diff
 T04 t mrg f 3404c59d review P; amend 1 (T01 helper grant)
 T05 t mrg f 7139c557 review P after amend 2; demo OK both adapters
 T06 t mrg l acbad682 review P attempt 2
