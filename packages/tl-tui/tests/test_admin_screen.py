@@ -10,6 +10,9 @@ from helpers import run_pilot, screen_text
 from textual.app import App
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Input, Static
+from tl_core.auth.errors import ForbiddenError
+from tl_core.services.agent_stop import StoppedAgent
+from tl_tui.errors import describe_error
 from tl_tui.widgets.admin_screen import AdminScreen
 
 NOW = datetime(2026, 10, 11, 12, 0, 0, tzinfo=UTC)
@@ -464,3 +467,74 @@ def test_key_m_is_refused_when_the_app_has_no_is_admin_attribute() -> None:
 
     run_pilot(app, scenario)
     assert not [c for c in client.admin_calls if "module_role" in c[0]]
+
+
+def stopped_entry(held: int, reason: str | None = "bad batch") -> StoppedAgent:
+    return StoppedAgent(
+        agent="agent:triage",
+        stopped_at="2026-10-11T12:15:00.000000Z",
+        stopped_by="user:boss",
+        reason=reason,
+        held=held,
+    )
+
+
+def test_the_panel_shows_the_flag_and_the_held_count_the_client_returned() -> None:
+    client = seeded()
+    client.stopped_agents = [stopped_entry(held=0)]
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        cursor_to(app, "triage")
+        await pilot.pause()
+        detail = text("#admin-detail", app)
+        assert "Filing    ■ stopped since 2026-10-11 12:15 UTC" in detail
+        assert "Held      0 pending" in detail  # zero is shown, not hidden
+        assert "Reason    bad batch" in detail and "By        user:boss" in detail
+
+    run_pilot(app, scenario)
+
+
+def test_an_agent_not_in_the_list_reads_allowed() -> None:
+    client = seeded()
+    client.stopped_agents = [stopped_entry(held=3)]
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        cursor_to(app, "triage")
+        await pilot.pause()
+        assert "Filing    ■ stopped" in text("#admin-detail", app)
+        client.stopped_agents = []
+        screen(app).reload()
+        await pilot.pause()
+        detail = text("#admin-detail", app)
+        assert "Filing    allowed" in detail and "Held" not in detail
+
+    run_pilot(app, scenario)
+
+
+def test_reload_asks_for_the_stopped_list_once() -> None:
+    client = seeded()
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        assert len(calls(client, "list_stopped_agents")) == 1
+
+    run_pilot(app, scenario)
+
+
+def test_a_non_admin_gets_the_same_error_line_the_other_lists_give() -> None:
+    client = seeded()
+    client.is_admin = False
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        expected = "! " + describe_error(ForbiddenError("this action needs the admin role"))
+        assert text("#admin-status", app) == expected
+        assert screen(app).accounts == [] and screen(app).stopped == []
+
+    run_pilot(app, scenario)
