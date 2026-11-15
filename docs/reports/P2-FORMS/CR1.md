@@ -50,5 +50,14 @@ event filter; draft card made (`is_draft_plumbing` off); `forms.Submission` row 
   marker and value markers. (`nested.py` added to the touched files by ruling.)
 - Q4 (deferred): a privileged answer class on a submission with a subject hides it from everyone but its author until forms has a
   clearance table; the orchestrator logs it.
-- Q5 stands: the Postgres twin walks. Re-gate after the rulings: `just check` rc 0; `tests/confidentiality` 141 passed, 4 xfailed; forms
-  tests 120 passed; proposals, API, CLI and `test_modules` 71 passed. `gate-pg` (twin walk + forms tests): see the return note.
+- Q5 stands (Postgres twin walks; PID 8782 still alive, `gate-pg` not run).
+
+## Review round (security review: changes)
+- F1: `insights/activity.py` `_visible` also drops `core.Proposal` events that hit `hidden_answer_templates` (same helper). Other
+  hand-written filters: `integration/visibility.py` and `webhooks/dispatch.py` use `names_hidden_record` (covered);
+  `threads/queries.py` scans `dispatch_json` of core thread commands only, not a forms proposal. Tests with a subject: service
+  `record_activity` and `GET /records/{id}/activity` (an agent gets 403), five readers.
+- F3: test: a plain user files on an internal item, a controller reclassifies it restricted, the author then gets never-existed.
+- F4 mutants, all killed: author check removed; `submitted_on IS NOT NULL`; own class skipped; filter after LIMIT; activity check removed.
+- F5: `hidden_answer_templates` names the template columns (`_TEMPLATE_ID`, `_TEMPLATE_CLASS`).
+- F2 gates: `tests/confidentiality` 144 passed, 4 xfailed; forms 120; proposals 50; punch visibility 13; API walk 41; MCP walk + `test_modules` 27.
