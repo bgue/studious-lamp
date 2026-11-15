@@ -1,6 +1,6 @@
 # ADR-0030 — QR codes at the workface: opaque revocable codes, signed-in scans, status cards by plugin
 
-Status: Proposed
+Status: Accepted (orchestrator under P2-Q10, 2026-11-15, at the QR-S1 merge on p2/ip; owner asked for the feature 2026-11-15)
 Date: 2026-11-15
 Deciders: orchestrator (draft); the owner decides. New core interface (`tl_core/qr/types.py`) and a new platform
 setting, so a human gate (§25.5) and an APPROVALS line before the merge.

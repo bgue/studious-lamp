@@ -2,7 +2,7 @@
 Fan-out across P2-QR, P2-INSP, P2-PTW. Plans: `docs/tickets/P2-{QR,INSP,PTW}/README.md` (Plan check answered, F1-F14).
 Integration branch `p2/ip` created at this commit's parent chain head (not pushed).
 ## BOARD
-QR-S1 p stg f - schema, contract, setting; dispatch now, with INSP-S1
+QR-S1 p mrg f a34abf02 review P; ADR-0030 accepted; APPROVALS
 INSP-S1 p stg f - schema, projectors; dispatch now, with QR-S1
 PTW-S1 p stg f - dispatch when QR-S1 or INSP-S1 ends
 QR-T02 t stg l - labels.py; needs QR-S1 merged; provided test staged
@@ -23,7 +23,7 @@ D6 2026-11-15 LabelSize enum keeps tag, card, sheet; labels.py renders tag only
 (none yet; one wave review over d4e92ffc..<p2/ip head> at C4)
 D-FORMS 2026-11-15 owner asked forms eval; verdict (a) capture-only engine; in-flight INSP/PTW/QR unchanged; forms path ~6p/24t after INSP C2, PTW C2, X4 C2; module-designs/forms-eval.md, ADR-0031 Proposed
 ## OPEN
-Q1 ADR-0030 acceptance and S1 APPROVALS lines (owner) needs owner raised QR-S1
+Q1 closed 2026-11-15: ADR-0030 accepted (orch under P2-Q10) + APPROVALS at QR-S1 merge
 Q2 gas limit defaults signed by safety lead needs owner raised PTW-S1
 Q3 forms: accept ADR-0031 (capture-only forms engine in core; INSP thin, PTW typed) needs owner raised FORMS-EVAL
 Q4 forms: vendor the two MIT SurveyJS files (survey-core, survey-js-ui) into the web client, fallback server page needs owner raised FORMS-EVAL

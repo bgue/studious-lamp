@@ -65,13 +65,14 @@ MATERIALS = {
     "materials.mto.publish": "controller",
     "materials.mto.assign": "user",
 }
-#: The seven words of the punch list (P2-PUNCH S1); an assignment is an edit (no assign word).
+#: The three words of QR scan codes (P2-QR S1).
 QR = {
     "qr.view": "read",
     "qr.issue": "user",
     "qr.revoke": "controller",
 }
 
+#: The seven words of the punch list (P2-PUNCH S1); an assignment is an edit (no assign word).
 QUALITY = {
     "quality.view": "read",
     "quality.punch.raise": "user",
