@@ -8,7 +8,7 @@ T02 t mrg f 11c163b9 tl agent stop|resume|stopped; 42 P
 T03 t mrg f 12b0a7bb accounts screen stopped flag + held; 91 P
 S3b p mrg f 2bfd7f61 review P; held accept fix; APPROVALS
 T04 t mrg f 3404c59d review P; amend 1 (T01 helper grant)
-T05 t stg f - demo sh+py, both adapters; behind T04; names pasted
+T05 t mrg f 7139c557 review P after amend 2; demo OK both adapters
 T06 t stg l - runbook, steps 15-21; behind T05; outputs pasted
 ## DEC
 D1 2026-11-14 order in submit/propose: replay, check_filing, require_not_stopped, check_queue_cap, budget, precheck; cap line added by S2 (D6)
