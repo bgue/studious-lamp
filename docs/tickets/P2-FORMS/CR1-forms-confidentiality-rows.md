@@ -87,3 +87,16 @@ for forms. 3 lines in the report.
 Builder return ≤ 15 lines; report ≤ 60 lines at `docs/reports/P2-FORMS/CR1.md`; first line deviations or none; the final names (the three rows, the
 own-class notion, the actor parameter), the join count, each pinned file with old and new count, and one line per path of goal 3 you proved or could not
 reach. Commit `P2-FORMS-CR1: ...` with the session trailers; no model names in committed text.
+
+## Amendment 1 (orchestrator, 2026-11-15; from the S3 report)
+Two more items are CR1's, because CR1 is the one forms piece in `confidentiality.py`:
+1. **F-S3a (HI until fixed):** `cur_proposals.command_json` holds an agent-proposed submission's answers. `get_proposal`,
+   `list_proposals`, `_pending` (`tl_core/services/proposals.py` ~393-424, 776-785) and the API/CLI/sim surfaces return
+   it; the only filter (`_readable`, ~370-390) hides a proposal that names a hidden record id, so a privileged-class
+   template with no subject leaks its answers to the lowest viewer (reproduced by the S3 builder). Fix: a viewer who may
+   not read the template's answer class sees that proposal as absent (hidden == missing), on every reader and on the
+   `Proposal.Created` event filter. Test: five readers, list and get, API and CLI, plus the event stream.
+2. **Feed cards:** `feed/cards.py` `POLICY_EVENT_TYPES` ignores `feed_policy: none` for forms events, so a draft save
+   shows "created a record". Drafts make no card; a submit card carries no answer text and follows the subject rule.
+Allowed paths gain `packages/tl-core/src/tl_core/services/proposals.py` and `packages/tl-core/src/tl_core/feed/cards.py`
+for these two items only.
