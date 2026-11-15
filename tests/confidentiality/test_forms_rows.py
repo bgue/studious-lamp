@@ -370,7 +370,7 @@ MAY = {
 READERS = {"uma": AUTHOR, "vera": LOW, "dora": CLEARED, "ada": ADMIN, "bot": AGENT}
 
 
-def _proposals(world: World) -> dict[str, str]:
+def _proposals(world: World, subject: str | None = None) -> dict[str, str]:
     """One pending proposal per answer class, each with the marker in its answers."""
     made: dict[str, str] = {}
     for cls in CLASSES:
@@ -380,6 +380,7 @@ def _proposals(world: World) -> dict[str, str]:
             source="mcp:forms-bot",
             scope=SCOPE,
             template_id=tpl,
+            subject_id=subject,
             answers=[answer("topic", f"{MARKER}-{cls}")],
         )
         # system view: ``propose`` reads the proposal back, and an agent may not read a class
@@ -541,3 +542,87 @@ def test_the_cli_lists_and_shows_a_proposal_only_for_a_class_the_reader_may_read
                  "--project", "P123", "--status", "all")  # fmt: skip
     assert nobody.exit_code == 0 and MARKER not in nobody.output
     assert {by_id[pid] for pid in made.values() if pid in nobody.output} == {"internal"}
+
+
+def test_the_record_activity_of_a_subject_leaves_out_a_proposal_of_a_class_not_read(
+    world: World,
+) -> None:
+    from tl_core.insights.activity import record_activity
+
+    subject = world.record("awp.IWP", "OPEN-9")
+    made = _proposals(world, subject)
+    for name, viewer in READERS.items():
+        with open_uow(world.db, readonly=True) as uow, cf.use_viewer(viewer):
+            page = record_activity(uow, subject)
+        dump = str([r.event.payload for r in page.rows])
+        created = [r for r in page.rows if r.event.event_type == "Proposal.Created"]
+        assert {r.event.stream_id for r in created} == {made[c] for c in MAY[name]}, name
+        for cls in CLASSES:
+            assert (f"{MARKER}-{cls}" in dump) == (cls in MAY[name]), (name, cls)
+
+
+def test_the_api_record_activity_of_a_subject_leaves_out_a_proposal_of_a_class_not_read(
+    tmp_path: Path,
+) -> None:
+    h = Harness.build(tmp_path, files=False)
+    try:
+        world = World(h.db)
+        world.people()
+        subject = world.record("awp.IWP", "OPEN-9")
+        made = _proposals(world, subject)
+        tokens = _sessions(h, world)
+        for name, token in tokens.items():
+            client = h.client_for(None)
+            client.headers.update({"Authorization": f"Bearer {token}"})
+            got = client.get(f"/records/{subject}/activity")
+            if name == "bot":  # activity.read is not open to agents
+                assert got.status_code == 403 and MARKER not in got.text
+                continue
+            assert got.status_code == 200, (name, got.text)
+            for cls in CLASSES:
+                assert (f"{MARKER}-{cls}" in got.text) == (cls in MAY[name]), (name, cls)
+                assert (made[cls] in got.text) == (cls in MAY[name]), (name, cls)
+    finally:
+        h.close()
+
+
+def test_a_subject_reclassified_after_the_filing_is_missing_for_the_author_too(
+    world: World,
+) -> None:
+    from tl_core.services.commands import Command
+    from tl_mod_correspondence.handlers.confidentiality import (
+        SetCorrespondenceConfidentiality,
+        handle_set_confidentiality,
+    )
+    from tl_mod_correspondence.handlers.create import create_item
+    from tl_mod_correspondence.handlers.models import Recipient
+    from tl_mod_correspondence.testing import frozen_today
+
+    cmd = Command(actor="user:dora", source="test", scope=SCOPE)
+    with cf.system_view(), frozen_today("2026-10-19"), open_uow(world.db) as uow:
+        item = str(
+            create_item(
+                uow, cmd, subject="Plain", direction="in", medium="letter",
+                received_via="manual", to=[Recipient(name="Someone")], body="Body",
+                received_on="2026-10-19", received=True,
+            ).stream_id
+        )  # fmt: skip
+    sub = str(
+        world.submit("uma", world.template(), subject_id=item).stream_id
+    )  # a plain user files
+    assert not hidden(world, sub, AUTHOR) and not hidden(world, sub, LOW)
+    with cf.system_view(), frozen_today("2026-10-19"), open_uow(world.db) as uow:
+        handle_set_confidentiality(
+            uow,
+            SetCorrespondenceConfidentiality(
+                actor="user:dora", source="test", scope=SCOPE, stream_id=item,
+                to_class="restricted", reason="test",
+            ),
+        )  # fmt: skip
+    ghost = new_ulid()
+    for viewer in (AUTHOR, LOW, AGENT, NOBODY):
+        assert hidden(world, sub, viewer)
+        with open_uow(world.db, readonly=True) as uow, cf.use_viewer(viewer):
+            assert queries.get_record_by_id(uow, sub) is None
+            assert queries.record_history(uow, sub) == queries.record_history(uow, ghost)
+    assert not hidden(world, sub, CLEARED)

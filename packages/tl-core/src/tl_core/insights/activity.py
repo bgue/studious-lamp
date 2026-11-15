@@ -96,10 +96,26 @@ def _visible(conn: Connection, events: Sequence[Event]) -> list[Event]:
     hidden_ids = confidentiality.hidden_among(
         conn, sorted({i for ids in named.values() for i in ids}), who
     )
+    # a proposal for a form template whose answer class the viewer may not read (the same helper
+    # ``filter_events`` uses): its ``Proposal.Created`` holds the answers
+    classed = confidentiality.hidden_answer_templates(
+        conn,
+        sorted(
+            {
+                i
+                for e in events
+                if e.stream_type == "core.Proposal"
+                for i in named.get(e.event_id, ())
+            }
+        ),
+        who,
+    )
     return [
         e
         for e in events
-        if e.stream_id not in streams and not (named.get(e.event_id, set()) & hidden_ids)
+        if e.stream_id not in streams
+        and not (named.get(e.event_id, set()) & hidden_ids)
+        and not (e.stream_type == "core.Proposal" and named.get(e.event_id, set()) & classed)
     ]
 
 

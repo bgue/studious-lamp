@@ -25,7 +25,7 @@ import re
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Final
 
 from sqlalchemy import Connection, bindparam, text
@@ -195,6 +195,8 @@ DRAFT_TYPE: Final = "forms.Submission"
 _DRAFT_TABLE: Final = "cur_forms_submission"
 #: The template table: its ``answer_class`` is what a proposed submission's answers will be.
 _TEMPLATE_TABLE: Final = "cur_forms_template"
+_TEMPLATE_ID: Final = "id"
+_TEMPLATE_CLASS: Final = "answer_class"
 
 
 def _subject_chain() -> tuple[str, str]:
@@ -579,9 +581,13 @@ def hidden_answer_templates(
         return set()
     found: set[str] = set()
     for source in sources:
+        # the template table names its own columns: its id and its ``answer_class``
+        on_template = replace(
+            source, table=_TEMPLATE_TABLE, id_column=_TEMPLATE_ID, class_column=_TEMPLATE_CLASS
+        )
         sql = (
-            f"SELECT s.{source.id_column} FROM {_TEMPLATE_TABLE} s "
-            f"WHERE s.{source.id_column} IN :_cf_ids AND NOT ({_allowed(source, who)})"
+            f"SELECT s.{_TEMPLATE_ID} FROM {_TEMPLATE_TABLE} s "
+            f"WHERE s.{_TEMPLATE_ID} IN :_cf_ids AND NOT ({_allowed(on_template, who)})"
         )
         statement = text(sql).bindparams(bindparam("_cf_ids", expanding=True))
         rows = conn.execute(statement, {"_cf_ids": wanted, **params_for(sql, who)})
