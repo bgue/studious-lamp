@@ -1,4 +1,4 @@
-# P2-I4B STATE  r=4 base=485b85b5 C=1 ck=- gate=n/a wt=/home/user/wt/p2-i4b
+# P2-I4B STATE  r=5 base=485b85b5 C=3 ck=- gate=n/a wt=/home/user/wt/p2-i4b
 ## BOARD   (S1 = plan B4; `todo` ready to dispatch, `stg` staged)
 S1 p mrg f 256d9014 C1; findings dec by orch; APPROVALS
 T06 t mrg f 1c3e1294 review P; F2 ctrl+i is Tab -> T07a (D11)
@@ -49,12 +49,10 @@ S1-F4 scaffold reads cur_requisitions_scaffold_request directly: record in phase
 S1-F5 hidden-IWP test patches _hidden (no confidential IWP exists yet): report says so; real path when IWPs carry classes
 T06 size (654 lines, mostly the acceptance script) accepted; its lint block clears once S1 is in p2/i4b
 ## NEXT
-1. Orch: merge T09c, T11a, T12 when passed (T12 and T11a touch disjoint paths; no known conflicts).
-2. Round 5: dispatch T10a (needs T09c), T11b (needs T11a), then T10b (needs T10a; same script and driver, sequential).
-3. DONE round after all merged: `docs/reports/P2-I4B.md` (<=80 lines), root AGENTS.md table row (scaffold: module, runbook, API, TUI, demo, tour), learnings, README status; `88`.
-4. Close gates (orch): `just check`; whole gate split by package; `just gate-pg` on packages/tl-modules/scaffold/tests packages/tl-api/tests/test_api_scaffold_commands.py tests/api/test_client_scaffold.py; `just demo P2-I4`; `just tour phase2`; SR4 (S1 confidentiality, green-tag word, dismantle guard, T09b1 five-reader walk).
-5. X4 C2 on trunk (still not at r4): ticket to move command splat and router line into module.py hooks; MCP tools and `tl scaffold` stay DEFERRED (Q2).
-6. Open from reports (decide at DONE, no ticket now): T07b register_page tuple shape accepted as built; T09b2 non-empty due list in client tests not added (T09b1 and fakes cover it); T05b/T05a rename test_nine_checks later.
+1. Orch owes the DONE gate: `just check`; whole suite per directory; `just gate-pg` on packages/tl-modules/scaffold/tests packages/tl-api/tests/test_api_scaffold_commands.py tests/api/test_client_scaffold.py; `just demo P2-I4` both adapters; `just tour phase2 /tmp/phase2-tour` (background).
+2. Orch: SR-I4B running (S1 confidentiality, green-tag word, dismantle guard, T09b1 five-reader walk); findings become builder pieces or Haiku tickets.
+3. DONE written r5: `docs/reports/P2-I4B.md`, AGENTS.md row, learnings L-P2-I4B-1 to 4; README status left to orch at merge.
+4. DEFERRED: richer scaffold states in P200 (1 approved request); MCP tools and `tl scaffold` CLI (Q2, wait X4 C2); move command splat and route line into module.py hooks after X4 C2; rename test_nine_checks.
 ## REFS
 Specs `docs/tickets/P2-I4B/{S1-scaffold-schema-and-lifecycle,T06-toolcrib-screen,T01-read-views,T05a-scaffold-tagged,T05b-labour-requested}.md`; stubs `tl_mod_scaffold/{views,readiness,labour}.py` (bodies raise NotImplementedError); provided tests `docs/tickets/P2-I4B/provided/S1_test_rules.py` (copy to `packages/tl-modules/scaffold/tests/test_rules.py`) `provided/T06_test_toolcrib_text.py` (copy to `packages/tl-tui/tests/test_toolcrib_text.py`), `provided/T01_test_views.py`, `T05a_test_scaffold_tagged.py`, `T05b_test_labour_requested.py` (each linted and type-checked where it lands, then the landing copy removed; the ticket makes the copy; ruff extend-exclude skips `provided/`).
 Round 4 specs `T09c-scaffold-error-rows`, `T11a-demo-project-scaffold-section`, `T12-docs`, staged `T10a-demo-scaffold-clauses`, `T10b-demo-toolcrib-clause`, `T11b-tour-scaffold-toolcrib` (all under `docs/tickets/P2-I4B/`). Gate paths (ls checked): `packages/tl-api/tests/{test_error_table,test_api_scaffold_commands,test_openapi_baseline}.py`, `tests/tools/test_demo_project{,_quality}.py`; demos and tour: `TL_DEMO_BACKENDS=sqlite just demo P2-I4`, `just tour phase2 /tmp/phase2-tour` (background).

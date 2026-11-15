@@ -270,3 +270,19 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P2-I3-3** · 2026-11-07 · tags: cli, process
   A CLI option that takes a record id is unusable when no read command prints ids: `tl mat move --for-line` needs an id but `mto show` and `mto list` print keys. Make write options take the key a read prints, and check every id-taking option against the read output in the ticket.
   Evidence: T10 report Learnings; follow-up 1 of `docs/reports/P2-I3.md`. Status: active
+
+- **L-P2-I4B-1** · 2026-11-15 · tags: tests, process
+  A provided test must be lint-clean (ruff, format, pyright) at the path where it lands. T06's provided test had a 104-character line and broke `just check` for S1 and later tickets; the supervisor now formats it at its landing path before commit.
+  Evidence: S1 and T06 reports, S1-F2. Status: active
+
+- **L-P2-I4B-2** · 2026-11-15 · tags: tests, ledger
+  The SQLite adapter's `_on_begin` runs `BEGIN DEFERRED` through `exec_driver_sql`, so `before_cursor_execute` sees it and one read counts as two. Statement-count tests filter `BEGIN`, `COMMIT`, `ROLLBACK` (or count writes only, as `tl_core.readiness.harness` does).
+  Evidence: T05a and T05b reports. Status: active
+
+- **L-P2-I4B-3** · 2026-11-15 · tags: tests, process
+  A new readiness check that blocks by default breaks every seed or script that expects "ready": `labour_requested` blocks when hours are set and no labour requisition exists. In the same ticket, seed approved labour requisitions in demo, accept and tour data, and list the affected scripts.
+  Evidence: D10, Q3, T05b amendment 2. Status: active
+
+- **L-P2-I4B-4** · 2026-11-15 · tags: api, tests
+  Module role `derive` gives every `user` account the `user` word per module unless an explicit grant exists; an explicit module grant replaces the derived roles. A viewer grant therefore removes `register`, which is the easy way to build a person with no word.
+  Evidence: T09a report. Status: active
