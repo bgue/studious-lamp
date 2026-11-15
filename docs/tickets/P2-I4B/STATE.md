@@ -27,7 +27,7 @@ D12 2026-11-15 views: list, detail (+inspections), due_list, export_rows (CSV wi
 ## SEC
 (none yet; SR4 rows: S1 confidentiality part (hidden IWP hides its scaffold and the dismantle text), green-tag word, dismantle guard; T09b1 five-reader walk; one wave review)
 ## OPEN
-Q3 labour_requested turns blocked for any IWP with hours and no labour requisition: demos and accept scripts that expect `ready` (p2_w0_demo, W0-B1, I3/I4 demos, tour) may now fail; accept D10 or rule it n_a project-wide | needs orch | raised r2 (T05b)
+Q3 closed 2026-11-15 (orch): accept D10 (blocked when hours and no labour requisition). T05b adds labour requisitions to demo/accept/tour data that expects ready; if more than 3 scripts are affected it stops and lists them.
 Q1 Offline-class and `valid_time` choices for scaffold are the supervisor's (D7); orchestrator may veto at the S1 human gate | needs orch | raised r1
 Q2 DEFERRED line proposed: scaffold MCP read tools and a `tl scaffold` CLI group (X4 cli_groups hook) | needs orch | raised r1
 ## DEC-ORCH 2026-11-15 (S1 review 2s)
