@@ -6,7 +6,17 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from tl_core.services.commands import VoidRecord
+from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.queries import find_account
+from tl_core.services.agent_stop import (
+    ResumeAgent,
+    StopAgent,
+    handle_resume_agent,
+    handle_stop_agent,
+)
+from tl_core.services.commands import CreateRecord, VoidRecord
+from tl_core.services.proposals import submit
 from tl_core.services.records import handle_void_record
 from tl_core.threads.contract import THREAD_EVENT_TYPES
 from tl_core.webhooks.subscriptions import (
@@ -418,6 +428,48 @@ def append_integration_events(world: World) -> None:
         )
 
 
+def stop_and_resume_an_agent(world: World) -> None:
+    """Agent.Stopped and Agent.Resumed, through the real commands (P2-X2 S3).
+
+    They sit on the account stream, so no subscriber is sent them (ADR-0009); the contract test
+    asserts that. The agent needs an account, a filing grant and one filing; the admin is a
+    person."""
+    with world.factory() as uow:
+        accounts.create_account(
+            uow, username="gadmin", display_name="gadmin", kind="person",
+            roles=["admin"], password=None, by="svc:test",
+        )  # fmt: skip
+        accounts.create_account(
+            uow, username="bot", display_name="bot", kind="agent",
+            roles=["user"], password=None, by="svc:test",
+        )  # fmt: skip
+        bot = find_account(uow.conn(), username="bot")
+        assert bot is not None
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=bot.account_id,
+                project=SCOPE, module="*", role="user", reason="test",
+            ),
+        )  # fmt: skip
+    submit(
+        world.factory, tool="create_record", agent="agent:bot", summary="Create a record",
+        command=CreateRecord(
+            actor="agent:bot", source="mcp:x", scope=SCOPE, record_type="core.Record",
+            title="filed", key="P1-FILED",
+        ),
+    )  # fmt: skip
+    with world.factory() as uow:
+        handle_stop_agent(
+            uow,
+            StopAgent(actor="user:gadmin", source="test", scope="company", agent="agent:bot"),
+        )
+    with world.factory() as uow:
+        handle_resume_agent(
+            uow, ResumeAgent(actor="user:gadmin", source="test", scope="company", agent="agent:bot")
+        )
+
+
 def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
     """Subscribe in all three modes, produce every catalog event type, deliver everything.
 
@@ -506,6 +558,7 @@ def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
             stream_type="core.Thread",
         )
     append_integration_events(world)  # P1-I7 WS-A
+    stop_and_resume_an_agent(world)  # P2-X2 S3
     sid = modes["delta"].subscription_id
     with world.factory() as uow:
         update_subscription(
