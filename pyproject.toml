@@ -56,7 +56,7 @@ tl-mod-requisitions = { workspace = true }
 line-length = 100
 target-version = "py312"
 include = ["*.py", "*.pyi", "**/pyproject.toml"]
-extend-exclude = ["packages/tl-schema/src/tl_schema/generated"]
+extend-exclude = ["packages/tl-schema/src/tl_schema/generated", "docs/tickets/*/provided"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
