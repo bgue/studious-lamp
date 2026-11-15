@@ -15,11 +15,7 @@ from tl_adapters.db import (
     open_uow,
     rebuild_projections,
 )
-from tl_core.auth import accounts
-from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
-from tl_core.auth.queries import find_account
 from tl_core.ledger import ConcurrencyError, Event
-from tl_core.modules import load_modules
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
 from tl_core.services.commands import CreateRecord
@@ -37,7 +33,6 @@ from tl_core.services.links import AddLink
 from tl_core.services.psets import SetPsetValues
 from tl_core.services.records import handle_create_record
 from tl_core.services.workflow import TransitionWorkflow
-from tl_core.uow import UnitOfWork
 from tl_core.workflow.definition import WorkflowDefinition
 from tl_core.workflow.loader import WorkflowRegistry
 from tl_core.workflow.provider import use_workflows
@@ -75,38 +70,6 @@ FLOW: dict[str, Any] = {
 }
 
 
-PROJECTS = ("project:P123", "project:P1", "project:P2", "project:P999")
-
-
-def grant_filing(uow: UnitOfWork, name: str, projects: tuple[str, ...] = PROJECTS) -> None:
-    """The agent's account (role user) and an explicit ``user`` grant (P2-X2 S1).
-
-    An agent files only where an admin granted it a module role; a role derived from the account
-    role does not count."""
-    conn = uow.conn()
-    view = find_account(conn, username=name)
-    if view is None:
-        view = accounts.create_account(
-            uow, username=name, display_name=name, kind="agent",
-            roles=["user"], password=None, by="svc:test",
-        )  # fmt: skip
-    if find_account(conn, username="gadmin") is None:
-        accounts.create_account(
-            uow, username="gadmin", display_name="gadmin", kind="person",
-            roles=["admin"], password=None, by="svc:test",
-        )  # fmt: skip
-    targets = [(p, "*") for p in projects]
-    targets += [("company", s.name) for s in load_modules() if s.company_roles][:1]
-    for project, module in targets:
-        grant_module_role(
-            uow,
-            GrantModuleRole(
-                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
-                project=project, module=module, role="user", reason="test",
-            ),
-        )  # fmt: skip
-
-
 @pytest.fixture(autouse=True)
 def flow() -> Iterator[None]:
     with use_workflows(WorkflowRegistry([WorkflowDefinition.model_validate(FLOW)])):
@@ -114,7 +77,7 @@ def flow() -> Iterator[None]:
 
 
 class World:
-    def __init__(self, db: DbTarget) -> None:
+    def __init__(self, db: DbTarget, grant_filing: Callable[..., None]) -> None:
         self.db = db
         for name in (
             "triage",
@@ -183,10 +146,10 @@ class World:
 
 
 @pytest.fixture
-def world(new_db: Callable[[], DbTarget]) -> World:
+def world(new_db: Callable[[], DbTarget], grant_filing: Callable[..., None]) -> World:
     db = new_db()
     create_schema(db)
-    return World(db)
+    return World(db, grant_filing)
 
 
 def create_cmd(key: str | None = "P123-REC-0042", **extra: Any) -> CreateRecord:
