@@ -9,7 +9,8 @@ gate (§25.5) and APPROVALS lines before each merge.
 Brief sections: §9 M5 and §10.5 (checklist runner), §7.1 and §9 M3 (permits), §16 (web readiness), §22 (offline),
 §22.9 (mobile notes). Builds on ADR-0009, ADR-0010, ADR-0016, ADR-0030; P2-X1 (idempotency);
 `specs/offline-classes.md`.
-Evaluation: `docs/build-spec/module-designs/forms-eval.md`.
+Evaluation: `docs/build-spec/module-designs/forms-eval.md`; store and forward in detail:
+`docs/build-spec/module-designs/forms-store-and-forward.md`.
 
 ## Context
 The owner asked (2026-11-15) whether permits and inspections are special cases of a general forms module, served by
@@ -60,7 +61,8 @@ engine absorbs permit safety rules that must stay typed.
     signature is an attachment and grants nothing.
 13. **Drafts are kept on the server** (owner decision 3). `forms.Submission` has a `Draft` state written by
     `SaveFormDraft`, readable by its author only, saved on request and not per keystroke, bounded by
-    `forms.draft_saves_max`. Typed records keep their own waiting states.
+    `forms.draft_saves_max`. Typed records keep their own waiting states. A draft save is ledger text: it takes the
+    template's `answer_class`, a security review row and the five-reader walk.
 14. **Permit facts that only tighten may be queued** (owner decision 4): a suspend, and a gas reading that the
     server computes as a fail. A queued reading that computes as a pass is refused. Resume, issue, revalidate,
     approve and every isolation command stay online only. The list (`TIGHTENING_COMMANDS`) is closed; the device
@@ -72,6 +74,13 @@ engine absorbs permit safety rules that must stay typed.
 16. **A queued item may be at most 72 hours old** (`forms.late_accept_hours`, owner decision 6), and **a general
     submission is reviewed by a `forms` controller who is not the submitter** (owner decision 7). The two MIT
     SurveyJS files are vendored for the fill page (owner decision 2).
+17. **Plan check of 2026-11-15, accepted.** Store and forward (decisions 9, 10, 14, 15 and the late window) is
+    built in Phase 3, and its first version uses the receipt time only: `captured_at` is recorded and shown, never
+    applied, and `forms.clock_skew_max_seconds` waits. Forms piece S3 owns the one seam that runs a command inside
+    the caller's unit of work, which the delivery route and intake accept reuse. Form sources for quality and
+    permits, and the vendoring, are builder pieces. Subject rows in `tl_core/confidentiality.py` are added by one
+    serialised piece per wave. The owner approves the security gates. The submissions export and the SurveyJS
+    projection route before the fill page are deferred.
 
 ## Consequences
 - Contracts changed: new `tl_core/forms/types.py` and `rules.py` (frozen once merged); new entry-point group
@@ -81,11 +90,12 @@ engine absorbs permit safety rules that must stay typed.
   added to the subject rule in `tl_core/confidentiality.py`; a service worker and vendored scripts in `tl-web`.
   No existing event, route, setting or frozen contract changes. ADR-0030 and the scan-card contract stand.
 - In flight: INSP-S1 and QR-S1 merge as built. INSP-T00, PTW-S1 and PTW-T00 are released unchanged. INSP T02 and
-  T11 (the runner) move to the forms increment. INSP-S2 gains one optional input, `captured_at`.
+  T11 (the runner) move to the forms increment. INSP-S2 is unchanged (receipt time only).
   `validate_questions` and `validate_answers` move from `tl_mod_quality.insp_rules` to core, with re-exports.
-- Tickets: a new increment in three slices (engine and general forms; web fill page; store and forward), about 6
-  pieces and 29 tickets with the owner's answers, started after INSP C2, PTW C2 and P2-X4 C2. Zero-login intake
-  is a fourth slice under ADR-0032 (proposed); totals are in the evaluation, §8.3.
+- Tickets: Phase 2 holds the first slice (4 pieces, about 12 tickets) and the web fill page (2 pieces, about 4);
+  store and forward (2 pieces, about 9) is Phase 3. S1 starts at INSP C1; the form sources wait for INSP C2 and
+  PTW C2; routes wait for P2-X4 C2. Zero-login intake is a further slice under ADR-0032 (proposed, held). The plan
+  of record is the evaluation, §8.3.
 - Gates affected: core interface; schema merge (module `forms`); settings and access words; security review of the
   delivery route, the form sources and the walks; the licence check (vendored files); the web client's content
   policy and service worker. The delivery route is sync-class code: builder tier with a human gate.
