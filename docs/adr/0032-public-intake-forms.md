@@ -1,6 +1,6 @@
 # ADR-0032 — Public intake forms: zero-login requests and sign-on sheets, staged for a controller
 
-Status: Proposed (owner asked 2026-11-15)
+Status: Accepted (owner, 2026-11-15: yes to all three questions in forms-eval §8.4: the ADR as written, an optional phone field kept at most 30 days unless accepted, poster permit sign-on is attendance only until a signed-in controller confirms)
 Date: 2026-11-15
 Deciders: orchestrator (draft by the forms design evaluation); the owner decides. A new route with no sign-in, a
 new operational table, new settings and access words, so a human gate (§25.5), a security review and APPROVALS

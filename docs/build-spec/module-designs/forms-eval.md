@@ -352,9 +352,9 @@ captcha; photos and SurveyJS on `/i/`; agents reading staged text; guest links (
 command); a web page for the controller queue. Deferred: submissions export, intake merge and person matching, the
 intake outbox, device time as valid time.
 
-### 8.4 Owner questions on ADR-0032 (the intake slice waits for 1 and 2)
+### 8.4 Owner questions on ADR-0032 (decided 2026-11-15: yes to all three; the intake slice is released)
 
-| # | Question | Default |
+| # | Question | Default (owner: yes) |
 |---|---|---|
 | 1 | Accept ADR-0032 as written (write-only, staged, own stream, off by default)? | Yes |
 | 2 | May a public form ask for a phone number, kept at most 30 days unless a controller accepts it into a record? | Yes, optional per template |
