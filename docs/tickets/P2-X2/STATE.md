@@ -1,4 +1,4 @@
-# P2-X2 STATE  r=4 base=27380224 C=1 ck=- gate=n/a wt=/home/user/wt/p2-x2
+# P2-X2 STATE  r=5 base=27380224 C=4 ck=1 gate=pass wt=/home/user/wt/p2-x2
 ## BOARD
 S1 p mrg f 8b71e3b9 review P; F1 F2 LO accepted
 S3 p mrg f a03515d2 stop switch; review P 3 LO; 52 P 2a; APPROVALS
@@ -31,16 +31,16 @@ D11 2026-11-15 T04 staged with names only (S1/S2 helpers unmerged): supervisor p
 D13 2026-11-15 r4: S1 Gate line fixed to tests/services/test_proposals.py (D8 closed); T04 traps pasted: McpHarness.call auto-grants (no-word case calls server.call_tool directly), helper grants P999 (missing scope is project:NOPE)
 D12 2026-11-15 T06 puts the setting reference in runbooks/settings.md (no reference page exists); T05 python driver capped 250 lines
 ## SEC
-(none yet; SR-X2 at wave end: refusals equal missing, cap text no counts, held count filtered, stop holds accept, events append-only, agent cannot stop)
+(none yet; SR-X2 pass at DONE: refusals equal missing, cap text no counts, held count filtered, stop holds accept, events append-only, agent cannot stop)
 S3 review F1 LO N+1 in list_stopped: ok (bounded by limit 200)
 S3 review F2 LO projector bumps cur_account.version: noted, learning proposed
 ## OPEN
-Q2 ADR-0027 amendment (filing check moves to X2) is an owner approval; S1 does not edit the ADR needs orch raised S1
-Q3 S3 Q1: an admin cannot stop an agent before its first filing (built as spec'd); pre-emptive stop wanted? needs owner raised S3 (default: no)
+Q2 ADR-0027 amendment (filing check moves to X2) is an owner approval; S1 did not edit the ADR needs owner raised S1
+Q3 pre-emptive stop of an agent that never filed (S3 item 6); built as specified, default no needs owner raised S3
 ## NEXT
-1. Orchestrator dispatches T04 (docs/tickets/P2-X2/T04-scope-walks.md, branch p2/x2-t04-scope-walks, review full); merges on P.
-2. After T04 mrg: dispatch T05 (demo); after T05 mrg: T06 (lite). Nothing runs beside T04 except builders on other increments.
-3. DONE round: report, learnings (account-stream projectors move cur_account.version; generated /commands body names; AGENT_MAY_NOT for every admin.command.*; McpHarness.call auto-grants), AGENTS.md rows (agent stop, queue cap), SR-X2 at wave end.
+1. Orchestrator merges p2/x2 to trunk (C4), runs the final per-directory verification if not finished, then pushes.
+2. Orchestrator raises Q2 with the owner.
+3. DEFERRED rows SR-X2 F2-F5 wait for a follow-up; nothing else open.
 ## REFS
 Seam stubs: packages/tl-core/src/tl_core/services/agent_scope.py, agent_stop.py. Specs and tickets: docs/tickets/P2-X2/{S1,S2,S3,T01,T02}-*.md. Worktrees: pieces /home/user/wt/x2/s<n>, tickets /home/user/wt/x2/t<nn>. S3 report docs/reports/P2-X2/S3.md.
 ## TRAPS

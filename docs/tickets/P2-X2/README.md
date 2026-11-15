@@ -1,6 +1,6 @@
 # P2-X2 — Agent scope: filing check, queue cap, stop switch
 
-Status: in-progress. Plan: `docs/build-spec/12-extension-plan.md` (P2-X2, 9 items, no plan check). Live board: `STATE.md`. Branch `p2/x2`.
+Status: done. Plan: `docs/build-spec/12-extension-plan.md` (P2-X2, 9 items, no plan check). Live board: `STATE.md`. Branch `p2/x2`.
 
 ## Objective
 An agent in the pilot files only where it may propose, cannot flood a project queue, and an admin can stop one agent and hold what
