@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import t04a_checks as t  # noqa: E402
 from mcp.server.mcpserver.exceptions import ToolError  # noqa: E402
+from progress_world import grant_bot  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from tl_adapters.db import as_target, make_uow_factory, open_uow  # noqa: E402
 from tl_core.auth.errors import ForbiddenError  # noqa: E402
@@ -130,6 +131,7 @@ def main() -> None:
     ids = t.seed(w, ctx)
     t.classed(w, {ids["i3"], ids["cwp"]})
     seed_readiness(seed_db, ids["i1"], ids["i2"], ids["i3"])
+    grant_bot(as_target(str(seed_db)), LOW_AGENT.split(":", 1)[1])  # P2-X2 S1: explicit grant
     extra = w.items(["4.0", "4.0"])  # unscoped items, for the scope proposal
     extra_keys = [w.column("cur_core_record", "key", item) for item in extra]
     i1_key = w.column("cur_core_record", "key", ids["i1"])
