@@ -17,6 +17,9 @@ dependencies = [
 [project.entry-points."throughline.modules"]
 scaffold = "tl_mod_scaffold.module:spec"
 
+[project.entry-points."throughline.readiness_checks"]
+scaffold_tagged = "tl_mod_scaffold.readiness:scaffold_tagged"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
