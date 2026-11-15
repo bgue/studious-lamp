@@ -19,6 +19,7 @@ scaffold = "tl_mod_scaffold.module:spec"
 
 [project.entry-points."throughline.readiness_checks"]
 scaffold_tagged = "tl_mod_scaffold.readiness:scaffold_tagged"
+labour_requested = "tl_mod_scaffold.labour:labour_requested"
 
 [build-system]
 requires = ["hatchling"]

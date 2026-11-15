@@ -197,7 +197,7 @@ From `packages/tl-mcp/src/tl_mcp/iwp_tools.py` (not `awp_tools.py`). Each needs 
 | `constraints_cleared` | open blocking constraints on the IWP (`readiness/checks.py`) | a real check |
 | `permits_planned` | `tl_mod_awp/checks_na.py` | `n_a` (the module it waits for does not exist yet) |
 | `inspections_planned` | `checks_na.py` | `n_a` |
-| `labour_requested` | `checks_na.py` | `n_a` |
+| `labour_requested` | `tl_mod_scaffold/labour.py` (P2-I4B-T05b) | a real check: approved labour requisition covering the window |
 | `predecessors_handed_over` | `checks_na.py` | `n_a` |
 | `model_slice_available` | `checks_na.py` | `n_a` |
 

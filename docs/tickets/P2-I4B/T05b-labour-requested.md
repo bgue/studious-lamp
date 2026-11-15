@@ -61,3 +61,15 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-15)
+As in T05a: the statement-count listener ignores BEGIN, COMMIT and ROLLBACK (the SQLite adapter's `BEGIN DEFERRED`); the
+bound stays at one read. The provided copy is updated to the same bytes; both paths are allowed for that.
+
+## Amendment 2 (orchestrator, 2026-11-15)
+Q3 ruling: the new `labour_requested` behaviour stands; the demo data is fixed. The seed IWPs carry estimated hours and no
+labour requisition, so `python -m dev.seed.demo_project` stopped at the release section ("too few IWPs are Ready to
+release"). The seed change is additive and goes through the commands: `dev/seed/demo_project/labour.py` (new) raises and
+approves labour requisitions for IWPs, called from the constraints section just before it evaluates readiness.
+Allowed path for this amendment: `dev/seed/demo_project/**` (and the seed tests under `tests/tools/test_demo_project*.py`
+if a pin needs it; none did).

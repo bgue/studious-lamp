@@ -12,6 +12,10 @@ Rejected, 3 Cancelled (one after approval), 7 Requested (3 of them overdue). The
 (``WORK``) end as 5 Open (two of them assigned), 2 Scheduled, 1 In progress, 1 Done with the
 actual hours, 1 Closed, and 1 Cancelled with its approved requisition.
 
+The constraints section raises 22 more labour requisitions of its own for its IWPs (``labour.py``):
+21 approved and 1 Requested, so the full demo holds 29 labour requisitions; the counts above are
+this section's own.
+
 Without the materials section the eight material requisitions are not raised, and the section
 says so in one line. Draws come from the section's own ``rng``; nothing reads the clock.
 """

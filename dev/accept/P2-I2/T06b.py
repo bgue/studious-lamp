@@ -30,9 +30,6 @@ EXPECTED: dict[str, str] = {
     "inspections_planned": (
         "not applicable yet: inspection and test plan records are built in Phase 3"
     ),
-    "labour_requested": (
-        "not applicable yet: labour requisitions arrive with the requisitions module"
-    ),
     "predecessors_handed_over": "not applicable yet: hand-over of predecessor work is not recorded",
     "model_slice_available": "not applicable yet: model records are built in Phase 3",
 }
