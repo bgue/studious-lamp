@@ -6360,6 +6360,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "feed_policy": {
      "const": "none",
      "type": "string"
@@ -6385,6 +6392,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "feed_policy": {
      "const": "none",
      "type": "string"
@@ -6408,6 +6422,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "feed_policy": {
      "const": "none",
      "type": "string"
@@ -6499,6 +6520,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "due_on": {
      "type": "string"
     },
@@ -6526,6 +6554,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "feed_policy": {
      "const": "none",
      "type": "string"
@@ -6549,6 +6584,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "elevation": {
      "type": [
       "string",
@@ -6602,6 +6644,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "feed_policy": {
      "const": "none",
      "type": "string"
@@ -6621,6 +6670,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "feed_policy": {
      "const": "none",
      "type": "string"

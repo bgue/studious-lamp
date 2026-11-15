@@ -11995,6 +11995,7 @@ The scaffold design was done. Stream type `scaffold.Scaffold`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
 | `note` | string or null | no | A note, or null. |
 | `record_id` | string | yes | The scaffold. |
@@ -12047,6 +12048,7 @@ Dismantling began. Stream type `scaffold.Scaffold`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
 | `reason` | string | yes | Why it is being taken down. |
 | `record_id` | string | yes | The scaffold. |
@@ -12099,6 +12101,7 @@ Erection began; the first inspection falls due one interval later. Stream type `
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
 | `next_due_on` | string | yes | YYYY-MM-DD of the first inspection due, from the erect date and the interval setting. |
 | `note` | string or null | no | A note, or null. |
@@ -12216,6 +12219,7 @@ The inspections-due job found the scaffold due or overdue (job only). Stream typ
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `due_on` | string | yes | YYYY-MM-DD the inspection fell due. |
 | `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
 | `record_id` | string | yes | The scaffold. |
@@ -12270,6 +12274,7 @@ The scaffold is being modified (also after a failed inspection). Stream type `sc
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
 | `reason` | string | yes | Why it is being modified. |
 | `record_id` | string | yes | The scaffold. |
@@ -12322,6 +12327,7 @@ A scaffold was registered from an approved scaffold request. Stream type `scaffo
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `elevation` | string or null | no | Elevation copied from the request, or null. |
 | `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
 | `for_record_id` | string or null | no | The record the request serves, or null. |
@@ -12384,6 +12390,7 @@ The scaffold was released for use. Stream type `scaffold.Scaffold`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
 | `record_id` | string | yes | The scaffold. |
 
@@ -12434,6 +12441,7 @@ The scaffold was removed, or the request withdrawn before it stood. Stream type 
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
 | `reason` | string or null | no | Why, or null. |
 | `record_id` | string | yes | The scaffold. |

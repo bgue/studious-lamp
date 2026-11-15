@@ -6,7 +6,8 @@ description: >-
   is created by `Record.Created` followed in the same append by `Scaffold.Registered`; an inspection is its own
   record (`Record.Created`, then `Scaffold.Inspected` on the scaffold stream). Every event carries
   `feed_policy: none`: a scaffold makes no feed card. Each payload names the stream's `record_id`. `at` of
-  `Inspected` is the world date of the inspection (ADR-0026); the other events carry no valid time of their own.
+  `Inspected` is the world date of the inspection and an optional `at` on every other event is the world
+  time of the fact (ADR-0026, D19); absent, the recorded time stands.
 prefixes:
   linkml: https://w3id.org/linkml/
   throughline: https://example.org/throughline/
@@ -46,6 +47,11 @@ classes:
         description: "Gridline copied from the request, or null."
       load_class:
         description: "Load class copied from the request, or null."
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a scaffold makes no feed card."
@@ -65,6 +71,11 @@ classes:
         required: true
       note:
         description: "A note, or null."
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a scaffold makes no feed card."
@@ -87,6 +98,11 @@ classes:
       next_due_on:
         description: "YYYY-MM-DD of the first inspection due, from the erect date and the interval setting."
         required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a scaffold makes no feed card."
@@ -145,6 +161,11 @@ classes:
       record_id:
         description: "The scaffold."
         required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a scaffold makes no feed card."
@@ -165,6 +186,11 @@ classes:
       reason:
         description: "Why it is being modified."
         required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a scaffold makes no feed card."
@@ -185,6 +211,11 @@ classes:
       reason:
         description: "Why it is being taken down."
         required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a scaffold makes no feed card."
@@ -204,6 +235,11 @@ classes:
         required: true
       reason:
         description: "Why, or null."
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a scaffold makes no feed card."
@@ -227,6 +263,11 @@ classes:
       state:
         description: "The workflow state of the scaffold when flagged."
         required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a scaffold makes no feed card."

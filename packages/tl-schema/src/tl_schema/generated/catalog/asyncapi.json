@@ -58795,6 +58795,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "feed_policy": {
                       "const": "none",
                       "description": "Always `none`: a scaffold makes no feed card.",
@@ -59057,6 +59065,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "feed_policy": {
                       "const": "none",
                       "description": "Always `none`: a scaffold makes no feed card.",
@@ -59318,6 +59334,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "feed_policy": {
                       "const": "none",
                       "description": "Always `none`: a scaffold makes no feed card.",
@@ -59898,6 +59922,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "due_on": {
                       "description": "YYYY-MM-DD the inspection fell due.",
                       "type": "string"
@@ -60163,6 +60195,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "feed_policy": {
                       "const": "none",
                       "description": "Always `none`: a scaffold makes no feed card.",
@@ -60428,6 +60468,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "elevation": {
                       "description": "Elevation copied from the request, or null.",
                       "type": [
@@ -60722,6 +60770,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "feed_policy": {
                       "const": "none",
                       "description": "Always `none`: a scaffold makes no feed card.",
@@ -60977,6 +61033,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "feed_policy": {
                       "const": "none",
                       "description": "Always `none`: a scaffold makes no feed card.",
