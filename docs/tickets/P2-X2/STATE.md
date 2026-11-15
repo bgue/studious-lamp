@@ -13,6 +13,7 @@ T05 t mrg f 7139c557 review P after amend 2; demo OK both adapters
 T06 t mrg l acbad682 review P attempt 2
 T07 t mrg f fd874cf0 DONE-gate fallout; contract excludes Agent.* (admin-only)
 T08 t mrg f 21bc6a36 S1 grant fallout (tests, accept scripts)
+T09 t mrg f 16a9b277 sim suite + 14 demos grant agents
 T10 t mrg f 82757dab tui count pins + parity webhook exclusion; plain-walk f7 = load flake
 T11 t mrg f 12478945 schema+api fallout; agent_stopped 403 error row (orch accepted)
 ## DEC
