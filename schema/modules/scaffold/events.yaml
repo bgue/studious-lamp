@@ -1,0 +1,235 @@
+id: https://example.org/throughline/modules/scaffold/events
+name: tl_mod_scaffold_events
+title: Scaffold module events
+description: >-
+  The ledger events of the scaffold module (brief 18.3), in the same form as `schema/core/events.yaml`. A scaffold
+  is created by `Record.Created` followed in the same append by `Scaffold.Registered`; an inspection is its own
+  record (`Record.Created`, then `Scaffold.Inspected` on the scaffold stream). Every event carries
+  `feed_policy: none`: a scaffold makes no feed card. Each payload names the stream's `record_id`. `at` of
+  `Inspected` is the world date of the inspection (ADR-0026); the other events carry no valid time of their own.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+  - scaffold
+default_range: string
+annotations:
+  tl:module: scaffold
+
+classes:
+  ScaffoldRegisteredPayload:
+    is_a: EventPayload
+    description: >-
+      A scaffold was registered from an approved scaffold request. Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.Registered
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      request_id:
+        description: "The scaffold request."
+        required: true
+      for_record_id:
+        description: "The record the request serves, or null."
+      location_text:
+        description: "Where it stands, or null."
+      elevation:
+        description: "Elevation copied from the request, or null."
+      gridline:
+        description: "Gridline copied from the request, or null."
+      load_class:
+        description: "Load class copied from the request, or null."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"elevation\": \"+12.0\", \"feed_policy\": \"none\", \"for_record_id\": null, \"gridline\": \"C-4\", \"load_class\": \"Light\", \"location_text\": \"Unit 4, north face\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"request_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\"}"
+  ScaffoldDesignedPayload:
+    is_a: EventPayload
+    description: >-
+      The scaffold design was done. Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.Designed
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      note:
+        description: "A note, or null."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"note\": \"Drawing SD-12\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  ScaffoldErectingPayload:
+    is_a: EventPayload
+    description: >-
+      Erection began; the first inspection falls due one interval later. Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.Erecting
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      note:
+        description: "A note, or null."
+      next_due_on:
+        description: "YYYY-MM-DD of the first inspection due, from the erect date and the interval setting."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"next_due_on\": \"2026-11-09\", \"note\": null, \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  ScaffoldInspectedPayload:
+    is_a: EventPayload
+    description: >-
+      The scaffold was inspected and tagged; the inspection is the record `inspection_id`. Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.Inspected
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      inspection_id:
+        description: "The `scaffold.ScaffoldInspection` record."
+        required: true
+      result:
+        description: "pass, conditional or fail."
+        range: InspectionResult
+        required: true
+      tag:
+        description: "The tag the result gave."
+        range: TagColour
+        required: true
+      inspected_on:
+        description: "YYYY-MM-DD of the inspection."
+        required: true
+      next_due_on:
+        description: "YYYY-MM-DD the next inspection falls due."
+        required: true
+      note:
+        description: "A note, or null."
+      at:
+        range: datetime
+        description: "When the inspection happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"inspected_on\": \"2026-11-02\", \"inspection_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P4\", \"next_due_on\": \"2026-11-09\", \"note\": null, \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"result\": \"pass\", \"tag\": \"green\"}"
+  ScaffoldReleasedPayload:
+    is_a: EventPayload
+    description: >-
+      The scaffold was released for use. Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.Released
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  ScaffoldModifiedPayload:
+    is_a: EventPayload
+    description: >-
+      The scaffold is being modified (also after a failed inspection). Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.Modified
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      reason:
+        description: "Why it is being modified."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Add a lift\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  ScaffoldDismantleStartedPayload:
+    is_a: EventPayload
+    description: >-
+      Dismantling began. Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.DismantleStarted
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      reason:
+        description: "Why it is being taken down."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Work complete\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  ScaffoldRemovedPayload:
+    is_a: EventPayload
+    description: >-
+      The scaffold was removed, or the request withdrawn before it stood. Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.Removed
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      reason:
+        description: "Why, or null."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": null, \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  ScaffoldInspectionDuePayload:
+    is_a: EventPayload
+    description: >-
+      The inspections-due job found the scaffold due or overdue (job only). Stream type `scaffold.Scaffold`.
+    annotations:
+      tl:event_type: Scaffold.InspectionDue
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scaffold."
+        required: true
+      due_on:
+        description: "YYYY-MM-DD the inspection fell due."
+        required: true
+      state:
+        description: "The workflow state of the scaffold when flagged."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scaffold makes no feed card."
+        required: true
+    examples:
+      - value: "{\"due_on\": \"2026-11-09\", \"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"state\": \"In Use\"}"

@@ -1,0 +1,24 @@
+id: https://example.org/throughline/modules/scaffold
+name: tl_mod_scaffold
+title: "The scaffold module (M9 scaffold, second slice)"
+description: >-
+  Scaffold on a project (brief 9, M9; contract section 3). A `Scaffold` is the erected structure that a
+  `ScaffoldRequest` of the requisitions module asked for: it is registered once the request is approved, designed,
+  erected, inspected and tagged, released for use, modified, dismantled and removed. A `ScaffoldInspection` is one
+  inspection of it, a fact. The module reads the requisitions module through its `api` and never runs its handlers.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the
+  module's own current-state table, joined on `id`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - scaffold
+  - events
+default_range: string
+annotations:
+  tl:module: scaffold
