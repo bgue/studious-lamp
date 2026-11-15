@@ -3,7 +3,7 @@
 S1 p mrg f 256d9014 C1; findings dec by orch; APPROVALS
 T06 t mrg f 1c3e1294 review P; F2 ctrl+i is Tab -> T07a (D11)
 T01 t mrg f f6bf1990 review P
-T05a t todo f - scaffold_tagged check + entry point; 11 provided tests
+T05a t mrg f 7e1651ce review P; amend 1; rename test_nine_checks later
 T05b t stg f - labour_requested replaces awp placeholder; after T05a; 12 provided tests
 T09b1 t stg f - API read routes, five-reader walk; spec written after T01 merges
 T09b2 t stg f - client methods and fakes; after T09b1
