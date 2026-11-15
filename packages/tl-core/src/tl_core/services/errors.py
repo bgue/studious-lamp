@@ -215,6 +215,9 @@ class InvalidProposalError(ServiceError): ...  # wrong tool for the command, bad
 class BudgetExceededError(ServiceError): ...  # the agent's proposals for the UTC day are used up
 
 
+class QueueFullError(ServiceError): ...  # a review queue is at its cap (P2-X2); fixed text
+
+
 class ProposalDeciderError(ServiceError): ...  # only a person (user:<id>) accepts or rejects
 
 

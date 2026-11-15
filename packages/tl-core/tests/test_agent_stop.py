@@ -13,6 +13,8 @@ from tl_core import confidentiality as cf
 from tl_core import modules as core_modules
 from tl_core.auth import accounts
 from tl_core.auth.errors import AccountNotFoundError, ForbiddenError
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.queries import find_account
 from tl_core.modules import ConfidentialSource
 from tl_core.proposals.types import ProposalView
 from tl_core.services import agent_stop
@@ -56,10 +58,26 @@ class Env:
         self.world = World(db, self.factory, MovingClock())
         self.world.create("ada", roles=("admin",))
         self.world.create("bob", roles=("user",))
+        self.world.create("gadmin", roles=("admin",))
         self.world.create("bot", kind="agent")
         self.world.create("idle", kind="agent")
+        for agent in ("bot", "idle"):  # P2-X2 S1: an agent files only on an explicit grant
+            self.grant_filing(agent)
         self.n = 0
         self.anchor = "" if bare else self.create_record("ANCHOR")
+
+    def grant_filing(self, name: str) -> None:
+        with self.factory() as uow:
+            account = find_account(uow.conn(), username=name)
+            assert account is not None
+            grant_module_role(
+                uow,
+                GrantModuleRole(
+                    actor="user:gadmin", source="test", scope="company",
+                    account_id=account.account_id, project=SCOPE, module="*",
+                    role="user", reason="test",
+                ),
+            )  # fmt: skip
 
     def stop(
         self, actor: str = ADA, agent: str = BOT, reason: str | None = None

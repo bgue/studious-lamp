@@ -499,6 +499,7 @@ def propose(
     source = source_for(agent)
     agent_scope.check_filing(uow.conn(), agent, command)  # P2-X2: after replay, before budget
     agent_stop.require_not_stopped(uow.conn(), agent)
+    agent_scope.check_queue_cap(uow.conn(), agent, command)
     limit = budget if budget is not None else daily_budget(uow.conn())
     if proposals_today(uow.conn(), agent, now=now) >= limit:
         raise BudgetExceededError(
@@ -762,6 +763,7 @@ def submit(
     with factory(readonly=True) as uow:
         agent_scope.check_filing(uow.conn(), agent, command)  # P2-X2: after replay, before budget
         agent_stop.require_not_stopped(uow.conn(), agent)
+        agent_scope.check_queue_cap(uow.conn(), agent, command)
         limit = budget if budget is not None else daily_budget(uow.conn())
         if proposals_today(uow.conn(), agent, now=now) >= limit:
             raise BudgetExceededError(
