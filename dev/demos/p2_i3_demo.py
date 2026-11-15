@@ -39,6 +39,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, NoReturn
 
+from agent_grant import grant_agent
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from tl_adapters.backend import open_backend
@@ -468,6 +469,7 @@ def mcp_server(world: World) -> Any:
         if action not in MATERIALS_MCP_ACTIONS:
             raise PermissionError(f"{action} is not allowed for {actor}")
 
+    grant_agent(os.environ["TL_DB"], AGENT, [PROJECT])  # S1: an agent files only under a grant
     lake = Path(os.environ["P2_I3_WORKDIR"]) / "lake"
     factory = make_uow_factory(world.target)
     server = build_server(factory, actor=AGENT, authorize_hook=allow, lake_dir=lake)

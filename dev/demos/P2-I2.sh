@@ -145,6 +145,7 @@ run_backend() {
   printf '%s\n' "a long passphrase for frank" | as demo tl admin user add frank --display-name "Frank" --password-stdin >/dev/null
   printf '%s\n' "a long passphrase for plain" | as demo tl admin user add plain --display-name "Plain" --password-stdin >/dev/null
   as demo tl admin user add triage --kind agent >/dev/null
+  as demo tl admin roles grant triage --project P123 --module '*' --role user --reason "the demo agent may file proposals" >/dev/null
   TL_DEMO_AGENT_TOKEN="$(as demo tl admin token issue triage --label demo 2>/dev/null)"
   export TL_DEMO_AGENT_TOKEN
   case "$TL_DEMO_AGENT_TOKEN" in tla_*) ;; *) fail "no agent token was issued" ;; esac
@@ -409,6 +410,7 @@ actors:
   iwp_planner: {iwps_per_day: 1, scope_items: 3, constraint_rate: 1.0, clears_per_day: 1}
 YAML
   out="$(as demo tl sim create "$workdir/iwp-planner.yaml" --run-id iwp1)"; echo "$out"
+  quiet uv run python dev/demos/agent_grant.py "$TL_DB" sim-assistant sim-iwp1  # S1: an agent files only under a grant
   out="$(as demo tl sim advance --run iwp1 --days 2)"; echo "$out"
   out="$(as dora tl awp iwp ls --project sim-iwp1)"; echo "$out"
   [ "$(grep -c -- '-IWP-' <<<"$out" || true)" -ge 1 ] || fail "the planner made no IWP in sim-iwp1"
