@@ -1773,6 +1773,58 @@
    "type": "object"
   }
  },
+ "Cwp.PartyAssigned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "party": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Cwp.SubcontractProgressRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "rows": {}
+   },
+   "required": [
+    "rows",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "DerivedDocument.ContentRecorded": {
   "1": {
    "additionalProperties": true,
@@ -2886,6 +2938,26 @@
    "type": "object"
   }
  },
+ "IWP.FieldCompleted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    }
+   },
+   "required": [
+    "at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "IWP.Held": {
   "1": {
    "additionalProperties": true,
@@ -2924,6 +2996,39 @@
    "required": [
     "by",
     "foreman"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.ProgressRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "earned_pct": {
+     "type": "string"
+    },
+    "edition": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "iwp_id": {
+     "type": "string"
+    },
+    "manual": {}
+   },
+   "required": [
+    "iwp_id",
+    "earned_pct",
+    "edition",
+    "at",
+    "feed_policy"
    ],
    "type": "object"
   }
@@ -3072,6 +3177,71 @@
    "required": [
     "new_ids"
    ],
+   "type": "object"
+  }
+ },
+ "IWP.Started": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    }
+   },
+   "required": [
+    "at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IWPCloseout.Recorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "actual_hours": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "actuals_file_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feedback": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "redlines_file_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "remaining_punch": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    }
+   },
    "type": "object"
   }
  },
@@ -6186,6 +6356,88 @@
    "type": "object"
   }
  },
+ "ScanCode.Issued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code_hash": {
+     "type": "string"
+    },
+    "expires_on": {
+     "format": "date",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "label_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "size": {
+     "enum": [
+      "tag",
+      "card",
+      "sheet"
+     ],
+     "type": "string"
+    },
+    "target_id": {
+     "type": "string"
+    },
+    "target_type": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "code_hash",
+    "target_id",
+    "target_type",
+    "size",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "ScanCode.Revoked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "replaced_by_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "Schedule.Defined": {
   "1": {
    "additionalProperties": true,
@@ -8223,6 +8475,127 @@
    },
    "required": [
     "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "WeeklyPlan.Closed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "ppc": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "ppc"
+   ],
+   "type": "object"
+  }
+ },
+ "WeeklyPlan.IwpCommitted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "committed_hours": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "foreman": {
+     "type": "string"
+    },
+    "iwp_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "iwp_id",
+    "foreman",
+    "committed_hours",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WeeklyPlan.Opened": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "week": {
+     "type": "string"
+    },
+    "week_start": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "week",
+    "week_start",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WeeklyPlan.OutcomeRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "iwp_id": {
+     "type": "string"
+    },
+    "miss_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "outcome": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "iwp_id",
+    "outcome",
+    "feed_policy"
    ],
    "type": "object"
   }

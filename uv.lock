@@ -23,6 +23,7 @@ members = [
     "tl-mod-engineering",
     "tl-mod-legacy",
     "tl-mod-materials",
+    "tl-mod-qr",
     "tl-mod-quality",
     "tl-mod-requisitions",
     "tl-mod-schedule",
@@ -2747,6 +2748,7 @@ dependencies = [
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
+    { name = "tl-mod-qr" },
     { name = "tl-mod-quality" },
     { name = "tl-mod-schedule" },
     { name = "tl-mod-schemareg" },
@@ -2770,6 +2772,7 @@ requires-dist = [
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
+    { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-mod-quality", editable = "packages/tl-modules/quality" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
@@ -2795,6 +2798,7 @@ dependencies = [
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
+    { name = "tl-mod-qr" },
     { name = "tl-mod-quality" },
     { name = "tl-mod-schedule" },
     { name = "tl-mod-schemareg" },
@@ -2820,6 +2824,7 @@ requires-dist = [
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
+    { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-mod-quality", editable = "packages/tl-modules/quality" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
@@ -2930,6 +2935,7 @@ dependencies = [
     { name = "tl-lake" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
+    { name = "tl-mod-qr" },
     { name = "tl-mod-quality" },
     { name = "tl-mod-schedule" },
     { name = "tl-mod-schemareg" },
@@ -2947,6 +2953,7 @@ requires-dist = [
     { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
+    { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-mod-quality", editable = "packages/tl-modules/quality" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
@@ -3139,6 +3146,34 @@ requires-dist = [
 ]
 
 [[package]]
+name = "tl-mod-qr"
+version = "0.1.0"
+source = { editable = "packages/tl-modules/qr" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-schema" },
+]
+
+[package.optional-dependencies]
+labels = [
+    { name = "segno" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "segno", marker = "extra == 'labels'" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+]
+provides-extras = ["labels"]
+
+[[package]]
 name = "tl-mod-quality"
 version = "0.1.0"
 source = { editable = "packages/tl-modules/quality" }
@@ -3302,6 +3337,7 @@ dependencies = [
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
     { name = "tl-mod-materials" },
+    { name = "tl-mod-qr" },
     { name = "tl-mod-quality" },
     { name = "tl-mod-schedule" },
     { name = "tl-mod-schemareg" },
@@ -3325,6 +3361,7 @@ requires-dist = [
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
+    { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-mod-quality", editable = "packages/tl-modules/quality" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
@@ -3339,6 +3376,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "python-multipart" },
     { name = "tl-api" },
+    { name = "tl-mod-qr" },
     { name = "tl-tui" },
 ]
 
@@ -3347,6 +3385,7 @@ requires-dist = [
     { name = "jinja2" },
     { name = "python-multipart" },
     { name = "tl-api", editable = "packages/tl-api" },
+    { name = "tl-mod-qr", editable = "packages/tl-modules/qr" },
     { name = "tl-tui", editable = "packages/tl-tui" },
 ]
 

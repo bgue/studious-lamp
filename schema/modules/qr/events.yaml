@@ -1,0 +1,79 @@
+id: https://example.org/throughline/modules/qr/events
+name: tl_mod_qr_events
+title: QR module events
+description: >-
+  The ledger events of the QR module (brief 18.3), in the same form as `schema/core/events.yaml`. A scan code is
+  created by `Record.Created` followed in the same append by `ScanCode.Issued`. Every event carries
+  `feed_policy: none`. Each payload names the stream's `record_id`. No payload holds the code, only its hash.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+  - scan_code
+default_range: string
+annotations:
+  tl:module: qr
+
+classes:
+  ScanCodeIssuedPayload:
+    is_a: EventPayload
+    description: >-
+      A scan code was issued. Stream type `qr.ScanCode`.
+    annotations:
+      tl:event_type: ScanCode.Issued
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scan code."
+        required: true
+      code_hash:
+        description: "SHA-256 of the code, 64 lower case hex characters."
+        required: true
+      target_id:
+        description: "The record the code opens."
+        required: true
+      target_type:
+        description: "Record type of the target."
+        required: true
+      label_text:
+        description: "Text printed on the label, or null."
+      size:
+        range: LabelSize
+        description: "tag, card or sheet."
+        required: true
+      expires_on:
+        range: date
+        description: "Last day the code works, or null."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scan code makes no feed card."
+        required: true
+    examples:
+      - value: "{\"code_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"expires_on\": null, \"feed_policy\": \"none\", \"label_text\": \"Pump P-101\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"size\": \"tag\", \"target_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"target_type\": \"engineering.Tag\"}"
+  ScanCodeRevokedPayload:
+    is_a: EventPayload
+    description: >-
+      A scan code was revoked. Stream type `qr.ScanCode`.
+    annotations:
+      tl:event_type: ScanCode.Revoked
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scan code."
+        required: true
+      reason:
+        description: "Why it was revoked."
+        required: true
+      replaced_by_id:
+        description: "The scan code that replaces it, or null."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a scan code makes no feed card."
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Label lost\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"replaced_by_id\": null}"

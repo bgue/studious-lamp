@@ -442,3 +442,32 @@ settings:
       maximum: 90
     risk: advanced
     since: "0.1.0"
+
+  # P2-QR S1: scan codes (ADR-0030)
+  - key: api.public_base_url
+    type: string
+    default: ""
+    description: The public address of the web client, used to build the address in a label's QR.
+    docs: >-
+      The public address of the web client: `https://host`, `https://host:port`, or `http://localhost` or
+      `http://127.0.0.1` for a trial, with no trailing slash and no path. A label's QR is `<base>/web/q/<code>`
+      (under `/web` because the session cookie is `Path=/web`). Printing a QR label is refused while this is empty.
+      Changing it orphans printed labels: a code printed with the old address no longer reaches this server.
+    scopes: [platform]
+    lockable: false
+    validation:
+      pattern: "^$|^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$|^http://(localhost|127\\.0\\.0\\.1)(:[0-9]{1,5})?$"
+    since: "0.1.0"
+
+  - key: qr.codes_per_record_max
+    type: int
+    default: 20
+    description: How many live scan codes one record may have.
+    docs: >-
+      Issuing a scan code for a record that already has this many live codes is refused; revoke one first.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 100
+    since: "0.1.0"

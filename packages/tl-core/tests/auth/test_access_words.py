@@ -66,6 +66,12 @@ MATERIALS = {
     "materials.mto.assign": "user",
 }
 #: The seven words of the punch list (P2-PUNCH S1); an assignment is an edit (no assign word).
+QR = {
+    "qr.view": "read",
+    "qr.issue": "user",
+    "qr.revoke": "controller",
+}
+
 QUALITY = {
     "quality.view": "read",
     "quality.punch.raise": "user",
@@ -93,7 +99,7 @@ REQUISITIONS = {
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_57_words() -> None:
+def test_the_shipped_table_loads_60_words() -> None:
     words = load_access_words()
     expected = (
         len(AWP)
@@ -103,8 +109,9 @@ def test_the_shipped_table_loads_57_words() -> None:
         + len(QUALITY)
         + len(AWP_WEEK)
         + len(REQUISITIONS)
+        + len(QR)
     )
-    assert len(words) == 57 == expected
+    assert len(words) == 60 == expected
     assert "awp.constraint.edit" not in words
 
 
@@ -118,6 +125,7 @@ def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> 
         **QUALITY,
         **AWP_WEEK,
         **REQUISITIONS,
+        **QR,
     }.items():
         assert words.get(word) == table, word
 

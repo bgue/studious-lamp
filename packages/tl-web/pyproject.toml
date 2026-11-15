@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
   "tl-api",
   "tl-tui",
+  "tl-mod-qr",
   "jinja2",
   "python-multipart",
 ]

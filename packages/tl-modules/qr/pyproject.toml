@@ -1,0 +1,25 @@
+[project]
+name = "tl-mod-qr"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2",
+  "sqlalchemy>=2",
+  "tl-core",
+  "tl-schema",
+  "tl-adapters",
+]
+
+[project.optional-dependencies]
+# label rendering (a later piece); declared only, not installed by default
+labels = ["segno"]
+
+[project.entry-points."throughline.modules"]
+qr = "tl_mod_qr.module:spec"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tl_mod_qr"]
