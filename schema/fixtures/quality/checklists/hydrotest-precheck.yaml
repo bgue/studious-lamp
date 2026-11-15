@@ -1,0 +1,12 @@
+# Sample checklist: Hydrotest pre-check. Plain data in the question shape of schema/modules/quality/checklist.yaml.
+title: Hydrotest pre-check
+discipline: piping
+questions:
+  - {id: "q1", text: "Test package drawings are the current revision", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q2", text: "Test pressure gauge calibration certificate is valid", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q3", text: "All vents and drains are installed and closed", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q4", text: "Instruments and relief devices are isolated or removed", kind: "yes_no_na", required: false, unit: null, min: null, max: null, choices: null, fails_when: null}
+  - {id: "q5", text: "Gauge reading at test start", kind: "number", required: true, unit: "bar", min: 0, max: 250, choices: null, fails_when: null}
+  - {id: "q6", text: "Test pressure applied", kind: "number", required: true, unit: "bar", min: 38, max: 42, choices: null, fails_when: "out_of_range"}
+  - {id: "q7", text: "Test medium", kind: "choice", required: true, unit: null, min: null, max: null, choices: ["potable water", "treated water", "nitrogen"], fails_when: null}
+  - {id: "q8", text: "Observations", kind: "text", required: false, unit: null, min: null, max: null, choices: null, fails_when: null}

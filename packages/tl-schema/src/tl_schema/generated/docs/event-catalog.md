@@ -33,6 +33,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`CWP.Defined`](#cwpdefined) | `tl.core.CWP.Defined.v1` | A construction work package was created. |
 | [`CWP.Released`](#cwpreleased) | `tl.core.CWP.Released.v1` | A package was released for IWP development. |
 | [`CWP.Revised`](#cwprevised) | `tl.core.CWP.Revised.v1` | Fields of a construction work package changed. |
+| [`Checklist.Created`](#checklistcreated) | `tl.core.Checklist.Created.v1` | A checklist was created. |
+| [`Checklist.Edited`](#checklistedited) | `tl.core.Checklist.Edited.v1` | A draft checklist was edited; only fields that changed are present. |
+| [`Checklist.Published`](#checklistpublished) | `tl.core.Checklist.Published.v1` | A checklist was published. |
+| [`Checklist.Retired`](#checklistretired) | `tl.core.Checklist.Retired.v1` | A checklist was retired. |
 | [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
 | [`CodeValue.Defined`](#codevaluedefined) | `tl.core.CodeValue.Defined.v1` | A value was added to a code list. |
 | [`Commercial.Assessed`](#commercialassessed) | `tl.core.Commercial.Assessed.v1` | The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed. |
@@ -116,6 +120,11 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`InboundEndpoint.Enabled`](#inboundendpointenabled) | `tl.core.InboundEndpoint.Enabled.v1` | An endpoint started accepting deliveries. |
 | [`InboundEndpoint.Revised`](#inboundendpointrevised) | `tl.core.InboundEndpoint.Revised.v1` | An endpoint was revised; the event carries the whole new definition (no secret). |
 | [`InboundEndpoint.SecretRotated`](#inboundendpointsecretrotated) | `tl.core.InboundEndpoint.SecretRotated.v1` | A new secret was issued; the previous one keeps verifying until the overlap ends (at most 24 hours). |
+| [`Inspection.Cancelled`](#inspectioncancelled) | `tl.core.Inspection.Cancelled.v1` | An inspection was cancelled. |
+| [`Inspection.Planned`](#inspectionplanned) | `tl.core.Inspection.Planned.v1` | An inspection was planned. |
+| [`Inspection.ResultRecorded`](#inspectionresultrecorded) | `tl.core.Inspection.ResultRecorded.v1` | The result of an inspection was recorded. |
+| [`Inspection.Scheduled`](#inspectionscheduled) | `tl.core.Inspection.Scheduled.v1` | An inspection was scheduled or rescheduled. |
+| [`Inspection.Verified`](#inspectionverified) | `tl.core.Inspection.Verified.v1` | A recorded inspection was verified by a controller. |
 | [`IntegrationApp.Disabled`](#integrationappdisabled) | `tl.core.IntegrationApp.Disabled.v1` | An app was switched off: its endpoints answer 404 and its rules, actions and enrichers do nothing. |
 | [`IntegrationApp.Enabled`](#integrationappenabled) | `tl.core.IntegrationApp.Enabled.v1` | An app was switched on: its endpoints, rules, actions and enrichers run again. |
 | [`IntegrationApp.Registered`](#integrationappregistered) | `tl.core.IntegrationApp.Registered.v1` | An integration app was registered. |
@@ -1817,6 +1826,238 @@ Fields of a construction work package changed.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.CWP.Revised.v1"
+}
+```
+
+## Checklist.Created
+
+A checklist was created. Stream type `quality.Checklist`.
+
+- CloudEvents type: `tl.core.Checklist.Created.v1`
+- Ledger payload class: `ChecklistCreatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `discipline` | string or null | no | Discipline, or null. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `question_count` | integer or null | no | Number of questions. |
+| `questions` | any | no | List of questions. |
+| `record_id` | string | yes | The record. |
+| `supersedes_id` | string or null | no | The checklist it replaces, or null. |
+| `version` | integer or null | no | Version number. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "discipline": "piping",
+      "feed_policy": "none",
+      "question_count": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "kind": "yesno",
+          "required": true,
+          "text": "Gauge fitted?"
+        }
+      ],
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "supersedes_id": null,
+      "version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Checklist.Created/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Checklist.Created.v1"
+}
+```
+
+## Checklist.Edited
+
+A draft checklist was edited; only fields that changed are present. Stream type `quality.Checklist`.
+
+- CloudEvents type: `tl.core.Checklist.Edited.v1`
+- Ledger payload class: `ChecklistEditedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `changes` | any | no | Object of field -> [old, new]. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `record_id` | string | yes | The record. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "discipline": [
+          "piping",
+          "civil"
+        ]
+      },
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Checklist.Edited/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Checklist.Edited.v1"
+}
+```
+
+## Checklist.Published
+
+A checklist was published. Stream type `quality.Checklist`.
+
+- CloudEvents type: `tl.core.Checklist.Published.v1`
+- Ledger payload class: `ChecklistPublishedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `published_on` | string or null | no | YYYY-MM-DD. |
+| `record_id` | string | yes | The record. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "published_on": "2026-12-01",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Checklist.Published/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Checklist.Published.v1"
+}
+```
+
+## Checklist.Retired
+
+A checklist was retired. Stream type `quality.Checklist`.
+
+- CloudEvents type: `tl.core.Checklist.Retired.v1`
+- Ledger payload class: `ChecklistRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `record_id` | string | yes | The record. |
+| `retired_on` | string or null | no | YYYY-MM-DD. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "retired_on": "2026-12-09"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Checklist.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Checklist.Retired.v1"
 }
 ```
 
@@ -6614,6 +6855,299 @@ A new secret was issued; the previous one keeps verifying until the overlap ends
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.InboundEndpoint.SecretRotated.v1"
+}
+```
+
+## Inspection.Cancelled
+
+An inspection was cancelled. Stream type `quality.Inspection`.
+
+- CloudEvents type: `tl.core.Inspection.Cancelled.v1`
+- Ledger payload class: `InspectionCancelledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `reason` | string or null | no | Why it was cancelled. |
+| `record_id` | string | yes | The record. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Work moved",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inspection.Cancelled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inspection.Cancelled.v1"
+}
+```
+
+## Inspection.Planned
+
+An inspection was planned. Stream type `quality.Inspection`.
+
+- CloudEvents type: `tl.core.Inspection.Planned.v1`
+- Ledger payload class: `InspectionPlannedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `area` | string or null | no | Area, or null. |
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `for_iwp_id` | string or null | no | The IWP it is for, or null. |
+| `planned_on` | string or null | no | YYYY-MM-DD, or null. |
+| `point` | string or null | no | hold, witness, review or surveillance. |
+| `record_id` | string | yes | The record. |
+| `reinspection_of_id` | string or null | no | The inspection it repeats, or null. |
+| `subject_id` | string or null | no | The record inspected, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "area": "A1",
+      "feed_policy": "none",
+      "for_iwp_id": null,
+      "planned_on": "2026-12-05",
+      "point": "hold",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "reinspection_of_id": null,
+      "subject_id": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inspection.Planned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inspection.Planned.v1"
+}
+```
+
+## Inspection.ResultRecorded
+
+The result of an inspection was recorded. Stream type `quality.Inspection`.
+
+- CloudEvents type: `tl.core.Inspection.ResultRecorded.v1`
+- Ledger payload class: `InspectionResultRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `answers` | any | no | List of answers. |
+| `done_at` | string | yes | When it was done. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `note` | string or null | no | Note, or null. |
+| `punch_item_ids` | any | no | Ids of the punch items raised. |
+| `record_id` | string | yes | The record. |
+| `result` | string or null | no | accept, reject or conditional. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "answers": [
+        {
+          "note": null,
+          "q": "q1",
+          "value": true
+        }
+      ],
+      "done_at": "2026-12-06T10:00:00Z",
+      "feed_policy": "none",
+      "note": null,
+      "punch_item_ids": [],
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "result": "accept"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inspection.ResultRecorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inspection.ResultRecorded.v1"
+}
+```
+
+## Inspection.Scheduled
+
+An inspection was scheduled or rescheduled. Stream type `quality.Inspection`.
+
+- CloudEvents type: `tl.core.Inspection.Scheduled.v1`
+- Ledger payload class: `InspectionScheduledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `checklist_id` | string or null | no | The checklist. |
+| `checklist_version` | integer or null | no | Version of the checklist. |
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `inspector` | string or null | no | Who inspects. |
+| `record_id` | string | yes | The record. |
+| `scheduled_for` | string or null | no | YYYY-MM-DD. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "checklist_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "checklist_version": 1,
+      "feed_policy": "none",
+      "inspector": "user:ian",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "scheduled_for": "2026-12-06"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inspection.Scheduled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inspection.Scheduled.v1"
+}
+```
+
+## Inspection.Verified
+
+A recorded inspection was verified by a controller. Stream type `quality.Inspection`.
+
+- CloudEvents type: `tl.core.Inspection.Verified.v1`
+- Ledger payload class: `InspectionVerifiedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | Always `none`: no feed card. |
+| `record_id` | string | yes | The record. |
+| `verified_on` | string or null | no | YYYY-MM-DD. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "verified_on": "2026-12-07"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inspection.Verified/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inspection.Verified.v1"
 }
 ```
 

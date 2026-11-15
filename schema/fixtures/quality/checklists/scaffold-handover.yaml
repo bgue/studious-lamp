@@ -1,0 +1,13 @@
+# Sample checklist: Scaffold handover. Plain data in the question shape of schema/modules/quality/checklist.yaml.
+title: Scaffold handover
+discipline: scaffold
+questions:
+  - {id: "q1", text: "Base plates and sole boards are in place", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q2", text: "Ties and bracing match the design", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q3", text: "Platforms are fully boarded with toe boards", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q4", text: "Guardrails are in place at every open edge", kind: "yes_no_na", required: true, unit: null, min: null, max: null, choices: null, fails_when: "no"}
+  - {id: "q5", text: "Access ladder is secured and extends above the platform", kind: "yes_no_na", required: false, unit: null, min: null, max: null, choices: null, fails_when: null}
+  - {id: "q6", text: "Platform height", kind: "number", required: true, unit: "m", min: 0, max: 30, choices: null, fails_when: null}
+  - {id: "q7", text: "Safe working load as marked", kind: "number", required: true, unit: "kN/m2", min: 1.5, max: 6, choices: null, fails_when: "out_of_range"}
+  - {id: "q8", text: "Duty class", kind: "choice", required: true, unit: null, min: null, max: null, choices: ["light", "general", "heavy"], fails_when: null}
+  - {id: "q9", text: "Handover note", kind: "text", required: false, unit: null, min: null, max: null, choices: null, fails_when: null}

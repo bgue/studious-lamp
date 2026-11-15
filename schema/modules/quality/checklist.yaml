@@ -1,0 +1,82 @@
+id: https://example.org/throughline/modules/quality/checklist
+name: tl_mod_quality_checklist
+title: Inspection checklists (brief 9, M5)
+description: >-
+  A checklist is a published list of questions an inspector answers on site. It is versioned: a changed
+  checklist is a new record that supersedes the old one. Its life is the workflow `quality-checklist`. The title
+  of the record is on the envelope. Dates are `YYYY-MM-DD`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: quality
+
+classes:
+  Checklist:
+    title: Checklist
+    description: >-
+      One checklist. Record type `quality.Checklist`; its key is the number the allocator gives it
+      (`P123-CHK-0001`). Offline class `none`: a checklist is written centrally. `questions` holds a list of at
+      most 60 questions, each `{id, text, kind, required, unit, min, max, choices, fails_when}`; the schema stores
+      the JSON and the module's rules check its shape. `question_count` is the length of that list.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "quality.Checklist"
+      tl:offline: none
+      tl:table: cur_quality_checklist
+      tl:ix_discipline: "discipline"
+      tl:ix_supersedes: "supersedes_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      discipline:
+        pattern: "^.{1,64}$"
+        description: "Discipline the checklist is for, at most 64 characters; null when none."
+      version:
+        range: integer
+        required: true
+        minimum_value: 1
+        ifabsent: int(1)
+        annotations:
+          tl:column: checklist_version
+        description: "Version number, at least 1; default 1. Column `checklist_version` (`version` is the envelope's)."
+      questions:
+        range: Any
+        required: true
+        ifabsent: string([])
+        annotations:
+          tl:json: true
+        description: 'JSON list of at most 60 questions `{id, text, kind, required, unit, min, max, choices, fails_when}`. Column `questions_json`.'
+      question_count:
+        range: integer
+        minimum_value: 0
+        description: "How many questions the list holds; set from the event."
+      supersedes_id:
+        range: Ulid
+        description: "The checklist this one replaces; null when none."
+      published_by:
+        pattern: "^.{1,64}$"
+        description: "Actor who published it; null until published."
+      published_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date it was published, `YYYY-MM-DD`; null until published."
+      retired_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date it was retired, `YYYY-MM-DD`; null unless retired."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

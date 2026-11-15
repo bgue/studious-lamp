@@ -60,6 +60,12 @@ words:
   quality.punch.verify: controller
   quality.punch.reopen: controller
   quality.punch.void: controller
+  quality.checklist.edit: user
+  quality.checklist.publish: controller
+  quality.inspection.plan: user
+  quality.inspection.record: user
+  quality.inspection.verify: controller
+  quality.inspection.cancel: controller
   # requisitions: requests, approval and work orders (phase2 plan, I4-A; one word per command, no chain)
   requisitions.view: read
   requisitions.raise: user
