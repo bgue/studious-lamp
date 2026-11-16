@@ -288,3 +288,7 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-16)
+The provided test issues the two permits whose subject is restricted as ada (a controller who can read them; dora requested
+them and may not issue them, per PTW-S2), not as pam. Both copies of the test are updated to the same bytes.
