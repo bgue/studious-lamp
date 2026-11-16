@@ -64,6 +64,9 @@ OLD_GROUPS = [
     "ledger",
     "projections",
     "qr",  # P2-QR S2 (the module's own group, by hook)
+    "permit",  # P2-PTW S2: the permits module groups (empty until T04, T05)
+    "isolation",
+    "gastest",
 ]
 
 OLD_SUBGROUPS = {

@@ -3185,20 +3185,26 @@ name = "tl-mod-permits"
 version = "0.1.0"
 source = { editable = "packages/tl-modules/permits" }
 dependencies = [
+    { name = "fastapi" },
+    { name = "mcp" },
     { name = "pydantic" },
     { name = "sqlalchemy" },
     { name = "tl-adapters" },
     { name = "tl-core" },
     { name = "tl-schema" },
+    { name = "typer" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi" },
+    { name = "mcp" },
     { name = "pydantic", specifier = ">=2" },
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+    { name = "typer" },
 ]
 
 [[package]]

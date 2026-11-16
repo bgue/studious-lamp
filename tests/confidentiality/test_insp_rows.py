@@ -79,11 +79,13 @@ def visible_count(world: InspWorld, table: str, viewer: cf.Viewer) -> int:
 
 
 def test_the_row_is_the_last_of_the_table_and_the_chain_is_two_hops() -> None:
-    assert cf.SUBJECT_LINKS[-1] == (
-        "quality.Inspection",
-        "cur_quality_inspection",
-        "id",
-        "subject_id",
+    assert cf.SUBJECT_LINKS[10:11] == (
+        (
+            "quality.Inspection",
+            "cur_quality_inspection",
+            "id",
+            "subject_id",
+        ),
     )
     assert cf._HOPS == 2  # pyright: ignore[reportPrivateUsage]
 

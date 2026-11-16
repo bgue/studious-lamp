@@ -187,6 +187,12 @@ SUBJECT_LINKS: Final = (
     # hidden through its source; a punch item a failed answer raises has the same subject. The
     # handlers plan one only against a subject whose own subject names none (two hops).
     ("quality.Inspection", "cur_quality_inspection", "id", "subject_id"),
+    # permits (P2-PTW S2). A permit is hidden through the record the work is for. A gas test is
+    # hidden through its permit (the second hop reaches the permit's ``for_record_id``). An
+    # isolation with no ``point_record_id`` is its own subject and stays at the lowest class.
+    ("permits.Permit", "cur_permits_permit", "id", "for_record_id"),
+    ("permits.Isolation", "cur_permits_isolation", "id", "point_record_id"),
+    ("permits.GasTest", "cur_permits_gas_test", "id", "permit_id"),
 )
 _HOPS: Final = 2
 #: Record types whose own source row is also checked when a subject governs: a submission's

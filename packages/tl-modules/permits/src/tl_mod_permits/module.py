@@ -1,17 +1,87 @@
-"""The permits module spec: three record types and their projectors.
+"""The permits module spec: three record types, their projectors, ten commands and the hooks.
 
-S1 declares no commands, no proposable command, no generic-command rows and no hook fields;
-S2 adds the commands and the hooks.
+Every hook ref names this package only (``tl_core.modules``; P2-X4). Marks live in the row's
+``meta``: permits are safety acts, so all ten commands are ``excluded:reserved`` (a policy that
+auto-accepts a permit request is an owner decision; ``RequestPermit`` has its agent row below and
+flipping it is a one-line ``meta`` change). The other nine are in
+``tests/tools/proposable_exclusions.toml``.
 """
 
 from __future__ import annotations
 
-from tl_core.modules import ModuleSpec
+from dataclasses import dataclass, field
+from typing import Any
+
+from tl_core.modules import ModuleSpec, ProposableCommand
 from tl_core.projection.types import Projector
+from tl_core.services.commands import Command
 
 from tl_mod_permits import MODULE
-from tl_mod_permits.names import RECORD_TYPES
+from tl_mod_permits.commands import (
+    ApprovePermit,
+    CancelPermit,
+    ClosePermit,
+    HandBackPermit,
+    IssuePermit,
+    RejectPermit,
+    RequestPermit,
+    ResumePermit,
+    RevalidatePermit,
+    SuspendPermit,
+)
+from tl_mod_permits.handlers.permit import (
+    handle_approve_permit,
+    handle_cancel_permit,
+    handle_close_permit,
+    handle_hand_back_permit,
+    handle_issue_permit,
+    handle_reject_permit,
+    handle_request_permit,
+    handle_resume_permit,
+    handle_revalidate_permit,
+    handle_suspend_permit,
+)
+from tl_mod_permits.names import (
+    APPROVE,
+    CLOSE,
+    HANDBACK,
+    ISSUE,
+    RECORD_TYPES,
+    REQUEST,
+    RESUME,
+    REVALIDATE,
+    SUSPEND,
+)
 from tl_mod_permits.projectors import GasTestProjector, IsolationProjector, PermitProjector
+
+
+@dataclass(frozen=True)
+class PermitCommand:
+    """A command row: the model, its handler, its fine access word and its marks."""
+
+    model: type[Command]
+    handler: Any  # Callable[[UnitOfWork, Any], CommandResult]
+    access: str
+    meta: dict[str, str] = field(default_factory=dict[str, str])
+
+
+_RESERVED = {"delegation": "excluded:reserved"}
+
+COMMANDS: tuple[PermitCommand, ...] = (
+    PermitCommand(RequestPermit, handle_request_permit, REQUEST, _RESERVED),
+    PermitCommand(ApprovePermit, handle_approve_permit, APPROVE, _RESERVED),
+    PermitCommand(RejectPermit, handle_reject_permit, APPROVE, _RESERVED),
+    PermitCommand(IssuePermit, handle_issue_permit, ISSUE, _RESERVED),
+    PermitCommand(RevalidatePermit, handle_revalidate_permit, REVALIDATE, _RESERVED),
+    PermitCommand(SuspendPermit, handle_suspend_permit, SUSPEND, _RESERVED),
+    PermitCommand(ResumePermit, handle_resume_permit, RESUME, _RESERVED),
+    PermitCommand(HandBackPermit, handle_hand_back_permit, HANDBACK, _RESERVED),
+    PermitCommand(ClosePermit, handle_close_permit, CLOSE, _RESERVED),
+    PermitCommand(CancelPermit, handle_cancel_permit, CLOSE, _RESERVED),
+)
+
+#: What an agent may propose: a permit request a person accepts (still ``excluded:reserved``).
+PROPOSABLE = (ProposableCommand("propose_permit", RequestPermit, handle_request_permit, "user"),)
 
 
 def projectors() -> list[Projector]:
@@ -24,6 +94,14 @@ def spec() -> ModuleSpec:
         name=MODULE,
         record_types=RECORD_TYPES,
         projectors=projectors,
-        command_words={},
-        proposable=(),
+        proposable=PROPOSABLE,
+        command_words={c.model.__name__: c.access for c in COMMANDS},
+        commands="tl_mod_permits.module:COMMANDS",
+        read_routers=("tl_mod_permits.routes:router",),
+        tools=("tl_mod_permits.tools:register_tools",),
+        cli_groups=(
+            "tl_mod_permits.cli:permit_app",
+            "tl_mod_permits.cli:isolation_app",
+            "tl_mod_permits.cli:gastest_app",
+        ),
     )

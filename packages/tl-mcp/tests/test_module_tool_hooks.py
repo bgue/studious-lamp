@@ -174,7 +174,8 @@ def test_every_installed_tools_ref_resolves_to_a_callable() -> None:
         for register in resolve_hook(spec, "tools"):
             assert callable(register)
             count += 1
-    assert count == 13  # P2-QR S2 added the qr registrar (it registers no tool)
+    # P2-QR S2 and P2-PTW S2 each added a registrar (neither registers a tool yet)
+    assert count == 14
 
 
 def test_a_module_tool_is_closed_until_its_action_is_allowed(

@@ -466,3 +466,13 @@ POST /commands/RevokeIntakeCode
 POST /commands/SaveFormDraft
 POST /commands/SubmitForm
 POST /commands/VoidFormSubmission
+POST /commands/ApprovePermit
+POST /commands/CancelPermit
+POST /commands/ClosePermit
+POST /commands/HandBackPermit
+POST /commands/IssuePermit
+POST /commands/RejectPermit
+POST /commands/RequestPermit
+POST /commands/ResumePermit
+POST /commands/RevalidatePermit
+POST /commands/SuspendPermit
