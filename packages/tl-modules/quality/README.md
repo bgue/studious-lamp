@@ -89,6 +89,39 @@ The module is `quality`, so Phase 3 adds its classes to the same schema director
   `PunchScreen`); palette id `punch`.
 - Demo `dev/demos/P2-PUNCH.sh`; generator `dev/seed/demo_project/quality.py`.
 
+## Inspections and checklists (as built, P2-INSP slice 1)
+Design: `docs/build-spec/module-designs/inspections.md`. Runbook: `docs/runbooks/inspections.md`. Reference: `docs/reference/inspections.md`.
+Words: `quality.checklist.edit`, `quality.checklist.publish`, `quality.inspection.plan`, `quality.inspection.record`,
+`quality.inspection.verify`, `quality.inspection.cancel` (in `schema/settings/access-words.yaml`); reads need `quality.view`.
+
+- Schema: `schema/modules/quality/checklist.yaml`, `inspection.yaml`; workflows `schema/fixtures/workflows/quality-checklist.yaml`,
+  `quality-inspection.yaml`; numbering `CHK` and `INS` (`P123-CHK-0001`, `P123-INS-0001`) in `schema/fixtures/numbering/patterns.yaml`.
+- `commands.py`, `module.py`: `INSP_COMMANDS` (eleven commands; `QUALITY_COMMANDS` is the punch six plus these). `PROPOSABLE` adds
+  `propose_inspection` (a `PlanInspection`). `handlers/checklist.py`, `handlers/inspection.py`; `actions.py` `RULES` gives each move's states.
+- `insp_rules.py`: `result_of` (pure: `reject` when a required question fails, `conditional` when an optional one does, else `accept`)
+  and the answer checks, shared by the handler, the CLI and the TUI. `insp_views.py`: the reads under `viewer=`.
+- `checks.py`: the readiness check `inspections_planned` (entry point `throughline.readiness_checks`; watches `quality.Inspection`).
+- `scan_card.py`: the scan card of `quality.Inspection` (entry point `throughline.scan_cards`).
+
+**Checklists.** `Draft` → `Published` → `Retired`. Edit needs Draft; publish refuses an empty or malformed list. Revise copies a Published
+checklist as a new Draft with the next version and `supersedes_id`; publishing the revision retires the version it replaces. A Published
+checklist never changes.
+
+**Inspections.** `Planned` → `Scheduled` (schedule pins the published checklist version) → `Done` (record computes the result) →
+`Verified` (by a controller who did not record it). `Cancelled` from Planned or Scheduled. Reinspect plans a new inspection from a Done
+or Verified one with `reject` or `conditional`. A `reject` or `conditional` result raises one punch item per failed question in the same
+unit of work, linked `raised_against` the inspection; a failed required question on a hold point is category A, else B.
+
+**Visibility.** An inspection is hidden through its subject (the `SUBJECT_LINKS` row for `quality.Inspection`, two hops at most). A hidden
+inspection answers `no inspection <key>`, with the same text and count as a missing one. Checklists carry no project text and are readable
+with `quality.view`. `for_iwp_id` is not part of the chain.
+
+**Agents.** No agent tool plans, schedules, records, verifies, reinspects or cancels. `propose_inspection` files a pending proposal; a person
+who holds `quality.inspection.plan` accepts it, and the inspection is planned as that person.
+
+**Readiness.** `inspections_planned` answers `n_a`, `blocked`, `pending` or `ok` as in the design, section 5. Done and Verified count as
+done; Cancelled counts in neither number; a conditional hold point does not block.
+
 ## Package rules
 The rules of the root `AGENTS.md` apply, and the local rules in `AGENTS.md` in this directory. In short: no business
 logic in screens (they call the same commands and views the API uses); every read takes keyword `viewer=`, default
