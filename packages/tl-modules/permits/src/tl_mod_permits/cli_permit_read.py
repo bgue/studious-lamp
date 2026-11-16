@@ -26,6 +26,7 @@ from tl_core.uow import UnitOfWork
 
 from tl_mod_permits import MODULE, views
 from tl_mod_permits.cli import permit_app
+from tl_mod_permits.iso_views import GasRow, gas_export_rows, gas_tests_for
 from tl_mod_permits.names import PERMIT_TYPES, VIEW
 
 #: The most rows `ls` prints by default.
@@ -246,6 +247,12 @@ def permit_export(
     permit_type: PermitType = None,
     area: Area = None,
     holder: Holder = None,
+    gas_tests: Annotated[
+        bool,
+        typer.Option(
+            "--gas-tests", help="Export the gas tests of those permits, one row per test."
+        ),
+    ] = False,
 ) -> None:
     """Export the permits of the project, with the filters of `ls`, as csv or jsonl to stdout."""
     if fmt not in views.EXPORT_FORMATS:
@@ -264,6 +271,13 @@ def permit_export(
     }
     with service_errors(), open_uow(db, readonly=True) as uow:
         rows = _every_row(uow.conn(), scope, now=now, viewer=viewer, filters=filters)
+        tests: list[GasRow] = []
+        if gas_tests:
+            for row in rows:
+                tests.extend(gas_tests_for(uow.conn(), row.id, viewer=viewer))
+    if gas_tests:
+        typer.echo(gas_export_rows(tests, fmt), nl=False)
+        return
     typer.echo(views.export_rows(rows, fmt), nl=False)
 
 

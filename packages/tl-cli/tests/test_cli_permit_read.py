@@ -22,6 +22,7 @@ from tl_cli.main import app
 from tl_core import confidentiality as cf
 from tl_core import util
 from tl_mod_permits import views
+from tl_mod_permits.iso_views import gas_export_rows
 from typer.testing import CliRunner, Result
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -242,6 +243,13 @@ def test_export_is_export_rows_of_the_same_list(cli: Cli, fmt: str) -> None:
     result = cli.read("uma", "export", "--project", PROJECT, "--format", fmt)
     assert result.exit_code == 0, result.output
     assert result.output == views.export_rows(rows, fmt)
+
+
+def test_export_gas_tests_of_permits_without_any_is_the_header_only(cli: Cli) -> None:
+    cli.world.request("rob", area="A1")
+    result = cli.read("uma", "export", "--project", PROJECT, "--format", "csv", "--gas-tests")
+    assert result.exit_code == 0, result.output
+    assert result.output == gas_export_rows([], "csv")
 
 
 def test_a_bad_export_format_is_a_usage_error(cli: Cli) -> None:
