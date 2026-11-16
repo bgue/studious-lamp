@@ -27,6 +27,7 @@ OLD_TOOL_NAMES = frozenset(
         "create_record",
         "get_activity_float_trend",
         "get_addable_properties",
+        "get_checklist",
         "get_commercial_item",
         "get_correspondence",
         "get_cost_code",
@@ -35,6 +36,7 @@ OLD_TOOL_NAMES = frozenset(
         "get_document",
         "get_document_diff",
         "get_evidence_trail",
+        "get_inspection",
         "get_iwp",
         "get_iwp_progress",
         "get_iwp_readiness",
@@ -60,6 +62,7 @@ OLD_TOOL_NAMES = frozenset(
         "get_work_order",
         "lake_query",
         "link_records",
+        "list_checklists",
         "list_code_values",
         "list_commercial_items",
         "list_correspondence",
@@ -68,6 +71,7 @@ OLD_TOOL_NAMES = frozenset(
         "list_cwps",
         "list_derived_documents",
         "list_documents",
+        "list_inspections",
         "list_iwp_scope",
         "list_iwps",
         "list_kpis",
@@ -101,6 +105,7 @@ OLD_TOOL_NAMES = frozenset(
         "propose_cwp",
         "propose_dispatch",
         "propose_import",
+        "propose_inspection",
         "propose_iwp_scope",
         "propose_permit",
         "propose_progress",
@@ -179,7 +184,8 @@ def test_every_installed_tools_ref_resolves_to_a_callable() -> None:
             assert callable(register)
             count += 1
     # P2-QR S2 and P2-PTW S2 each added a registrar (neither registers a tool yet)
-    assert count == 14
+    # P2-INSP-T07 added a registrar (the inspection tools)
+    assert count == 15
 
 
 def test_a_module_tool_is_closed_until_its_action_is_allowed(
