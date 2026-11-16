@@ -107,3 +107,6 @@ Standard report; first line deviations or none; list the consequential pins; `cm
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1
+Orchestrator rulings: (1) the docstrings in `module_spec.py.tmpl` and `commands_hook.py.tmpl` are wrapped to 100 characters or fewer (line breaks only, wording unchanged) so generated files pass ruff; (2) `test_cli_new_record_type.py` and `test_cli_new_projector.py` expect "5 passed" (the generated module has one more test); (3) `test_module_cli_groups.py::test_top_level_group_names_are_unchanged` failed on base because of the `agent` group (P2-X2 T02, `agent_stop`); `agent` is added to the pinned set (union form).

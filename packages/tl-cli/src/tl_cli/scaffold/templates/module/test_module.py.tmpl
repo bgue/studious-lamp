@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import ${package}
+from ${package}.module import spec
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -16,3 +17,7 @@ def test_the_package_names_its_module() -> None:
 def test_the_schema_header_names_the_module() -> None:
     header = ROOT / "schema" / "modules" / "${name}" / "module.yaml"
     assert "tl:module: ${name}" in header.read_text(encoding="utf-8")
+
+
+def test_the_module_spec_names_the_module() -> None:
+    assert spec().name == "${name}"

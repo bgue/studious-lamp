@@ -1,0 +1,23 @@
+"""What the ${name} module gives the platform (`tl_core.modules`; ADR-0029).
+
+The entry point `throughline.modules` / `${name}` in this package's
+`pyproject.toml` names `spec`. The platform calls it once per process. A hook is a dotted
+reference inside this package.
+"""
+
+from __future__ import annotations
+
+from tl_core.modules import ModuleSpec
+
+from ${package} import MODULE
+
+
+def spec() -> ModuleSpec:
+    return ModuleSpec(
+        name=MODULE,
+        # `tl new record-type ${name}.<Class>` adds one; list it here
+        record_types=frozenset(),
+        # a callable returning fresh projector instances (`tl new projector`)
+        projectors=list,
+        commands="${package}.commands:COMMANDS",
+    )
