@@ -89,6 +89,18 @@ P2_PTW = {
 }
 
 
+#: The seven keys P2-FORMS S2 added (forms and public intake).
+P2_FORMS = {
+    "forms.draft_saves_max",
+    "forms.intake.enabled",
+    "forms.intake.rate_per_address_per_hour",
+    "forms.intake.rate_per_code_per_hour",
+    "forms.intake.pending_per_code_max",
+    "forms.intake.retention_days",
+    "forms.intake.code_max_days",
+}
+
+
 def test_the_platform_file_defines_53_keys_with_those_of_p2_x2_p2_qr_p2_insp_p2_ptw_and_p2_forms(
     definitions: dict[str, SettingDefinition],
 ) -> None:
