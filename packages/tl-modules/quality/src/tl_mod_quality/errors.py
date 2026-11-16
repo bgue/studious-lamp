@@ -29,3 +29,11 @@ class PunchStateError(QualityError):
 class StaleVersionError(QualityError):
     """The record changed since the caller read it (``expected_version`` is not the current
     version)."""
+
+
+#: Checklists and inspections raise the punch rows above rather than classes of their own: the
+#: error table of ``tl_api.errors`` maps each ``ServiceError`` subclass, and has a row for these.
+ChecklistRuleError = PunchRuleError
+ChecklistStateError = PunchStateError
+InspectionRuleError = PunchRuleError
+InspectionStateError = PunchStateError

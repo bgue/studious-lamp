@@ -179,6 +179,10 @@ SUBJECT_LINKS: Final = (
     ("forms.Submission", "cur_forms_submission", "id", "subject_id"),
     ("forms.IntakeItem", "cur_forms_intake_item", "id", "code_id"),
     ("forms.IntakeCode", "cur_forms_intake_code", "id", "context_id"),
+    # inspections (P2-INSP S2): an inspection is hidden when its subject is, as a punch item is
+    # hidden through its source; a punch item a failed answer raises has the same subject. The
+    # handlers plan one only against a subject whose own subject names none (two hops).
+    ("quality.Inspection", "cur_quality_inspection", "id", "subject_id"),
 )
 _HOPS: Final = 2
 #: Record types whose own source row is also checked when a subject governs: a submission's

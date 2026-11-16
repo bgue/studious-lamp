@@ -132,6 +132,70 @@ def _holds_verify(uow: UnitOfWork, cmd: Command) -> bool:
     )
 
 
+def create_punch_item(
+    uow: UnitOfWork,
+    cmd: Command,
+    *,
+    subject: str,
+    description: str | None,
+    area: str | None,
+    system: str | None,
+    due_on: str | None,
+    assignee: str | None,
+    category: str,
+    source_id: str | None,
+    link_to: str | None,
+) -> CommandResult:
+    """Make a punch item in state Open, numbered per project (``raised_by`` is the actor of
+    ``cmd``): ``source_id`` is the record it names, ``link_to`` the record a ``raised_against``
+    link points at. One unit of work with the caller's."""
+    made = create_module_record(
+        uow,
+        cmd,
+        record_type=PUNCH_ITEM,
+        title=subject,
+        description=description,
+        key=None,
+        extra_events=[
+            NewEvent(
+                event_type=PUNCH_RAISED,
+                payload=silent(
+                    {
+                        "area": area,
+                        "system": system,
+                        "due_on": due_on,
+                        "category": category,
+                        "assignee": assignee,
+                        "raised_by": cmd.actor,
+                        "source_id": source_id,
+                    }
+                ),
+            )
+        ],
+    )
+    events = list(made.events)
+    if link_to is not None:
+        linked = handle_add_link(
+            uow,
+            AddLink(
+                actor=cmd.actor,
+                source=cmd.source,
+                scope=cmd.scope,
+                correlation_id=cmd.correlation_id,
+                causation_id=cmd.causation_id,
+                from_id=made.stream_id,
+                to_id=link_to,
+                relation=RAISED_AGAINST,
+                link_source=RULE_LINK_SOURCE,
+            ),
+            by_module=True,
+        )
+        events.extend(linked.events)
+    return CommandResult(
+        stream_id=made.stream_id, key=made.key, version=made.version, events=events
+    )
+
+
 def handle_raise_punch_item(uow: UnitOfWork, cmd: RaisePunchItem) -> CommandResult:
     """Raise a punch item in state Open, numbered per project, with a ``raised_against`` link to
     the record it came from. ``raised_by`` is the actor."""
@@ -143,50 +207,18 @@ def handle_raise_punch_item(uow: UnitOfWork, cmd: RaisePunchItem) -> CommandResu
         if source.record_type in SOURCE_REFUSED:
             raise PunchRuleError(MSG_SOURCE_LINKED)
         source_id = source.id
-    made = create_module_record(
+    return create_punch_item(
         uow,
         cmd,
-        record_type=PUNCH_ITEM,
-        title=cmd.subject,
+        subject=cmd.subject,
         description=cmd.description,
-        key=None,
-        extra_events=[
-            NewEvent(
-                event_type=PUNCH_RAISED,
-                payload=silent(
-                    {
-                        "area": cmd.area,
-                        "system": cmd.system,
-                        "due_on": cmd.due_on,
-                        "category": cmd.category,
-                        "assignee": cmd.assignee,
-                        "raised_by": cmd.actor,
-                        "source_id": source_id,
-                    }
-                ),
-            )
-        ],
-    )
-    events = list(made.events)
-    if source_id is not None:
-        linked = handle_add_link(
-            uow,
-            AddLink(
-                actor=cmd.actor,
-                source=cmd.source,
-                scope=cmd.scope,
-                correlation_id=cmd.correlation_id,
-                causation_id=cmd.causation_id,
-                from_id=made.stream_id,
-                to_id=source_id,
-                relation=RAISED_AGAINST,
-                link_source=RULE_LINK_SOURCE,
-            ),
-            by_module=True,
-        )
-        events.extend(linked.events)
-    return CommandResult(
-        stream_id=made.stream_id, key=made.key, version=made.version, events=events
+        area=cmd.area,
+        system=cmd.system,
+        due_on=cmd.due_on,
+        assignee=cmd.assignee,
+        category=cmd.category,
+        source_id=source_id,
+        link_to=source_id,
     )
 
 
@@ -300,6 +332,7 @@ def handle_void_punch_item(uow: UnitOfWork, cmd: VoidPunchItem) -> CommandResult
 
 __all__ = [
     "PunchItem",
+    "create_punch_item",
     "handle_clear_punch_item",
     "handle_edit_punch_item",
     "handle_raise_punch_item",

@@ -11,6 +11,7 @@ from tl_adapters.db import DbTarget, create_schema
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from insp_world import InspWorld  # noqa: E402
 from punch_world import World  # noqa: E402
 
 
@@ -26,5 +27,13 @@ def db(new_db: Callable[[], DbTarget]) -> DbTarget:
 def world(db: DbTarget) -> World:
     """A ledger with the people."""
     w = World(db)
+    w.people()
+    return w
+
+
+@pytest.fixture
+def insp(db: DbTarget) -> InspWorld:
+    """A ledger with the people, for checklists and inspections."""
+    w = InspWorld(db)
     w.people()
     return w
