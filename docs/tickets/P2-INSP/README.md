@@ -9,6 +9,8 @@ compatibility table), ADR-0010, ADR-0016. Branch `p2/insp` from the integration 
 `/home/user/wt/insp/<id>`. Board: `STATE.md` (round 1 writes it). Cross-increment order: `docs/tickets/P2-QR/README.md`,
 last section.
 
+S2 (r2, P2-IP): spec `S2-commands-and-engine.md` with `../P2-IP/S2-common.md`; S2 declares its module hooks (X4 is complete on `p2/x4`), which supersedes every "no hook fields" line below; the S2 branch needs `p2/ip` merged with `p2/x4` and waits for X4 on trunk to merge.
+
 ## Objective
 After this increment the `quality` module holds two more record types, `quality.Checklist` and `quality.Inspection`.
 A QA lead publishes a versioned checklist. A QC inspector plans an inspection against any record (with a point:

@@ -9,6 +9,8 @@ module built as its own package), P2-X4 S1 (hooks), ADR-0010, ADR-0016. Branch `
 `p2/ptw-t<nn>-<slug>`, worktrees `/home/user/wt/ptw/<id>`. Board: `STATE.md` (round 1 writes it). Cross-increment
 order: `docs/tickets/P2-QR/README.md`, last section.
 
+S2 (r2, P2-IP): spec `S2-permit-lifecycle.md` with `../P2-IP/S2-common.md`; S2 declares its module hooks (X4 is complete on `p2/x4`), which supersedes every "no hook fields" line below; the S2 branch needs `p2/ip` merged with `p2/x4` and waits for X4 on trunk to merge.
+
 ## Objective
 After this increment a new module `permits` (package `tl-mod-permits`) holds `permits.Permit`, `permits.Isolation`
 and `permits.GasTest`. A foreman requests a permit of one of six types for a work package; a controller who is not
