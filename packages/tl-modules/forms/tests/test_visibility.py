@@ -229,6 +229,7 @@ def test_a_failed_accept_of_a_stored_form_command_gives_a_fixed_text(world: Worl
     from tl_core.services.proposals import accept_or_fail, propose
     from tl_mod_forms.commands import SubmitForm
 
+    world.agent("forms-bot")
     tpl = world.template()
     command = SubmitForm(
         actor="agent:forms-bot",

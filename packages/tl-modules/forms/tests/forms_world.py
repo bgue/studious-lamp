@@ -11,6 +11,8 @@ the correspondence module's own commands.
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import text
@@ -32,6 +34,12 @@ from tl_mod_correspondence.handlers.models import Recipient
 from tl_mod_correspondence.testing import frozen_today
 from tl_mod_forms.module import FORMS_COMMANDS
 from tl_mod_forms.names import SUBMISSION_TABLE, TEMPLATE_TABLE
+
+_API_TESTS = str(Path(__file__).resolve().parents[3] / "tl-api" / "tests")
+if _API_TESTS not in sys.path:
+    sys.path.insert(0, _API_TESTS)
+
+from harness import grant_filing  # noqa: E402
 
 SCOPE = "project:P123"
 COMPANY = "company"
@@ -85,6 +93,11 @@ class World:
                 password=prepare_password(PASSWORD, username=name),
                 by="svc:test",
             )
+
+    def agent(self, name: str) -> None:
+        """The agent's account and its explicit grant: an agent files only under one (P2-X2 S1)."""
+        with open_uow(self.db) as uow:
+            grant_filing(uow, name)
 
     def people(self) -> None:
         self.person("ada", ("admin",))
