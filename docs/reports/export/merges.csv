@@ -1,4 +1,5 @@
 sha,date,subject
+4c20ce53,2026-11-16,Merge P2-I4B: scaffold module on the P2-X4 hooks (DONE)
 bc69800a,2026-11-16,"Merge P2-X4: modules supply their own commands, read routes, MCP tools and CLI groups (DONE)"
 11621381,2026-11-15,"Merge P2-X2: agent filing scope (explicit grants only), queue cap, per-agent stop switch (C4)"
 c7fa8dc3,2026-11-14,"P2-TOUR2: merge S2, the four missing tour shots (cause: bare actor names)"

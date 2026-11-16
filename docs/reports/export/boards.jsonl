@@ -175,6 +175,24 @@
 {"increment": "P2-I4A", "id": "T04e2", "kind": "t", "state": "dfr", "review": "f", "sha": "-", "note": "roadmap 3c CLI fulfil"}
 {"increment": "P2-I4A", "id": "T13", "kind": "t", "state": "abn", "review": "-", "sha": "folded:", "note": "tickets own registration lines"}
 {"increment": "P2-I4A", "id": "T10a", "kind": "T11", "state": "T04c3", "review": "t", "sha": "abn", "note": "- cut r2 (F9 F10 F11)"}
+{"increment": "P2-I4B", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "256d9014", "note": "C1; findings dec by orch; APPROVALS"}
+{"increment": "P2-I4B", "id": "S1b", "kind": "p", "state": "mrg", "review": "f", "sha": "6260c4de", "note": "SR-I4B F1 F3 F4 F6; orch read diff"}
+{"increment": "P2-I4B", "id": "T06", "kind": "t", "state": "mrg", "review": "f", "sha": "1c3e1294", "note": "review P; F2 ctrl+i is Tab -> T07a (D11)"}
+{"increment": "P2-I4B", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "f6bf1990", "note": "review P"}
+{"increment": "P2-I4B", "id": "T05a", "kind": "t", "state": "mrg", "review": "f", "sha": "7e1651ce", "note": "review P; amend 1; rename test_nine_checks later"}
+{"increment": "P2-I4B", "id": "T05b", "kind": "t", "state": "mrg", "review": "f", "sha": "de6ff369", "note": "review P; amend 1+2 (seed labour reqs)"}
+{"increment": "P2-I4B", "id": "T09a", "kind": "t", "state": "mrg", "review": "f", "sha": "fcbb52e0", "note": "review P"}
+{"increment": "P2-I4B", "id": "T09b1", "kind": "t", "state": "mrg", "review": "f", "sha": "49ab7045", "note": "review P"}
+{"increment": "P2-I4B", "id": "T09b2", "kind": "t", "state": "mrg", "review": "f", "sha": "7480bded", "note": "review P"}
+{"increment": "P2-I4B", "id": "T07a", "kind": "t", "state": "mrg", "review": "f", "sha": "f4b66174", "note": "review P"}
+{"increment": "P2-I4B", "id": "T07b", "kind": "t", "state": "mrg", "review": "f", "sha": "3fc897e2", "note": "review P"}
+{"increment": "P2-I4B", "id": "T09c", "kind": "t", "state": "mrg", "review": "f", "sha": "cb1e81ef", "note": "review P"}
+{"increment": "P2-I4B", "id": "T11a", "kind": "t", "state": "mrg", "review": "f", "sha": "9d5237e5", "note": "review P; 1 scaffold (Designed)"}
+{"increment": "P2-I4B", "id": "T12", "kind": "t", "state": "mrg", "review": "l", "sha": "d1484534", "note": "esc settled amend 1"}
+{"increment": "P2-I4B", "id": "T13", "kind": "t", "state": "mrg", "review": "f", "sha": "e443e853", "note": "DONE fallout; record_id fix"}
+{"increment": "P2-I4B", "id": "T10a", "kind": "t", "state": "mrg", "review": "f", "sha": "863b91a3", "note": "review P; stale echo fix in T10b"}
+{"increment": "P2-I4B", "id": "T10b", "kind": "t", "state": "mrg", "review": "f", "sha": "2eb59e85", "note": "esc settled amend 1"}
+{"increment": "P2-I4B", "id": "T11b", "kind": "t", "state": "mrg", "review": "l", "sha": "ffc232d5", "note": "tour 15 shots, orch lite read"}
 {"increment": "P2-I5", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "76c15b4", "note": "schema, package content, words, settings"}
 {"increment": "P2-I5", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "00647bf", "note": "engine, progress cmds, IWP start/complete, math rules"}
 {"increment": "P2-I5", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "3eafc70", "note": "rollup+CSV export on read"}
