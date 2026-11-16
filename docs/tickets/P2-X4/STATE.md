@@ -3,7 +3,7 @@
 S1 p mrg f 9f0bc5ce hooks merged (C1); 432 P; APPROVALS done
 S3 p mrg f 1afa1cfb MCP tools from hooks; 182 P
 T01 t mrg f 1ec89b00 CLI groups from hooks; 134 P
-S2 p stg f - API table+routers; HOLD: X2 C2 on trunk, then p2/x4 merges trunk
+S2 p mrg f ee6fa66e esc settled amend 1; APPROVALS
 S4 p todo f - waits S2,S3; runs alone
 T02 t todo f - scaffold hooks; waits S2,S3,T01
 T03 t todo f - fixture ext_demo; waits S4
