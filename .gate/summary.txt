@@ -1,3 +1,6 @@
-bash dev/gate.sh packages/tl-cli/tests/test_new_module_spec.py packages/tl-cli/tests/test_cli_new_module.py packages/tl-cli/tests/test_scaffold_engine.py packages/tl-cli/tests/test_cli_new_record_type.py packages/tl-cli/tests/test_cli_new_projector.py packages/tl-cli/tests/test_module_cli_groups.py
-part 1: exit 0, 93 passed in 74.21s (0:01:14)
+check: 0 errors, 1 warning (pre-existing twin_channels.py); drift, compat, openapi, licences ok
+g1 part 1: exit 0, 28 passed in 8.87s
+g1 gate: PASS
+g2 part 1: exit 0, 8 passed in 26.11s
+g3 part 1: exit 0, 9 passed in 2.31s
 gate: PASS
