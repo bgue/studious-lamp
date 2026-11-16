@@ -1,4 +1,4 @@
-"""Four readiness checks that answer ``n_a`` until the modules they wait for exist (P2-I2-T06b).
+"""Three readiness checks that answer ``n_a`` until the modules they wait for exist (P2-I2-T06b).
 
 The names are reserved now so the readiness screen lists them. Each check watches ``awp.IWP``,
 reads nothing, uses no connection and answers ``n_a`` with a fixed detail; ``n_a`` counts as
@@ -35,13 +35,6 @@ class NotApplicable:
             state="n_a",
             detail=self._detail,
         )
-
-
-def permits_planned() -> NotApplicable:
-    return NotApplicable(
-        "permits_planned",
-        "not applicable yet: permit records are built in Phase 3",
-    )
 
 
 def labour_requested() -> NotApplicable:
