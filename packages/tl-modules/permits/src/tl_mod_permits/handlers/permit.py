@@ -145,11 +145,9 @@ def _is_controller(uow: UnitOfWork, cmd: Command) -> bool:
 
 
 def _is_holder(permit: Permit, actor: str) -> bool:
-    """The actor asked for the permit, or is the holder it names (the name or the account)."""
-    if actor == permit.row["requested_by"]:
-        return True
-    named = str(permit.row["holder"] or "").strip().casefold()
-    return bool(named) and named in (actor.casefold(), actor.split(":", 1)[-1].casefold())
+    """The actor is the account that requested the permit (the actor of its Permit.Requested
+    event, kept as ``requested_by``). The ``holder`` text is display only and never authorises."""
+    return actor == permit.row["requested_by"]
 
 
 def _require_party(uow: UnitOfWork, cmd: Command, permit: Permit) -> None:

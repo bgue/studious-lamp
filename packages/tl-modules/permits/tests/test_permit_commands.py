@@ -455,3 +455,14 @@ def test_an_id_that_is_not_a_permit_reads_as_missing(world: World) -> None:
     assert raises(RecordNotFoundError, world, "sue", "ApprovePermit", permit=iwp) == (
         "no record with that id"
     )
+
+
+def test_a_namesake_with_another_account_is_not_the_holder(world: World) -> None:
+    permit = world.active(holder="Uma")  # rob asked; the holder text names uma
+    assert raises(ForbiddenError, world, "uma", "RevalidatePermit", permit=permit) == MSG_NOT_PARTY
+    assert raises(
+        ForbiddenError, world, "uma", "HandBackPermit", permit=permit, handback_note="Clear"
+    ) == (MSG_NOT_PARTY)
+    world.call("rob", "RevalidatePermit", permit=permit)  # the requester
+    world.call("sue", "HandBackPermit", permit=permit, handback_note="Clear")  # a controller
+    assert world.state(permit) == "Handed back"

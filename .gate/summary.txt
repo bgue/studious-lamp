@@ -1,3 +1,4 @@
+permits tests dir: 124 passed; ptw_rows 5 passed (rerun after ruling)
 check: ruff, ruff format, codegen pass; whole-repo pyright exit 247 (killed); pyright on touched paths 0 errors
 permits commands+guards: 41 passed
 permits visibility/exclusions/spec/rules: 66 passed
