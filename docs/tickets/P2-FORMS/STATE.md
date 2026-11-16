@@ -7,6 +7,7 @@ S2 p mrg f 01b4bc46 review P; APPROVALS
 S2w p mrg f b7e4ce92 answers omitted from webhook bodies
 S3 p mrg f 38c22c8e seam + 11 commands; APPROVALS
 CR1 p mrg f 600591e3 confidentiality rows, author rule; APPROVALS
+S7c p mrg f 629257b5 security review P; APPROVALS; wave items: code_hash omit, CLI-only issue
 T14 t disp f - webhook scenario rows + envelope fix; in flight
 T13 t mrg f 033059de review P
 T01 t stg f - JSON Schema projection; ready, branch exists
