@@ -686,6 +686,21 @@ def resolve_hook(spec: ModuleSpec, kind: str) -> tuple[object, ...]:
         raise _unresolved(spec, kind) from None
 
 
+def core_command_names() -> frozenset[str]:
+    """The class names of every ``tl_core`` command imported so far (a module's never count)."""
+    names: set[str] = set()
+    seen: set[type] = set()
+    stack: list[type] = [Command]
+    while stack:
+        for sub in stack.pop().__subclasses__():
+            if sub not in seen:
+                seen.add(sub)
+                stack.append(sub)
+                if sub.__module__.startswith("tl_core."):
+                    names.add(sub.__name__)
+    return frozenset(names)
+
+
 def refused_hook(spec: ModuleSpec, kind: str) -> ModuleHookError:
     """The fixed error for a hook a surface refuses (a name that is already a core one)."""
     return _unresolved(spec, kind)

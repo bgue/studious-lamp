@@ -199,11 +199,8 @@ def _closed_routes(router: APIRouter) -> bool:
 
 
 def _core_route_paths(app: FastAPI) -> list[str]:
-    """The path of every route the platform serves: those on ``app`` now, and the core routers
-    that are mounted after the modules' (``create_app`` lists them here, once)."""
-    later = (integration, threads, constraints, insights, commands)
-    routes = _flat(app.routes) + [r for module in later for r in _flat(module.router.routes)]
-    return [getattr(r, "path", "") for r in routes]
+    """The path of every route on ``app`` (called when every core router is mounted)."""
+    return [getattr(r, "path", "") for r in _flat(app.routes)]
 
 
 def _include_module_routers(app: FastAPI, core_paths: Collection[str] = ()) -> None:
@@ -404,9 +401,6 @@ def create_app(
         settings_routes,
     ):
         app.include_router(module.router)
-    _include_module_routers(  # the modules' read routes, from their ``read_routers`` hooks
-        app, _core_route_paths(app)
-    )
     for module in (
         integration,
         threads,  # P1-I7 WS-B
@@ -415,6 +409,9 @@ def create_app(
     ):
         app.include_router(module.router)
     app.include_router(commands.router)
+    # last of the routers: the modules' read routes, from their ``read_routers`` hooks, so a core
+    # literal path (``/threads/mine``) always beats a module's parameter path (SR-X4 F7)
+    _include_module_routers(app, _core_route_paths(app))
     if web_mount is not None:
         web_mount(app)  # last: its catch-all 404 page and its outermost headers middleware
     return app

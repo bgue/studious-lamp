@@ -62,3 +62,25 @@ def test_a_reserved_name_skips_that_module_whole_with_one_fixed_warning(
     assert [c.name for c in rows] == ["X6Mine"]
     assert failures == {"x6one": "module 'x6one': hook 'commands' cannot be resolved"}
     assert [r.getMessage() for r in caplog.records] == [failures["x6one"]]
+
+
+def test_a_module_whose_command_words_name_a_core_command_never_enters_the_word_index() -> None:
+    from tl_core.auth.module_roles import command_index
+    from tl_core.services import settings as _settings  # noqa: F401  # ChangeSetting is core
+
+    bad = ModuleSpec(
+        name="x6bad",
+        record_types=frozenset({"x6bad.Thing"}),
+        projectors=list,
+        command_words={"ChangeSetting": "admin", "X6Own": "user"},
+    )
+    good = ModuleSpec(
+        name="x6good",
+        record_types=frozenset({"x6good.Thing"}),
+        projectors=list,
+        command_words={"X6Mine": "user"},
+    )
+    with use_modules([bad, good]):
+        index = command_index()
+    assert "ChangeSetting" not in index and "X6Own" not in index  # refused whole
+    assert index["X6Mine"][0] == "x6good"

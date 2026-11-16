@@ -115,6 +115,7 @@ def fakes() -> Iterator[None]:
     add("tl_mod_x6c", R=router("/x6/fine3"))
     add("tl_mod_x6d", R=router("/x6/fine3"))
     add("tl_mod_x6e", R=router("/x6/open", guarded=False))
+    add("tl_mod_x6f", R=router("/projects/{project}/{any}/groups"))  # would catch a core literal
     try:
         yield
     finally:
@@ -247,3 +248,17 @@ def test_every_installed_module_route_is_denied_by_a_deny_all_authorizer(harness
 
 def test_every_ext_demo_route_is_denied_by_a_deny_all_authorizer(harness: Harness) -> None:
     _walk_module_routes_denied(harness, [ext_demo_spec()])
+
+
+def test_a_core_literal_path_beats_a_module_parameter_path_that_could_match_it(
+    harness: Harness, fakes: None
+) -> None:
+    specs = [_spec("x6f", read_routers=("tl_mod_x6f:R",))]
+    with use_modules(specs):
+        app = _app(harness)
+    client = TestClient(app, raise_server_exceptions=False)
+    client.headers.update(harness.headers())
+    core = client.get("/projects/P123/constraints/groups")
+    assert core.json() != {"ok": "yes"}  # the core route answered, not the module's
+    assert client.get("/projects/P123/other/groups").json() == {"ok": "yes"}
+    client.close()

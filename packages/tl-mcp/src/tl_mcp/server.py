@@ -13,6 +13,7 @@ text agents read, and error handling.
 from __future__ import annotations
 
 import functools
+import inspect
 import logging
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -102,13 +103,14 @@ _log = logging.getLogger("tl_mcp")
 class _StagedServer:
     """What a module registrar sees as ``server``: tools are staged, not registered.
 
-    ``tool`` and ``add_tool`` record the function and its keywords; every other attribute
-    (resources, prompts) goes to the real server. ``_register_module_tools`` then checks the
-    staged names and registers each function behind ``guarded`` (SR-X4 F1, F2).
+    ``tool`` and ``add_tool`` record the function and its keywords. Resources and prompts are
+    refused (a module's concrete URI would beat a core template; SR-X4 F5): the registrar raises
+    and ``_register_module_tools`` skips the module. Any other attribute is missing, so it is
+    refused the same way. ``_register_module_tools`` checks the staged names and registers each
+    function behind ``guarded`` (SR-X4 F1, F2).
     """
 
-    def __init__(self, real: MCPServer) -> None:
-        self._real = real
+    def __init__(self) -> None:
         self.staged: list[tuple[str, Callable[..., Any], dict[str, Any]]] = []
 
     def tool(self, name: str | None = None, **kwargs: Any) -> Callable[[Any], Any]:
@@ -121,12 +123,23 @@ class _StagedServer:
     def add_tool(self, fn: Callable[..., Any], name: str | None = None, **kwargs: Any) -> None:
         self.staged.append((name or fn.__name__, fn, kwargs))
 
-    def __getattr__(self, attr: str) -> Any:
-        return getattr(self._real, attr)
+    def _refuse(self, *args: Any, **kwargs: Any) -> Any:
+        raise ModuleHookError("a module may register tools only")
+
+    resource = add_resource = prompt = add_prompt = _refuse
 
 
 def _closed(ctx: McpContext, tool: str, fn: Callable[..., Any]) -> Callable[..., Any]:
     """``fn`` behind the access check: ``guarded(ctx, tool, ...)`` runs before its body."""
+
+    if inspect.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def run_async(*args: Any, **kwargs: Any) -> Any:
+            with guarded(ctx, tool, f"module:{tool}"):
+                return await fn(*args, **kwargs)
+
+        return run_async
 
     @functools.wraps(fn)
     def run(*args: Any, **kwargs: Any) -> Any:
@@ -152,7 +165,7 @@ def _register_module_tools(server: MCPServer, ctx: McpContext) -> None:
             _log.warning("%s", exc)
     taken = {tool.name for tool in server._tool_manager.list_tools()}  # noqa: SLF001
     for spec, registrars in resolved:
-        stage = _StagedServer(server)
+        stage = _StagedServer()
         try:
             for register in registrars:
                 register(stage, ctx)  # type: ignore[operator]

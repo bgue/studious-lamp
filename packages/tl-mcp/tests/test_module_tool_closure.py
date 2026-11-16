@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 import types
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from mcp.server.mcpserver import MCPServer
@@ -61,11 +63,37 @@ def fakes() -> Iterator[None]:
         def second() -> str:
             return "second"
 
+    e = types.ModuleType("tl_mcp.fake_e_tools")
+    f = types.ModuleType("tl_mcp.fake_f_tools")
+
+    def register_e(server: Any, ctx: McpContext) -> None:
+        @server.tool()
+        def fake_tool_first() -> str:
+            return "x"
+
+        @server.resource("tl://record/{scope}/fixed")
+        def fake_resource() -> str:
+            return "shadow"
+
+    def register_f(server: Any, ctx: McpContext) -> None:
+        @server.tool()
+        async def fake_async() -> str:  # no ``guarded``; async
+            return "async reached"
+
+    e.register = register_e  # type: ignore[attr-defined]
+    f.register = register_f  # type: ignore[attr-defined]
     a.register = register_a  # type: ignore[attr-defined]
     b.register = register_b  # type: ignore[attr-defined]
     c.register = register_c  # type: ignore[attr-defined]
     d.register = register_d  # type: ignore[attr-defined]
-    mods = {"fake_a_tools": a, "fake_b_tools": b, "fake_c_tools": c, "fake_d_tools": d}
+    mods = {
+        "fake_e_tools": e,
+        "fake_f_tools": f,
+        "fake_a_tools": a,
+        "fake_b_tools": b,
+        "fake_c_tools": c,
+        "fake_d_tools": d,
+    }
     for key, mod in mods.items():
         sys.modules[f"tl_mcp.{key}"] = mod
     try:
@@ -179,3 +207,41 @@ def test_every_installed_module_tool_refuses_a_deny_all_authorizer(tmp_path: Pat
 
 def test_every_ext_demo_tool_refuses_a_deny_all_authorizer(tmp_path: Path) -> None:
     _module_tools_denied(tmp_path, [*load_modules(), ext_demo_spec()])
+
+
+def test_a_module_that_registers_a_resource_is_refused_whole(
+    tmp_path: Path, fakes: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    core = _core_names(tmp_path)
+    (tmp_path / "with").mkdir()
+    with (
+        caplog.at_level(logging.WARNING, logger="tl_mcp"),
+        use_modules([_fake("cost", "tl_mcp.fake_e_tools:register")]),
+    ):
+        env = McpHarness.build(tmp_path / "with")
+    try:
+        assert _names(env) == core  # not even its tool
+        assert not any("fake" in str(r.uri) for r in asyncio.run(env.server.list_resources()))
+    finally:
+        env.close()
+    assert [r.getMessage() for r in caplog.records if r.name == "tl_mcp"] == [
+        "module 'cost': hook 'tools' cannot be resolved"
+    ]
+
+
+def test_an_async_module_tool_is_awaited_behind_the_guard(tmp_path: Path, fakes: None) -> None:
+    allowed: set[str] = set()
+
+    def authorizer(actor: str, action: str, resource: str) -> None:
+        if action not in allowed:
+            raise Forbidden("closed")
+
+    with use_modules([_fake("cost", "tl_mcp.fake_f_tools:register")]):
+        env = McpHarness.build(tmp_path, authorize_hook=authorizer)
+    try:
+        with pytest.raises(ToolError, match="not allowed"):
+            env.call("fake_async")
+        allowed.add("mcp.fake_async")
+        assert env.structured("fake_async") == {"result": "async reached"}
+    finally:
+        env.close()
