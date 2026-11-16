@@ -23,6 +23,7 @@ from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_api.client.files import save_download
 from tl_api.insights_sources import sources_for
 from tl_api.routes import constraints as constraint_routes
+from tl_api.routes import insp as insp_routes
 from tl_api.routes import punch as punch_routes
 from tl_api.routes import requisitions as requisition_routes
 from tl_api.routes.awp import CheckBody, CwpDetailView, ReadinessBody, TimelineRow, _note
@@ -229,8 +230,9 @@ from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
 from tl_mod_materials.commands import MATERIALS_COMMANDS
 from tl_mod_quality import MODULE as QUALITY_MODULE
+from tl_mod_quality import insp_views
 from tl_mod_quality import views as punch_views
-from tl_mod_quality.module import PUNCH_COMMANDS
+from tl_mod_quality.module import QUALITY_COMMANDS
 from tl_mod_requisitions import views as requisition_views
 from tl_mod_requisitions.api import RequisitionRow
 from tl_mod_schedule import views as schedule_views
@@ -1842,8 +1844,80 @@ class EmbeddedClient:
             )
 
     def quality_command(self, name: str, cmd: Command) -> CommandResult:
-        """Run a punch command by name (a model of ``PUNCH_COMMANDS``, as the signed-in person)."""
-        return self._module_command(name, cmd, PUNCH_COMMANDS, "quality")
+        """Run a quality command by name (a model of ``QUALITY_COMMANDS``, as the person)."""
+        return self._module_command(name, cmd, QUALITY_COMMANDS, "quality")
+
+    # --- quality: inspections and checklists (P2-INSP-T08) -----------------------------------
+    #
+    # The same calls the routes make (``tl_api.routes.insp``), under the signed-in person's viewer,
+    # after the same ``quality.view`` check (``_require_punch_view``). A bad state or point is the
+    # views' ``ValueError``, as the punch reads raise theirs.
+
+    def list_inspections(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        point: str | None = None,
+        area: str | None = None,
+        inspector: str | None = None,
+        subject: str | None = None,
+        for_key: str | None = None,
+        limit: int = 200,
+    ) -> insp_views.InspectionPage:
+        with self._uow(True) as uow:
+            self._require_punch_view(uow, project)
+            return insp_views.inspection_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                point=point,
+                area=area,
+                inspector=inspector,
+                subject_key=subject,
+                for_key=for_key,
+                limit=limit,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def get_inspection(self, project: str, key: str) -> insp_views.InspectionDetail:
+        with self._uow(True) as uow:
+            self._require_punch_view(uow, project)
+            detail = insp_views.inspection_detail(
+                uow.conn(), f"project:{project}", key, viewer=confidentiality.current_viewer()
+            )
+            if detail is None:
+                raise RecordNotFoundError(insp_routes.MSG_INSPECTION_NOT_FOUND)
+            return detail
+
+    def list_checklists(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        discipline: str | None = None,
+        limit: int = 200,
+    ) -> insp_views.ChecklistPage:
+        with self._uow(True) as uow:
+            self._require_punch_view(uow, project)
+            return insp_views.checklist_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                discipline=discipline,
+                limit=limit,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def get_checklist(self, project: str, key: str) -> insp_views.ChecklistDetail:
+        with self._uow(True) as uow:
+            self._require_punch_view(uow, project)
+            detail = insp_views.checklist_detail(
+                uow.conn(), f"project:{project}", key, viewer=confidentiality.current_viewer()
+            )
+            if detail is None:
+                raise RecordNotFoundError(insp_routes.MSG_CHECKLIST_NOT_FOUND)
+            return detail
 
     # --- the awp module (P2-I1 T03b): the reads the API routes serve, under the viewer's filter --
 

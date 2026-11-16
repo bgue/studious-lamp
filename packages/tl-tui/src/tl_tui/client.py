@@ -95,6 +95,7 @@ from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
 from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
+from tl_mod_quality import insp_views
 from tl_mod_quality import views as punch_views
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
@@ -1026,7 +1027,7 @@ class ClientInterface(Protocol):
     # views under the signed-in person's clearance (ADR-0016) and need ``quality.view`` on the
     # project; a missing or hidden item raises ``RecordNotFoundError`` with one text. ``from_key``
     # is the key of the record an item was raised from. ``quality_command(name, cmd)`` takes a
-    # model of ``tl_mod_quality.module.PUNCH_COMMANDS``, else ``ForbiddenError``.
+    # model of ``tl_mod_quality.module.QUALITY_COMMANDS``, else ``ForbiddenError``.
 
     def list_punch_items(
         self,
@@ -1052,8 +1053,49 @@ class ClientInterface(Protocol):
         """The visible punch items of a project by state."""
         ...
 
+    # --- quality: inspections and checklists (P2-INSP-T08) -----------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. The reads answer
+    # ``tl_mod_quality.insp_views`` under the signed-in person's clearance and need ``quality.view``
+    # on the project; a missing or hidden inspection or checklist raises ``RecordNotFoundError``
+    # with one text ("no inspection", "no checklist"). ``for_key`` is the work package key.
+
+    def list_inspections(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        point: str | None = None,
+        area: str | None = None,
+        inspector: str | None = None,
+        subject: str | None = None,
+        for_key: str | None = None,
+        limit: int = 200,
+    ) -> insp_views.InspectionPage:
+        """A project's inspections by key, filtered; ``total`` counts the visible matches."""
+        ...
+
+    def get_inspection(self, project: str, key: str) -> insp_views.InspectionDetail:
+        """One inspection with its answers, signatures and the punch items it raised."""
+        ...
+
+    def list_checklists(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        discipline: str | None = None,
+        limit: int = 200,
+    ) -> insp_views.ChecklistPage:
+        """A project's checklists by key, filtered; ``total`` counts them."""
+        ...
+
+    def get_checklist(self, project: str, key: str) -> insp_views.ChecklistDetail:
+        """One checklist with its questions."""
+        ...
+
     def quality_command(self, name: str, cmd: Command) -> CommandResult:
-        """Run a punch command by name (a model of ``PUNCH_COMMANDS``, as the person)."""
+        """Run a quality command by name (a model of ``QUALITY_COMMANDS``, as the person)."""
         ...
 
     # --- the awp module: CWPs, CWAs, the WBS, the path, packages (P2-I1 T03b) ------------------

@@ -22,6 +22,7 @@ from fakes_correspondence import FakeCorrespondenceSupport
 from fakes_derivation import FakeDerivationSupport
 from fakes_documents import FakeDocumentSupport
 from fakes_feed import FakeFeedSupport
+from fakes_insp import FakeInspSupport
 from fakes_integration import FakeIntegrationSupport
 from fakes_iwp import FakeIwpSupport
 from fakes_links import FakeLinkSupport
@@ -242,6 +243,7 @@ class FakeClient(
     FakeRequisitionSupport,
     FakeSchemaRegistrySupport,
     FakeMaterialsSupport,
+    FakeInspSupport,
     FakePunchSupport,
     FakeWeekSupport,
 ):
@@ -281,6 +283,7 @@ class FakeClient(
         self._init_requisitions()
         self._init_schemareg()
         self._init_materials()
+        self._init_insp()
         self._init_punch()
         self._init_week()
 
