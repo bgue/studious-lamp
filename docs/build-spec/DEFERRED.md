@@ -38,6 +38,10 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 ## Nice-to-haves and small follow-ups
 | Item | Why deferred | Phase |
 |---|---|---|
+| Core stream scan of `permits.Permit` (add to `SCANNED_STREAM_TYPES`) as defence in depth for link events on a permit stream (SR-PTW-S3 F1) | Core-interface change; the module refuses the risky link instead | phase 2 exit |
+| PTW-S3 link check compares only the lowest and restricted viewers, not per-account privileged clearance lists (SR-PTW-S3 residual LO) | Isolations and equipment records are not privileged today | wave 3 |
+| QR-T07: the label file is written after the issue commit; a failed write leaves an issued code with no file (rotate recovers) | LO from review; no data exposure | wave 3 |
+| MCP tickets must name `packages/tl-mcp/tests/test_mcp_server.py` (TOOLS pin) in Allowed paths; PTW-T08 left it red until INSP-T07 | Process note for ticket writers | now |
 | WBS node workflow and constraint opt-in on WBS nodes (ADR-0024 plan check F10) | No wave 2 demo clause needs it; overlaps I5 progress | wave 3 |
 | Rule "a new blocking constraint on an Issued IWP puts it On hold" (`field-work-packaging.md` line 58); owner of the rule open (candidate: a readiness hook calling the hold logic) | Not built in P2-I2; P2-I2 STATE Q1 | wave 3 |
 | Automatic constraint population from requisitions, scaffold and purchase orders; clear-on-target-state rules; constraints on correspondence and schedule activities (ADR-0024) | Needs the wave 3 modules | wave 3 |
