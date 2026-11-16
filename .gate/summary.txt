@@ -1,6 +1,0 @@
-just check: exit 0 (third run; first two died in pyright with exit 247 under load)
-gate packages/tl-modules/scaffold/tests + tl-tui test_module_roles_log.py test_snapshots_links.py: exit 0, 147 passed
-gate tests/contract tests/webhooks: exit 0, 294 passed in 490s
-gate tests/parity/test_webhooks_parity.py tests/services/test_module_role_seams.py: exit 0, 63 passed
-gate-pg tests/parity/test_webhooks_parity.py: exit 0, 20 passed in 2448s
-gate: PASS
