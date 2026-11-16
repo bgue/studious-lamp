@@ -1,0 +1,7 @@
+Inc,Critique items,One line,Needs before start
+P2-X1,"B1, A2",Idempotency key that works; OpenAPI compatibility gate,P2-I5 and P2-PUNCH merged to trunk
+P2-X2,B6,"Agent filing check, per-project queue cap, per-agent stop switch",X1 merged (both touch `proposals.submit`)
+P2-X3,B5,"Delegation ADR, shadow mode first (ADR only)",none; X4 S1 needs the ADR merged
+P2-X4,A1,"Modules supply their own commands, read routes and agent tools (API, CLI, MCP; TUI note)",X3 ADR merged; I6 T03 merged (registry audit)
+P2-X5a,A4,Types and property sets through schema packages,X2 C2 (S5 filing check)
+P2-X5b,A4,Company-editable workflow states (company layer only),"X5a C4, X4 C1, owner signs the lock list"
