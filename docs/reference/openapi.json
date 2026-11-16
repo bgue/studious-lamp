@@ -3497,6 +3497,34 @@
         "title": "AttachRenditionBody",
         "type": "object"
       },
+      "BoardArea": {
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PermitRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "area",
+          "rows"
+        ],
+        "title": "BoardArea",
+        "type": "object"
+      },
       "BodyPointer": {
         "properties": {
           "hash": {
@@ -25152,6 +25180,320 @@
           "reason"
         ],
         "title": "PauseClockBody",
+        "type": "object"
+      },
+      "PermitBoard": {
+        "properties": {
+          "areas": {
+            "items": {
+              "$ref": "#/components/schemas/BoardArea"
+            },
+            "title": "Areas",
+            "type": "array"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "areas",
+          "counts"
+        ],
+        "title": "PermitBoard",
+        "type": "object"
+      },
+      "PermitDetail": {
+        "properties": {
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Reason"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "handback_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handback Note"
+          },
+          "issued_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued By"
+          },
+          "location_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Text"
+          },
+          "needed_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needed From"
+          },
+          "needed_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needed Until"
+          },
+          "precautions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Precautions",
+            "type": "array"
+          },
+          "reject_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Reason"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "row": {
+            "$ref": "#/components/schemas/PermitRow"
+          },
+          "suspend_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspend Reason"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "description",
+          "location_text",
+          "requested_by",
+          "needed_from",
+          "needed_until",
+          "approved_by",
+          "issued_by",
+          "precautions",
+          "suspend_reason",
+          "handback_note",
+          "reject_reason",
+          "cancel_reason",
+          "version"
+        ],
+        "title": "PermitDetail",
+        "type": "object"
+      },
+      "PermitPage": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PermitRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total"
+        ],
+        "title": "PermitPage",
+        "type": "object"
+      },
+      "PermitRow": {
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area"
+          },
+          "closed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed By"
+          },
+          "for_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "For Key"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issued_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued At"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "permit_type": {
+            "title": "Permit Type",
+            "type": "string"
+          },
+          "revalidation_count": {
+            "title": "Revalidation Count",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "subject",
+          "permit_type",
+          "state",
+          "area",
+          "holder",
+          "issued_at",
+          "valid_until",
+          "revalidation_count",
+          "closed_by",
+          "for_key"
+        ],
+        "title": "PermitRow",
         "type": "object"
       },
       "PinIwpDocumentBody": {
@@ -93582,6 +93924,610 @@
         "summary": "Search Linkable",
         "tags": [
           "links"
+        ]
+      }
+    },
+    "/permits": {
+      "get": {
+        "description": "A project's permits by key, filtered by shown state, type, area and holder. ``total``\ncounts the visible matches. Hidden permits are left out.",
+        "operationId": "list_permits",
+        "parameters": [
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The shown state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Requested",
+                    "Approved",
+                    "Active",
+                    "Lapsed",
+                    "Suspended",
+                    "Handed back",
+                    "Closed",
+                    "Rejected",
+                    "Cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The shown state.",
+              "title": "State"
+            }
+          },
+          {
+            "description": "The permit type.",
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The permit type.",
+              "title": "Type"
+            }
+          },
+          {
+            "description": "The area.",
+            "in": "query",
+            "name": "area",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The area.",
+              "title": "Area"
+            }
+          },
+          {
+            "description": "The holder.",
+            "in": "query",
+            "name": "holder",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The holder.",
+              "title": "Holder"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "At most this many rows.",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Rows to skip.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermitPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Permits",
+        "tags": [
+          "permits"
+        ]
+      }
+    },
+    "/permits/board": {
+      "get": {
+        "description": "The live permits of a project (Lapsed, Suspended, Active) by area, Lapsed first, with the\ncounts by shown state. Hidden permits are left out of the rows and the counts.",
+        "operationId": "get_permit_board",
+        "parameters": [
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The area.",
+            "in": "query",
+            "name": "area",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The area.",
+              "title": "Area"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermitBoard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Permit Board",
+        "tags": [
+          "permits"
+        ]
+      }
+    },
+    "/permits/export": {
+      "get": {
+        "description": "The rows of the list route as CSV (``text/csv``) or JSON lines (``application/x-ndjson``).",
+        "operationId": "export_permits",
+        "parameters": [
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "csv or jsonl.",
+            "in": "query",
+            "name": "format",
+            "required": true,
+            "schema": {
+              "description": "csv or jsonl.",
+              "enum": [
+                "csv",
+                "jsonl"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The shown state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Requested",
+                    "Approved",
+                    "Active",
+                    "Lapsed",
+                    "Suspended",
+                    "Handed back",
+                    "Closed",
+                    "Rejected",
+                    "Cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The shown state.",
+              "title": "State"
+            }
+          },
+          {
+            "description": "The permit type.",
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The permit type.",
+              "title": "Type"
+            }
+          },
+          {
+            "description": "The area.",
+            "in": "query",
+            "name": "area",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The area.",
+              "title": "Area"
+            }
+          },
+          {
+            "description": "The holder.",
+            "in": "query",
+            "name": "holder",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The holder.",
+              "title": "Holder"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Permits",
+        "tags": [
+          "permits"
+        ]
+      }
+    },
+    "/permits/{key}": {
+      "get": {
+        "description": "One permit with its fields. 404 `record_not_found` when it is missing or hidden (one answer\nfor both).",
+        "operationId": "get_permit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermitDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Permit",
+        "tags": [
+          "permits"
         ]
       }
     },
