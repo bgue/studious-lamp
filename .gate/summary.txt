@@ -1,8 +1,5 @@
-just check: ruff, ruff format, schema generate, compat, openapi --check/--compat pass; whole-repo pyright OOM-killed (247); pyright on touched packages/tests: 0 errors
-gate qr tests (7 files, test_views red until T01, excluded): 84 passed
-gate rules/conformance/registry/cli groups/mcp hooks: 51 passed, 1 failed (test_module_hooks declares-commands: forms, permits lack commands hook on base)
-gate confidentiality test_qr_rows + test_forms_rows: qr_rows 5 passed; forms_rows 7 base failures (agent-grant fallout), pins [:6]/[6:9] pass
-gate api hooks: 9 passed
-gate-pg qr tests + test_qr_rows: 132 passed
-acceptance dev/accept/P2-QR/S2.py: S2 ok
-gate: FAIL (only base failures: test_module_hooks forms/permits, 7 test_forms_rows)
+qr tests (whole dir): 86 passed
+qr_rows + qr rules: 6 passed
+acceptance: S2 ok
+gate-pg qr tests + test_qr_rows: 136 passed
+gate: PASS

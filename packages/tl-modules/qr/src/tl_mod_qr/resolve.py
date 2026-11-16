@@ -30,14 +30,14 @@ _LOOKUP = (
 )
 
 
-def _view_word_held(conn: Connection, viewer: Viewer, word: str, scope: str) -> bool:
-    """Whether ``viewer`` holds the provider's ``view_word`` in ``scope`` (fail closed)."""
-    if not viewer.actor:
+def view_word_held(conn: Connection, actor: str, word: str, scope: str) -> bool:
+    """Whether ``actor`` holds the provider's ``view_word`` in ``scope`` (fail closed)."""
+    if not actor:
         return False
     try:
         return holds_word(
             conn,
-            holder_for_actor(conn, viewer.actor),
+            holder_for_actor(conn, actor),
             scope=scope,
             module=word.partition(".")[0],
             word=normalise_word(word),
@@ -64,7 +64,9 @@ def resolve(
         provider = registry.load_scan_cards().get(str(row.target_type))
     except registry.ScanCardLoadError:
         return None
-    if provider is None or not _view_word_held(conn, viewer, provider.view_word, str(row.scope)):
+    if provider is None or not view_word_held(
+        conn, viewer.actor, provider.view_word, str(row.scope)
+    ):
         return None
     try:
         card = provider.card(conn, str(row.target_id), viewer, moment)

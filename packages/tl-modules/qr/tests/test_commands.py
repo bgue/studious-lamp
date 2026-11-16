@@ -17,6 +17,7 @@ from tl_core.services.errors import RecordNotFoundError
 from tl_core.util import new_ulid, utcnow
 from tl_mod_qr import service
 from tl_mod_qr.codes import code_hash, grouped
+from tl_mod_qr.commands import IssueScanCode, RotateScanCode
 from tl_mod_qr.errors import (
     MSG_BASE,
     MSG_CAP,
@@ -28,6 +29,7 @@ from tl_mod_qr.errors import (
 )
 from tl_mod_qr.resolve import resolve
 
+ROWS_ = {"IssueScanCode": IssueScanCode, "RotateScanCode": RotateScanCode}
 ISSUE = "IssueScanCode"
 REVOKE = "RevokeScanCode"
 ROTATE = "RotateScanCode"
@@ -278,3 +280,43 @@ def test_no_event_error_text_or_log_line_holds_the_code(
         )
         everything += "\n".join(texts) + caplog.text + repr(made) + repr(again)
         assert not any(n in everything for n in needles)
+
+
+# --- the service checks the word and the view word itself --------------------------------------
+
+
+def test_the_service_refuses_a_caller_without_the_issue_word_even_when_called_directly(
+    world: World,
+) -> None:
+    target = world.record()
+    before = written(world)
+    for fn, name, fields in (
+        (service.issue, ISSUE, {"target_id": target}),
+        (
+            service.rotate,
+            ROTATE,
+            {"code_id": issued(world, target).result.stream_id, "reason": "x"},
+        ),
+    ):
+        cmd = ROWS_[name](actor="agent:bot", source="test", scope=SCOPE, **fields)
+        with open_uow(world.db) as uow, pytest.raises(ForbiddenError):
+            fn(uow, cmd)
+    assert written(world) == before + 2  # only the setup issue
+
+
+def test_issue_and_rotate_answer_one_text_without_the_providers_view_word(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_core.qr import registry
+
+    target = world.record()
+    made = issued(world, target)
+    blind = {CARDED: FakeProvider(CARDED, view_word="nosuch.word")}
+    monkeypatch.setattr(registry, "load_scan_cards", lambda *a, **k: blind)
+    before = written(world)
+    with pytest.raises(RecordNotFoundError) as first:
+        issued(world, target)
+    with pytest.raises(RecordNotFoundError) as second:
+        world.serve(service.rotate, "uma", ROTATE, code_id=made.result.stream_id, reason="x")
+    assert str(first.value) == str(second.value) == MSG_UNKNOWN
+    assert written(world) == before

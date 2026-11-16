@@ -19,8 +19,10 @@ from typing import Any
 
 from sqlalchemy import text
 from tl_core import confidentiality
+from tl_core.auth.module_roles import require_command_access
 from tl_core.ledger import NewEvent
 from tl_core.qr import registry
+from tl_core.qr.types import ScanCardProvider
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.settings.layers import project_of_scope
@@ -46,6 +48,7 @@ from tl_mod_qr.names import (
     SCAN_CODE_REVOKED,
     SCAN_CODE_TABLE,
 )
+from tl_mod_qr.resolve import view_word_held
 
 BASE_URL = "api.public_base_url"
 CAP = "qr.codes_per_record_max"
@@ -102,11 +105,11 @@ def _visible_record(uow: UnitOfWork, scope: str, record_id: str) -> Any:
     return env
 
 
-def _providers() -> set[str]:
+def _providers() -> dict[str, ScanCardProvider]:
     try:
-        return set(registry.load_scan_cards())
+        return registry.load_scan_cards()
     except registry.ScanCardLoadError:
-        return set()
+        return {}
 
 
 def _append(
@@ -134,7 +137,8 @@ def _issue(
     if not str(value_of(conn, BASE_URL, project=project_of_scope(cmd.scope)) or ""):
         raise QrRuleError(MSG_BASE)
     target = _visible_record(uow, cmd.scope, fields.target_id)
-    if str(target.type) not in _providers():
+    provider = _providers().get(str(target.type))
+    if provider is None or not view_word_held(conn, cmd.actor, provider.view_word, cmd.scope):
         raise _unknown()
     today = utcnow().date().isoformat()
     if fields.expires_on is not None and fields.expires_on.isoformat() < today:
@@ -225,6 +229,7 @@ def _load_code(uow: UnitOfWork, cmd: Command, code_id: str) -> tuple[Any, Any]:
 def issue(uow: UnitOfWork, cmd: IssueScanCode) -> IssuedCode:
     """Issue a code: the setting, a readable target with a card provider, an expiry not past, the
     cap. Appends ``Record.Created`` and ``ScanCode.Issued`` (the hash only); never commits."""
+    require_command_access(uow.conn(), cmd)
     cmd = _correlated(cmd)
     return _issue(uow, cmd, _Fields(cmd.target_id, cmd.label_text, cmd.size, cmd.expires_on), None)
 
@@ -261,6 +266,7 @@ def rotate(uow: UnitOfWork, cmd: RotateScanCode) -> IssuedCode:
     """Revoke the old code (``replaced_by_id`` set) and issue a new one for the same target,
     label, size and expiry, in one unit of work. The actor needs the target's read right, not the
     revoke word."""
+    require_command_access(uow.conn(), cmd)
     cmd = _correlated(cmd)
     env, row = _load_code(uow, cmd, cmd.code_id)
     if row["revoked_at"] is not None:

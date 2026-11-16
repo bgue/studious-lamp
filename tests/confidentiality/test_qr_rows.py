@@ -31,6 +31,8 @@ from forms_world import SCOPE, World, answer  # noqa: E402
 from qr_world import BASE, FakeProvider, providers_of  # noqa: E402
 from tl_mod_qr import service  # noqa: E402
 from tl_mod_qr.commands import IssueScanCode  # noqa: E402
+from tl_mod_qr.labels import LabelFields, label_fields  # noqa: E402
+from tl_mod_qr.resolve import resolve  # noqa: E402
 
 LOW = cf.Viewer(actor="user:vera", level=0, account="user:vera")
 AGENT = cf.Viewer(actor="agent:bot", level=0, account="")
@@ -65,10 +67,14 @@ def world(new_db: Callable[[], DbTarget], monkeypatch: pytest.MonkeyPatch) -> Wo
 
 def issue(world: World, target: str, who: str = "dora") -> str:
     """The id of a code for ``target``, issued by ``who`` as that person's viewer."""
+    return issue_code(world, target, who).result.stream_id
+
+
+def issue_code(world: World, target: str, who: str = "dora") -> service.IssuedCode:
     cmd = IssueScanCode(actor=f"user:{who}", source="test", scope=SCOPE, target_id=target)
     with open_uow(world.db) as uow:
         with cf.use_viewer(cf.viewer_for_actor(uow.conn(), cmd.actor)):
-            return service.issue(uow, cmd).result.stream_id
+            return service.issue(uow, cmd)
 
 
 def hidden(world: World, record: str, viewer: cf.Viewer) -> bool:
@@ -194,8 +200,13 @@ def test_a_chain_of_three_stops_at_two_hops_and_the_last_record_governs(world: W
     secret = world.hidden_record()
     punch = raise_punch(world, secret)
     filed = submission(world, punch)
-    code = issue(world, filed)
+    made = issue_code(world, filed)
+    code = made.result.stream_id
     assert hidden(world, filed, LOW)
     assert hidden(world, punch, LOW)
     assert not hidden(world, code, LOW)
     assert not hidden(world, code, CLEARED)
+    # the card and the label are the second check: neither shows a low reader the hidden target
+    with open_uow(world.db, readonly=True) as uow:
+        assert resolve(uow.conn(), made.code, LOW) is None
+        assert label_fields(uow.conn(), filed, LOW) == LabelFields(None, None)

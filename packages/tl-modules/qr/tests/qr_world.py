@@ -44,9 +44,8 @@ ROWS = {row.model.__name__: row for row in COMMANDS}
 class FakeProvider:
     """Answers a card for any record the viewer can read; counts calls."""
 
-    view_word = "quality.view"
-
-    def __init__(self, record_type: str = CARDED) -> None:
+    def __init__(self, record_type: str = CARDED, view_word: str = "quality.view") -> None:
+        self.view_word = view_word
         self.record_type = record_type
         self.calls = 0
         self.raises = False
