@@ -16642,6 +16642,31 @@
         "title": "ExtractionProblem",
         "type": "object"
       },
+      "FailedAnswer": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "note"
+        ],
+        "title": "FailedAnswer",
+        "type": "object"
+      },
       "FeedItem": {
         "description": "One row of a feed query: a post or an event card, newest first by ``at`` then ``seq``.\n\nFor a post, ``id`` is the post id; for a card, a deterministic card id derived from its first\nevent id. ``event_count`` is 1 for a post; for a card, the number of aggregated ledger events.",
         "properties": {
@@ -18267,6 +18292,13 @@
             ],
             "title": "Done At"
           },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/FailedAnswer"
+            },
+            "title": "Failed",
+            "type": "array"
+          },
           "note": {
             "anyOf": [
               {
@@ -18350,7 +18382,8 @@
           "reinspection_of_key",
           "cancel_reason",
           "punch_keys",
-          "version"
+          "version",
+          "failed"
         ],
         "title": "InspectionDetail",
         "type": "object"
