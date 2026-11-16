@@ -88,6 +88,7 @@ def test_a_row_and_its_text_hold_neither_the_code_nor_its_hash(world: World) -> 
 
 
 def test_at_most_one_hundred_rows_newest_first(world: World) -> None:
+    world.cap(100)  # the default per-record cap is 20 (qr.codes_per_record_max)
     target = world.record()
     made = [issue(world, target) for _ in range(100)]
     for old in made[:5]:  # five rotations: 105 rows, 100 of them live
