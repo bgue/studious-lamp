@@ -55,9 +55,15 @@ def _handler(model: type[Command]) -> Callable[[UnitOfWork, Any], CommandResult]
     return next(c.handler for c in INSP_COMMANDS if c.model is model)
 
 
-def _execute(db: DbTarget, build: Callable[[UnitOfWork], Command]) -> CommandResult:
-    """Build the command on the ledger, gate it with the module role, run its handler; one write."""
-    with service_errors(), open_uow(db) as uow:
+def _execute(db: DbTarget, who: str, build: Callable[[UnitOfWork], Command]) -> CommandResult:
+    """Build the command on the ledger, gate it with the module role, run its handler; one write.
+
+    The build, the gate and the handler read as ``who``, the acting person, as the permit verbs
+    (``tl_mod_permits/cli_permit_write.py::_execute``) and ``cli_isolation`` do. The process's own
+    viewer on a dev ledger is the file's owner, who reads restricted records, so a refusal that
+    names a record would name one ``who`` cannot see.
+    """
+    with service_errors(), open_uow(db) as uow, cf.use_viewer(cf.viewer_for_actor(uow.conn(), who)):
         command = build(uow)
         require_command(uow, command)
         return _handler(type(command))(uow, command)
@@ -140,7 +146,7 @@ def checklist_create(
         )
         return _model(CreateChecklist, actor=who, source=SOURCE, scope=scope, **fields)
 
-    result = _execute(db, build)
+    result = _execute(db, who, build)
     _line("created", str(result.key), result)
 
 
@@ -179,7 +185,7 @@ def checklist_edit(
             **fields,
         )
 
-    _line("edited", key, _execute(db, build))
+    _line("edited", key, _execute(db, who, build))
 
 
 # --- state verbs ---------------------------------------------------------------------------------
@@ -209,7 +215,7 @@ def _run(
             expected_version=int(row["version"]),
         )
 
-    return _execute(db, build)
+    return _execute(db, who, build)
 
 
 def checklist_publish(
