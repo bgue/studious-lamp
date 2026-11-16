@@ -15,14 +15,23 @@ says so in one line.
 
 Dates are the project calendar: ``due_on`` is ISO, and every event falls on its day through
 ``world.on(day)``. Draws come from the section's own ``rng``; nothing reads the clock.
+
+After the punch items the section builds the checklists and inspections (P2-INSP-T03): the three
+sample checklists of ``schema/fixtures/quality/checklists`` (``lhartmann`` publishes them; the
+flange one is revised once) and 18 inspections whose final states are fixed by position
+(``FINAL_INSP``). ``hsato`` plans, schedules and records; ``lhartmann`` verifies. A reject or a
+conditional result raises its punch items through the handler, not through this section.
 """
 
 from __future__ import annotations
 
+import json
 import random
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
+import yaml
 from tl_adapters.db import open_uow
 from tl_core.confidentiality import use_viewer, viewer_for_actor
 from tl_mod_correspondence.handlers.confidentiality import (
@@ -30,11 +39,35 @@ from tl_mod_correspondence.handlers.confidentiality import (
     handle_set_confidentiality,
 )
 from tl_mod_quality.commands import (
+    CancelInspection,
     ClearPunchItem,
+    CreateChecklist,
+    EditChecklist,
+    PlanInspection,
+    PublishChecklist,
     RaisePunchItem,
+    RecordInspectionResult,
+    ReinspectInspection,
     ReopenPunchItem,
+    ReviseChecklist,
+    ScheduleInspection,
+    VerifyInspection,
     VerifyPunchItem,
     VoidPunchItem,
+)
+from tl_mod_quality.handlers.checklist import (
+    handle_create_checklist,
+    handle_edit_checklist,
+    handle_publish_checklist,
+    handle_revise_checklist,
+)
+from tl_mod_quality.handlers.inspection import (
+    handle_cancel_inspection,
+    handle_plan_inspection,
+    handle_record_inspection_result,
+    handle_reinspect_inspection,
+    handle_schedule_inspection,
+    handle_verify_inspection,
 )
 from tl_mod_quality.handlers.punch import (
     handle_clear_punch_item,
@@ -45,7 +78,7 @@ from tl_mod_quality.handlers.punch import (
 )
 
 from dev.seed.demo_project.core import AREAS
-from dev.seed.demo_project.registry import register
+from dev.seed.demo_project.registry import Section, missing_types, register
 from dev.seed.demo_project.world import PROJECT, TODAY, World, actor_of
 
 FOREMEN = ("cbrooks", "pnair")  # the assignees; each clears what is assigned to them
@@ -108,6 +141,93 @@ RESTRICTED_SUBJECT = "Follow-up of a restricted client letter"
 NO_SOURCES_NOTE = (
     "quality: no restricted correspondence sources (correspondence not built); "
     "the two items are free-standing"
+)
+
+
+QA_LEAD = "lhartmann"  # publishes the checklists and verifies the inspections
+FIXTURES = Path(__file__).resolve().parents[3] / "schema" / "fixtures" / "quality" / "checklists"
+CHECKLISTS = ("flange-makeup", "hydrotest-precheck", "scaffold-handover")
+REVISED = "flange-makeup"
+NO_INSPECTIONS_NOTE = "quality: inspections skipped (quality.Inspection not installed)"
+NO_SUBJECTS_NOTE = "quality: no subjects for inspections"
+
+#: The final state of each inspection, by position: 0-2 Planned, 3-6 Scheduled (3 is a hold point
+#: on an IWP), 7-9 Done (accept, reject, conditional), 10-15 Verified, 16-17 Cancelled (from
+#: Planned, from Scheduled).
+FINAL_INSP: tuple[str, ...] = (
+    "Planned",
+    "Planned",
+    "Planned",
+    "Scheduled",
+    "Scheduled",
+    "Scheduled",
+    "Scheduled",
+    "Done",
+    "Done",
+    "Done",
+    "Verified",
+    "Verified",
+    "Verified",
+    "Verified",
+    "Verified",
+    "Verified",
+    "Cancelled",
+    "Cancelled",
+)
+#: The result recorded for each position that is recorded. Positions 14 and 15 are the
+#: reinspections of the Verified reject (12) and conditional (13).
+RESULTS: dict[int, str] = {
+    7: "accept",
+    8: "reject",
+    9: "conditional",
+    10: "accept",
+    11: "accept",
+    12: "reject",
+    13: "conditional",
+    14: "accept",
+    15: "accept",
+}
+REINSPECTS: dict[int, int] = {14: 12, 15: 13}  # child position -> parent position
+#: 5 hold, 4 witness, 5 review, 4 surveillance. A reinspection repeats its parent's point, so the
+#: tuple holds the same word at 12 and 14 and at 13 and 15.
+POINTS: tuple[str, ...] = (
+    "hold",
+    "witness",
+    "review",
+    "hold",
+    "review",
+    "surveillance",
+    "witness",
+    "hold",
+    "review",
+    "witness",
+    "surveillance",
+    "surveillance",
+    "hold",
+    "review",
+    "hold",
+    "review",
+    "surveillance",
+    "witness",
+)
+CWP_AT = (2, 5, 9, 12, 14, 16)  # the other 12 positions have an IWP as subject
+INSP_TITLES: tuple[str, ...] = (
+    "Flange make-up, pipe rack line 101",
+    "Hydrotest pre-check, process unit package 12",
+    "Scaffold handover, tank T-301 shell",
+    "Flange make-up, reactor feed line",
+    "Hydrotest pre-check, cooling water header",
+    "Scaffold handover, fractionation column",
+    "Flange make-up, steam tie-in",
+    "Hydrotest pre-check, nitrogen header",
+    "Scaffold handover, substation roof",
+    "Flange make-up, tank farm manifold",
+    "Hydrotest pre-check, flare line",
+    "Scaffold handover, pipe rack level 2",
+    "Flange make-up, pump discharge",
+    "Hydrotest pre-check, drain header",
+    "Scaffold handover, control room annex",
+    "Flange make-up, instrument air line",
 )
 
 
@@ -177,7 +297,7 @@ def _steps(index: int, state: str) -> tuple[str, ...]:
     return ()
 
 
-def build(world: World, rng: random.Random) -> None:
+def _punch(world: World, rng: random.Random) -> None:
     iwps = _ids(world, "awp.IWP")
     tags = _ids(world, "engineering.Tag")
     cwps = _ids(world, "awp.CWP")
@@ -289,6 +409,267 @@ def build(world: World, rng: random.Random) -> None:
                     punch_item=item,
                     reason="Duplicate of another item",
                 )
+
+
+def _checklists(world: World) -> dict[str, str]:
+    """Create and publish the three sample checklists as the QA lead; revise the flange one once
+    (one question text edited, then published: version 1 Retired, version 2 Published). Returns
+    the id of the Published version of each, by file name.
+
+    A conditional result needs an optional question that can fail, and the samples have none, so
+    the first optional yes/no question of each is made ``fails_when: no`` here (the fixtures
+    stay as they are)."""
+    published: dict[str, str] = {}
+    for name in CHECKLISTS:
+        data = yaml.safe_load((FIXTURES / f"{name}.yaml").read_text(encoding="utf-8"))
+        questions: list[dict[str, Any]] = data["questions"]
+        optional = next(
+            q for q in questions if q["kind"] == "yes_no_na" and q["required"] is not True
+        )
+        optional["fails_when"] = "no"
+        day = TODAY - timedelta(days=45)
+        made = _run(
+            world,
+            QA_LEAD,
+            day,
+            handle_create_checklist,
+            CreateChecklist,
+            title=data["title"],
+            discipline=data["discipline"],
+            questions=questions,
+        )
+        published[name] = str(made.stream_id)
+        _run(
+            world,
+            QA_LEAD,
+            day,
+            handle_publish_checklist,
+            PublishChecklist,
+            checklist=published[name],
+        )
+        if name == REVISED:
+            draft = _run(
+                world,
+                QA_LEAD,
+                day + timedelta(days=1),
+                handle_revise_checklist,
+                ReviseChecklist,
+                checklist=published[name],
+            )
+            edited = [dict(q) for q in questions]
+            edited[0]["text"] = "Flange faces are clean, undamaged and free of scoring"
+            _run(
+                world,
+                QA_LEAD,
+                day + timedelta(days=1),
+                handle_edit_checklist,
+                EditChecklist,
+                checklist=str(draft.stream_id),
+                questions=edited,
+            )
+            _run(
+                world,
+                QA_LEAD,
+                day + timedelta(days=1),
+                handle_publish_checklist,
+                PublishChecklist,
+                checklist=str(draft.stream_id),
+            )
+            published[name] = str(draft.stream_id)
+    return published
+
+
+def _questions_of(world: World, checklist_id: str) -> list[dict[str, Any]]:
+    found = world.scalar(
+        "SELECT questions_json FROM cur_quality_checklist WHERE id = :i", i=checklist_id
+    )
+    return list(json.loads(found) if isinstance(found, (str, bytes)) else found)
+
+
+def _answers(questions: list[dict[str, Any]], rng: random.Random, result: str) -> list[dict]:
+    """An answer to every question. ``accept``: all in range. ``reject``: one required yes/no
+    answered no and one required number out of range. ``conditional``: one optional yes/no
+    answered no. The failures carry a note."""
+    fail: set[str] = set()
+    if result == "reject":
+        yes_no = next(q for q in questions if q["fails_when"] == "no" and q["required"] is True)
+        number = next(q for q in questions if q["fails_when"] == "out_of_range")
+        fail = {yes_no["id"], number["id"]}
+    elif result == "conditional":
+        fail = {
+            next(q for q in questions if q["fails_when"] == "no" and q["required"] is not True)[
+                "id"
+            ]
+        }
+    answers: list[dict] = []
+    for q in questions:
+        value: Any
+        if q["kind"] == "yes_no_na":
+            value = "no" if q["id"] in fail else "yes"
+        elif q["kind"] == "number":
+            low, high = float(q["min"]), float(q["max"])
+            value = (
+                round(high + (high - low) * 0.2 + 1, 1)
+                if q["id"] in fail
+                else round(rng.uniform(low + (high - low) * 0.3, low + (high - low) * 0.7), 1)
+            )
+        elif q["kind"] == "choice":
+            value = q["choices"][rng.randrange(len(q["choices"]))]
+        else:
+            value = "As found"
+        note = "Failed at the inspection; to be fixed and shown again" if q["id"] in fail else None
+        answers.append({"q": q["id"], "value": value, "note": note})
+    return answers
+
+
+def _subjects(world: World, rng: random.Random) -> tuple[list[str], list[str]]:
+    """The IWP and CWP ids, each in a drawn order (the inspections take them in turn)."""
+    iwps, cwps = _ids(world, "awp.IWP"), _ids(world, "awp.CWP")
+    rng.shuffle(iwps)
+    rng.shuffle(cwps)
+    return iwps, cwps
+
+
+def _inspections(world: World, rng: random.Random, published: dict[str, str]) -> None:
+    iwps, cwps = _subjects(world, rng)
+    if not iwps and not cwps:
+        print(NO_SUBJECTS_NOTE)
+        return
+    chosen: dict[int, tuple[str, bool, str]] = {}  # position -> subject, is an IWP, checklist id
+    plans: dict[int, str] = {}  # position -> inspection id
+    verify_day: dict[int, date] = {}  # position -> the day it was verified
+    taken = {"iwp": 0, "cwp": 0}
+    checks = [published[name] for name in CHECKLISTS]
+    titles = iter(INSP_TITLES)
+    own = 0  # the plans that are not reinspections: the index of the title and of the checklist
+    for pos, state in enumerate(FINAL_INSP):
+        parent = REINSPECTS.get(pos)
+        planned = TODAY - timedelta(days=rng.randint(26, 40))
+        scheduled = planned + timedelta(days=rng.randint(1, 3))
+        visit = scheduled + timedelta(days=rng.randint(2, 5))
+        done = visit + timedelta(days=rng.randint(0, 2))
+        verified = done + timedelta(days=rng.randint(1, 3))
+        if state == "Planned":
+            planned = TODAY - timedelta(days=rng.randint(1, 5))
+        elif state in ("Scheduled", "Cancelled"):
+            planned = TODAY - timedelta(days=rng.randint(6, 20))
+            scheduled = planned + timedelta(days=rng.randint(1, 4))
+            visit = TODAY + timedelta(days=rng.randint(1, 14))
+        if parent is not None:
+            actor = "hsato"
+            first = verify_day[parent] + timedelta(days=1)
+            planned, scheduled, visit, done = (
+                first,
+                first + timedelta(days=1),
+                first + timedelta(days=2),
+                first + timedelta(days=3),
+            )
+            verified = done + timedelta(days=1)
+            made = _run(
+                world,
+                actor,
+                planned,
+                handle_reinspect_inspection,
+                ReinspectInspection,
+                inspection=plans[parent],
+                planned_on=planned.isoformat(),
+            )
+            subject, is_iwp, _ = chosen[parent]
+            checklist = chosen[parent][2]
+            chosen[pos] = (subject, is_iwp, checklist)
+        else:
+            want_cwp = pos in CWP_AT
+            pool = (cwps, iwps) if want_cwp else (iwps, cwps)
+            use = pool[0] if pool[0] else pool[1]
+            is_iwp = use is iwps
+            kind = "iwp" if is_iwp else "cwp"
+            subject = use[taken[kind] % len(use)]
+            taken[kind] += 1
+            checklist = checks[own % 3]
+            own += 1
+            chosen[pos] = (subject, is_iwp, checklist)
+            plan_on = (
+                (TODAY + timedelta(days=rng.randint(3, 30))) if state == "Planned" else planned
+            )
+            made = _run(
+                world,
+                "hsato",
+                planned,
+                handle_plan_inspection,
+                PlanInspection,
+                title=next(titles),
+                subject_id=subject,
+                point=POINTS[pos],
+                for_iwp_id=subject if is_iwp else None,
+                area=AREAS[rng.randrange(len(AREAS))][0],
+                planned_on=plan_on.isoformat(),
+            )
+        item = str(made.stream_id)
+        plans[pos] = item
+        if state == "Planned":
+            continue
+        if state == "Cancelled" and pos == 16:
+            _cancel(world, planned + timedelta(days=1), item)
+            continue
+        _run(
+            world,
+            "hsato",
+            scheduled,
+            handle_schedule_inspection,
+            ScheduleInspection,
+            inspection=item,
+            checklist=checklist,
+            scheduled_for=visit.isoformat(),
+            inspector="user:hsato",
+        )
+        if state == "Cancelled":
+            _cancel(world, scheduled + timedelta(days=1), item)
+        elif state != "Scheduled":
+            _run(
+                world,
+                "hsato",
+                done,
+                handle_record_inspection_result,
+                RecordInspectionResult,
+                inspection=item,
+                answers=_answers(_questions_of(world, checklist), rng, RESULTS[pos]),
+                note=None,
+            )
+            if state == "Verified":
+                verify_day[pos] = verified
+                _run(
+                    world,
+                    QA_LEAD,
+                    verified,
+                    handle_verify_inspection,
+                    VerifyInspection,
+                    inspection=item,
+                )
+
+
+def _cancel(world: World, day: date, item: str) -> None:
+    _run(
+        world,
+        "hsato",
+        day,
+        handle_cancel_inspection,
+        CancelInspection,
+        inspection=item,
+        reason="Superseded by the revised work sequence",
+    )
+
+
+def build(world: World, rng: random.Random) -> None:
+    _punch(world, rng)
+    published = (
+        _checklists(world) if not missing_types(Section("c", build, ("quality.Checklist",))) else {}
+    )
+    if not published:
+        return
+    if missing_types(Section("i", build, ("quality.Inspection",))):
+        print(NO_INSPECTIONS_NOTE)
+        return
+    _inspections(world, rng, published)
 
 
 register("quality", build, needs=("quality.PunchItem",))
