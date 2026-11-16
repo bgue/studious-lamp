@@ -524,6 +524,8 @@ AGENT_MAY_NOT = {
     "control.command.ReleaseHold",
     "control.command.SignOffIwp",
     "control.command.CloseWeek",  # P2-I5-S4a: closing a weekly plan is a controller act
+    # P2-I4B: a green tag says a scaffold is safe to use; a person's safety act, never an agent's
+    "control.command.TagScaffoldGreen",
 }
 FEED_COMMANDS = {
     "PostToFeed",
