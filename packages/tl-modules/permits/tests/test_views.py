@@ -104,7 +104,7 @@ def built(world: World) -> Built:
         world.call("sue", "ApprovePermit", permit=b[n][0])
         world.call("pam", "IssuePermit", permit=b[n][0], precautions=["jha_attached"])
     world.call("ada", "ApprovePermit", permit=b[6][0])
-    world.call("pam", "IssuePermit", permit=b[6][0], precautions=["jha_attached"])
+    world.call("ada", "IssuePermit", permit=b[6][0], precautions=["jha_attached"])
     world.call("uma", "SuspendPermit", permit=b[3][0], reason="Stop work")
     world.call("rob", "HandBackPermit", permit=b[5][0], handback_note="Site clear")
     world.call("pam", "ClosePermit", permit=b[5][0])
@@ -289,7 +289,7 @@ def test_a_hidden_record_reads_as_no_rows_and_zero_counts(world: World) -> None:
     secret = world.hidden_record()
     made = world.call("dora", "RequestPermit", **fields(for_record_id=secret))
     world.call("ada", "ApprovePermit", permit=made.stream_id)
-    world.call("pam", "IssuePermit", permit=made.stream_id, precautions=["jha_attached"])
+    world.call("ada", "IssuePermit", permit=made.stream_id, precautions=["jha_attached"])
     only = lst(world)
     assert (only.rows, only.total) == ([], 0)
     assert det(world, str(made.key)) is None
