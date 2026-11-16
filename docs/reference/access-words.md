@@ -50,6 +50,9 @@ A module role does not filter reads: a `superuser` grant gives no restricted rea
 | `materials.adjust` | `controller` | materials |
 | `materials.mto.publish` | `controller` | materials |
 | `materials.mto.assign` | `user` | materials |
+| `qr.view` | `read` | qr |
+| `qr.issue` | `user` | qr |
+| `qr.revoke` | `controller` | qr |
 | `quality.view` | `read` | quality |
 | `quality.punch.raise` | `user` | quality |
 | `quality.punch.edit` | `user` | quality |
@@ -57,6 +60,12 @@ A module role does not filter reads: a `superuser` grant gives no restricted rea
 | `quality.punch.verify` | `controller` | quality |
 | `quality.punch.reopen` | `controller` | quality |
 | `quality.punch.void` | `controller` | quality |
+| `quality.checklist.edit` | `user` | quality |
+| `quality.checklist.publish` | `controller` | quality |
+| `quality.inspection.plan` | `user` | quality |
+| `quality.inspection.record` | `user` | quality |
+| `quality.inspection.verify` | `controller` | quality |
+| `quality.inspection.cancel` | `controller` | quality |
 | `requisitions.view` | `read` | requisitions |
 | `requisitions.raise` | `user` | requisitions |
 | `requisitions.edit` | `user` | requisitions |
