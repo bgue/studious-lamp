@@ -1873,6 +1873,87 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Scaffold.Designed.v1",
+      "event_type": "Scaffold.Designed",
+      "payload_class": "ScaffoldDesignedPayload",
+      "sample": "samples/Scaffold.Designed.v1.json",
+      "schema": "schemas/Scaffold.Designed.v1.json",
+      "title": "The scaffold design was done.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Scaffold.DismantleStarted.v1",
+      "event_type": "Scaffold.DismantleStarted",
+      "payload_class": "ScaffoldDismantleStartedPayload",
+      "sample": "samples/Scaffold.DismantleStarted.v1.json",
+      "schema": "schemas/Scaffold.DismantleStarted.v1.json",
+      "title": "Dismantling began.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Scaffold.Erecting.v1",
+      "event_type": "Scaffold.Erecting",
+      "payload_class": "ScaffoldErectingPayload",
+      "sample": "samples/Scaffold.Erecting.v1.json",
+      "schema": "schemas/Scaffold.Erecting.v1.json",
+      "title": "Erection began; the first inspection falls due one interval later.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Scaffold.Inspected.v1",
+      "event_type": "Scaffold.Inspected",
+      "payload_class": "ScaffoldInspectedPayload",
+      "sample": "samples/Scaffold.Inspected.v1.json",
+      "schema": "schemas/Scaffold.Inspected.v1.json",
+      "title": "The scaffold was inspected and tagged; the inspection is the record `inspection_id`.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Scaffold.InspectionDue.v1",
+      "event_type": "Scaffold.InspectionDue",
+      "payload_class": "ScaffoldInspectionDuePayload",
+      "sample": "samples/Scaffold.InspectionDue.v1.json",
+      "schema": "schemas/Scaffold.InspectionDue.v1.json",
+      "title": "The inspections-due job found the scaffold due or overdue (job only).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Scaffold.Modified.v1",
+      "event_type": "Scaffold.Modified",
+      "payload_class": "ScaffoldModifiedPayload",
+      "sample": "samples/Scaffold.Modified.v1.json",
+      "schema": "schemas/Scaffold.Modified.v1.json",
+      "title": "The scaffold is being modified (also after a failed inspection).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Scaffold.Registered.v1",
+      "event_type": "Scaffold.Registered",
+      "payload_class": "ScaffoldRegisteredPayload",
+      "sample": "samples/Scaffold.Registered.v1.json",
+      "schema": "schemas/Scaffold.Registered.v1.json",
+      "title": "A scaffold was registered from an approved scaffold request.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Scaffold.Released.v1",
+      "event_type": "Scaffold.Released",
+      "payload_class": "ScaffoldReleasedPayload",
+      "sample": "samples/Scaffold.Released.v1.json",
+      "schema": "schemas/Scaffold.Released.v1.json",
+      "title": "The scaffold was released for use.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Scaffold.Removed.v1",
+      "event_type": "Scaffold.Removed",
+      "payload_class": "ScaffoldRemovedPayload",
+      "sample": "samples/Scaffold.Removed.v1.json",
+      "schema": "schemas/Scaffold.Removed.v1.json",
+      "title": "The scaffold was removed, or the request withdrawn before it stood.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Schedule.Defined.v1",
       "event_type": "Schedule.Defined",
       "payload_class": "ScheduleDefinedPayload",

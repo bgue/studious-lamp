@@ -1,0 +1,48 @@
+# Workflow of a scaffold (brief 9 M9): Requested, Designed, Erecting, then Inspected (a pass), In Use (released
+# after a green tag), Modify (a change, or a failed inspection of one that stood), Dismantle and Removed. A request
+# that never stood (Requested, Designed) is withdrawn to Removed. Removed is the only final state. Every move is a
+# command of the scaffold module (by_module), so the file states the moves and names no role: who may do what is the
+# access word of each command (ADR-0013). No constraint guard: nothing is gated on a scaffold here.
+id: scaffold.scaffold
+version: 1
+record_type: scaffold.Scaffold
+scope: company
+initial_state: Requested
+states:
+  - name: Requested
+  - name: Designed
+  - name: Erecting
+  - name: Inspected
+  - name: In Use
+  - name: Modify
+  - name: Dismantle
+  - name: Removed
+transitions:
+  - name: design
+    label: Design the scaffold
+    from: [Requested]
+    to: Designed
+  - name: erect
+    label: Start erecting
+    from: [Designed]
+    to: Erecting
+  - name: pass
+    label: Pass the inspection
+    from: [Erecting, Modify]
+    to: Inspected
+  - name: release
+    label: Release the scaffold for use
+    from: [Inspected]
+    to: In Use
+  - name: modify
+    label: Modify the scaffold
+    from: [Inspected, In Use]
+    to: Modify
+  - name: dismantle
+    label: Start dismantling
+    from: [Inspected, In Use, Modify]
+    to: Dismantle
+  - name: remove
+    label: Remove the scaffold, or withdraw the request
+    from: [Requested, Designed, Dismantle]
+    to: Removed

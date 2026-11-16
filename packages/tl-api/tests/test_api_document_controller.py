@@ -118,6 +118,8 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     }  # fmt: skip
     # the quality module (P2-PUNCH): verify, reopen and void of a punch item
     quality = {"VerifyPunchItem", "ReopenPunchItem", "VoidPunchItem"}
+    # the scaffold module (P2-I4B S1): tagging a scaffold green (scaffold.tag.green)
+    scaffold = {"TagScaffoldGreen"}
     # P2-I4A: approve/reject a requisition, assign/schedule/close a work order
     requisitions = {
         c.model.__name__ for c in REQUISITIONS_COMMANDS if normalise_word(c.access) == "controller"
@@ -140,6 +142,7 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
             | materials
             | quality
             | requisitions
+            | scaffold
         )
     }
 

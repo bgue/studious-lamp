@@ -706,6 +706,34 @@ class TlApp(App[None]):
     def action_stock(self) -> None:
         self._push_materials("stock")
 
+    def action_toolcrib(self) -> None:
+        """The toolcrib line on the project's first toolcrib code (P2-I4B-T07a; palette only)."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.errors import CLIENT_ERRORS, describe_error
+        from tl_tui.toolcrib_text import crib_choices
+        from tl_tui.widgets.toolcrib_screen import ToolcribScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The toolcrib needs a project.", severity="warning")
+            return
+        try:
+            locations = self.client.list_materials_locations(project)
+        except CLIENT_ERRORS as exc:
+            self.notify(describe_error(exc), severity="error")
+            return
+        cribs = crib_choices(locations)
+        if not cribs:
+            self.notify(
+                "No toolcrib in this project. Add a location of kind toolcrib.",
+                severity="warning",
+            )
+            return
+        self.push_screen(ToolcribScreen(self.client, project, self.actor, cribs[0]))
+
     def action_movements(self) -> None:
         self._push_materials("movements")
 
@@ -736,6 +764,7 @@ class TlApp(App[None]):
         from tl_tui.widgets.path_screen import PathScreen
         from tl_tui.widgets.punch_log import PunchLogScreen
         from tl_tui.widgets.requisition_register import RequisitionLogScreen
+        from tl_tui.widgets.scaffold_register import ScaffoldLogScreen
         from tl_tui.widgets.wbs_screen import WbsScreen
         from tl_tui.widgets.weekly_screen import LookAheadScreen
         from tl_tui.widgets.work_order_backlog import WorkOrderBacklogScreen
@@ -754,6 +783,7 @@ class TlApp(App[None]):
             "constraints": ConstraintScreen,
             "backlog": BacklogScreen,
             "punch": PunchLogScreen,
+            "scaffolds": ScaffoldLogScreen,
             "week": LookAheadScreen,
             "requisitions": RequisitionLogScreen,
             "work-orders": WorkOrderBacklogScreen,
@@ -803,6 +833,11 @@ class TlApp(App[None]):
     def action_punch(self) -> None:
         """The punch list of this project: items by state, area and system (palette only)."""
         self._push_awp("punch")
+
+    def action_scaffolds(self) -> None:
+        """The scaffold register of this project: what stands, its state and next inspection
+        (palette only)."""
+        self._push_awp("scaffolds")
 
     def action_week(self) -> None:
         """The weekly cycle of this project: look-ahead, constraints, release (palette only)."""

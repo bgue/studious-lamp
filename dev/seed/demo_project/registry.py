@@ -24,6 +24,7 @@ ORDER = (
     "materials",
     "quality",
     "requisitions",
+    "scaffold",
     "weekly",
     "progress",
 )

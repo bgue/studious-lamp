@@ -205,6 +205,7 @@ IN_TREE_SURFACES = frozenset(
         "materials",
         "quality",
         "requisitions",
+        "scaffold",
         "schedule",
         "schemareg",
     }

@@ -81,7 +81,7 @@ def test_one_event_and_rows_equal_the_view(w: World) -> None:
 def test_nine_checks_and_n_a_counts_as_passing(w: World) -> None:
     i = in_check(w)
     view = ev(w, i, None)  # the real registry
-    assert len(view.checks) == 9
+    assert len(view.checks) == 10
     assert {c.name for c in view.checks} >= {
         "constraints_cleared",
         "documents_current",
