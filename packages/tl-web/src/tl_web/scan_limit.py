@@ -3,7 +3,9 @@
 Misses are counted per session (a hash of the cookie token, never the token) and per client
 address, in a sliding window. Once either count has reached its limit, every lookup of that session
 or address is refused (hit or miss alike, so the refusal tells nothing about a code) until the
-oldest miss leaves the window. Only a miss counts: a hit neither adds to the count nor clears it.
+oldest miss leaves the window. Only a miss counts: a lookup is counted before it runs and a hit
+gives the count back, so a hit neither adds to the count nor clears it, and concurrent lookups
+cannot pass the limit.
 
 It is in process and in memory, bounded by ``MAX_KEYS`` (the key that has been quiet longest is
 dropped first). It is a second layer behind a proxy's own limit, like ``tl_api.ratelimit``.
@@ -71,21 +73,23 @@ class MissCounter:
         self._seen.move_to_end(key)  # a limited key stays recent: eviction takes quiet ones
         return max(times[-limit] + self.window_s - now, 0.001)
 
-    def retry_after(self, token: str, address: str) -> int:
-        """Whole seconds until this session and address may look up again; 0 when they may now."""
+    def reserve(self, token: str, address: str) -> tuple[int, float]:
+        """Count one lookup for this session and address, atomically with the limit check.
+
+        Returns ``(0, stamp)`` when the lookup may run (it is already counted, so a burst of
+        concurrent lookups cannot pass the limit), else ``(seconds to wait, 0.0)`` and nothing is
+        counted. A hit gives its count back with ``refund(..., stamp)``; a miss keeps it.
+        """
         with self._lock:
             now = self._clock()
             wait = max(
                 self._wait(session_key(token), self.session_limit, now),
                 self._wait(address_key(address), self.address_limit, now),
             )
-        return math.ceil(wait) if wait > 0 else 0
-
-    def record_miss(self, token: str, address: str) -> None:
-        with self._lock:
-            now = self._clock()
+            if wait > 0:
+                return math.ceil(wait), 0.0
             for key in (session_key(token), address_key(address)):
-                times = self._trim(key, now)
+                times = self._seen.get(key)
                 if times is None:
                     times = deque()
                     self._seen[key] = times
@@ -94,6 +98,17 @@ class MissCounter:
                 else:
                     self._seen.move_to_end(key)
                 times.append(now)
+            return 0, now
+
+    def refund(self, token: str, address: str, stamp: float) -> None:
+        """Take back the count of a lookup that turned out to be a hit."""
+        with self._lock:
+            for key in (session_key(token), address_key(address)):
+                times = self._seen.get(key)
+                if times is not None and stamp in times:
+                    times.remove(stamp)
+                    if not times:
+                        del self._seen[key]
 
     def keys(self) -> int:
         with self._lock:

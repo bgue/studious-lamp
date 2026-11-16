@@ -51,6 +51,9 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
 SCAN_AREA = "/web/q"
 SCAN_NEXT = re.compile(r"/web/q/[A-Z0-9]{16}")
 NO_REFERRER = (b"referrer-policy", b"no-referrer")
+#: A page that hosts a form sends ``strict-origin``: no path or query leaves, and the browser's
+#: POST keeps its real ``Origin`` (under ``no-referrer`` it is ``null``: the origin check refuses).
+STRICT_ORIGIN = (b"referrer-policy", b"strict-origin")
 PROJECT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
 # the platform's table may not know module scripts; the worker and pdf.js are .mjs
@@ -70,14 +73,25 @@ def is_scan_path(path: str) -> bool:
     return path == SCAN_AREA or path.startswith(SCAN_AREA + "/")
 
 
-def headers_for(path: str) -> tuple[tuple[bytes, bytes], ...]:
-    """The security headers of ``path``: the app's, with ``Referrer-Policy: no-referrer`` for the
-    scan area (a code in the address must never leave in a ``Referer``)."""
-    if not is_scan_path(path):
-        return SECURITY_HEADERS
-    return tuple(
-        NO_REFERRER if name == NO_REFERRER[0] else (name, v) for name, v in SECURITY_HEADERS
-    )
+def referrer_policy(path: str, query: bytes = b"", method: str = "GET") -> tuple[bytes, bytes]:
+    """The ``Referrer-Policy`` of an answer: ``no-referrer`` where a code is in the address and no
+    form is on the page (the card, a miss, a 429, the bounce), ``strict-origin`` for the typed-code
+    form and for the sign-in page that echoes a ``next``, else the app's own."""
+    if path == SCAN_AREA and method == "GET":
+        return STRICT_ORIGIN
+    if is_scan_path(path):
+        return NO_REFERRER
+    if path == WEB_SIGN_IN and b"next=" in query:
+        return STRICT_ORIGIN
+    return next(h for h in SECURITY_HEADERS if h[0] == NO_REFERRER[0])
+
+
+def headers_for(
+    path: str, query: bytes = b"", method: str = "GET"
+) -> tuple[tuple[bytes, bytes], ...]:
+    """The security headers of ``path``: the app's, with the policy of ``referrer_policy``."""
+    policy = referrer_policy(path, query, method)
+    return tuple(policy if name == NO_REFERRER[0] else (name, v) for name, v in SECURITY_HEADERS)
 
 
 def safe_next(value: str) -> str:
@@ -109,11 +123,11 @@ class WebHeadersMiddleware:
 
         path = scope["path"]
         scan = is_scan_path(path)
-        quiet = scan or (path == WEB_SIGN_IN and b"next=" in scope.get("query_string", b""))
+        query, method = scope.get("query_string", b""), scope["method"]
 
         async def with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
-                ours = headers_for(SCAN_AREA if quiet else path)
+                ours = headers_for(path, query, method)
                 names = {name for name, _ in ours}
                 headers = [(n, v) for n, v in message["headers"] if n.lower() not in names]
                 headers.extend(ours)
@@ -139,7 +153,11 @@ def render(request: Request, name: str, status: int = 200, **values: Any) -> HTM
     """An HTML page; the CSRF token is offered only to a request that holds a session."""
     token = request.scope.get(TOKEN_KEY)
     token_value = (
-        csrf.csrf_token(token, request.app.state.web_secret) if isinstance(token, str) else None
+        csrf.csrf_token(token, request.app.state.web_secret)
+        if isinstance(token, str)
+        and referrer_policy(request.url.path, request.url.query.encode(), request.method)
+        != NO_REFERRER
+        else None  # a no-referrer page hosts no form (its POST would carry ``Origin: null``)
     )
     html = _templates.get_template(name).render(csrf=token_value, **values)
     return HTMLResponse(html, status_code=status)

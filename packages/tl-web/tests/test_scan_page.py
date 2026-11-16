@@ -26,6 +26,7 @@ OPEN_TYPE = "quality.PunchItem"  # anyone signed in holds its word
 WORD_TYPE = "engineering.Tag"  # its word is a controller's: a plain user lacks it
 SECRET_TYPE = "correspondence.Correspondence"  # the hidden items of the seed
 LINES = [ScanLine(label=f"L{n}", value=f"V{n}") for n in range(8)]
+OWN_ORIGIN = "http://127.0.0.1"
 BASE = "https://tl.example.com"
 REAL_LOAD = registry.load_scan_cards
 NOW = datetime(2026, 12, 1, 9, 0, tzinfo=UTC)
@@ -270,8 +271,8 @@ def test_signed_out_answers_the_sign_in_page_before_any_lookup(
         quiet = {"content-length": "", "referrer-policy": ""}
         assert headers | quiet == pages[0][2] | quiet
     for (_, _body, headers), found in zip(pages, nexts, strict=True):
-        # a sign-in page that echoes a next sends no referrer; the others keep the app's policy
-        assert headers["referrer-policy"] == ("no-referrer" if found else "same-origin")
+        # a sign-in page that echoes a next sends strict-origin; the others keep the app's policy
+        assert headers["referrer-policy"] == ("strict-origin" if found else "same-origin")
 
 
 def test_the_bounce_of_an_existing_and_a_missing_code_differ_only_by_next(setup: Setup) -> None:
@@ -304,7 +305,7 @@ def test_the_form_and_a_typed_malformed_code(setup: Setup) -> None:
     me = setup.world.web("bob")
     form = me.client.get("/web/q")
     assert form.status_code == 200 and 'action="/web/q"' in form.text
-    assert form.headers["referrer-policy"] == "no-referrer"
+    assert form.headers["referrer-policy"] == "strict-origin"  # it hosts a form
     bad = me.client.post("/web/q", data={"code": "nope"}, headers={"Origin": "http://127.0.0.1"})
     miss = me.client.get(path("ZZZZZZZZZZZZZZZZ"))
     assert bad.status_code == 404 and bad.content == miss.content
@@ -316,7 +317,8 @@ def test_every_scan_answer_has_no_referrer_and_other_pages_keep_the_app_policy(
     setup: Setup,
 ) -> None:
     me = setup.world.web("bob")
-    for url in ("/web/q", path(setup.codes["open"]), path("ZZZZZZZZZZZZZZZZ"), "/web/q/x/y"):
+    assert me.client.get("/web/q").headers["referrer-policy"] == "strict-origin"
+    for url in (path(setup.codes["open"]), path("ZZZZZZZZZZZZZZZZ"), "/web/q/x/y"):
         assert me.client.get(url).headers["referrer-policy"] == "no-referrer", url
     assert me.client.get("/web/sign-in").headers["referrer-policy"] == "same-origin"
     assert me.client.get("/web/qx").headers["referrer-policy"] == "same-origin"
@@ -407,3 +409,43 @@ def test_the_real_iwp_provider_reads_through_the_registry(setup: Setup) -> None:
     provider = providers["awp.IWP"]
     with open_uow(setup.world.target, readonly=True) as uow:
         assert provider.card(uow.conn(), "01J000000000000000000000", cf.LOWEST, NOW) is None
+
+
+FORM = re.compile(r'<form[^>]*method="post"[^>]*action="([^"]*)"', re.IGNORECASE)
+
+
+def test_no_page_that_hosts_a_post_form_sends_no_referrer(setup: Setup) -> None:
+    """Under ``no-referrer`` a browser's form POST carries ``Origin: null`` and the origin check
+    refuses it: every page with a POST form must send a policy that keeps the real ``Origin``, and
+    a POST with the Origin a browser would send from that page must pass the origin check."""
+    world = setup.world
+    world.app.state.scan_misses = scan_limit.MissCounter(session_limit=1)
+    me = world.web("bob")
+    me.client.get(path("ZZZZZZZZZZZZZZZZ"))  # one miss: the next lookup is the 429 page
+    pages = {
+        "form": me.client.get("/web/q"),
+        "card": me.client.get(path(setup.codes["open"])),  # 429 now: the limited page
+        "sign-in": world.client().get("/web/sign-in"),
+        "sign-in next": world.client().get("/web/sign-in", params={"next": path("A" * 16)}),
+        "log": me.client.get("/web/p/P123/rfis"),
+    }
+    world.app.state.scan_misses = scan_limit.MissCounter()
+    pages["card ok"] = me.client.get(path(setup.codes["open"]))
+    pages["miss"] = me.client.get(path("ZZZZZZZZZZZZZZZZ"))
+    seen: set[str] = set()
+    for name, response in pages.items():
+        policy = response.headers["referrer-policy"]
+        forms = FORM.findall(response.text)
+        seen.update(forms)
+        if forms:
+            assert policy != "no-referrer", (name, forms)
+        browser_origin = "null" if policy == "no-referrer" else OWN_ORIGIN
+        for action in forms:
+            data = {"username": "bob", "password": "correct horse battery", "code": "x"}
+            data["csrf"] = me.csrf
+            sent = me.client.post(action, data=data, headers={"Origin": browser_origin})
+            assert sent.status_code != 403, (name, action, sent.status_code)
+    assert {"/web/q", "/web/sign-in", "/web/sign-out"} <= seen
+    for name in ("card", "card ok", "miss"):
+        assert not FORM.findall(pages[name].text), name  # a no-referrer page hosts no form
+        assert pages[name].headers["referrer-policy"] == "no-referrer"

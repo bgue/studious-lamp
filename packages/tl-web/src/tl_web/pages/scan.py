@@ -53,18 +53,10 @@ def _who(request: Request, ctx: ApiContext) -> tuple[str, str]:
     )
 
 
-def _limited(request: Request, token: str, address: str) -> Response | None:
-    wait = counter_of(request).retry_after(token, address)
-    if wait <= 0:
-        return None
+def _limited(wait: int, request: Request) -> Response:
     page = render(request, "scan.html", 429, limited=LIMITED_TEXT, card=None)
     page.headers["Retry-After"] = str(wait)
     return page
-
-
-def _miss(request: Request, token: str, address: str) -> Response:
-    counter_of(request).record_miss(token, address)
-    return not_found_page(request)
 
 
 def _utc(moment: datetime) -> str:
@@ -81,25 +73,33 @@ def scan_typed(
     request: Request, ctx: Ctx, _actor: Reader, code: Annotated[str, Form(max_length=200)] = ""
 ) -> Response:
     token, address = _who(request, ctx)
-    refused = _limited(request, token, address)
-    if refused is not None:
-        return refused
+    counter = counter_of(request)
+    wait, stamp = counter.reserve(token, address)  # a typed code is a lookup: counted first
+    if wait > 0:
+        return _limited(wait, request)
     plain = normalise_code(code)
     if plain is None:
-        return _miss(request, token, address)
+        return not_found_page(request)  # a malformed code is a miss: the count stays
+    counter.refund(token, address, stamp)  # the redirect looks nothing up
     return RedirectResponse(f"/web/q/{plain}", status_code=303)
 
 
 @router.get("/q/{code}")
 def scan_card(request: Request, code: str, ctx: Ctx, _actor: Reader) -> Response:
     token, address = _who(request, ctx)
-    refused = _limited(request, token, address)
-    if refused is not None:
-        return refused
-    now = datetime.now(UTC)
-    with ctx.backend(True) as uow:
-        card = resolve(uow.conn(), code, current_viewer(), now)
+    counter = counter_of(request)
+    wait, stamp = counter.reserve(token, address)  # counted before the resolver runs
+    if wait > 0:
+        return _limited(wait, request)
+    card = None
+    try:
+        now = datetime.now(UTC)
+        with ctx.backend(True) as uow:
+            card = resolve(uow.conn(), code, current_viewer(), now)
+    finally:
+        if card is not None:
+            counter.refund(token, address, stamp)  # a hit costs nothing
     if card is None:
-        return _miss(request, token, address)
+        return not_found_page(request)
     valid = _utc(card.valid_until) if card.valid_until else None
     return render(request, "scan.html", card=card, as_of=_utc(card.as_of), valid_until=valid)
