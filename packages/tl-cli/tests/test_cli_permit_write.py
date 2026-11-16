@@ -221,6 +221,20 @@ def test_an_unknown_for_key_prints_no_record(cli: Cli) -> None:
     assert "error: no record P123-XYZ-0001" in result.output
 
 
+def test_a_for_key_the_actor_cannot_see_prints_the_same_text_as_an_unknown_key(cli: Cli) -> None:
+    secret = cli.world.hidden_record()
+    secret_key = str(cli.world.scalar("SELECT key FROM cur_core_record WHERE id = :i", i=secret))
+    unknown_key = "P123-XYZ-0001"
+    hidden = cli.request("rob", "--for", secret_key)
+    unknown = cli.request("rob", "--for", unknown_key)
+    assert hidden.exit_code == 1 and unknown.exit_code == 1
+    assert f"error: no record {secret_key}" in hidden.output
+    # the same text apart from the key the reader typed
+    assert hidden.output.replace(secret_key, "<KEY>") == unknown.output.replace(
+        unknown_key, "<KEY>"
+    )
+
+
 def test_a_restricted_permit_answers_as_missing_to_a_reader_who_cannot_see_it(cli: Cli) -> None:
     secret = cli.world.hidden_record()
     permit = cli.world.request("dora", for_record_id=secret)
