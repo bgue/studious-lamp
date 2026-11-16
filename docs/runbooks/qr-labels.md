@@ -83,9 +83,9 @@ ADR: [0030](../adr/0030-qr-workface-status.md). Spec: [qr-workface](../build-spe
 
 ## Miss limit
 - A miss is a failed lookup (malformed, unknown, revoked, expired, hidden, no view word, no provider) or a typed code
-  that does not normalise. A hit costs nothing.
+  that does not normalise. A hit adds nothing to the counts.
 - Per session: 10 misses in 600 seconds. Per address: 30 misses in 600 seconds.
-- The eleventh lookup in a window gets `429` with `Retry-After` and the text
+- Once the session has 10 misses, or the address 30, in the window, every lookup from it (hits too) gets `429` with `Retry-After` and the text
   `Too many lookups. Wait a few minutes and try again.` The counters are held in the web process memory; a restart clears them.
 
 ## Refusals and what they mean
@@ -96,7 +96,7 @@ The `<key>` is the key you typed.
 |---|---|---|
 | `error: set api.public_base_url first` | The public address is unset; no file is written | Set it (step 1) |
 | `label size card is not available yet` (`sheet` likewise) | Only `tag` is built | Use `--size tag` |
-| `error: forbidden` | Your account lacks `qr.issue` (label, rotate) or `qr.revoke` (revoke) | Ask a controller |
+| `error: <action> needs the <word> access word for qr on <scope>` | Your account lacks `qr.issue` (label, rotate) or `qr.revoke` (revoke) | Ask a controller |
 | `no record with that id` | The record is unknown, or hidden from you (the same text) | Check the key; check your access to the record |
 | `that record has as many live scan codes as it may have; revoke one first` | The record is at `qr.codes_per_record_max` live codes | Revoke an old code (`ls`, then `revoke`) |
 | `the expiry is in the past` | `--expires` is before today | Give a later date |

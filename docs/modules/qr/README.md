@@ -36,8 +36,9 @@ Scans are reads and are not ledgered.
 The scaffold card waits for the scaffold module on trunk (T05, not built).
 
 ## Rules
-- A QR holds `<api.public_base_url>/web/q/<code>` and nothing else. The code is 16 characters of a 32-letter alphabet
-  (80 random bits). It is opaque: it holds no record data and no id.
+- A QR holds `<api.public_base_url>/web/q/<code>` and nothing else. The code is 16 characters of a 32-symbol alphabet
+  (capital letters without I and O, and the digits 2-9;
+  80 random bits). It is opaque: it holds no record data and no id.
 - A scan needs a signed-in person. Agent tokens are refused.
 - One answer for every miss: unknown, malformed, revoked, expired, hidden record, missing view word and missing provider
   all return the same 404 page, byte for byte. A missing view word is never a 403 on this route.

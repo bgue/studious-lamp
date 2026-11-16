@@ -55,8 +55,9 @@ A record the viewer may not see answers the same 404 as a missing one; no count 
   address). The return address is accepted only when it matches `^/web/q/[A-Z0-9]{16}$`.
 - One miss page for a malformed, unknown, revoked, expired, hidden, no-view-word or no-provider code: status 404, the
   same bytes and headers for every reader.
-- Limits: 10 misses per session and 30 per address in 600 seconds. The eleventh lookup in a window gets 429 with
-  `Retry-After` and the text `Too many lookups. Wait a few minutes and try again.`. A hit costs nothing.
+- Limits: 10 misses per session and 30 per address in 600 seconds. Once either limit is reached, every
+  lookup from that session or address, hits too, gets 429 with `Retry-After` and the text
+  `Too many lookups. Wait a few minutes and try again.`. A hit adds nothing to the counts.
 - Headers on code pages: `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. The form page and the sign-in
   page with `next=` use `strict-origin`, so the origin check of the form works.
 - Access log: the code is replaced by `<redacted>` in `/web/q/` paths (`tl_api.main.redact_code_paths`, installed by
