@@ -16,6 +16,9 @@ dependencies = [
 [project.entry-points."throughline.modules"]
 permits = "tl_mod_permits.module:spec"
 
+[project.entry-points."throughline.scan_cards"]
+permits_permit = "tl_mod_permits.scan_card:provider"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
