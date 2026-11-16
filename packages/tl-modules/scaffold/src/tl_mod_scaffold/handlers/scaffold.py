@@ -171,7 +171,10 @@ def _step(
         cmd,
         scaffold.id,
         SCAFFOLD,
-        [NewEvent(event_type=t, payload=silent(p)) for t, p in events],
+        [
+            NewEvent(event_type=t, payload=silent({"record_id": scaffold.id, **p}))
+            for t, p in events
+        ],
     )
     if transition is None:
         return CommandResult(
