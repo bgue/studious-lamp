@@ -2,6 +2,7 @@
 # `path` is relative to this file; `sha256` is of the file as vendored. Licences are read from the
 # upstream LICENSE files (htmx 2.0.4 ships the Zero-Clause BSD text). pdfjs-dist must stay at or
 # above 4.2.67 (CVE-2024-4367).
+# The surveyjs rows come from two tarballs (survey-core, survey-js-ui); their LICENSE is upstream's v3.2.5 file because the tarballs carry none.
 
 [[file]]
 path = "htmx/htmx.min.js"
@@ -42,3 +43,35 @@ version = "4.10.38"
 licence = "Apache-2.0"
 url = "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-4.10.38.tgz"
 sha256 = "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+
+[[file]]
+path = "surveyjs/survey.core.min.js"
+name = "survey-core"
+version = "3.2.5"
+licence = "MIT"
+url = "https://registry.npmjs.org/survey-core/-/survey-core-3.2.5.tgz"
+sha256 = "46f07eca3a1f07fbafff2864bfc31cb9ab766e8a25dfc2375dcc02df2dbcd253"
+
+[[file]]
+path = "surveyjs/survey-core.min.css"
+name = "survey-core-css"
+version = "3.2.5"
+licence = "MIT"
+url = "https://registry.npmjs.org/survey-core/-/survey-core-3.2.5.tgz"
+sha256 = "68fa8ad13a6e09935fbb93baee388c4054576a6524419e3e477a3ae671ad8f41"
+
+[[file]]
+path = "surveyjs/survey-js-ui.min.js"
+name = "survey-js-ui"
+version = "3.2.5"
+licence = "MIT"
+url = "https://registry.npmjs.org/survey-js-ui/-/survey-js-ui-3.2.5.tgz"
+sha256 = "66587c72ecee48222d9fd2ffc02f603dfe0890631e85204c625a50a582df42f5"
+
+[[file]]
+path = "surveyjs/LICENSE"
+name = "surveyjs-licence"
+version = "3.2.5"
+licence = "MIT"
+url = "https://raw.githubusercontent.com/surveyjs/survey-library/v3.2.5/LICENSE"
+sha256 = "ef2cef07ff83d3ab514f530d85b8b86eb5979f2897eabb875cb69c2bbd8ee611"
