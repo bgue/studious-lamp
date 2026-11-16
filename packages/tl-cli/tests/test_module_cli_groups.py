@@ -67,6 +67,7 @@ OLD_GROUPS = [
     "permit",  # P2-PTW S2: the permits module groups (empty until T04, T05)
     "isolation",
     "gastest",
+    "checklist",  # P2-INSP-T05 (tl checklist, the quality module's group by hook)
 ]
 
 OLD_SUBGROUPS = {
