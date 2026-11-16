@@ -41,6 +41,7 @@ OLD_GROUPS = [
     "comm",
     "mat",
     "punch",
+    "insp",  # P2-INSP-T04 (tl insp, the quality module group)
     "req",
     "wo",
     "config",
