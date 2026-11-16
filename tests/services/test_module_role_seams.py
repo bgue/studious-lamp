@@ -49,6 +49,7 @@ from tl_mod_documents.derivation.publish import PublishDerivedDocuments
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING
 from tl_mod_materials.commands import MATERIALS_COMMANDS as MATERIALS
 from tl_mod_quality.module import PUNCH_COMMANDS as QUALITY
+from tl_mod_scaffold.module import SCAFFOLD_COMMANDS as SCAFFOLD
 from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE
 from tl_mod_schedule.handlers.publish import PublishScheduleSnapshot
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG
@@ -64,6 +65,7 @@ API_COMMANDS_OF = {
     "engineering": ENGINEERING,
     "materials": MATERIALS,
     "quality": QUALITY,
+    "scaffold": SCAFFOLD,
     "schedule": SCHEDULE,
     "schemareg": SCHEMAREG,
 }
@@ -455,6 +457,7 @@ def test_every_module_with_a_record_type_is_walked_by_the_require_generic_test()
         "materials",
         "quality",
         "requisitions",
+        "scaffold",
         "schedule",
         "schemareg",
     ]
