@@ -1,9 +1,4 @@
-check: ruff, format, schema/compat/openapi/licences ok; pyright clean on every touched file (full-repo pyright was OOM-killed, exit 247, 3 times while another heavy run was live; the one full run that finished showed only the pre-existing twin_channels.py warning and a main.py error since fixed)
-gate services: exit 0, 70 passed (after F5-F8)
-gate services (hooks_extra): exit 0, 5 passed
-gate api: exit 0, 26 passed (after F5-F8)
-gate api (module_conformance_walk): exit 0, 2 passed
-api test_commands.py: 266 passed in three direct chunks (gate part OOM-killed, exit 137, 4 times under the other run)
-gate mcp: exit 0, 48 passed (after F5-F8)
-gate cli: exit 0, 39 passed (after F5-F8)
-gate: PASS (all parts but test_commands via the direct chunks)
+bash dev/gate.sh tests/ci
+part 1: exit 0, 3 passed in 2.14s
+gate: PASS
+whole-repo pyright: not applicable to a docs-only change (orchestrator ruling)
