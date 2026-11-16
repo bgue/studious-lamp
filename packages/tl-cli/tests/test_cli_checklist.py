@@ -14,11 +14,14 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 from auth_support import sign_in
 from tl_adapters.db import as_target, create_schema, open_uow
+from tl_cli import checklist_write
 from tl_cli.main import app
+from tl_core import confidentiality as cf
 from tl_core.auth import accounts
 from tl_core.auth.password import prepare_password
 from typer.testing import CliRunner, Result
@@ -292,6 +295,32 @@ def test_an_actor_without_quality_view_is_refused_the_reads(cli: Cli) -> None:
     shown = cli.run("show", "P123-CHK-0001", "--project", PROJECT, "--actor", "user:nan")
     assert shown.exit_code == 1
     assert shown.output.startswith("error: forbidden: ")
+
+
+def test_a_checklist_write_runs_its_handler_as_the_acting_person(
+    cli: Cli, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # No refusal names a record here, so the test spies on the viewer the handler runs under: it
+    # must be the actor's, not the process's (LOWEST on a dev ledger).
+    seen: list[cf.Viewer] = []
+    original = checklist_write._handler
+
+    def spy(model: Any) -> Any:
+        handler = original(model)
+
+        def run(uow: Any, command: Any) -> Any:
+            seen.append(cf.current_viewer())
+            return handler(uow, command)
+
+        return run
+
+    monkeypatch.setattr(checklist_write, "_handler", spy)
+    created = cli.run("create", "--project", PROJECT, "--title", "Spy", "--actor", "user:uma")
+    assert created.exit_code == 0, created.output
+    with open_uow(cli.world.db, readonly=True) as uow:
+        expected = cf.viewer_for_actor(uow.conn(), "user:uma")
+    assert seen == [expected]
+    assert expected != cf.LOWEST
 
 
 # --- 5. help ------------------------------------------------------------------------------
