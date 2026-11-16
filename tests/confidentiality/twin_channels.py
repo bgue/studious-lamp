@@ -755,7 +755,8 @@ def _page_shift(a: str, b: str, cut: int) -> bool:
     if ia is None or ib is None or not (0 <= len(ia) - len(ib) <= cut) or ia[: len(ib)] != ib:
         return False
     la, lb = da.pop("labels", {}), db.pop("labels", {})
-    da.pop("next_before", None), db.pop("next_before", None)
+    da.pop("next_before", None)
+    db.pop("next_before", None)
     return da == db and all(la[k] == lb[k] for k in la.keys() & lb.keys())
 
 
