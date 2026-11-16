@@ -144,3 +144,9 @@ GAS_TEST_RECORDED: Final = "GasTest.Recorded"
 GAS_TEST_EVENTS: Final = frozenset({GAS_TEST_RECORDED})
 
 FEED_NONE: Final = "none"
+
+#: The lapse job (``lapse.py``): one run per project and minute, flags a lapse once.
+JOB_KIND: Final = "permits.lapse"
+JOB_PREFIX: Final = "ptwlapse:"
+JOB_SOURCE: Final = f"job:{JOB_KIND}"
+JOB_ACTOR: Final = f"svc:{JOB_KIND}"

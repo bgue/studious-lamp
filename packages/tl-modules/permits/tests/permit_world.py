@@ -291,6 +291,59 @@ class World:
                 correlation_id="corr-seed",
             )
 
+    def active_many(self, n: int, valid_until: datetime) -> list[str]:
+        """``n`` Active permits made through ledger events in one unit of work (S5: the lapse job's
+        limit), each valid until ``valid_until``; their ids in key order."""
+        cmd = Command(actor="user:pam", source="test", scope=SCOPE)
+        made: list[str] = []
+        with open_uow(self.db) as uow:
+            for i in range(n):
+                probe = create_module_record(
+                    uow, cmd, record_type=PERMIT, title=f"Bulk {i}", key=None
+                )
+                requested = {
+                    "record_id": probe.stream_id,
+                    "feed_policy": "none",
+                    "permit_type": "general",
+                    "for_record_id": None,
+                    "area": "A1",
+                    "location_text": "Yard",
+                    "holder": "Rob",
+                    "needed_from": "2026-12-01",
+                    "needed_until": "2026-12-31",
+                }
+                issued = {
+                    "record_id": probe.stream_id,
+                    "feed_policy": "none",
+                    "issued_at": iso_utc(self.at),
+                    "valid_until": iso_utc(valid_until),
+                    "precautions": [],
+                }
+                for kind, payload in (("Permit.Requested", requested), ("Permit.Issued", issued)):
+                    uow.append(
+                        stream_id=probe.stream_id,
+                        stream_type=PERMIT,
+                        scope=SCOPE,
+                        expected_version=self._version(uow, probe.stream_id),
+                        events=[NewEvent(event_type=kind, payload=payload)],
+                        actor="user:rob" if kind.endswith("Requested") else "user:pam",
+                        source="test",
+                        correlation_id="corr-seed",
+                    )
+                    if kind.endswith("Requested"):
+                        move(uow, cmd, probe.stream_id, "approve")
+                move(uow, cmd, probe.stream_id, "issue")
+                made.append(str(probe.stream_id))
+        return made
+
+    @staticmethod
+    def _version(uow: Any, record: str) -> int:
+        return int(
+            uow.conn()
+            .execute(text("SELECT version FROM cur_core_record WHERE id = :i"), {"i": record})
+            .scalar_one()
+        )
+
     # --- reads -----------------------------------------------------------------------------
 
     def scalar(self, sql: str, **params: Any) -> Any:
