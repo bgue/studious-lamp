@@ -25,9 +25,9 @@ A new module adds its API commands, read routes, agent tools and CLI group by de
 | T01 | CLI groups from the hook: `main.py` loop and equality test | ticket, full | S1 |
 | S4 | Conformance: existing walks over `load_modules()`, row-or-exclusion, word check, delegation class check (ADR-0029 dec. 7), registry drift check | piece | S2, S3 |
 | T02 | `tl new module` scaffold emits the hooks, an example route and tool | ticket, full | S2, S3, T01 |
-| T03 | Fixture module `ext_demo` under `tests/` | ticket, full | S4 |
+| S5 | Fixture module `ext_demo` under `tests/` (was T03; access-worded command plus confidential read: builder piece, D11) | piece | S4 |
 | T04 | TUI note and `docs/runbooks/new-module.md` | ticket, lite | T02 |
-| T05 | Demo driver `dev/demos/P2-X4.sh` | ticket, full | T02, T03 |
+| T05 | Demo driver `dev/demos/P2-X4.sh` | ticket, full | T02, S5 |
 | T06 | `AGENTS.md` rows; module README template | ticket, lite | T05 |
 
 ## Checkpoints
