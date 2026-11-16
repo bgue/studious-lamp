@@ -218,8 +218,11 @@ def _check_ref(name: str, kind: str, ref: str) -> None:
     """Refuse a hook ref of the wrong shape or outside the places ``kind`` may load from.
 
     The one function that holds the prefix rule: a different rule is a change here only. The
-    error names the module and the field, never the ref.
+    error names the module and the field, never the ref. An item that is not text is refused the
+    same way (it never reaches the pattern, so no ``TypeError`` leaks out).
     """
+    if not isinstance(ref, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ModuleLoadError(f"module {name!r}: {kind} must hold text references")
     if _REF.fullmatch(ref) is None:
         raise ModuleLoadError(f"module {name!r}: {kind} has a malformed reference")
     package = ref.split(":", 1)[0]
