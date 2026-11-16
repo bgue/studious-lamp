@@ -18,7 +18,7 @@ def test_every_command_is_a_row_or_an_exclusion() -> None:
     assert rows == {"SubmitForm"}
     assert names <= rows | set(excluded)
     assert not rows & set(excluded)
-    assert len(names - rows) == 10 and (names - rows) <= set(excluded)
+    assert len(names) == 15 and len(names - rows) == 14 and (names - rows) <= set(excluded)
     for name in names - rows:
         reason = excluded[name]
         assert reason == "person acts directly" or reason.startswith("act: ")

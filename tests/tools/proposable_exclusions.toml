@@ -75,3 +75,8 @@ DiscardFormDraft = "person acts directly"
 AcceptFormSubmission = "act: accepting a form is the reviewer's decision"
 ReturnFormSubmission = "act: returning a form is the reviewer's decision"
 VoidFormSubmission = "act: voiding a form is the controller's decision"
+# P2-FORMS S7c intake (a public submission is never proposed by an agent)
+IssueIntakeCode = "person acts directly"
+RevokeIntakeCode = "person acts directly"
+AcceptIntakeItem = "person acts directly"
+RejectIntakeItem = "person acts directly"

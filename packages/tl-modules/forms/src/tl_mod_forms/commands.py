@@ -1,5 +1,6 @@
-"""The forms commands (P2-FORMS S3): templates (draft, edit, publish, revise, retire), submissions
-(save a draft, discard, submit) and review (accept, return, void).
+"""The forms commands (P2-FORMS S3, S7c): templates (draft, edit, publish, revise, retire),
+submissions (save a draft, discard, submit), review (accept, return, void) and intake (issue and
+revoke a code, accept and reject a received item).
 
 ``FORMS_COMMANDS`` (``module.py``) holds one row per model. ``access`` is the fine access word of
 ``schema/settings/access-words.yaml``. Every model is ``extra="forbid"``: the author of a submission
@@ -11,6 +12,8 @@ say about its content is the handler's (``tl_core.forms.rules``).
 
 from __future__ import annotations
 
+import json
+from datetime import date
 from typing import Any, Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
@@ -25,6 +28,10 @@ MAX_TYPE = 64
 MAX_ANSWERS = 2 * MAX_FIELDS
 MAX_FIELD_LIST = 2 * MAX_FIELDS
 MAX_ACCEPTS = 5
+MAX_HEADING = 60
+MAX_ROLE = 64
+MAX_COMMAND_ARGS_BYTES = 64 * 1024
+CODE_HASH_PATTERN = r"^[0-9a-f]{64}$"
 
 AnswerClass = Literal["internal", "restricted", "privileged"]
 EDIT_FIELDS = ("title", "fields", "answer_class", "intake", "purpose", "accepts_as")
@@ -224,14 +231,81 @@ class VoidFormSubmission(_OnSubmission):
         return _text(value)
 
 
+# --- intake (S7c) --------------------------------------------------------------------------------
+
+IntakeRejectReason = Literal["spam", "duplicate", "not_ours", "unclear"]
+
+
+class IssueIntakeCode(_Strict):
+    """Issue a public intake code in a project. The caller makes the code (``tl_core.qr.codes``)
+    and sends its hash: the server never sees the code (D16). ``template_id`` is a Published public
+    intake template; ``context_id`` (optional) is a record the issuer may read in the project."""
+
+    code_hash: str = Field(pattern=CODE_HASH_PATTERN)
+    template_id: str = Field(min_length=1, max_length=MAX_ID)
+    context_id: str | None = Field(default=None, min_length=1, max_length=MAX_ID)
+    heading: str = Field(min_length=1, max_length=MAX_HEADING)
+    controller_role: str = Field(min_length=1, max_length=MAX_ROLE)
+    expires_on: date
+
+    @field_validator("heading", "controller_role")
+    @classmethod
+    def _one_line(cls, value: str) -> str:
+        return _text(value)
+
+
+class RevokeIntakeCode(_Strict):
+    """An Active code to Revoked, the final state."""
+
+    code_id: str = Field(min_length=1, max_length=MAX_ID)
+    reason: str = Field(min_length=1, max_length=MAX_NOTE)
+    expected_version: int | None = Field(default=None, ge=1)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _text(value)
+
+
+class _OnItem(_Strict):
+    item_id: str = Field(min_length=1, max_length=MAX_ID)
+    expected_version: int | None = Field(default=None, ge=1)
+
+
+class AcceptIntakeItem(_OnItem):
+    """Pending to Accepted: the controller's completed command runs through the nested seam (D17).
+    The staged body never becomes the command; the controller's ``command_args`` do."""
+
+    command_type: str = Field(min_length=1, max_length=MAX_TYPE)
+    command_args: dict[str, Any]
+
+    @field_validator("command_args")
+    @classmethod
+    def _bounded(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if len(json.dumps(value, default=str)) > MAX_COMMAND_ARGS_BYTES:
+            raise ValueError("command_args is too large")
+        return value
+
+
+class RejectIntakeItem(_OnItem):
+    """Pending to Rejected; the body stays for the retention window."""
+
+    reason: IntakeRejectReason
+
+
 __all__ = [
     "AcceptFormSubmission",
+    "AcceptIntakeItem",
     "DiscardFormDraft",
     "DraftFormTemplate",
     "EditFormTemplate",
+    "IntakeRejectReason",
+    "IssueIntakeCode",
     "PublishFormTemplate",
+    "RejectIntakeItem",
     "RetireFormTemplate",
     "ReturnFormSubmission",
+    "RevokeIntakeCode",
     "ReviseFormTemplate",
     "SaveFormDraft",
     "SubmitForm",

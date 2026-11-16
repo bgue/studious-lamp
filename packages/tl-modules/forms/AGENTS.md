@@ -23,9 +23,15 @@ Rules of the root `AGENTS.md` apply. Local rules:
 - Every id a command is given goes through `handlers/common.load_submission` or `require_subject`: hidden, absent, other
   project and another author's draft answer one text, `MSG_UNKNOWN`, and the subject is checked before any answer (D11).
 - A state move is a `by_module` transition in the same unit of work as the module's own event. The record fields and the
-  state change only through the eleven commands (`FORMS_GENERIC_COMMANDS` is the short list that may touch a submission).
+  state change only through the fifteen commands (`FORMS_GENERIC_COMMANDS` is the short list that may touch a submission).
 - The reviewer is never the author (`MSG_SELF_REVIEW`), whatever the role.
 - The seam (`tl_core.services.nested`) runs only a module's `ProposableCommand`; the only forms row is `SubmitForm`. A
   stored body never names its actor.
+- Intake (S7c): codes come from `tl_core.qr.codes` (never redefine them, never import `tl_mod_qr`); `IssueIntakeCode` takes a
+  hash, the server never holds a code. `AcceptIntakeItem` runs the controller's `command_args` (never the staged body) through
+  the seam with the controller's holder, reads the body once for the claim (name, company; never the phone), then deletes
+  the body row and appends `Purged` in the same unit. Texts of the four commands (`MSG_CODE_TAKEN`, `MSG_NOT_INTAKE`,
+  `MSG_EXPIRY`, `MSG_NOT_ACCEPTED_AS`, `MSG_UNKNOWN`) never carry a body, claim, code, hash or command argument. An id the actor
+  may not read, an absent id and another project answer `MSG_UNKNOWN` before any state or argument.
 - A new command is a `FORMS_COMMANDS` row and either a `PROPOSABLE` row or a line in `tests/tools/proposable_exclusions.toml`.
 - Tests live in `tests/`; `forms_world.py` runs commands as a person would (access word, intent, handler as that viewer).
