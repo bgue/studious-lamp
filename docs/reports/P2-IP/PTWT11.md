@@ -4,7 +4,6 @@ Branch: `p2/ptw-t11-terminal`   Commit(s): `0f10396c` (code), then this report's
 
 ## Deviations
 - Commit subject is `P2-IP-PTWT11: ...` as the dispatch names it, not the ticket's `P2-PTW-T11: ...`.
-- The trailer names my own model (Haiku 5.5), as the dispatch asks ("naming your own model"); the dispatch text said Opus 5.5.
 - Worktree is `/home/user/wt/ip4/ptwt11` on `p2/ptw-t11-terminal` from `79e41ff0`, as the dispatch names it, not `/home/user/wt/ptw/t11` from `p2/ip-r3`.
 - Base `79e41ff0` already holds PTW-T10 (client methods, `FakePermitSupport`), so the dependency is met.
 - Read beyond the Context list, read-only: `details/`, `log_screen.py`, `layout.py`, `display.py` (signatures), `receipt_entry_text.py` (the envelope is built inline, as INSP-T10 does).
