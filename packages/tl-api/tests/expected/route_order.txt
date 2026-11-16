@@ -417,6 +417,17 @@ POST /commands/ClearPunchItem
 POST /commands/VerifyPunchItem
 POST /commands/ReopenPunchItem
 POST /commands/VoidPunchItem
+POST /commands/CreateChecklist
+POST /commands/EditChecklist
+POST /commands/PublishChecklist
+POST /commands/RetireChecklist
+POST /commands/ReviseChecklist
+POST /commands/PlanInspection
+POST /commands/ScheduleInspection
+POST /commands/RecordInspectionResult
+POST /commands/VerifyInspection
+POST /commands/ReinspectInspection
+POST /commands/CancelInspection
 POST /commands/DefineSchedule
 POST /commands/OpenScheduleSnapshot
 POST /commands/StartScheduleSnapshot

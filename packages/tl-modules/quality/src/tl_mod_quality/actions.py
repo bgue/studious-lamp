@@ -17,7 +17,19 @@ from dataclasses import dataclass
 from sqlalchemy import Connection, text
 from tl_core.actions import ActionOffer, Holds, Level
 
-from tl_mod_quality.names import CLEARED, OPEN, PUNCH_ITEM, VERIFIED
+from tl_mod_quality.names import (
+    CHECKLIST,
+    CLEARED,
+    DONE,
+    DRAFT,
+    INSPECTION,
+    OPEN,
+    PLANNED,
+    PUBLISHED,
+    PUNCH_ITEM,
+    SCHEDULED,
+    VERIFIED,
+)
 
 _STATE_SQL = text("SELECT type, status, voided FROM cur_core_record WHERE id = :id")
 
@@ -27,7 +39,7 @@ class Rule:
     """One command a screen may offer: its label, its access level, the record types it takes and
     the workflow states in which it is offered and taken."""
 
-    command: str  # the command model's class name, as in ``module.PUNCH_COMMANDS``
+    command: str  # the command model's class name, as in ``module.QUALITY_COMMANDS``
     label: str
     level: Level
     record_types: tuple[str, ...]
@@ -40,7 +52,20 @@ RULES: tuple[Rule, ...] = (
     Rule("VerifyPunchItem", "Verify", "controller", (PUNCH_ITEM,), (CLEARED,)),
     Rule("ReopenPunchItem", "Reopen", "controller", (PUNCH_ITEM,), (CLEARED, VERIFIED)),
     Rule("VoidPunchItem", "Void", "controller", (PUNCH_ITEM,), (OPEN, CLEARED)),
+    # checklists and inspections (P2-INSP S2); the plan and create commands need no record
+    Rule("EditChecklist", "Edit", "user", (CHECKLIST,), (DRAFT,)),
+    Rule("PublishChecklist", "Publish", "controller", (CHECKLIST,), (DRAFT,)),
+    Rule("RetireChecklist", "Retire", "controller", (CHECKLIST,), (DRAFT, PUBLISHED)),
+    Rule("ReviseChecklist", "Revise", "controller", (CHECKLIST,), (PUBLISHED,)),
+    Rule("ScheduleInspection", "Schedule", "user", (INSPECTION,), (PLANNED, SCHEDULED)),
+    Rule("RecordInspectionResult", "Record result", "user", (INSPECTION,), (SCHEDULED,)),
+    Rule("VerifyInspection", "Verify", "controller", (INSPECTION,), (DONE,)),
+    Rule("ReinspectInspection", "Reinspect", "user", (INSPECTION,), (DONE, VERIFIED)),
+    Rule("CancelInspection", "Cancel", "controller", (INSPECTION,), (PLANNED, SCHEDULED)),
 )
+
+#: The state of a record no transition has moved yet (its status is not set).
+_INITIAL: Mapping[str, str] = {PUNCH_ITEM: OPEN, CHECKLIST: DRAFT, INSPECTION: PLANNED}
 
 _STATES: Mapping[tuple[str, str], tuple[str, ...]] = {
     (rule.command, record_type): rule.states for rule in RULES for record_type in rule.record_types
@@ -58,7 +83,7 @@ def punch_actions(conn: Connection, record_id: str, holds: Holds) -> list[Action
     row = conn.execute(_STATE_SQL, {"id": record_id}).first()
     if row is None or bool(row.voided):
         return []
-    state = OPEN if row.status is None else str(row.status)
+    state = _INITIAL.get(str(row.type), OPEN) if row.status is None else str(row.status)
     return [
         ActionOffer(command=rule.command, label=rule.label)
         for rule in RULES

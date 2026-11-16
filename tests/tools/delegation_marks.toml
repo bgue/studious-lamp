@@ -12,6 +12,7 @@ StartExtraction = "documents proposal row, access user"
 ReserveStock = "materials proposal row, access materials.reserve"
 RaisePunchItem = "quality proposal row, access quality.punch.raise"
 RaiseRequisition = "requisitions proposal row, access requisitions.raise"
+PlanInspection = "quality proposal row, access quality.inspection.plan"
 
 [excluded]
 # awp
@@ -219,3 +220,14 @@ AdoptSchemaSet = "schema"
 RequestWaiver = "schema"
 ApproveWaiver = "admin"
 RevokeWaiver = "admin"
+# P2-INSP S2 quality inspections (the eligible row is PlanInspection)
+CreateChecklist = "reserved"
+EditChecklist = "reserved"
+PublishChecklist = "reserved"
+RetireChecklist = "reserved"
+ReviseChecklist = "reserved"
+ScheduleInspection = "reserved"
+RecordInspectionResult = "reserved"
+VerifyInspection = "reserved"
+ReinspectInspection = "reserved"
+CancelInspection = "reserved"

@@ -12,7 +12,13 @@ from tl_core.ledger import Event
 from tl_core.modules import ModuleSpec, load_modules
 from tl_core.projection.record import RecordProjector
 from tl_mod_quality import MODULE
-from tl_mod_quality.module import PUNCH_COMMANDS, projectors, spec
+from tl_mod_quality.module import (
+    INSP_COMMANDS,
+    PUNCH_COMMANDS,
+    QUALITY_COMMANDS,
+    projectors,
+    spec,
+)
 from tl_mod_quality.names import (
     CHECKLIST,
     INSPECTION,
@@ -42,13 +48,30 @@ def test_the_punch_commands_and_words_are_as_before() -> None:
     built = spec()
     assert len(PUNCH_COMMANDS) == 6
     assert RAISE == "quality.punch.raise"
-    assert set(built.command_words) == {c.model.__name__ for c in PUNCH_COMMANDS}
-    assert set(built.generic_commands) == {PUNCH_ITEM}
+    assert {c.model.__name__ for c in PUNCH_COMMANDS} <= set(built.command_words)
+    assert set(built.generic_commands) == {PUNCH_ITEM, CHECKLIST, INSPECTION}
     assert set(built.actions) == {PUNCH_ITEM}
-    assert set(built.offline_drafts) == {PUNCH_ITEM}
 
 
-def test_spec_has_six_commands_and_the_raise_draft() -> None:
+def test_the_hook_table_is_the_punch_commands_then_the_eleven_of_inspections() -> None:
+    built = spec()
+    assert QUALITY_COMMANDS == PUNCH_COMMANDS + INSP_COMMANDS
+    assert (len(PUNCH_COMMANDS), len(INSP_COMMANDS), len(QUALITY_COMMANDS)) == (6, 11, 17)
+    assert built.commands == "tl_mod_quality.module:QUALITY_COMMANDS"
+    assert dict(built.command_words) == {c.model.__name__: c.access for c in QUALITY_COMMANDS}
+    assert len(built.command_words) == 17
+    assert dict(built.offline_drafts) == {
+        PUNCH_ITEM: frozenset({"RaisePunchItem"}),
+        INSPECTION: frozenset({"RecordInspectionResult"}),
+    }
+    for record_type in (CHECKLIST, INSPECTION, PUNCH_ITEM):
+        assert built.generic_commands[record_type] == built.generic_commands[PUNCH_ITEM]
+        assert {c for t, c in built.generic_guards if t == record_type} == set(
+            built.generic_commands[record_type]
+        )
+
+
+def test_spec_has_six_punch_commands_and_the_raise_draft() -> None:
     built = spec()
     assert [c.model.__name__ for c in PUNCH_COMMANDS] == [
         "RaisePunchItem",
@@ -58,8 +81,8 @@ def test_spec_has_six_commands_and_the_raise_draft() -> None:
         "ReopenPunchItem",
         "VoidPunchItem",
     ]
-    assert dict(built.command_words) == {c.model.__name__: c.access for c in PUNCH_COMMANDS}
-    assert dict(built.offline_drafts) == {PUNCH_ITEM: frozenset({"RaisePunchItem"})}
+    assert PUNCH_ITEM in built.offline_drafts
+    assert built.offline_drafts[PUNCH_ITEM] == frozenset({"RaisePunchItem"})
     assert not built.company_roles
 
 

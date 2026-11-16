@@ -183,6 +183,10 @@ SUBJECT_LINKS: Final = (
     # an inspection follows that record's own subject on the second hop; a deeper chain stops
     # there (``_HOPS`` is unchanged: the record reached on the last hop governs).
     ("qr.ScanCode", "cur_qr_scan_code", "id", "target_id"),
+    # inspections (P2-INSP S2): an inspection is hidden when its subject is, as a punch item is
+    # hidden through its source; a punch item a failed answer raises has the same subject. The
+    # handlers plan one only against a subject whose own subject names none (two hops).
+    ("quality.Inspection", "cur_quality_inspection", "id", "subject_id"),
 )
 _HOPS: Final = 2
 #: Record types whose own source row is also checked when a subject governs: a submission's

@@ -30,12 +30,12 @@ from tl_mod_correspondence.handlers.confidentiality import (
 from tl_mod_correspondence.handlers.create import create_item
 from tl_mod_correspondence.handlers.models import Recipient
 from tl_mod_correspondence.testing import frozen_today
-from tl_mod_quality.module import PUNCH_COMMANDS
+from tl_mod_quality.module import QUALITY_COMMANDS
 from tl_mod_quality.names import PUNCH_ITEM, PUNCH_ITEM_TABLE
 
 SCOPE = "project:P123"
 PASSWORD = "correct horse battery"
-SPEC = {c.model.__name__: c for c in PUNCH_COMMANDS}
+SPEC = {c.model.__name__: c for c in QUALITY_COMMANDS}
 IWP = "awp.IWP"
 
 

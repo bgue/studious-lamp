@@ -15,7 +15,7 @@ def test_every_command_is_a_row_or_an_exclusion() -> None:
     excluded = set(tomllib.loads(EXCLUSIONS.read_text())["commands"])
     rows = {p.model.__name__ for p in PROPOSABLE}
     names = {c.model.__name__ for c in PUNCH_COMMANDS}
-    assert rows == {"RaisePunchItem"}
+    assert rows == {"RaisePunchItem", "PlanInspection"}
     assert names <= rows | excluded
     assert not rows & excluded
     assert {"ClearPunchItem", "EditPunchItem", "VerifyPunchItem", "ReopenPunchItem"} <= excluded
@@ -23,5 +23,5 @@ def test_every_command_is_a_row_or_an_exclusion() -> None:
 
 
 def test_the_proposal_runs_as_the_accepting_person_with_the_user_word() -> None:
-    (row,) = PROPOSABLE
-    assert (row.tool, row.access, row.agent_tool) == ("propose_punch_item", "user", True)
+    (row,) = (p for p in PROPOSABLE if p.tool == "propose_punch_item")
+    assert (row.model.__name__, row.access, row.agent_tool) == ("RaisePunchItem", "user", True)

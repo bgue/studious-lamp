@@ -15,7 +15,7 @@ from tl_mod_quality import api
 from tl_mod_quality.actions import RULES, punch_actions, states_for
 from tl_mod_quality.errors import PunchRuleError
 from tl_mod_quality.handlers.punch import MSG_SOURCE_LINKED, SOURCE_REFUSED
-from tl_mod_quality.module import PUNCH_COMMANDS, spec
+from tl_mod_quality.module import INSP_COMMANDS, PUNCH_COMMANDS, spec
 
 CLEARED = cf.Viewer(actor="user:dora", level=1, account="user:dora")
 
@@ -96,10 +96,10 @@ def test_open_punch_for_refuses_more_than_the_limit(
 
 
 def test_every_rule_level_equals_the_table_word_of_its_command() -> None:
-    words = {c.model.__name__: c.access for c in PUNCH_COMMANDS}
+    words = {c.model.__name__: c.access for c in PUNCH_COMMANDS + INSP_COMMANDS}
     for rule in RULES:
         assert rule.level == normalise_word(words[rule.command]), rule.command
-    assert [r.command for r in RULES] == [
+    assert [r.command for r in RULES][:5] == [
         "EditPunchItem",
         "ClearPunchItem",
         "VerifyPunchItem",
