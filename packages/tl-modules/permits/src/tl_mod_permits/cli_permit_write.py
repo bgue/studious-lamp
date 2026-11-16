@@ -60,9 +60,14 @@ def _handler(model: type[Command]) -> Callable[[UnitOfWork, Any], CommandResult]
     return next(c.handler for c in COMMANDS if c.model is model)
 
 
-def _execute(db: DbTarget, build: Callable[[UnitOfWork], Command]) -> CommandResult:
-    """Build the command on the ledger, gate it with the module role, run its handler; one write."""
-    with service_errors(), open_uow(db) as uow:
+def _execute(db: DbTarget, who: str, build: Callable[[UnitOfWork], Command]) -> CommandResult:
+    """Build the command on the ledger, gate it with the module role, run its handler; one write.
+
+    The build, the gate and the handler read as ``who``, the acting person, as ``cli_isolation``
+    does. The process's own viewer on a dev ledger is the file's owner, who reads restricted
+    records, so a refusal that names a record would name one ``who`` cannot see.
+    """
+    with service_errors(), open_uow(db) as uow, cf.use_viewer(cf.viewer_for_actor(uow.conn(), who)):
         command = build(uow)
         require_command(uow, command)
         return _handler(type(command))(uow, command)
@@ -143,7 +148,7 @@ def permit_request(
             fields["for_record_id"] = _for_id(uow, scope, for_key, viewer)
         return _model(RequestPermit, actor=who, source=SOURCE, scope=scope, **fields)
 
-    result = _execute(db, build)
+    result = _execute(db, who, build)
     _line("requested", str(result.key), result)
 
 
@@ -179,7 +184,7 @@ def _run(
             **fields,
         )
 
-    _line(verb, key, _execute(db, build))
+    _line(verb, key, _execute(db, who, build))
 
 
 @permit_app.command("approve")

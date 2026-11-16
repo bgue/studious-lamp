@@ -14,11 +14,14 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 from tl_adapters.db import as_target, create_schema, open_uow
 from tl_cli.main import app
+from tl_core import confidentiality as cf
 from tl_core.services.queries import get_record
+from tl_mod_permits import cli_permit_write
 from tl_mod_permits.handlers.permit import MSG_SELF_APPROVE
 from typer.testing import CliRunner, Result
 
@@ -243,6 +246,31 @@ def test_a_restricted_permit_answers_as_missing_to_a_reader_who_cannot_see_it(cl
     assert result.exit_code == 1, result.output
     assert f"error: no permit {key}" in result.output
     assert cli.world.state(permit) == "Requested"
+
+
+def test_a_permit_write_runs_its_handler_as_the_acting_person(
+    cli: Cli, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # No T04 refusal names a record (blockers are codes), so the test spies on the viewer the
+    # handler runs under: it must be the actor's, not the process's (LOWEST on a dev ledger).
+    seen: list[cf.Viewer] = []
+    original = cli_permit_write._handler
+
+    def spy(model: Any) -> Any:
+        handler = original(model)
+
+        def run(uow: Any, command: Any) -> Any:
+            seen.append(cf.current_viewer())
+            return handler(uow, command)
+
+        return run
+
+    monkeypatch.setattr(cli_permit_write, "_handler", spy)
+    cli.key_of(cli.request("rob"))
+    with open_uow(cli.world.db, readonly=True) as uow:
+        expected = cf.viewer_for_actor(uow.conn(), "user:rob")
+    assert seen == [expected]
+    assert expected != cf.LOWEST
 
 
 # --- help -----------------------------------------------------------------------------------------
