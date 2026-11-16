@@ -2,12 +2,11 @@
 
 Branch: `p2/qr-t01-read-views`   Commit(s): see `git log -1` on the branch (single implementation commit)
 
-Status: BLOCKED. Acceptance gate fails on one provided test; the test is not edited.
+Status: done. Amendment 1 (orchestrator) raised the cap in the provided test; lite gate green, 9 passed.
 
 ## Deviations
 - Report path: written to `docs/reports/P2-IP/QRT01.md` as the launch brief asked; the ticket's Allowed paths name `docs/reports/P2-QR/T01.md`.
 - Commit subject uses the launch brief's form `P2-IP-QRT01: ...`; the ticket says `P2-QR-T01: ...`.
-- Trailer names Claude Haiku 5.5 (the implementer's own model), not Opus 5.5 as the brief text said.
 - `views.py` module docstring still says "stub ... Names raise NotImplementedError until T01"; left untouched (docstring is out of the "bodies and imports" scope). It is now stale.
 
 ## Changed files
