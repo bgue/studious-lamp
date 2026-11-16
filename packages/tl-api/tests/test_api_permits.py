@@ -4,7 +4,8 @@ The ledger is built by the permits module's ``permit_world`` helper, loaded by p
 ``test_api_punch.py`` loads its world, never by a projection write. A permit for a restricted
 record is the one the lowest-clearance reader must not see; a document controller must. Readers
 here: no token (401), the lowest clearance (``uma``), a cleared reader (``dora``) and an agent
-(``bot``). A person with no permits word (403) is not built; see the report.
+(``bot``). No enabled account lacks ``permits.view``, so the 403 branch is tested by refusing one
+reader at the one ``require_word`` call (the P2-QR-T06 Decision); no view function may run.
 """
 
 from __future__ import annotations
@@ -22,7 +23,10 @@ from typing import Any
 
 import pytest
 from harness import Harness
-from tl_core.auth import accounts, sessions
+from tl_core.auth import accounts, module_roles, sessions
+from tl_core.auth.errors import ForbiddenError
+from tl_mod_permits import routes as permit_routes
+from tl_mod_permits import views as permit_views
 
 ROOT = Path(__file__).resolve().parents[3]
 PASSWORD = "correct horse battery"
@@ -197,6 +201,54 @@ def test_a_restricted_permit_answers_as_an_unknown_key_on_the_detail_route(rig: 
 def test_the_agent_reader_gets_no_restricted_permit(rig: Rig) -> None:
     assert rig.s.keys["from_secret"] not in rig.keys_of("bot")
     assert rig.get("bot", f"/permits/{rig.s.keys['from_secret']}").status_code == 404
+
+
+def test_the_view_word_is_checked_before_any_read(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Decision (P2-QR-T06 pattern): every account holds ``read`` (``module-roles.yaml`` derives
+    ``user`` for every module), so no seeded person lacks ``permits.view``. One reader (``uma``)
+    is refused at the one ``require_word`` call, with the text the real check gives; every other
+    reader goes through the real check. Each route answers 403 ``forbidden`` and no view runs."""
+    real_require_word = module_roles.require_word
+    asked: list[dict[str, Any]] = []
+    looked: list[str] = []
+
+    def refuse_uma(conn: Any, holder: Any, **kwargs: Any) -> None:
+        if holder.actor != "user:uma":
+            return real_require_word(conn, holder, **kwargs)
+        asked.append(kwargs)
+        raise ForbiddenError(
+            f"{kwargs['what']} needs the {kwargs['word']} access word for "
+            f"{kwargs['module']} on {kwargs['scope']}"
+        )
+
+    def spy(name: str) -> Any:
+        def fail(*args: Any, **kwargs: Any) -> Any:
+            looked.append(name)
+            raise AssertionError(f"{name} ran without the view word")
+
+        return fail
+
+    monkeypatch.setattr(permit_routes, "require_word", refuse_uma)
+    for name in ("permit_list", "permit_board", "permit_detail", "export_rows"):
+        monkeypatch.setattr(permit_views, name, spy(name))
+    key = rig.s.keys["active"]
+    responses = [
+        rig.get("uma", LIST),
+        rig.get("uma", BOARD),
+        rig.get("uma", EXPORT, format="csv"),
+        rig.get("uma", f"/permits/{key}"),
+    ]
+    for response in responses:
+        assert response.status_code == 403, response.text
+        assert response.json()["error"] == "forbidden"
+        assert "permits.view" in response.text
+        assert key not in response.text
+    assert looked == []
+    assert {(a["scope"], a["module"], a["word"], a["what"]) for a in asked} == {
+        (f"project:{PROJECT}", "permits", "read", "permits.view")
+    }
 
 
 # --- lapsed, the board and the export ------------------------------------------------------------
