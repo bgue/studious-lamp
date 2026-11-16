@@ -153,6 +153,10 @@ GET /companies/materials/item-projects
 GET /projects/{project}/materials/lots/{key:path}
 GET /projects/{project}/materials/receipts/{number}
 GET /projects/{project}/materials/reports/{name}
+GET /permits/board
+GET /permits/export
+GET /permits
+GET /permits/{key}
 GET /qr/codes
 GET /qr/codes/export
 GET /qr/resolve/{code}
