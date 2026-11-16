@@ -10,7 +10,7 @@ CR1 p mrg f 600591e3 confidentiality rows, author rule; APPROVALS
 S7c p mrg f 629257b5 security review P; APPROVALS; wave items: code_hash omit, CLI-only issue
 T14 t disp f - webhook scenario rows + envelope fix; in flight
 T13 t mrg f 033059de review P
-T01 t stg f - JSON Schema projection; ready, branch exists
+T01 t mrg f f29ff533 review P after report fix
 T02 t stg f - runner model; provided test T02_test_forms_runner.py
 I02 t stg f - intake page render; provided test I02_test_intake_page.py
 S7c p stg f - intake commands + tl_core/qr/codes.py (D15)
