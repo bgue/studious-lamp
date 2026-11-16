@@ -43,6 +43,10 @@ SECTION_4_DRAFTS: dict[str, frozenset[str]] = {
     "correspondence.TechnicalItem": frozenset({"RaiseTechnical", "UpdateTechnical"}),
     "materials.StockLot": frozenset({"IssueStock", "TransferStock", "ReturnStock"}),
     "quality.PunchItem": frozenset({"RaisePunchItem"}),
+    # module-designs/inspections.md section 3: answers may be captured offline as a draft
+    "quality.Inspection": frozenset({"RecordInspectionResult"}),
+    # module-designs/forms-store-and-forward.md section 4.2; offline-classes.md (forms.Submission)
+    "forms.Submission": frozenset({"SubmitForm", "SaveFormDraft"}),
     "requisitions.LaborRequisition": frozenset({"RaiseRequisition"}),
     "requisitions.MaterialRequisition": frozenset({"RaiseRequisition"}),
     "requisitions.GeneralRequisition": frozenset({"RaiseRequisition"}),

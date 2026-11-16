@@ -52,3 +52,26 @@ Conflicts and resolutions:
 ## Checks
 ruff check and format clean, pyright clean on touched files, generate/compat/openapi --check clean,
 `check_licences.py` ok. Gate results are in the return message.
+
+## INT2
+
+Whole-suite failures on p2/ip-int after the IP merges. All were exact pins that predate the IP modules; no code
+change, no schema file, no declared offline class changed.
+- tl-cli (gastest x6 already fixed by ffc27ea3): `test_cli_config` settings count 34 to 53 (19 settings added by the IP modules);
+  `test_every_controlling_cli_path_is_gated` lacked `checklist_write.py` and
+  `insp_write.py` (1 `require_command` each). Both files do gate with the module word, and
+  `dev/tools/gate_sweep.py --check` reports 0 ungated calls, so not a code bug. Pin extended.
+- tl-core (`test_offline_capture`, 2): `SECTION_4_DRAFTS` now lists `forms.Submission` (`SubmitForm`, `SaveFormDraft`)
+  and `quality.Inspection` (`RecordInspectionResult`), as the modules declare and as
+  `module-designs/forms-store-and-forward.md` 4.2 and `inspections.md` 3 state.
+- tl-mcp (6): walk values `permit_key` and `limit` added to `values()` in `test_confidentiality_walk.py` (as
+  `twin_channels.py` has; the conformance-walk tests fail on the same missing argument); settings count 34 to 53;
+  the propose-tool pin gains `propose_inspection`, `propose_form_submission`, `propose_permit`. No assertion weakened.
+- tl-tui (10): settings counts 34 to 53 in four files. Snapshots regenerated with `--snapshot-update` after reading
+  the diffs: module roles log 80x24 and 170x40 gain Forms, Permits, Qr rows (user, derived) and "15 of 15 modules"
+  (was 12); settings list gains the new keys (`api.public_base_url`, `forms.*`); command palette changes only the
+  scrollbar thumb (more commands).
+- Gates: `.gate/int2-summary.txt`, five calls, all exit 0 (38, 36, 61, 77, 40 passed). ruff, format, pyright clean.
+- APPROVALS: none needed. Question: `docs/build-spec/specs/offline-classes.md` row `quality.Inspection` lists no
+  drafting command and says "record ... central", but the module and `inspections.md` 3 make
+  `RecordInspectionResult` the draft. The doc row looks stale; not edited here.
