@@ -54,3 +54,6 @@ $ just gate packages/tl-api/tests/test_module_hooks_api.py → part 1: exit 0, 9
 ## Open questions / Blocked
 - Agent 403 vs 200 (Deviations): decide whether agents are closed on these routes (new guard action, needs a `tl_core` change) or read as the T07 list does.
 - Gas-tests JSON uses `response_model=None` (union with `Response`), so OpenAPI shows no body schema. Confirm or ask for a typed response.
+
+## Orchestrator ruling
+Test 2 amended: agents read isolation and gas-test routes as they read permits (T07) and list isolations over MCP (T08b): restricted rows are left out, no closed 403. No new guard action.
