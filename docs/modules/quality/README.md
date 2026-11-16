@@ -57,9 +57,31 @@ An agent never clears, verifies, edits, reopens or voids. An agent may propose a
 until a person accepts it, and the accepting person's word decides (`quality.punch.raise`). Acceptance runs `RaisePunchItem` as that
 person.
 
+## Inspections and checklists (P2-INSP slice 1, as built)
+Design: [inspections.md](../../build-spec/module-designs/inspections.md). Runbook: [inspections.md](../../runbooks/inspections.md).
+Reference: [inspections.md](../../reference/inspections.md). Package: `packages/tl-modules/quality/README.md`.
+
+| Type | Table | Purpose | Workflow |
+|---|---|---|---|
+| `quality.Checklist` | `cur_quality_checklist` | A question set; numbered `<project>-CHK-nnnn` | `quality.checklist`: Draft, Published, Retired |
+| `quality.Inspection` | `cur_quality_inspection` | One planned inspection of a record; numbered `<project>-INS-nnnn` | `quality.inspection`: Planned, Scheduled, Done, Verified, Cancelled |
+
+- A checklist is versioned: a Published one never changes; revise makes the next version in Draft and retires the one it replaces.
+- An inspection pins the checklist version when it is scheduled. Recording computes the result (`accept`, `reject`, `conditional`);
+  a `reject` or `conditional` result raises one punch item per failed question, linked to the inspection.
+- The verifier is a controller who did not record the inspection. Reinspect plans a new inspection that names the first.
+- Hidden through its subject, as a punch item is: a hidden inspection reads as a missing one.
+- Readiness: the check `inspections_planned` on each IWP (`n_a` by default; `quality.inspections.required_for_iwp` makes it `blocked`
+  when nothing is planned).
+- Surfaces: CLI `tl insp` and `tl checklist`; API `GET /quality/inspections`, `/quality/inspections/{key}`,
+  `/quality/inspections/export`, `/quality/checklists`, `/quality/checklists/{key}`; MCP reads and `propose_inspection`; TUI palette
+  `inspections` (log and record; scheduling and recording are CLI only); demo `dev/demos/P2-INSP.sh`.
+- Not built in this slice: the run-a-checklist screen, the checklist screens, the `--answers` export, and the TUI filters `o` (open),
+  `d` (due), `h` (hold) and by area (the log has `s` state, `p` point, `m` mine). The runbook lists each one.
+
 ## Not built yet
 Not in this slice; see [DEFERRED.md](../../build-spec/DEFERRED.md):
-- inspections, deficiencies and ITPs;
+- the inspection runner screen and the checklist screens (follow-up slice of the inspections plan), deficiencies and ITPs;
 - the Issue engine (Phase 3);
 - the walkdown screen, photos, feed cards and web pages.
 
