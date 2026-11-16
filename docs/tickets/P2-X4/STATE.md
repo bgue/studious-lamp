@@ -5,7 +5,7 @@ S3 p mrg f 1afa1cfb MCP tools from hooks
 T01 t mrg f 1ec89b00 CLI groups from hooks
 S2 p mrg f ee6fa66e API table and routers (C2)
 S4 p mrg f 4e39ff78 review P; APPROVALS
-T02a t stg f - scaffold spec+commands hook+entry point; light, beside S4
+T02a t mrg f 479f41bb review P; amend 1
 T02b t stg f - scaffold route, tool, CLI group; waits T02a
 T03 t stg f - fixture ext_demo; waits S4; spec staged, text pasted r4
 T04 t stg l - runbook new-module; waits T02b
