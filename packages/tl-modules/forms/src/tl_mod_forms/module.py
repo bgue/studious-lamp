@@ -12,7 +12,8 @@ hook field. Its one ``confidential`` source classes a submission by its ``answer
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Any
 
 from tl_core.modules import ModuleSpec, ProposableCommand
@@ -89,27 +90,32 @@ class FormsCommand:
     model: type[Command]
     handler: Any  # Callable[[UnitOfWork, Any], CommandResult]
     access: str
+    #: ``delegation``: ``eligible`` or ``excluded:<reason>`` (ADR-0029 decision 7)
+    meta: Mapping[str, str] = field(default_factory=dict)
 
 
 #: The word the API table (``tl_api.commands``) reads for the module's row type.
 ApiCommand = FormsCommand
 
+#: Not an agent's to file; a person acts directly (reasons in ``proposable_exclusions.toml``).
+_RESERVED = {"delegation": "excluded:reserved"}
+
 FORMS_COMMANDS: tuple[FormsCommand, ...] = (
-    FormsCommand(DraftFormTemplate, handle_draft_form_template, TEMPLATE_EDIT),
-    FormsCommand(EditFormTemplate, handle_edit_form_template, TEMPLATE_EDIT),
-    FormsCommand(PublishFormTemplate, handle_publish_form_template, TEMPLATE_PUBLISH),
-    FormsCommand(ReviseFormTemplate, handle_revise_form_template, TEMPLATE_EDIT),
-    FormsCommand(RetireFormTemplate, handle_retire_form_template, TEMPLATE_PUBLISH),
-    FormsCommand(SaveFormDraft, handle_save_form_draft, SUBMIT),
-    FormsCommand(DiscardFormDraft, handle_discard_form_draft, SUBMIT),
-    FormsCommand(SubmitForm, handle_submit_form, SUBMIT),
-    FormsCommand(AcceptFormSubmission, handle_accept_form_submission, REVIEW),
-    FormsCommand(ReturnFormSubmission, handle_return_form_submission, REVIEW),
-    FormsCommand(VoidFormSubmission, handle_void_form_submission, VOID_WORD),
-    FormsCommand(IssueIntakeCode, handle_issue_intake_code, INTAKE_ISSUE),
-    FormsCommand(RevokeIntakeCode, handle_revoke_intake_code, INTAKE_ISSUE),
-    FormsCommand(AcceptIntakeItem, handle_accept_intake_item, INTAKE_REVIEW),
-    FormsCommand(RejectIntakeItem, handle_reject_intake_item, INTAKE_REVIEW),
+    FormsCommand(DraftFormTemplate, handle_draft_form_template, TEMPLATE_EDIT, _RESERVED),
+    FormsCommand(EditFormTemplate, handle_edit_form_template, TEMPLATE_EDIT, _RESERVED),
+    FormsCommand(PublishFormTemplate, handle_publish_form_template, TEMPLATE_PUBLISH, _RESERVED),
+    FormsCommand(ReviseFormTemplate, handle_revise_form_template, TEMPLATE_EDIT, _RESERVED),
+    FormsCommand(RetireFormTemplate, handle_retire_form_template, TEMPLATE_PUBLISH, _RESERVED),
+    FormsCommand(SaveFormDraft, handle_save_form_draft, SUBMIT, _RESERVED),
+    FormsCommand(DiscardFormDraft, handle_discard_form_draft, SUBMIT, _RESERVED),
+    FormsCommand(SubmitForm, handle_submit_form, SUBMIT, {"delegation": "eligible"}),
+    FormsCommand(AcceptFormSubmission, handle_accept_form_submission, REVIEW, _RESERVED),
+    FormsCommand(ReturnFormSubmission, handle_return_form_submission, REVIEW, _RESERVED),
+    FormsCommand(VoidFormSubmission, handle_void_form_submission, VOID_WORD, _RESERVED),
+    FormsCommand(IssueIntakeCode, handle_issue_intake_code, INTAKE_ISSUE, _RESERVED),
+    FormsCommand(RevokeIntakeCode, handle_revoke_intake_code, INTAKE_ISSUE, _RESERVED),
+    FormsCommand(AcceptIntakeItem, handle_accept_intake_item, INTAKE_REVIEW, _RESERVED),
+    FormsCommand(RejectIntakeItem, handle_reject_intake_item, INTAKE_REVIEW, _RESERVED),
 )
 
 #: The life of a link that starts at the record (accept, decline, re-pin, verify, flag, retract).
@@ -146,6 +152,7 @@ def spec() -> ModuleSpec:
         generic_commands={SUBMISSION: FORMS_GENERIC_COMMANDS},
         generic_guards={(SUBMISSION, c): submitted_or_later for c in FORMS_GENERIC_COMMANDS},
         proposable=PROPOSABLE,
+        commands="tl_mod_forms.module:FORMS_COMMANDS",
         confidential=CONFIDENTIAL,
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in FORMS_COMMANDS},
