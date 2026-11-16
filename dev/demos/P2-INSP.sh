@@ -297,7 +297,7 @@ JSON
     (
       export TL_DB="$gen_db" TL_SCHEMA_DIR=dev/data/demo-project-schema
       printf 'p200-demo-pass\n' | as hsato tl login hsato --password-stdin >/dev/null
-      out="$(as hsato tl insp ls --project P200 --limit 500)"; echo "$out" | head -n 3
+      out="$(as hsato tl insp ls --project P200 --limit 500)"; head -n 3 <<<"$out"
       [ "$(tail -n 1 <<<"$out" | awk '{print $3}')" -ge 1 ] || fail "tl insp ls is empty on the generated ledger"
     )
     echo "PASS clause 7b: $quality_line; tl insp ls on the generated ledger is not empty (SQLite only)"
