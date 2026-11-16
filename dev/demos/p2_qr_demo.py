@@ -230,8 +230,14 @@ def label_check(label: Path, out: Path, key: str, project: str) -> None:
     plain = match[0].replace("-", "")
     register = stdout.split()[1]
     rest = GROUPED.sub("", page)
-    for leaked in (key, project, register, record_id_of(key), plain):
-        check(leaked not in rest, f"the label file holds {leaked} outside the grouped print")
+    for name, leaked in (
+        ("the key", key),
+        ("the project", project),
+        ("the register id", register),
+        ("the record id", record_id_of(key)),
+        ("the code", plain),
+    ):
+        check(leaked not in rest, f"the label file holds {name} outside the grouped print")
     check(CODE16.search(rest) is None, "the label file holds a 16-character code outside the print")
     for leaked in (plain, match[0], key, record_id_of(key)):
         check(leaked not in stdout, "the label command printed a code or an id to stdout")
@@ -357,7 +363,7 @@ def mode_clause6_agent(label: str, key: str) -> None:
     token = os.environ["P2_QR_AGENT_TOKEN"]
     code = code_of(Path(label))
     page = web.request("GET", scan(code), bearer=token)
-    check(page.status in (401, 403), f"the agent on the scan path gave {page.status}")
+    check(page.status == 401, f"the agent on the scan path gave {page.status}")
     check(not is_card(page), "the agent on the scan path showed a card")
     listing = web.request("GET", f"/qr/codes?project={PROJECT}&record={key}", bearer=token)
     check(listing.status == 403, f"the agent on /qr/codes gave {listing.status}, not 403")
