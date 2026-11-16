@@ -4,7 +4,6 @@ Branch: `p2/ptw-t09b-card-lines`   Commit(s): code `6eba7ecb`; this report is th
 
 ## Deviations
 - Commit subject uses the ticket ID `P2-PTW-T09b:` (AGENTS.md rule 9 and the ticket's Report requirements), not the dispatch's `P2-IP-PTWT09b:`.
-- Commit trailer names Claude Haiku 5.5 (the model this session runs on), not "Opus 5.5" as the dispatch text said.
 - Report path is `docs/reports/P2-IP/PTWT09b.md` (dispatch and Allowed paths), not the ticket's header path.
 - Statement-count test skipped: `test_views.py` has no statement-count helper. (`test_lapse_job.py` has a `before_cursor_execute` spy, but the ticket names `test_views.py` and says to skip if none.)
 
