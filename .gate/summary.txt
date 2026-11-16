@@ -1,0 +1,10 @@
+check: ruff, ruff format, codegen pass; whole-repo pyright exit 247 (killed); pyright on touched paths 0 errors
+permits commands+guards: 41 passed
+permits visibility/exclusions/spec/rules: 66 passed
+services rules/conformance/hooks/registry: 39 passed, 1 failed (base: test_module_hooks NO_COMMANDS pin lacks forms, qr)
+confidentiality ptw_rows+forms_rows: ptw_rows all pass; 7 failed (base: forms X2 agent-grant fallout)
+cli groups + mcp tool hooks: 11 passed
+api module hooks: 9 passed
+gate-pg permit commands + ptw_rows: 76 passed
+accept P2-PTW/S2.py: S2 ok
+gate: FAIL (only the 8 base failures above)
