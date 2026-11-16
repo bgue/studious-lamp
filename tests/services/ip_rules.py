@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+sys.path.insert(
+    0, str(Path(__file__).resolve().parent)
+)  # helpers beside this file (importlib mode)
+
 from test_module_conformance import (
     load_exclusions,
     load_marks,
@@ -17,9 +24,14 @@ from tl_core.modules import IN_TREE_SURFACES, hook_failures, load_modules, modul
 
 def problems(module: str, names: set[str]) -> list[str]:
     """Problems of the rows of ``module`` (none: clean); the row names must equal ``names``."""
-    specs, marks, excluded = load_modules(), load_marks(), load_exclusions()
+    specs, all_marks, excluded = load_modules(), load_marks(), load_exclusions()
     spec = next(s for s in specs if s.name == module)
     rows = [r for r in module_commands() if r.module == module]
+    own = {r.name for r in rows}  # only this module's marks: the file holds every module's
+    marks = type(all_marks)(
+        {k: v for k, v in all_marks.eligible.items() if k in own},
+        {k: v for k, v in all_marks.excluded.items() if k in own},
+    )
     found = [] if {r.name for r in rows} == names else [f"rows {sorted(r.name for r in rows)}"]
     found += [text for name, text in hook_failures().items() if name == module]
     if module not in IN_TREE_SURFACES:
