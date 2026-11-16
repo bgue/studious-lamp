@@ -330,21 +330,6 @@ MODULE_STREAMS = (
     ("permits.Permit", "Permit.Requested", ("Permit.Cancelled",)),
     ("permits.Isolation", "Isolation.Applied", ("Isolation.Verified", "Isolation.Removed")),
     ("permits.GasTest", "GasTest.Recorded", ()),
-    # forms (P2-FORMS): a template from creation to retirement; a submission saved then submitted,
-    # one returned, one voided, one draft discarded; an intake code revoked; intake items received
-    # into each state (the projectors insert on the first event and update the row after it)
-    (
-        "forms.Template",
-        "Template.Created",
-        ("Template.Edited", "Template.Published", "Template.Retired"),
-    ),
-    ("forms.Submission", "Submission.DraftSaved", ("Submission.Submitted", "Submission.Accepted")),
-    ("forms.Submission", "Submission.Submitted", ("Submission.Returned",)),
-    ("forms.Submission", "Submission.Submitted", ("Submission.Voided",)),
-    ("forms.Submission", "Submission.DraftSaved", ("Submission.DraftDiscarded",)),
-    ("forms.IntakeCode", "IntakeCode.Issued", ("IntakeCode.Revoked",)),
-    ("forms.IntakeItem", "IntakeItem.Received", ("IntakeItem.Accepted",)),
-    ("forms.IntakeItem", "IntakeItem.Received", ("IntakeItem.Rejected", "IntakeItem.Purged")),
     # awp part 3 (P2-I5): weekly plans and closeout
     (
         "awp.WeeklyPlan",
