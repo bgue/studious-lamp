@@ -541,6 +541,7 @@ def _inspections(world: World, rng: random.Random, published: dict[str, str]) ->
     taken = {"iwp": 0, "cwp": 0}
     checks = [published[name] for name in CHECKLISTS]
     titles = iter(INSP_TITLES)
+    own = 0  # the plans that are not reinspections: the index of the title and of the checklist
     for pos, state in enumerate(FINAL_INSP):
         parent = REINSPECTS.get(pos)
         planned = TODAY - timedelta(days=rng.randint(26, 40))
@@ -574,7 +575,7 @@ def _inspections(world: World, rng: random.Random, published: dict[str, str]) ->
                 planned_on=planned.isoformat(),
             )
             subject, is_iwp, _ = chosen[parent]
-            checklist = checks[parent % 3]
+            checklist = chosen[parent][2]
             chosen[pos] = (subject, is_iwp, checklist)
         else:
             want_cwp = pos in CWP_AT
@@ -584,7 +585,8 @@ def _inspections(world: World, rng: random.Random, published: dict[str, str]) ->
             kind = "iwp" if is_iwp else "cwp"
             subject = use[taken[kind] % len(use)]
             taken[kind] += 1
-            checklist = checks[pos % 3]
+            checklist = checks[own % 3]
+            own += 1
             chosen[pos] = (subject, is_iwp, checklist)
             plan_on = (
                 (TODAY + timedelta(days=rng.randint(3, 30))) if state == "Planned" else planned

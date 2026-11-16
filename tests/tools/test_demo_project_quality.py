@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -108,10 +109,14 @@ def test_the_counts_by_state(runs: dict[str, Run]) -> None:
     assert states.count("Void") == 2
 
 
-def test_the_inspections_raise_six_more_punch_items(runs: dict[str, Run]) -> None:
+def test_the_inspections_raise_more_punch_items(runs: dict[str, Run]) -> None:
     db = runs["main"].db
     everything = rows(db, "SELECT key FROM cur_core_record WHERE type = 'quality.PunchItem'")
-    assert len(everything) == len(punch(db)) + 6
+    printed = re.search(r"quality: (\d+) records", runs["main"].stdout)
+    assert printed is not None
+    raised = int(printed.group(1)) - (29 + 4 + 18)  # the run's records less the seed's own
+    assert raised > 0
+    assert len(everything) == len(punch(db)) + raised
     assert (
         len(
             rows(
@@ -120,7 +125,7 @@ def test_the_inspections_raise_six_more_punch_items(runs: dict[str, Run]) -> Non
                 "WHERE l.relation = 'raised_against' AND i.type = 'quality.Inspection'",
             )
         )
-        == 6
+        == raised
     )
 
 

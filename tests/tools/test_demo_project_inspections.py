@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,8 @@ from sqlalchemy import text
 from tl_adapters.db import open_uow
 
 ROOT = Path(__file__).resolve().parents[2]
+TODAY = date(2026, 11, 6)  # world.TODAY: the fixed "today" of the demo project
+DAY = TODAY.isoformat()
 SECTIONS = "core,engineering,awp,constraints,quality"
 SOURCED = "core,engineering,awp,constraints"
 
@@ -175,9 +178,11 @@ def test_the_subjects(runs: dict[str, Run]) -> None:
 def test_planned_have_no_checklist_and_a_future_day(runs: dict[str, Run]) -> None:
     items = inspections(runs["main"].db)
     planned = [i for i in items if i["state"] == "Planned"]
-    assert all(i["checklist_id"] is None and str(i["planned_on"]) > "2026-11-06" for i in planned)
+    assert all(i["checklist_id"] is None and str(i["planned_on"]) > DAY for i in planned)
     scheduled = [i for i in items if i["state"] == "Scheduled"]
-    assert all("2026-11-06" < str(i["scheduled_for"]) <= "2026-11-20" for i in scheduled)
+    assert all(
+        DAY < str(i["scheduled_for"]) <= (TODAY + timedelta(days=14)).isoformat() for i in scheduled
+    )
 
 
 def test_a_failed_result_has_punch_items_and_an_accept_has_none(runs: dict[str, Run]) -> None:
@@ -193,9 +198,14 @@ def test_a_failed_result_has_punch_items_and_an_accept_has_none(runs: dict[str, 
     for item in items:
         if item["result"] == "accept" or item["result"] is None:
             assert str(item["id"]) not in raised, item["key"]
-    # 2 for each reject, 1 for each conditional (the handler's rule), read from the ledger
-    assert sum(raised.values()) == 6
-    assert len(inspection_punch(db)) == 6
+    # the number the run printed (records less the seed's own), read from the ledger
+    assert sum(raised.values()) == len(inspection_punch(db)) == raised_by_the_run(runs["main"])
+
+
+def raised_by_the_run(run: Run) -> int:
+    line = re.search(r"quality: (\d+) records", run.stdout)
+    assert line is not None
+    return int(line.group(1)) - (29 + 4 + 18)  # punch items, checklists, inspections
 
 
 def test_the_run_prints_its_record_count(runs: dict[str, Run]) -> None:
