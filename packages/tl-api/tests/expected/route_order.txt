@@ -156,7 +156,11 @@ GET /projects/{project}/materials/reports/{name}
 GET /permits/board
 GET /permits/export
 GET /permits
+GET /permits/isolations
+GET /permits/isolations/export
+GET /permits/isolations/{key}
 GET /permits/{key}
+GET /permits/{key}/gas-tests
 GET /qr/codes
 GET /qr/codes/export
 GET /qr/resolve/{code}
