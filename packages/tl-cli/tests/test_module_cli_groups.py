@@ -48,6 +48,7 @@ OLD_GROUPS = [
     "lake",
     "dev",
     "new",
+    "agent",  # added by P2-X2 T02 (agent_stop); union form
     "webhook",
     "rule",
     "endpoint",

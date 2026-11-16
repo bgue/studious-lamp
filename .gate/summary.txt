@@ -1,0 +1,3 @@
+bash dev/gate.sh packages/tl-cli/tests/test_new_module_spec.py packages/tl-cli/tests/test_cli_new_module.py packages/tl-cli/tests/test_scaffold_engine.py packages/tl-cli/tests/test_cli_new_record_type.py packages/tl-cli/tests/test_cli_new_projector.py packages/tl-cli/tests/test_module_cli_groups.py
+part 1: exit 0, 93 passed in 74.21s (0:01:14)
+gate: PASS

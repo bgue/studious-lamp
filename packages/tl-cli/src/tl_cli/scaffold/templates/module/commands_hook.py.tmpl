@@ -1,8 +1,11 @@
-"""Commands this module offers to the API, the CLI and agents (`ModuleCommand` rows; ADR-0029).
+"""Commands this module offers to the API, the CLI and agents (`ModuleCommand` rows;
+ADR-0029).
 
-A row is `ModuleCommand(module=MODULE, model=<Command class>, handler=<handler>, access=<word>)`.
-Every command name must be unique across installed modules. Add `meta={"delegation": "excluded:reserved"}`
-unless the design says otherwise: a missing mark means excluded.
+A row is
+`ModuleCommand(module=MODULE, model=<Command class>, handler=<handler>, access=<word>)`.
+Every command name must be unique across installed modules. Add
+`meta={"delegation": "excluded:reserved"}` unless the design says
+otherwise: a missing mark means excluded.
 """
 
 from __future__ import annotations

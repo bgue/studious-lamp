@@ -50,7 +50,7 @@ def test_it_tells_what_to_do_next(root: Path) -> None:
 def test_the_generated_files_pass_ruff_and_their_own_tests(root: Path) -> None:
     tl_new(root, "projector", "inspection.weld_counts", "--event", "Weld.Created")
     ruff_clean(root)
-    assert "4 passed" in generated_tests_pass(root, "packages/tl-modules/inspection")
+    assert "5 passed" in generated_tests_pass(root, "packages/tl-modules/inspection")
 
 
 def test_the_longest_names_still_give_formatted_code(tmp_path: Path) -> None:
