@@ -50,7 +50,8 @@ def main() -> None:
     create_schema(db)
     w = World(db)
     w.people()
-    vars(handlers)["now"] = lambda: w.at  # the one clock of the handlers
+    clocked: Any = handlers
+    clocked.now = lambda: w.at  # the one clock of the handlers
 
     assert len(COMMANDS) == 10 and [p.tool for p in PROPOSABLE] == ["propose_permit"]
     assert all(c.meta == {"delegation": "excluded:reserved"} for c in COMMANDS)
