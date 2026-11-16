@@ -18,7 +18,7 @@ from tl_core import confidentiality as cf
 from tl_core.auth.errors import ForbiddenError
 from tl_core.services import queries
 from tl_core.services.errors import RecordNotFoundError
-from tl_mod_permits.errors import IsolationInUseError
+from tl_mod_permits.errors import IsolationInUseError, IsolationRuleError
 from tl_mod_permits.names import GAS_TEST, ISOLATION
 
 READERS = {
@@ -207,3 +207,16 @@ def test_a_hidden_permit_that_depends_on_an_isolation_is_not_named_to_any_reader
     with pytest.raises(IsolationInUseError) as cleared:
         world.call("dora", "RemoveIsolation", isolation=seen.open_iso)
     assert key in str(cleared.value)
+
+
+def test_an_isolation_stricter_than_the_permit_is_not_linked_to_it(world: World, seen: Set) -> None:
+    before = world.count()
+    for iso in (seen.hid_iso,):  # restricted through its point record
+        with pytest.raises(IsolationRuleError) as caught:
+            world.call("dan", "LinkIsolation", permit=seen.open_permit, isolation=iso)
+        assert str(caught.value) == "the isolation cannot be linked to this permit"
+        assert iso not in str(caught.value) and seen.secret not in str(caught.value)
+    assert world.count() == before
+    # equal level (both restricted) and a looser isolation are allowed
+    world.call("dan", "LinkIsolation", permit=seen.hid_permit, isolation=seen.hid_iso)
+    world.call("dan", "LinkIsolation", permit=seen.hid_permit, isolation=seen.open_iso)

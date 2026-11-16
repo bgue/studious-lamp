@@ -67,6 +67,7 @@ MSG_LINK_LIVE = (
     "a permit that is Active or Lapsed does not take an isolation change; suspend it first"
 )
 MSG_LINK_REMOVED = "an isolation that is Removed cannot be linked to a permit"
+MSG_LINK_STRICTER = "the isolation cannot be linked to this permit"
 MSG_ALREADY_LINKED = "the isolation is already linked to the permit"
 MSG_NOT_LINKED = "the isolation is not linked to the permit"
 MSG_IN_USE = "the isolation is still needed by "
@@ -193,6 +194,17 @@ def handle_remove_isolation(uow: UnitOfWork, cmd: RemoveIsolation) -> CommandRes
     return _step(uow, cmd, ref, T_REMOVE, ISOLATION_REMOVED, {"removed_at": iso_utc(at)})
 
 
+def _stricter(uow: UnitOfWork, isolation_id: str, permit_id: str) -> bool:
+    """The isolation (through its own class or its point record) is hidden from a reader who may
+    read the permit: its id would reach the permit's stream, which any reader of the permit sees."""
+    conn = uow.conn()
+    return any(
+        confidentiality.is_hidden(conn, isolation_id, viewer)
+        and not confidentiality.is_hidden(conn, permit_id, viewer)
+        for viewer in (confidentiality.LOWEST, confidentiality.RESTRICTED_ONLY)
+    )
+
+
 def _change_link(
     uow: UnitOfWork, cmd: LinkIsolation | UnlinkIsolation, event_type: str
 ) -> CommandResult:
@@ -201,6 +213,8 @@ def _change_link(
     at = common.now()
     permit = load_permit(uow, cmd.scope, cmd.permit, at)
     ref, state = _load(uow, cmd.scope, cmd.isolation)
+    if event_type == PERMIT_ISOLATION_LINKED and _stricter(uow, ref.id, permit.id):
+        raise IsolationRuleError(MSG_LINK_STRICTER)
     if permit.state in (ACTIVE, LAPSED):
         raise IsolationRuleError(MSG_LINK_LIVE)
     linked = ref.id in linked_isolations(uow.conn(), permit.id)

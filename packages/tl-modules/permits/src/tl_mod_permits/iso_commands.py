@@ -9,7 +9,7 @@ cleaned with ``tl_core.text``.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Literal
 
@@ -62,7 +62,7 @@ def _bounded(value: str | None, ceiling: Decimal) -> str | None:
         raise ValueError("a reading is a decimal number") from None
     if not number.is_finite() or number < 0 or number > ceiling:
         raise ValueError(f"a reading is between 0 and {ceiling}")
-    if int(number.as_tuple().exponent) < -READING_PLACES:
+    if int(number.normalize().as_tuple().exponent) < -READING_PLACES:
         raise ValueError(f"a reading has at most {READING_PLACES} decimal places")
     return format(number.normalize() if number else Decimal(0), "f")
 
@@ -145,9 +145,14 @@ class RecordGasTest(_Strict):
     @field_validator("taken_at")
     @classmethod
     def _aware(cls, value: datetime | None) -> datetime | None:
-        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("taken_at must carry a time zone")
-        return value
+        try:
+            return value.astimezone(UTC)
+        except OverflowError:
+            raise ValueError("taken_at is outside the dates that can be stored") from None
 
     @model_validator(mode="after")
     def _some_reading(self) -> RecordGasTest:

@@ -162,6 +162,8 @@ def test_a_result_field_is_refused_as_an_unknown_field() -> None:
         {"instrument_text": "x" * 65},
         {"note": "x" * 301},
         {"taken_at": "2026-12-01T06:00:00"},  # no zone
+        {"taken_at": "0001-01-01T00:00:00+14:00"},  # overflows when read in UTC
+        {"taken_at": "9999-12-31T23:59:59-12:00"},
         {"recorded_by": "user:x"},
         {"tester": "user:x"},
     ],
@@ -169,6 +171,13 @@ def test_a_result_field_is_refused_as_an_unknown_field() -> None:
 def test_the_readings_and_texts_are_bounded(bad: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):
         _model(**bad)
+
+
+def test_places_are_counted_on_the_normalised_number() -> None:
+    model = _model(o2_pct="20.9000", co_ppm="0E-10", lel_pct="1.2340")
+    assert (model.o2_pct, model.co_ppm, model.lel_pct) == ("20.9", "0", "1.234")
+    with pytest.raises(ValidationError):
+        _model(o2_pct="1.2345")
 
 
 def test_the_bounds_themselves_are_allowed() -> None:
