@@ -446,6 +446,7 @@ def reimport() -> Iterator[Any]:
     """Re-import ``tl_api.commands`` inside a block and put the real table back afterwards."""
     bodies = set(commands_module.COMMAND_BODIES)
     registered = set(intent._REGISTERED)  # noqa: SLF001
+    saved = dict(vars(commands_module))  # the objects other modules hold (COMMANDS, COMMAND_BODIES)
 
     def run() -> Any:
         return importlib.reload(commands_module)
@@ -457,6 +458,8 @@ def reimport() -> Iterator[Any]:
         for name in set(commands_module.COMMAND_BODIES) - bodies:
             commands_module.COMMAND_BODIES.pop(name)
         intent._REGISTERED.intersection_update(registered)  # noqa: SLF001
+        # back to the original objects, not the reloaded ones
+        commands_module.__dict__.update(saved)
 
 
 @pytest.fixture
