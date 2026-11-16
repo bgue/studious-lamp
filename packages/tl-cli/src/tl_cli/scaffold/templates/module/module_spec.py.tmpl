@@ -20,4 +20,7 @@ def spec() -> ModuleSpec:
         # a callable returning fresh projector instances (`tl new projector`)
         projectors=list,
         commands="${package}.commands:COMMANDS",
+        read_routers=("${package}.routes:router",),
+        tools=("${package}.tools:register_tools",),
+        cli_groups=("${package}.cli:${name}_app",),
     )

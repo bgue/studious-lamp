@@ -1,0 +1,23 @@
+"""The example read route of the ${name} module (`tl new module`; ADR-0029).
+
+It answers a fixed text and reads no record, so no confidentiality filter applies
+yet. A route that returns record text reads through the viewer's class filter
+(`tl_core.confidentiality`), and a hidden record answers as a missing one.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+from tl_api.auth import guard
+
+from ${package} import MODULE
+
+router = APIRouter(tags=["${name}"])
+
+
+@router.get("/modules/${name}/ping")
+def ping(_actor: Annotated[str, Depends(guard("document.read"))]) -> dict[str, str]:
+    """The module name. `document.read` is the read word agents hold; the route is a read."""
+    return {"module": MODULE}
