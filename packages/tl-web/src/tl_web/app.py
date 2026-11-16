@@ -109,10 +109,11 @@ class WebHeadersMiddleware:
 
         path = scope["path"]
         scan = is_scan_path(path)
+        quiet = scan or (path == WEB_SIGN_IN and b"next=" in scope.get("query_string", b""))
 
         async def with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
-                ours = headers_for(path)
+                ours = headers_for(SCAN_AREA if quiet else path)
                 names = {name for name, _ in ours}
                 headers = [(n, v) for n, v in message["headers"] if n.lower() not in names]
                 headers.extend(ours)

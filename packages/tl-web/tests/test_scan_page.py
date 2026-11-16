@@ -267,7 +267,11 @@ def test_signed_out_answers_the_sign_in_page_before_any_lookup(
     base = re.sub(r'<input type="hidden" name="next" value="[^"]*">\n', "", pages[0][1])
     for _, body, headers in pages:
         assert re.sub(r'<input type="hidden" name="next" value="[^"]*">\n', "", body) == base
-        assert headers | {"content-length": ""} == pages[0][2] | {"content-length": ""}
+        quiet = {"content-length": "", "referrer-policy": ""}
+        assert headers | quiet == pages[0][2] | quiet
+    for (_, _body, headers), found in zip(pages, nexts, strict=True):
+        # a sign-in page that echoes a next sends no referrer; the others keep the app's policy
+        assert headers["referrer-policy"] == ("no-referrer" if found else "same-origin")
 
 
 def test_the_bounce_of_an_existing_and_a_missing_code_differ_only_by_next(setup: Setup) -> None:

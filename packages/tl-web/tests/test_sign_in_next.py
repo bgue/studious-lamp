@@ -58,3 +58,14 @@ def test_a_failed_sign_in_keeps_a_good_next(light_world: Any, k: Any) -> None:
     )
     assert response.status_code == 401
     assert f'name="next" value="{GOOD}"' in response.text
+
+
+def test_the_sign_in_page_with_a_next_sends_no_referrer(light_world: Any) -> None:
+    client = light_world.client()
+    with_next = client.get("/web/sign-in", params={"next": GOOD})
+    assert with_next.headers["referrer-policy"] == "no-referrer"
+    assert (
+        client.get("/web/sign-in", params={"next": "https://x"}).headers["referrer-policy"]
+        == "no-referrer"
+    )  # the query is there either way
+    assert client.get("/web/sign-in").headers["referrer-policy"] == "same-origin"
