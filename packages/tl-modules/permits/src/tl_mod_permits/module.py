@@ -1,10 +1,10 @@
-"""The permits module spec: three record types, their projectors, ten commands and the hooks.
+"""The permits module spec: three record types, their projectors, sixteen commands and the hooks.
 
 Every hook ref names this package only (``tl_core.modules``; P2-X4). Marks live in the row's
-``meta``: permits are safety acts, so all ten commands are ``excluded:reserved`` (a policy that
-auto-accepts a permit request is an owner decision; ``RequestPermit`` has its agent row below and
-flipping it is a one-line ``meta`` change). The other nine are in
-``tests/tools/proposable_exclusions.toml``.
+``meta``: permits, isolations and gas tests are safety acts, so all sixteen commands are
+``excluded:reserved`` (a policy that auto-accepts a permit request is an owner decision;
+``RequestPermit`` has its agent row below and flipping it is a one-line ``meta`` change). The other
+fifteen are in ``tests/tools/proposable_exclusions.toml``.
 """
 
 from __future__ import annotations
@@ -29,6 +29,14 @@ from tl_mod_permits.commands import (
     RevalidatePermit,
     SuspendPermit,
 )
+from tl_mod_permits.handlers.gas_test import handle_record_gas_test
+from tl_mod_permits.handlers.isolation import (
+    handle_apply_isolation,
+    handle_link_isolation,
+    handle_remove_isolation,
+    handle_unlink_isolation,
+    handle_verify_isolation,
+)
 from tl_mod_permits.handlers.permit import (
     handle_approve_permit,
     handle_cancel_permit,
@@ -41,10 +49,21 @@ from tl_mod_permits.handlers.permit import (
     handle_revalidate_permit,
     handle_suspend_permit,
 )
+from tl_mod_permits.iso_commands import (
+    ApplyIsolation,
+    LinkIsolation,
+    RecordGasTest,
+    RemoveIsolation,
+    UnlinkIsolation,
+    VerifyIsolation,
+)
 from tl_mod_permits.names import (
     APPROVE,
     CLOSE,
+    GASTEST_RECORD,
     HANDBACK,
+    ISOLATION_APPLY,
+    ISOLATION_VERIFY,
     ISSUE,
     RECORD_TYPES,
     REQUEST,
@@ -78,6 +97,12 @@ COMMANDS: tuple[PermitCommand, ...] = (
     PermitCommand(HandBackPermit, handle_hand_back_permit, HANDBACK, _RESERVED),
     PermitCommand(ClosePermit, handle_close_permit, CLOSE, _RESERVED),
     PermitCommand(CancelPermit, handle_cancel_permit, CLOSE, _RESERVED),
+    PermitCommand(ApplyIsolation, handle_apply_isolation, ISOLATION_APPLY, _RESERVED),
+    PermitCommand(VerifyIsolation, handle_verify_isolation, ISOLATION_VERIFY, _RESERVED),
+    PermitCommand(RemoveIsolation, handle_remove_isolation, ISOLATION_APPLY, _RESERVED),
+    PermitCommand(LinkIsolation, handle_link_isolation, ISOLATION_APPLY, _RESERVED),
+    PermitCommand(UnlinkIsolation, handle_unlink_isolation, ISOLATION_APPLY, _RESERVED),
+    PermitCommand(RecordGasTest, handle_record_gas_test, GASTEST_RECORD, _RESERVED),
 )
 
 #: What an agent may propose: a permit request a person accepts (still ``excluded:reserved``).

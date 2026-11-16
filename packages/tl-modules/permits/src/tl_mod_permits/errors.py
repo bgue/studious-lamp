@@ -27,5 +27,22 @@ class PermitBlockedError(GuardFailedError):
     """The issue guards refuse: the message names the blocker codes."""
 
 
+class IsolationStateError(InvalidStateError):
+    """The isolation is in a state that does not take the command."""
+
+
+class IsolationRuleError(GuardFailedError):
+    """A rule of an isolation or of its link to a permit (a link twice, a link to a live permit)."""
+
+
+class IsolationInUseError(GuardFailedError):
+    """A permit that is Approved, Active or Suspended still depends on the isolation. The message
+    names a permit the viewer can read by key and any other only as one the viewer cannot see."""
+
+
+class GasTestRuleError(GuardFailedError):
+    """A rule of a gas test (a reading dated in the future)."""
+
+
 class StaleVersionError(ConcurrencyError):
     """The record changed since the caller read it (``expected_version`` is not current)."""

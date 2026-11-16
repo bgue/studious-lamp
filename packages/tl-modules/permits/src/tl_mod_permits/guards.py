@@ -23,6 +23,7 @@ from tl_mod_permits.names import (
     HANDED_BACK,
     ISOLATION,
     LAPSED,
+    PERMIT,
     PERMIT_ISOLATION_LINKED,
     PERMIT_ISOLATION_UNLINKED,
     REQUESTED,
@@ -44,6 +45,16 @@ NEEDS: dict[str, tuple[str, ...]] = {
     "CancelPermit": (REQUESTED, APPROVED),
 }
 
+#: The stored states in which a permit still needs the isolations it links.
+BLOCKS_REMOVAL: tuple[str, ...] = (APPROVED, ACTIVE, SUSPENDED)
+_DEPENDENT_EVENTS_SQL = text(
+    "SELECT stream_id, event_type, payload FROM events WHERE event_type IN (:linked, :unlinked) "
+    "AND CAST(payload AS TEXT) LIKE :pattern ORDER BY seq"
+)
+_DEPENDENT_STATE_SQL = text(
+    "SELECT id, key, scope, status FROM cur_core_record "
+    "WHERE id IN :ids AND type = :type AND voided = :voided"
+).bindparams(bindparam("ids", expanding=True))
 _GAS_SQL = text("SELECT taken_at, result FROM cur_permits_gas_test WHERE permit_id = :id")
 _LINK_SQL = text(
     "SELECT event_type, payload FROM events WHERE stream_id = :id AND event_type IN "
@@ -79,6 +90,47 @@ def linked_isolations(conn: Connection, permit_id: str) -> list[str]:
         else:
             live.pop(str(body["isolation_id"]), None)
     return list(live)
+
+
+def dependent_permits(conn: Connection, isolation_id: str) -> list[Mapping[str, Any]]:
+    """The permits that depend on the isolation: their own events link it and have not unlinked
+    it, and they are Approved, Active or Suspended (Lapsed is an Active permit shown late, so it
+    counts as Active). Rows carry ``id``, ``key``, ``scope`` and ``status``, oldest link first.
+
+    Two statements, whatever the number of permits: one over the link events (narrowed by a text
+    match on the isolation id, then read as JSON), one for the states of the permits found. The
+    rows are not filtered for the viewer: the caller decides what to show of each."""
+    live: dict[str, None] = {}
+    for stream, kind, payload in conn.execute(
+        _DEPENDENT_EVENTS_SQL,
+        {
+            "linked": PERMIT_ISOLATION_LINKED,
+            "unlinked": PERMIT_ISOLATION_UNLINKED,
+            "pattern": f"%{isolation_id}%",
+        },
+    ):
+        body = json.loads(payload) if isinstance(payload, str) else payload
+        if str(body["isolation_id"]) != isolation_id:
+            continue
+        if kind == PERMIT_ISOLATION_LINKED:
+            live[str(stream)] = None
+        else:
+            live.pop(str(stream), None)
+    if not live:
+        return []
+    rows = conn.execute(
+        _DEPENDENT_STATE_SQL, {"ids": list(live), "type": PERMIT, "voided": False}
+    ).mappings()
+    states = {str(r["id"]): r for r in rows}
+    found: list[Mapping[str, Any]] = []
+    for permit_id in live:
+        row = states.get(permit_id)
+        status = REQUESTED if row is None or row["status"] is None else str(row["status"])
+        if row is not None and status in BLOCKS_REMOVAL:
+            found.append(
+                {"id": permit_id, "key": row["key"], "scope": row["scope"], "status": status}
+            )
+    return found
 
 
 def isolation_states(conn: Connection, permit_id: str) -> list[str]:

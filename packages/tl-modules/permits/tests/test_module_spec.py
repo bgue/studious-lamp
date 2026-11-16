@@ -1,4 +1,4 @@
-"""The permits module spec (P2-PTW S1, S2): three record types, ten commands, four hook kinds."""
+"""The permits module spec (P2-PTW S1-S3): three record types, sixteen commands, four hook kinds."""
 
 from __future__ import annotations
 
@@ -35,9 +35,9 @@ def test_the_module_loads_with_three_record_types() -> None:
     ]
 
 
-def test_ten_commands_one_proposable_row_and_four_hook_kinds() -> None:
+def test_sixteen_commands_one_proposable_row_and_four_hook_kinds() -> None:
     built = spec()
-    assert len(dict(built.command_words)) == 10
+    assert len(dict(built.command_words)) == 16
     assert [p.tool for p in built.proposable] == ["propose_permit"]
     assert not built.generic_commands and not built.generic_guards
     assert not built.actions and not built.offline_drafts and not built.company_roles
