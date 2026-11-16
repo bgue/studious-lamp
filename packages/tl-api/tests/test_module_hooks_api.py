@@ -301,6 +301,22 @@ OLD_COMMANDS = [
     ("VoidTransmittal", "user", "documents", False, False),
     ("WithdrawClearance", "controller", "correspondence", False, False),
     ("WithdrawConstraint", "core.constraint.edit", None, False, False),
+    # forms rows served through the forms commands hook (P2-IP-X4 F2), captured at that merge
+    ("AcceptFormSubmission", "forms.review", "forms", False, False),
+    ("AcceptIntakeItem", "forms.intake.review", "forms", False, False),
+    ("DiscardFormDraft", "forms.submit", "forms", False, False),
+    ("DraftFormTemplate", "forms.template.edit", "forms", False, False),
+    ("EditFormTemplate", "forms.template.edit", "forms", False, False),
+    ("IssueIntakeCode", "forms.intake.issue", "forms", False, False),
+    ("PublishFormTemplate", "forms.template.publish", "forms", False, False),
+    ("RejectIntakeItem", "forms.intake.review", "forms", False, False),
+    ("RetireFormTemplate", "forms.template.publish", "forms", False, False),
+    ("ReturnFormSubmission", "forms.review", "forms", False, False),
+    ("ReviseFormTemplate", "forms.template.edit", "forms", False, False),
+    ("RevokeIntakeCode", "forms.intake.issue", "forms", False, False),
+    ("SaveFormDraft", "forms.submit", "forms", False, False),
+    ("SubmitForm", "forms.submit", "forms", False, False),
+    ("VoidFormSubmission", "forms.void", "forms", False, False),
 ]
 
 
