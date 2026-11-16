@@ -409,6 +409,7 @@ AGENT_MAY_NOT = {
     "control.command.ResumePermit",
     "control.command.CancelPermit",
     "control.command.ClosePermit",
+    "control.command.VerifyIsolation",  # P2-PTW-S3: a controller's safety check
     # quality inspections and checklists: controller acts
     "control.command.VerifyInspection",
     "control.command.CancelInspection",
