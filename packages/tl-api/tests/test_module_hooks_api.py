@@ -533,9 +533,9 @@ def test_module_commands_is_resolved_once_per_import_not_per_request(
     calls: list[int] = []
     real = tl_modules.module_commands
 
-    def counting() -> Any:
+    def counting(*reserved: Any) -> Any:
         calls.append(1)
-        return real()
+        return real(*reserved)
 
     monkeypatch.setattr(tl_modules, "module_commands", counting)
     reimport()
