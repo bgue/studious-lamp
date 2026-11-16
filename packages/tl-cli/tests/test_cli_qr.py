@@ -13,7 +13,7 @@ import io
 import json
 import re
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
@@ -24,6 +24,7 @@ import tl_mod_qr.resolve as resolve_module
 import typer.main
 from auth_support import sign_in
 from tl_adapters.db import as_target, create_schema
+from tl_cli.derive_support import cell
 from tl_cli.main import app
 from tl_core.qr import registry
 from tl_core.settings import resolver
@@ -173,7 +174,9 @@ def test_label_without_the_public_address_is_refused_and_writes_nothing(qr: Qr) 
 def test_label_writes_an_svg_or_the_note_and_prints_no_code(qr: Qr) -> None:
     qr.world.base()
     out = qr.tmp / "label.html"
-    result = qr.label(out)
+    # The world titles every record with its key, so the default text would print the key; an
+    # explicit text keeps the key out of the printed page (see the Decision in the report).
+    result = qr.label(out, "--label", "Pump room")
     assert result.exit_code == 0, result.output
     page = out.read_text(encoding="utf-8")
     assert "<svg" in page or NO_QR_NOTE in page
@@ -183,6 +186,13 @@ def test_label_writes_an_svg_or_the_note_and_prints_no_code(qr: Qr) -> None:
     assert CODE16.search(result.output.replace(result.output.split()[1], "")) is None
     assert str(out) in result.output
     assert "http" not in result.output
+    # Outside the grouped print the file holds no key, id, project code or 16-character code.
+    register = result.output.split()[1]
+    record = qr.world.rows("SELECT id FROM cur_core_record WHERE key = :key", key=KEY)
+    rest = GROUPED.sub("", page)
+    for leaked in (KEY, PROJECT, register, str(record[0]["id"]), code):
+        assert leaked not in rest, leaked
+    assert CODE16.search(rest) is None
 
 
 def test_label_keeps_an_existing_file_unless_forced(qr: Qr) -> None:
@@ -215,9 +225,17 @@ def test_ls_shows_the_row_and_no_code(qr: Qr) -> None:
     assert plain(grouped_code(out)) not in "\n".join(lines)
 
 
+def ls_line(row: Mapping[str, Any]) -> str:
+    """The `ls` line a register row prints: the same cells, in the same order, as `tl qr ls`."""
+    return (
+        f"{row['id']}  {cell(row['label_text'], 40)}  {row['size']}  {row['state']}  "
+        f"{cell(row['issued_by'], 120)}  {cell(row['issued_at'])}  {cell(row['expires_on'])}"
+    )
+
+
 def test_export_csv_and_jsonl_rows_equal_the_ls_rows(qr: Qr) -> None:
     out, register = labelled(qr)
-    shown = qr.ls()[1].split()
+    shown = qr.ls()[1]
     csv_out = qr.export("csv")
     jsonl_out = qr.export("jsonl")
     assert csv_out.exit_code == 0, csv_out.output
@@ -225,8 +243,8 @@ def test_export_csv_and_jsonl_rows_equal_the_ls_rows(qr: Qr) -> None:
     rows = list(csv.DictReader(io.StringIO(csv_out.output)))
     lines = [json.loads(line) for line in jsonl_out.output.splitlines()]
     assert len(rows) == len(lines) == 1
-    for field, index in (("id", 0), ("size", 2), ("state", 3)):
-        assert rows[0][field] == lines[0][field] == shown[index]
+    # Every field of the row is the cell `ls` prints (label, issued by, issued at, expires too).
+    assert shown == ls_line(rows[0]) == ls_line(lines[0])
     assert rows[0]["id"] == register
     assert plain(grouped_code(out)) not in csv_out.output + jsonl_out.output
 
