@@ -23,6 +23,10 @@ MSG_ANSWER_PROBLEMS = "the answers have problems"
 MSG_NOTHING = "nothing to change"
 MSG_ONE_DRAFT = "that template already has a version in draft"
 MSG_INTAKE_FIELDS = "purpose and accepts_as belong to a public intake template only"
+MSG_CODE_TAKEN = "that code is already in use"
+MSG_NOT_INTAKE = "that template is not open to public intake"
+MSG_EXPIRY = "the expiry is in the past or beyond the days a code may last"
+MSG_NOT_ACCEPTED_AS = "that template does not accept an item as that command"
 MSG_FIELD_LIST = "the field list is not a list of objects"
 
 
