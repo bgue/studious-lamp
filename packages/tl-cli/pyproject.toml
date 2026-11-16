@@ -22,6 +22,7 @@ dependencies = [
   "tl-mod-qr",
   "tl-mod-forms",
   "tl-mod-permits",
+  "tl-mod-scaffold",
   "tl-mod-schedule",
   "tl-mod-schemareg",
   "tl-mod-legacy",

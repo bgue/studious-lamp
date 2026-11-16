@@ -246,6 +246,15 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Rule.Disabled`](#ruledisabled) | `tl.core.Rule.Disabled.v1` | A rule was switched off. |
 | [`Rule.Enabled`](#ruleenabled) | `tl.core.Rule.Enabled.v1` | A rule was switched on, from this event on. |
 | [`Rule.Revised`](#rulerevised) | `tl.core.Rule.Revised.v1` | A rule was revised; the event carries the whole new rule. |
+| [`Scaffold.Designed`](#scaffolddesigned) | `tl.core.Scaffold.Designed.v1` | The scaffold design was done. |
+| [`Scaffold.DismantleStarted`](#scaffolddismantlestarted) | `tl.core.Scaffold.DismantleStarted.v1` | Dismantling began. |
+| [`Scaffold.Erecting`](#scaffolderecting) | `tl.core.Scaffold.Erecting.v1` | Erection began; the first inspection falls due one interval later. |
+| [`Scaffold.Inspected`](#scaffoldinspected) | `tl.core.Scaffold.Inspected.v1` | The scaffold was inspected and tagged; the inspection is the record `inspection_id`. |
+| [`Scaffold.InspectionDue`](#scaffoldinspectiondue) | `tl.core.Scaffold.InspectionDue.v1` | The inspections-due job found the scaffold due or overdue (job only). |
+| [`Scaffold.Modified`](#scaffoldmodified) | `tl.core.Scaffold.Modified.v1` | The scaffold is being modified (also after a failed inspection). |
+| [`Scaffold.Registered`](#scaffoldregistered) | `tl.core.Scaffold.Registered.v1` | A scaffold was registered from an approved scaffold request. |
+| [`Scaffold.Released`](#scaffoldreleased) | `tl.core.Scaffold.Released.v1` | The scaffold was released for use. |
+| [`Scaffold.Removed`](#scaffoldremoved) | `tl.core.Scaffold.Removed.v1` | The scaffold was removed, or the request withdrawn before it stood. |
 | [`ScanCode.Issued`](#scancodeissued) | `tl.core.ScanCode.Issued.v1` | A scan code was issued. |
 | [`ScanCode.Revoked`](#scancoderevoked) | `tl.core.ScanCode.Revoked.v1` | A scan code was revoked. |
 | [`Schedule.Defined`](#scheduledefined) | `tl.core.Schedule.Defined.v1` | A schedule was registered. |
@@ -13936,6 +13945,505 @@ A rule was revised; the event carries the whole new rule. Switching to act mode 
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Rule.Revised.v1"
+}
+```
+
+## Scaffold.Designed
+
+The scaffold design was done. Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.Designed.v1`
+- Ledger payload class: `ScaffoldDesignedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `note` | string or null | no | A note, or null. |
+| `record_id` | string | yes | The scaffold. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "note": "Drawing SD-12",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.Designed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.Designed.v1"
+}
+```
+
+## Scaffold.DismantleStarted
+
+Dismantling began. Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.DismantleStarted.v1`
+- Ledger payload class: `ScaffoldDismantleStartedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `reason` | string | yes | Why it is being taken down. |
+| `record_id` | string | yes | The scaffold. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Work complete",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.DismantleStarted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.DismantleStarted.v1"
+}
+```
+
+## Scaffold.Erecting
+
+Erection began; the first inspection falls due one interval later. Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.Erecting.v1`
+- Ledger payload class: `ScaffoldErectingPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `next_due_on` | string | yes | YYYY-MM-DD of the first inspection due, from the erect date and the interval setting. |
+| `note` | string or null | no | A note, or null. |
+| `record_id` | string | yes | The scaffold. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "next_due_on": "2026-11-09",
+      "note": null,
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.Erecting/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.Erecting.v1"
+}
+```
+
+## Scaffold.Inspected
+
+The scaffold was inspected and tagged; the inspection is the record `inspection_id`. Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.Inspected.v1`
+- Ledger payload class: `ScaffoldInspectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When the inspection happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `inspected_on` | string | yes | YYYY-MM-DD of the inspection. |
+| `inspection_id` | string | yes | The `scaffold.ScaffoldInspection` record. |
+| `next_due_on` | string | yes | YYYY-MM-DD the next inspection falls due. |
+| `note` | string or null | no | A note, or null. |
+| `record_id` | string | yes | The scaffold. |
+| `result` | string | yes | pass, conditional or fail. |
+| `tag` | string | yes | The tag the result gave. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "inspected_on": "2026-11-02",
+      "inspection_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P4",
+      "next_due_on": "2026-11-09",
+      "note": null,
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "result": "pass",
+      "tag": "green"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.Inspected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.Inspected.v1"
+}
+```
+
+## Scaffold.InspectionDue
+
+The inspections-due job found the scaffold due or overdue (job only). Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.InspectionDue.v1`
+- Ledger payload class: `ScaffoldInspectionDuePayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `due_on` | string | yes | YYYY-MM-DD the inspection fell due. |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `record_id` | string | yes | The scaffold. |
+| `state` | string | yes | The workflow state of the scaffold when flagged. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "due_on": "2026-11-09",
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "state": "In Use"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.InspectionDue/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.InspectionDue.v1"
+}
+```
+
+## Scaffold.Modified
+
+The scaffold is being modified (also after a failed inspection). Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.Modified.v1`
+- Ledger payload class: `ScaffoldModifiedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `reason` | string | yes | Why it is being modified. |
+| `record_id` | string | yes | The scaffold. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Add a lift",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.Modified/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.Modified.v1"
+}
+```
+
+## Scaffold.Registered
+
+A scaffold was registered from an approved scaffold request. Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.Registered.v1`
+- Ledger payload class: `ScaffoldRegisteredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `elevation` | string or null | no | Elevation copied from the request, or null. |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `for_record_id` | string or null | no | The record the request serves, or null. |
+| `gridline` | string or null | no | Gridline copied from the request, or null. |
+| `load_class` | string or null | no | Load class copied from the request, or null. |
+| `location_text` | string or null | no | Where it stands, or null. |
+| `record_id` | string | yes | The scaffold. |
+| `request_id` | string | yes | The scaffold request. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "elevation": "+12.0",
+      "feed_policy": "none",
+      "for_record_id": null,
+      "gridline": "C-4",
+      "load_class": "Light",
+      "location_text": "Unit 4, north face",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "request_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.Registered/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.Registered.v1"
+}
+```
+
+## Scaffold.Released
+
+The scaffold was released for use. Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.Released.v1`
+- Ledger payload class: `ScaffoldReleasedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `record_id` | string | yes | The scaffold. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.Released/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.Released.v1"
+}
+```
+
+## Scaffold.Removed
+
+The scaffold was removed, or the request withdrawn before it stood. Stream type `scaffold.Scaffold`.
+
+- CloudEvents type: `tl.core.Scaffold.Removed.v1`
+- Ledger payload class: `ScaffoldRemovedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `feed_policy` | string | yes | Always `none`: a scaffold makes no feed card. |
+| `reason` | string or null | no | Why, or null. |
+| `record_id` | string | yes | The scaffold. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": null,
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Scaffold.Removed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Scaffold.Removed.v1"
 }
 ```
 

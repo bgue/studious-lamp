@@ -164,7 +164,7 @@ def effective_access(spec: CommandSpec) -> str:
     return normalise_word(spec.access)
 
 
-COMMANDS: tuple[CommandSpec, ...] = (
+_CORE_COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(CreateRecord, handle_create_record),
     CommandSpec(UpdateRecord, handle_update_record),
     CommandSpec(EditRecord, handle_edit_record),
@@ -218,18 +218,21 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(RejectEnrichment, handle_reject_enrichment),
     # ADR-0024: core constraints; the word core.constraint.edit is also checked by the handler
     *(CommandSpec(c.model, c.handler, c.access) for c in constraint_commands()),
-    # every installed module's commands, from its ``commands`` hook (ADR-0029), built once here
-    *(
-        CommandSpec(
-            c.model,
-            c.handler,
-            c.access,
-            module=c.module,
-            needs_holds=c.needs_holds,
-            takes_roles=c.takes_roles,
-        )
-        for c in module_commands()
-    ),
+)
+_CORE_COMMAND_NAMES = frozenset(spec.name for spec in _CORE_COMMANDS)
+
+COMMANDS: tuple[CommandSpec, ...] = _CORE_COMMANDS + tuple(
+    # every installed module's commands, from its ``commands`` hook (ADR-0029), built once here;
+    # a module naming a core command is skipped whole, so it never replaces a core row (SR-X4 F1)
+    CommandSpec(
+        c.model,
+        c.handler,
+        c.access,
+        module=c.module,
+        needs_holds=c.needs_holds,
+        takes_roles=c.takes_roles,
+    )
+    for c in module_commands(_CORE_COMMAND_NAMES)
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have

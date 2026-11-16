@@ -37,7 +37,36 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # module (P2-I3: 22 + the 2 take-off commands) and the 4 core constraint commands (P2-I2 C2)
     # and the quality module's six punch commands (P2-PUNCH S2) and the admin's StopAgent and
     # ResumeAgent (P2-X2 S3: 2) and the requisitions module's ten (P2-X4 S2: served from the hook)
-    counts = (20, 14, 24, 10, 1, 6, 28, 4, 3, 5, 6, 1, 3, 19, 14, 25, 10, 4, 6, 4, 24, 4, 6, 2, 10)
+    # and the scaffold module's nine (P2-I4B S1: register, design, erect, inspect, tag green,
+    # release, modify, dismantle, remove)
+    counts = (
+        20,
+        14,
+        24,
+        10,
+        1,
+        6,
+        28,
+        4,
+        3,
+        5,
+        6,
+        1,
+        3,
+        19,
+        14,
+        25,
+        10,
+        4,
+        6,
+        4,
+        24,
+        4,
+        6,
+        2,
+        10,
+        9,
+    )
     assert len(COMMANDS) == sum(counts)
 
 
@@ -322,6 +351,8 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "VerifyPunchItem",
             "ReopenPunchItem",
             "VoidPunchItem",
+            # the scaffold module (P2-I4B S1): tagging a scaffold green is a controller word
+            "TagScaffoldGreen",
         )
     }
     assert {s.name for s in COMMANDS if effective_access(s) == "controller"} == {

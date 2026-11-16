@@ -164,3 +164,16 @@ patterns:
     template: "{project}-{type}-{seq:4}"
     type_code: FRM
     gap_free: true
+  # Scaffolds (brief 9 M9): one gap-free counter per project, P123-SCF-0001; an inspection has its own, P123-SCI-0001.
+  - id: scaffold.Scaffold
+    record_type: scaffold.Scaffold
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: SCF
+    gap_free: true
+  - id: scaffold.ScaffoldInspection
+    record_type: scaffold.ScaffoldInspection
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: SCI
+    gap_free: true

@@ -25,6 +25,7 @@ ORDER = (
     "quality",
     "permits",
     "requisitions",
+    "scaffold",
     "weekly",
     "progress",
 )

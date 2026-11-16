@@ -105,3 +105,15 @@ words:
   forms.void: controller
   forms.intake.issue: controller
   forms.intake.review: controller
+  # scaffold: register, design, erect, inspect, tag, release, modify, dismantle, remove (P2-I4B; green tag is a
+  # superuser word, no new account role; one word per command)
+  scaffold.view: read
+  scaffold.register: user
+  scaffold.design: user
+  scaffold.erect: user
+  scaffold.inspect: user
+  scaffold.tag.green: controller
+  scaffold.release: user
+  scaffold.modify: user
+  scaffold.dismantle: user
+  scaffold.remove: user

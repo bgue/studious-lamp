@@ -76,6 +76,8 @@ SPEC_RECORDS: dict[str, str] = {
     "requisitions.MaterialRequisition": "draft_only",
     "requisitions.ScaffoldRequest": "draft_only",
     "requisitions.WorkOrder": "none",
+    "scaffold.Scaffold": "none",
+    "scaffold.ScaffoldInspection": "none",
     "schedule.ActivityRef": "none",
     "schedule.Schedule": "none",
     "schedule.ScheduleSnapshot": "none",

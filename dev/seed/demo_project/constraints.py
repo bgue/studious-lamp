@@ -46,6 +46,7 @@ from tl_mod_awp.handlers.iwp import (
 from tl_mod_awp.readiness import evaluate_now
 
 from dev.seed.demo_project.core import ADMIN
+from dev.seed.demo_project.labour import raise_labour
 from dev.seed.demo_project.registry import register
 from dev.seed.demo_project.scope import add_scope
 from dev.seed.demo_project.world import TODAY, World
@@ -112,9 +113,11 @@ def build(world: World, rng: random.Random) -> None:
 
     # --- the IWPs, in the constraint check -----------------------------------------------------
     iwps: list[str] = []
+    windows: list[tuple[str, date, date]] = []  # (IWP id, planned start, planned finish)
     for i in range(IWP_COUNT):
         cwp, disc = cwps[i % len(cwps)]
         start = TODAY + timedelta(days=rng.randrange(10, 60))
+        finish = start + timedelta(days=rng.randrange(5, 15))
         with world.on(TODAY - timedelta(days=40 - i)):
             made = world.run(
                 handle_create_iwp,
@@ -124,7 +127,7 @@ def build(world: World, rng: random.Random) -> None:
                 title=f"Interim package {i + 1:02d} ({disc})",
                 cwp_id=cwp,
                 planned_start=_stamp(start),
-                planned_finish=_stamp(start + timedelta(days=rng.randrange(5, 15))),
+                planned_finish=_stamp(finish),
                 foreman=f"user:{rng.choice(FOREMEN)}",
             )
             iwp = str(made.stream_id)
@@ -138,6 +141,7 @@ def build(world: World, rng: random.Random) -> None:
                 iwp=iwp,
             )
         iwps.append(iwp)
+        windows.append((iwp, start, finish))
 
     past = [TODAY - timedelta(days=d) for d in (3, 8, 15, 22)]
     future = [TODAY + timedelta(days=d) for d in (4, 9, 17, 30)]
@@ -269,6 +273,12 @@ def build(world: World, rng: random.Random) -> None:
             reason="Materials coordinator confirmed the reservation by phone",
             cleared_at=_stamp(TODAY - timedelta(days=9)),
         )
+
+    # --- labour: IWPs 1-22 get a labour requisition, approved except IWP 08 (left Requested, it is
+    # held back by its constraints anyway); IWPs 23 and 24 get none, so the check blocks them
+    # (``labour_requested`` blocks an IWP with hours and no approved requisition covering it)
+    plan = [(i, s, f, n != 7) for n, (i, s, f) in enumerate(windows[:22])]
+    raise_labour(world, plan, random.Random(f"labour:{rng.getstate()!r}"))
 
     # --- readiness: every IWP in the constraint check, evaluated on the project's today -------
     with world.today():

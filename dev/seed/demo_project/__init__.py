@@ -19,6 +19,7 @@ from dev.seed.demo_project import (  # noqa: F401  (each module registers its se
     quality,
     release,
     requisitions,
+    scaffold,
     schedule,
     weekly,
 )

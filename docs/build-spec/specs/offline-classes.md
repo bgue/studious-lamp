@@ -86,6 +86,8 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {"core.ActivityPost": "full", 
 | `requisitions.GeneralRequisition` | draft_only | `RaiseRequisition` | As labour: raised anywhere, approved on the authority (P2-I4A S1, as built) |
 | `requisitions.ScaffoldRequest` | draft_only | `RaiseRequisition` | As labour: raised anywhere, approved on the authority (P2-I4A S1, as built) |
 | `requisitions.WorkOrder` | none | — | Online only: opened by an approval and moved (schedule, assign, start, complete, close) on the authority (P2-I4A S1, as built) |
+| `scaffold.Scaffold` | none | — | A register entry and a tag are acts on the authority, as a work order; inspections and tags are not drafted offline (P2-I4B S1) |
+| `scaffold.ScaffoldInspection` | none | — | An inspection is recorded with the tag on the authority; no offline drafts (P2-I4B S1) |
 
 | Core stream (not a record) | Class | Why |
 |---|---|---|

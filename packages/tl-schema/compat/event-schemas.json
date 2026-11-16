@@ -7595,6 +7595,348 @@
    "type": "object"
   }
  },
+ "Scaffold.Designed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Scaffold.DismantleStarted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Scaffold.Erecting": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "next_due_on": {
+     "type": "string"
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "next_due_on",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Scaffold.Inspected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "inspected_on": {
+     "type": "string"
+    },
+    "inspection_id": {
+     "type": "string"
+    },
+    "next_due_on": {
+     "type": "string"
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "result": {
+     "enum": [
+      "pass",
+      "conditional",
+      "fail"
+     ],
+     "type": "string"
+    },
+    "tag": {
+     "enum": [
+      "green",
+      "yellow",
+      "red"
+     ],
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "inspection_id",
+    "result",
+    "tag",
+    "inspected_on",
+    "next_due_on",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Scaffold.InspectionDue": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "due_on": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "state": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "due_on",
+    "state",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Scaffold.Modified": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Scaffold.Registered": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "elevation": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "for_record_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "gridline": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "load_class": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "location_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "request_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "request_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Scaffold.Released": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Scaffold.Removed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "ScanCode.Issued": {
   "1": {
    "additionalProperties": true,

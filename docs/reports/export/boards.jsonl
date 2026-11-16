@@ -1,0 +1,382 @@
+{"increment": "P1-I8", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "2023370", "note": "classify"}
+{"increment": "P1-I8", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "0404c94", "note": "schemareg module"}
+{"increment": "P1-I8", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "3d007e5", "note": "lake silver, readable-set rule"}
+{"increment": "P1-I8", "id": "S5", "kind": "p", "state": "mrg", "review": "f", "sha": "72559cd", "note": "plumbing: views, routes, client, fakes"}
+{"increment": "P1-I8", "id": "S6", "kind": "p", "state": "mrg", "review": "f", "sha": "c65c7ab", "note": "legacy framework, reserved prefixes"}
+{"increment": "P1-I8", "id": "S9", "kind": "p", "state": "mrg", "review": "f", "sha": "cdfb5ab", "note": "conformance dashboard, waived apart"}
+{"increment": "P1-I8", "id": "S10", "kind": "p", "state": "mrg", "review": "f", "sha": "3079582", "note": "export/import hardening, merge 79f2bcf"}
+{"increment": "P1-I8", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "07c7bb7", "note": "impact report"}
+{"increment": "P1-I8", "id": "T08", "kind": "t", "state": "mrg", "review": "l", "sha": "3fb9c0a", "note": "lake marts"}
+{"increment": "P1-I8", "id": "T05a1", "kind": "t", "state": "mrg", "review": "f", "sha": "38049fa", "note": "package report commands"}
+{"increment": "P1-I8", "id": "T07a", "kind": "t", "state": "mrg", "review": "l", "sha": "31e272f", "note": "dms-register loader"}
+{"increment": "P1-I8", "id": "T05a2", "kind": "t", "state": "mrg", "review": "f", "sha": "538cdff", "note": "publish, adopt, drift"}
+{"increment": "P1-I8", "id": "T07b", "kind": "t", "state": "mrg", "review": "l", "sha": "c45de16", "note": "tag-list loaders"}
+{"increment": "P1-I8", "id": "T05a3", "kind": "t", "state": "mrg", "review": "f", "sha": "89c1e20", "note": "waiver CLI"}
+{"increment": "P1-I8", "id": "T05a4a", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "crosswalk"}
+{"increment": "P1-I8", "id": "T05a4b", "kind": "t", "state": "mrg", "review": "f", "sha": "8a7ee4d", "note": "export-git, company scope, dup-target refusal"}
+{"increment": "P1-I8", "id": "T05a4c", "kind": "t", "state": "mrg", "review": "f", "sha": "30d276d", "note": "import-git"}
+{"increment": "P1-I8", "id": "T04a", "kind": "t", "state": "mrg", "review": "f", "sha": "-", "note": "workbench screen, Ctrl+O"}
+{"increment": "P1-I8", "id": "T04b", "kind": "t", "state": "mrg", "review": "f", "sha": "d136c1a", "note": "review screen"}
+{"increment": "P1-I8", "id": "T09a", "kind": "t", "state": "mrg", "review": "l", "sha": "d002b41", "note": "demo clauses 1-4"}
+{"increment": "P1-I8", "id": "T09b", "kind": "t", "state": "mrg", "review": "l", "sha": "95a1b1e", "note": "demo 7/7 2a"}
+{"increment": "P1-I8", "id": "T10", "kind": "-", "state": "orch", "review": "-", "sha": "phase", "note": "report; orchestrator"}
+{"increment": "P1-UX", "id": "T00", "kind": "t", "state": "mrg", "review": "f", "sha": "369b72f", "note": "display helper"}
+{"increment": "P1-UX", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "6a0c7ae", "note": "example sets (D12), TYPE_LABELS"}
+{"increment": "P1-UX", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "16d2e11", "note": "RecordScreen, open_record, details registry"}
+{"increment": "P1-UX", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "4250f0d", "note": "documents register Enter + plain"}
+{"increment": "P1-UX", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "e4ee157", "note": "tag register Enter + plain"}
+{"increment": "P1-UX", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "a09aad7", "note": "correspondence register/inbox/clocks"}
+{"increment": "P1-UX", "id": "T04", "kind": "t", "state": "mrg", "review": "f", "sha": "739b084", "note": "domain_screen wiring, Enter, RFI Details"}
+{"increment": "P1-UX", "id": "T05", "kind": "t", "state": "mrg", "review": "l", "sha": "806c519", "note": "commercial/evidence/RFI text; D30"}
+{"increment": "P1-UX", "id": "T06", "kind": "t", "state": "mrg", "review": "f", "sha": "55a8205", "note": "schedule screen Enter + plain"}
+{"increment": "P1-UX", "id": "T06b", "kind": "t", "state": "mrg", "review": "f", "sha": "ec9af6d", "note": "compare, activity, look-ahead plain (D37)"}
+{"increment": "P1-UX", "id": "T07", "kind": "t", "state": "mrg", "review": "f", "sha": "a3eab29", "note": "review queue Enter via target"}
+{"increment": "P1-UX", "id": "T08", "kind": "t", "state": "mrg", "review": "f", "sha": "85ed991", "note": "record header, History, context panel (D36)"}
+{"increment": "P1-UX", "id": "T08b", "kind": "t", "state": "mrg", "review": "f", "sha": "0f697ef", "note": "links_tab, thread_tab plain"}
+{"increment": "P1-UX", "id": "T08c", "kind": "t", "state": "mrg", "review": "f", "sha": "2a7c34a", "note": "grid type column + headers (D38)"}
+{"increment": "P1-UX", "id": "T09a", "kind": "t", "state": "mrg", "review": "f", "sha": "c34c7e5", "note": "integration registry plain, no Enter"}
+{"increment": "P1-UX", "id": "T09b", "kind": "t", "state": "mrg", "review": "f", "sha": "893dd7d", "note": "accounts, about:config plain"}
+{"increment": "P1-UX", "id": "T09c", "kind": "t", "state": "mrg", "review": "f", "sha": "4007e29", "note": "schema workbench and review plain"}
+{"increment": "P1-UX", "id": "T09d", "kind": "t", "state": "mrg", "review": "f", "sha": "c52873d", "note": "Enter on schema package rows"}
+{"increment": "P1-UX", "id": "T09e", "kind": "t", "state": "mrg", "review": "l", "sha": "34fc72d", "note": "settings layer words"}
+{"increment": "P1-UX", "id": "T10", "kind": "t", "state": "mrg", "review": "f", "sha": "4793a7c", "note": "Ctrl+D toggle, help/palette scroll"}
+{"increment": "P1-UX", "id": "T11", "kind": "t", "state": "mrg", "review": "f", "sha": "aca2ec5", "note": "plain walk test, plain + admin"}
+{"increment": "P1-UX", "id": "T11b", "kind": "t", "state": "mrg", "review": "f", "sha": "7b0ce59", "note": "carries: Ver, settings kinds, palette refusal, remote hidden"}
+{"increment": "P1-UX", "id": "T13", "kind": "t", "state": "mrg", "review": "f", "sha": "e303567", "note": "feed pane, header, ref tray plain"}
+{"increment": "P1-UX", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "8a74f75", "note": "demo 4/4, both tours, leak check in tour (D45)"}
+{"increment": "P1-UX", "id": "T11c,T12,T12b", "kind": "-", "state": "abn", "review": "-", "sha": "-", "note": "replaced by S4 (D45)"}
+{"increment": "P1-UX", "id": "S5", "kind": "p", "state": "disp", "review": "f", "sha": "-", "note": "final polish (D46); p1/ux-s5-final-polish (wt /home/user/wt/s5)"}
+{"increment": "P1-UX2", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "d9b3a26", "note": "allowed-actions query + client file/command methods"}
+{"increment": "P1-UX2", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "c73ff96", "note": "LogScreen, ActionFormScreen, \"Log screens\" README"}
+{"increment": "P1-UX2", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "6093bb8", "note": "image_protocol(env)"}
+{"increment": "P1-UX2", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "c69cb4d", "note": "file_text helpers"}
+{"increment": "P1-UX2", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "199b74a", "note": "documents log, preview/, Files tab, deps (rich-pixels, D9)"}
+{"increment": "P1-UX2", "id": "S5", "kind": "p", "state": "mrg", "review": "f", "sha": "7ea83f0", "note": "RFI narrative + timeline"}
+{"increment": "P1-UX2", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "3b4d76a", "note": "every log on LogScreen, actions wired, code labels (D10)"}
+{"increment": "P1-UX2", "id": "S6", "kind": "p", "state": "done", "review": "f", "sha": "-", "note": "demo 4/4 on SQLite and Postgres; tour-all x2 clean; section 24 (branch p1/ux2-s6-demo-tours)"}
+{"increment": "P2-I1", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "99ad743", "note": "schema awp merged; APPROVALS logged"}
+{"increment": "P2-I1", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "f482aad", "note": "awp package merged; rev pass"}
+{"increment": "P2-I1", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "1fa0f90", "note": "CWP, packages, RULES, tl_api glue; rev pass"}
+{"increment": "P2-I1", "id": "S5", "kind": "p", "state": "mrg", "review": "f", "sha": "d32e1be", "note": "rollup run, projector, worker; rev pass"}
+{"increment": "P2-I1", "id": "T02", "kind": "p", "state": "mrg", "review": "f", "sha": "518f6a1", "note": "targets awp_wbs, awp_cwa; rev pass"}
+{"increment": "P2-I1", "id": "T01", "kind": "t", "state": "mrg", "review": "l", "sha": "3e3d88c", "note": "loaders, samples; 2s subject only, accepted (D19)"}
+{"increment": "P2-I1", "id": "T10", "kind": "t", "state": "mrg", "review": "f", "sha": "8b811a4", "note": "read views; rev pass"}
+{"increment": "P2-I1", "id": "S6", "kind": "p", "state": "mrg", "review": "f", "sha": "5fa0905", "note": "expected link awp.yaml; APPROVALS line c325f8b"}
+{"increment": "P2-I1", "id": "T10b", "kind": "t", "state": "mrg", "review": "f", "sha": "f73b5e6", "note": "F1 closed (total over visible lines)"}
+{"increment": "P2-I1", "id": "T03a", "kind": "t", "state": "mrg", "review": "f", "sha": "dfc6217", "note": "eight GET routes, counts, timeline"}
+{"increment": "P2-I1", "id": "T04a", "kind": "t", "state": "mrg", "review": "f", "sha": "0ba277f", "note": "tl awp reads; tl-mod-awp dep added by orch"}
+{"increment": "P2-I1", "id": "T04b", "kind": "t", "state": "mrg", "review": "f", "sha": "00565d1", "note": "reports + tl awp report; mounted r6 (glue)"}
+{"increment": "P2-I1", "id": "T03b", "kind": "t", "state": "mrg", "review": "f", "sha": "86e2662", "note": "client methods; C2; short subject kept (D35)"}
+{"increment": "P2-I1", "id": "T06", "kind": "t", "state": "mrg", "review": "f", "sha": "2420368", "note": "MCP tools + propose_cwp; pins; APPROVALS aeac490"}
+{"increment": "P2-I1", "id": "T05g", "kind": "t", "state": "mrg", "review": "f", "sha": "dc17f91", "note": "PathVersion.reason_code; subject 9c5c514 kept (D53)"}
+{"increment": "P2-I1", "id": "T05h", "kind": "t", "state": "mrg", "review": "f", "sha": "ff5943b", "note": "palette entries + app actions; five keyless ids (D53)"}
+{"increment": "P2-I1", "id": "T10c", "kind": "t", "state": "mrg", "review": "f", "sha": "dca4731", "note": "view fields; 2 att; second _hidden pass dropped"}
+{"increment": "P2-I1", "id": "T03c", "kind": "t", "state": "mrg", "review": "f", "sha": "24b64bc", "note": "API reports route + CSV"}
+{"increment": "P2-I1", "id": "T04c", "kind": "t", "state": "mrg", "review": "f", "sha": "1645726", "note": "cwp+package verbs; subject T04c: kept (D37)"}
+{"increment": "P2-I1", "id": "T04d", "kind": "t", "state": "mrg", "review": "f", "sha": "a6e9002", "note": "wbs, cwa, path verbs; rev pass; mounted r9 (glue)"}
+{"increment": "P2-I1", "id": "T05a", "kind": "t", "state": "mrg", "review": "f", "sha": "1c6aed5", "note": "awp_text + details/awp"}
+{"increment": "P2-I1", "id": "T05b", "kind": "t", "state": "mrg", "review": "f", "sha": "a90661e", "note": "WBS tree + wbs_text; rev pass; Qs D47"}
+{"increment": "P2-I1", "id": "T05c", "kind": "t", "state": "mrg", "review": "f", "sha": "000b3b9", "note": "path screen; 2 att; merge 3506a99; Qs D54"}
+{"increment": "P2-I1", "id": "T05d", "kind": "t", "state": "mrg", "review": "f", "sha": "979cba2", "note": "CWP register screen; rev pass"}
+{"increment": "P2-I1", "id": "T05e", "kind": "t", "state": "mrg", "review": "f", "sha": "ff9d980", "note": "CWA register; 2 att; subject kept (D51)"}
+{"increment": "P2-I1", "id": "T05f", "kind": "t", "state": "mrg", "review": "f", "sha": "e6b59f5", "note": "packages log; 2 att; subject kept (D51)"}
+{"increment": "P2-I1", "id": "T07", "kind": "t", "state": "mrg", "review": "l", "sha": "8d9b344", "note": "sim AwpDesk, planner; 2s subject only (D51)"}
+{"increment": "P2-I1", "id": "T04e", "kind": "t", "state": "mrg", "review": "f", "sha": "dbf684c", "note": "rollup + worker; mounted r10 (glue dc72b6a)"}
+{"increment": "P2-I1", "id": "T11", "kind": "p", "state": "mrg", "review": "f", "sha": "46c6892", "note": "tests; full gate in report; orch regenerated module-roles snapshots; `T11:` subjects kept"}
+{"increment": "P2-I1", "id": "T08", "kind": "t", "state": "mrg", "review": "f", "sha": "724f0f2", "note": "demo 10/10 sqlite+pg; orch run"}
+{"increment": "P2-I1", "id": "T09", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "docs esc resolved by orch; README line rewritten"}
+{"increment": "P2-I1", "id": "S7", "kind": "p", "state": "mrg", "review": "f", "sha": "624dd86", "note": "WBS reinstate; gate 634 P; APPROVALS 2026-11-05"}
+{"increment": "P2-I1", "id": "T14", "kind": "t", "state": "mrg", "review": "l", "sha": "c8cbd9e", "note": "sim assert excuses awp setup; orch sorted imports; 52/52"}
+{"increment": "P2-I1", "id": "T12", "kind": "t", "state": "mrg", "review": "l", "sha": "5f2e4c3", "note": "awp nav tests 12/12; commit body reworded by orch"}
+{"increment": "P2-I2", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "-", "note": "A schema part 2 (APPROVALS done)"}
+{"increment": "P2-I2", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "-", "note": "A IWP+scope cmds; constraint half replaced by C1/C2"}
+{"increment": "P2-I2", "id": "T06b", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "B five n_a checks"}
+{"increment": "P2-I2", "id": "T06a3", "kind": "t", "state": "mrg", "review": "f", "sha": "0b78f86", "note": "B pin resolver by link ids (waived report 63 lines)"}
+{"increment": "P2-I2", "id": "C1", "kind": "p", "state": "mrg", "review": "f", "sha": "945d126", "note": "A core constraint schema; APPROVALS @237149e"}
+{"increment": "P2-I2", "id": "C2", "kind": "p", "state": "mrg", "review": "f", "sha": "df08fb6", "note": "A core constraint cmds; ADR-0024 accepted, APPROVALS @8b6c393"}
+{"increment": "P2-I2", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "aff0765", "note": "A sign-off, issue, hold; APPROVALS @9b3e672"}
+{"increment": "P2-I2", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "5f6dc29", "note": "B readiness engine; fix round merged, APPROVALS @65b803d; S4.py ok"}
+{"increment": "P2-I2", "id": "T06a1", "kind": "t", "state": "mrg", "review": "f", "sha": "f607aec", "note": "B documents_current (waived: cb619ea subject)"}
+{"increment": "P2-I2", "id": "T06a2", "kind": "t", "state": "mrg", "review": "f", "sha": "9098b51", "note": "B rfis_answered"}
+{"increment": "P2-I2", "id": "S5", "kind": "p", "state": "disp", "review": "f", "sha": "-", "note": "A tests piece; wf in flight (orch)"}
+{"increment": "P2-I2", "id": "T04a", "kind": "t", "state": "mrg", "review": "f", "sha": "a486da0", "note": "A IWP + scope views (subject fix not applied; accepted)"}
+{"increment": "P2-I2", "id": "T04a2", "kind": "t", "state": "mrg", "review": "f", "sha": "9bb01f6", "note": "A core owner filter + review_groups; merged @4b5805b"}
+{"increment": "P2-I2", "id": "T04c1", "kind": "t", "state": "mrg", "review": "f", "sha": "35282e0", "note": "A API read routes; sec review mrg, APPROVALS @164e720"}
+{"increment": "P2-I2", "id": "T04c2", "kind": "t", "state": "mrg", "review": "f", "sha": "c1a8ff8", "note": "A client methods + fakes"}
+{"increment": "P2-I2", "id": "T04c3", "kind": "t", "state": "mrg", "review": "f", "sha": "8a306f1", "note": "A routes require_word before any read; sec review mrg, APPROVALS @a388f4a"}
+{"increment": "P2-I2", "id": "T04d", "kind": "t", "state": "mrg", "review": "f", "sha": "02f8d50", "note": "A iwp+constraint CLI reads; merged @d4cbb23"}
+{"increment": "P2-I2", "id": "T04e1", "kind": "t", "state": "mrg", "review": "f", "sha": "2bbcba4", "note": "A awp iwp writes CLI; merged @b2054c3 (LO _cwp_id copy accepted)"}
+{"increment": "P2-I2", "id": "T04e2", "kind": "t", "state": "mrg", "review": "f", "sha": "70c0b00", "note": "A tl constraint writes CLI; merged @c8c0e20"}
+{"increment": "P2-I2", "id": "T04d2", "kind": "t", "state": "mrg", "review": "f", "sha": "d85acd1", "note": "A readiness CLI (LO ', ' join accepted)"}
+{"increment": "P2-I2", "id": "T04g", "kind": "p", "state": "mrg", "review": "f", "sha": "04eb253", "note": "A glue; follower worker (D39); S5 addendum 6d8d8fe"}
+{"increment": "P2-I2", "id": "T04b", "kind": "t", "state": "mrg", "review": "f", "sha": "5d1f540", "note": "A constraint_text + screen + log; merged @4243089"}
+{"increment": "P2-I2", "id": "T07a", "kind": "t", "state": "mrg", "review": "f", "sha": "b32474e", "note": "B readiness_text + screen; merged @5e07f9d"}
+{"increment": "P2-I2", "id": "T07b", "kind": "t", "state": "mrg", "review": "f", "sha": "7da4cbc", "note": "B iwp_text + log + IWP screen (D33); merged @f138629"}
+{"increment": "P2-I2", "id": "T08", "kind": "t", "state": "mrg", "review": "f", "sha": "b29142f", "note": "B backlog weeks + sizing screen (D34)"}
+{"increment": "P2-I2", "id": "T09a", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "A six IWP/constraint reports (orch reran 222 PASS)"}
+{"increment": "P2-I2", "id": "T09b", "kind": "t", "state": "mrg", "review": "f", "sha": "3a71664", "note": "A IWP tools only (D37); sec review mrg"}
+{"increment": "P2-I2", "id": "T07c", "kind": "t", "state": "disp", "review": "f", "sha": "-", "note": "B glue: IwpScreen r/c keys, 3 palette rows; refined r11; wf r11"}
+{"increment": "P2-I2", "id": "TW1", "kind": "t", "state": "disp", "review": "f", "sha": "-", "note": "B web /iwps log+panel; refined r11; wf r11 with T07c"}
+{"increment": "P2-I2", "id": "TW2", "kind": "t", "state": "stg", "review": "f", "sha": "-", "note": "B web /constraints; refined r11; after TW1 (shared web files)"}
+{"increment": "P2-I2", "id": "TW3", "kind": "t", "state": "stg", "review": "f", "sha": "-", "note": "B web /readiness?number=; refined r11; after TW2; tile dropped"}
+{"increment": "P2-I2", "id": "T10a", "kind": "t", "state": "disp", "review": "l", "sha": "-", "note": "A IwpDesk + actor iwp_planner (D40); retry in flight (sim pins, numbering)"}
+{"increment": "P2-I2", "id": "T10b", "kind": "t", "state": "stg", "review": "f", "sha": "-", "note": "A demo; spec r10; after T10a TW1-3 T07c; split at dispatch if >450 lines"}
+{"increment": "P2-I2", "id": "T12", "kind": "t", "state": "stg", "review": "l", "sha": "-", "note": "A docs + runbook iwp-readiness; spec r10; after T10b"}
+{"increment": "P2-I3", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "485f3b4", "note": "schema merged; APPROVALS logged"}
+{"increment": "P2-I3", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "af76b84", "note": "package + pins; e543b97 adds tl-mod-legacy dep + uv.lock; C1 done"}
+{"increment": "P2-I3", "id": "T01a", "kind": "t", "state": "mrg", "review": "l", "sha": "8aa58ed", "note": "samples (50 items, 9 locations, 15 PO lines), 26 checks"}
+{"increment": "P2-I3", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "658c452", "note": "receipts, movements, actions, commands, tl_api glue; b21676a; 2s accepted by orch"}
+{"increment": "P2-I3", "id": "T01b", "kind": "t", "state": "mrg", "review": "l", "sha": "6b3e9c7", "note": "loaders mat-*; merge 3da7b71 (p2/i3 head at r4 start), ck0"}
+{"increment": "P2-I3", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "f114592", "note": "mto target + documents extension points; orch ratified esc (D22, D24); APPROVALS logged"}
+{"increment": "P2-I3", "id": "T03", "kind": "t", "state": "mrg", "review": "l", "sha": "6004b0e", "note": "readiness (subject only); defaults kept (Q7)"}
+{"increment": "P2-I3", "id": "T04a", "kind": "t", "state": "mrg", "review": "f", "sha": "bad05ef", "note": "9 GET routes; 10 agent pins; MaterialItemView rename; APPROVALS logged; C2 reached"}
+{"increment": "P2-I3", "id": "T04b", "kind": "t", "state": "mrg", "review": "f", "sha": "b1cbd75", "note": "client methods + materials_command + fake (e64703a); ck0"}
+{"increment": "P2-I3", "id": "T05a", "kind": "t", "state": "mrg", "review": "f", "sha": "60b4c77", "note": "reports.py (6 reports, CSV) + report route (261067d); ck0"}
+{"increment": "P2-I3", "id": "T05b", "kind": "t", "state": "mrg", "review": "f", "sha": "7c559df", "note": "CLI reads (9 verbs + report); merge cdbd388; sign fallback, loc header accepted (D35)"}
+{"increment": "P2-I3", "id": "T05c", "kind": "t", "state": "mrg", "review": "f", "sha": "453af44", "note": "CLI writes; merge 7dc889d; adjust --direction; rev pass; receipt lookup before gate viewer-filtered accepted"}
+{"increment": "P2-I3", "id": "T05d", "kind": "t", "state": "mrg", "review": "f", "sha": "e444c09", "note": "mto show + item-projects; merge 8e6f89c; `T05d:` subject kept"}
+{"increment": "P2-I3", "id": "T06a", "kind": "t", "state": "mrg", "review": "f", "sha": "d0971d6", "note": "materials_text.py; 2s accepted; merge 0503ef0 (47d76c3 + fix, D35)"}
+{"increment": "P2-I3", "id": "T06f", "kind": "t", "state": "mrg", "review": "f", "sha": "33af41d", "note": "StockScreen + MovementLogScreen; merge fedd934; rev pass; D41"}
+{"increment": "P2-I3", "id": "T06g", "kind": "t", "state": "mrg", "review": "f", "sha": "1f7ef4a", "note": "For columns + receive signs; merge c464f6a; subject T06g: kept (D45)"}
+{"increment": "P2-I3", "id": "S5", "kind": "p", "state": "mrg", "review": "f", "sha": "08ee349", "note": "view keys + 2 GET routes; merge 46e96e7; APPROVALS 9d13710"}
+{"increment": "P2-I3", "id": "T06b", "kind": "t", "state": "mrg", "review": "f", "sha": "922a711", "note": "receipt_text + ReceiptLogScreen; MTR line (D39); merge dbcb4f9"}
+{"increment": "P2-I3", "id": "T06c", "kind": "t", "state": "mrg", "review": "f", "sha": "c3610f1", "note": "item_text + ItemLibraryScreen; merge edb6055; crumb fix in T06e (D45)"}
+{"increment": "P2-I3", "id": "T06d", "kind": "t", "state": "mrg", "review": "f", "sha": "641051a", "note": "mto_text.py + MtoLinesScreen; merge 2046d54; rev pass; D41"}
+{"increment": "P2-I3", "id": "T06h", "kind": "t", "state": "mrg", "review": "f", "sha": "4a91f61", "note": "location_text + LocationScreen; merge 423b515; D45"}
+{"increment": "P2-I3", "id": "T06e", "kind": "t", "state": "mrg", "review": "f", "sha": "cc81803", "note": "receipt entry + Company crumb; merge 7a7f4c1; Delete key; no MTR upload (D42)"}
+{"increment": "P2-I3", "id": "T07", "kind": "t", "state": "mrg", "review": "f", "sha": "3f8599c", "note": "nine MCP reads + propose_reservation; MATERIALS_MCP_ACTIONS (a38d5a3); APPROVALS 01ba7bc"}
+{"increment": "P2-I3", "id": "T12", "kind": "t", "state": "mrg", "review": "f", "sha": "e381b39", "note": "sim MaterialsDesk + coordinator; merge e381b39; D51"}
+{"increment": "P2-I3", "id": "S6", "kind": "p", "state": "mrg", "review": "f", "sha": "05b1f13", "note": "client attach_record_file; merge a2a6502; embedded.py import conflict resolved by orch"}
+{"increment": "P2-I3", "id": "T06i", "kind": "t", "state": "mrg", "review": "f", "sha": "63eb4ef", "note": "cursor, KEYS style, amber Note; merge addf25a"}
+{"increment": "P2-I3", "id": "T08", "kind": "t", "state": "mrg", "review": "f", "sha": "36e4e28", "note": "demo 11/11 sqlite+pg; r3 P; T08a mrg 79f87ec"}
+{"increment": "P2-I3", "id": "T11", "kind": "p", "state": "mrg", "review": "f", "sha": "3b8c4f7", "note": "tests + T11b pins; 281 P, pg 103 P; 5/5 mutants killed"}
+{"increment": "P2-I3", "id": "T06j", "kind": "t", "state": "mrg", "review": "f", "sha": "2d89f4d", "note": "MTR upload on receipt entry; subject T06j: kept"}
+{"increment": "P2-I3", "id": "T13", "kind": "t", "state": "mrg", "review": "f", "sha": "29a8f6b", "note": "MCP tools + keys + palette; nav panel dropped (D52); full review P"}
+{"increment": "P2-I3", "id": "T10", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "docs lite; early dispatch accepted; reserve step points at API"}
+{"increment": "P2-I4A", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "010b695", "note": "schema + module spec"}
+{"increment": "P2-I4A", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "43a94d5", "note": "engine cmds + subject-class join"}
+{"increment": "P2-I4A", "id": "S3", "kind": "p", "state": "dfr", "review": "f", "sha": "-", "note": "roadmap 3c (fulfil, FIFO, stock(), shortage)"}
+{"increment": "P2-I4A", "id": "S4", "kind": "p", "state": "dfr", "review": "f", "sha": "-", "note": "roadmap 3c; each ticket carries its tests"}
+{"increment": "P2-I4A", "id": "T04a", "kind": "t", "state": "mrg", "review": "f", "sha": "63b5e3a", "note": "read views; D-r3c"}
+{"increment": "P2-I4A", "id": "T04e1", "kind": "t", "state": "mrg", "review": "f", "sha": "87307ee", "note": "CLI writes; D-r3a D-r3b"}
+{"increment": "P2-I4A", "id": "T04d", "kind": "t", "state": "mrg", "review": "f", "sha": "bf0ad8d", "note": "CLI reads; D-r3d"}
+{"increment": "P2-I4A", "id": "T04c1", "kind": "t", "state": "mrg", "review": "f", "sha": "931992c", "note": "API reads + word check"}
+{"increment": "P2-I4A", "id": "T04c2", "kind": "t", "state": "mrg", "review": "f", "sha": "eb8778b", "note": "client methods + fakes"}
+{"increment": "P2-I4A", "id": "T07a", "kind": "t", "state": "mrg", "review": "f", "sha": "1198a97", "note": "requisition text, log, page"}
+{"increment": "P2-I4A", "id": "T07b", "kind": "t", "state": "mrg", "review": "f", "sha": "7f2876f", "note": "work order backlog"}
+{"increment": "P2-I4A", "id": "T07d", "kind": "t", "state": "mrg", "review": "f", "sha": "a9a14fc", "note": "TUI glue; item 4 deferred D-r3f"}
+{"increment": "P2-I4A", "id": "T08b", "kind": "t", "state": "mrg", "review": "f", "sha": "78a134e", "note": "MCP reads + propose_requisition"}
+{"increment": "P2-I4A", "id": "T10b", "kind": "t", "state": "mrg", "review": "f", "sha": "6eac974", "note": "demo P2-I4 both backends PASS (orch run); D-r3i"}
+{"increment": "P2-I4A", "id": "T12", "kind": "t", "state": "mrg", "review": "l", "sha": "6b6b248", "note": "docs; review F2 F3 checked false (handler, widget bindings)"}
+{"increment": "P2-I4A", "id": "S5", "kind": "p", "state": "mrg", "review": "f", "sha": "44feb42", "note": "whole suite green (7 split sessions); review P (nit F1 -> PUNCH piece)"}
+{"increment": "P2-I4A", "id": "T04f", "kind": "t", "state": "dfr", "review": "l", "sha": "-", "note": "roadmap 3c labour forecast"}
+{"increment": "P2-I4A", "id": "T07c", "kind": "t", "state": "dfr", "review": "f", "sha": "-", "note": "roadmap 3c forecast screen"}
+{"increment": "P2-I4A", "id": "T08a", "kind": "t", "state": "dfr", "review": "l", "sha": "-", "note": "roadmap 3c reports"}
+{"increment": "P2-I4A", "id": "T04e2", "kind": "t", "state": "dfr", "review": "f", "sha": "-", "note": "roadmap 3c CLI fulfil"}
+{"increment": "P2-I4A", "id": "T13", "kind": "t", "state": "abn", "review": "-", "sha": "folded:", "note": "tickets own registration lines"}
+{"increment": "P2-I4A", "id": "T10a", "kind": "T11", "state": "T04c3", "review": "t", "sha": "abn", "note": "- cut r2 (F9 F10 F11)"}
+{"increment": "P2-I4B", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "256d9014", "note": "C1; findings dec by orch; APPROVALS"}
+{"increment": "P2-I4B", "id": "S1b", "kind": "p", "state": "mrg", "review": "f", "sha": "6260c4de", "note": "SR-I4B F1 F3 F4 F6; orch read diff"}
+{"increment": "P2-I4B", "id": "T06", "kind": "t", "state": "mrg", "review": "f", "sha": "1c3e1294", "note": "review P; F2 ctrl+i is Tab -> T07a (D11)"}
+{"increment": "P2-I4B", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "f6bf1990", "note": "review P"}
+{"increment": "P2-I4B", "id": "T05a", "kind": "t", "state": "mrg", "review": "f", "sha": "7e1651ce", "note": "review P; amend 1; rename test_nine_checks later"}
+{"increment": "P2-I4B", "id": "T05b", "kind": "t", "state": "mrg", "review": "f", "sha": "de6ff369", "note": "review P; amend 1+2 (seed labour reqs)"}
+{"increment": "P2-I4B", "id": "T09a", "kind": "t", "state": "mrg", "review": "f", "sha": "fcbb52e0", "note": "review P"}
+{"increment": "P2-I4B", "id": "T09b1", "kind": "t", "state": "mrg", "review": "f", "sha": "49ab7045", "note": "review P"}
+{"increment": "P2-I4B", "id": "T09b2", "kind": "t", "state": "mrg", "review": "f", "sha": "7480bded", "note": "review P"}
+{"increment": "P2-I4B", "id": "T07a", "kind": "t", "state": "mrg", "review": "f", "sha": "f4b66174", "note": "review P"}
+{"increment": "P2-I4B", "id": "T07b", "kind": "t", "state": "mrg", "review": "f", "sha": "3fc897e2", "note": "review P"}
+{"increment": "P2-I4B", "id": "T09c", "kind": "t", "state": "mrg", "review": "f", "sha": "cb1e81ef", "note": "review P"}
+{"increment": "P2-I4B", "id": "T11a", "kind": "t", "state": "mrg", "review": "f", "sha": "9d5237e5", "note": "review P; 1 scaffold (Designed)"}
+{"increment": "P2-I4B", "id": "T12", "kind": "t", "state": "mrg", "review": "l", "sha": "d1484534", "note": "esc settled amend 1"}
+{"increment": "P2-I4B", "id": "T13", "kind": "t", "state": "mrg", "review": "f", "sha": "e443e853", "note": "DONE fallout; record_id fix"}
+{"increment": "P2-I4B", "id": "T10a", "kind": "t", "state": "mrg", "review": "f", "sha": "863b91a3", "note": "review P; stale echo fix in T10b"}
+{"increment": "P2-I4B", "id": "T10b", "kind": "t", "state": "mrg", "review": "f", "sha": "2eb59e85", "note": "esc settled amend 1"}
+{"increment": "P2-I4B", "id": "T11b", "kind": "t", "state": "mrg", "review": "l", "sha": "ffc232d5", "note": "tour 15 shots, orch lite read"}
+{"increment": "P2-I5", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "76c15b4", "note": "schema, package content, words, settings"}
+{"increment": "P2-I5", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "00647bf", "note": "engine, progress cmds, IWP start/complete, math rules"}
+{"increment": "P2-I5", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "3eafc70", "note": "rollup+CSV export on read"}
+{"increment": "P2-I5", "id": "S4a", "kind": "p", "state": "mrg", "review": "f", "sha": "011349c", "note": "weekly cmds, week reads, propose_week_commitment"}
+{"increment": "P2-I5", "id": "S4b", "kind": "p", "state": "mrg", "review": "f", "sha": "450b814", "note": "waive word, hold rule, worker word; human gate done"}
+{"increment": "P2-I5", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "7c094c8", "note": "tl awp roc ls|show|set"}
+{"increment": "P2-I5", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "998797d", "note": "look_ahead_view"}
+{"increment": "P2-I5", "id": "T04b", "kind": "t", "state": "mrg", "review": "f", "sha": "02a926d", "note": "CLI for S2 writes"}
+{"increment": "P2-I5", "id": "T09", "kind": "t", "state": "mrg", "review": "l", "sha": "b1666b8", "note": "KPI tiles; fix round (provided test had wrong-case miss key, IWP state by shortcut)"}
+{"increment": "P2-I5", "id": "T07a", "kind": "t", "state": "mrg", "review": "f", "sha": "bcf3c2e", "note": "pack HTML + QR + `iwp pack`; build_pack_data, render_html -> Rendered"}
+{"increment": "P2-I5", "id": "T04", "kind": "t", "state": "mrg", "review": "f", "sha": "674310a", "note": "look-ahead + week CLI; ready after T09; provided test in tree (R-B)"}
+{"increment": "P2-I5", "id": "T11a1", "kind": "t", "state": "mrg", "review": "f", "sha": "42ac14f", "note": "API progress/rollup/kpis/counts/hash routes; after T09 (R-B)"}
+{"increment": "P2-I5", "id": "T11c", "kind": "t", "state": "mrg", "review": "f", "sha": "36c990d", "note": "MCP five reads; after T09 (R-B)"}
+{"increment": "P2-I5", "id": "T11a2", "kind": "t", "state": "mrg", "review": "f", "sha": "8d4e0cb", "note": "API weeks/miss-reasons/look-ahead; after T11a1 (R-C)"}
+{"increment": "P2-I5", "id": "T07b", "kind": "t", "state": "mrg", "review": "l", "sha": "8b77cfb", "note": "pack template; ready; provided test r6; golden made by the ticket (R-C)"}
+{"increment": "P2-I5", "id": "T11b", "kind": "t", "state": "mrg", "review": "f", "sha": "11a70a7", "note": "client methods + fakes + two command doors; after T11a1 T11a2 (R-D)"}
+{"increment": "P2-I5", "id": "T06a", "kind": "t", "state": "mrg", "review": "f", "sha": "a38e712", "note": "TUI cycle steps 1-3; after T11b; stub weekly_text.py + provided test in tree (R-E)"}
+{"increment": "P2-I5", "id": "T16", "kind": "t", "state": "mrg", "review": "f", "sha": "7c5552b", "note": "five-reader walk, three test files; after T11c T11b T04 (R-E)"}
+{"increment": "P2-I5", "id": "T06b", "kind": "t", "state": "mrg", "review": "f", "sha": "8cc2290", "note": "TUI steps 4-5 + actions.RULES rows StartIwpWork, CompleteIwpField; after T06a (R-F)"}
+{"increment": "P2-I5", "id": "T06c1", "kind": "t", "state": "mrg", "review": "f", "sha": "f4f550a", "note": "IWP log counts, filters, backlog 500, mine flag; after T11b (R-F)"}
+{"increment": "P2-I5", "id": "T06c2", "kind": "t", "state": "mrg", "review": "f", "sha": "ed77ead", "note": "landing at sign-in; after T06c1 T06b (R-G)"}
+{"increment": "P2-I5", "id": "T12", "kind": "t", "state": "blk", "review": "f", "sha": "c6310e4", "note": "clauses 1-2 pass; stops at 3; retried as T12b"}
+{"increment": "P2-I5", "id": "T12a", "kind": "p", "state": "mrg", "review": "f", "sha": "4cbd11c", "note": "four demo gaps; tl-api dir gate left to DONE (OOM)"}
+{"increment": "P2-I5", "id": "T12b", "kind": "t", "state": "mrg", "review": "f", "sha": "fc1ec38", "note": "demo green sq+pg; F1 clause-3 check tightened"}
+{"increment": "P2-I5", "id": "T13", "kind": "t", "state": "mrg", "review": "l", "sha": "38a3d46", "note": "docs; 2s on wording, fixed at merge"}
+{"increment": "P2-I5", "id": "S7", "kind": "p", "state": "mrg", "review": "f", "sha": "ab37724", "note": "SR3 F1-F3 + WeeklyPlan scanned (APPROVALS); review fixes"}
+{"increment": "P2-I5", "id": "S8", "kind": "p", "state": "mrg", "review": "f", "sha": "a73c531", "note": "trunk merged (27 conflicts), registries; review fix scoped equality"}
+{"increment": "P2-I5", "id": "T17", "kind": "t", "state": "mrg", "review": "f", "sha": "da16eec", "note": "tour 09-18 + pack; 3 rounds (needles, earned, plain close time)"}
+{"increment": "P2-I5", "id": "T15", "kind": "t", "state": "todo", "review": "f", "sha": "-", "note": "registrations only if glue > 50 lines"}
+{"increment": "P2-I5", "id": "S5", "kind": "S6", "state": "T05", "review": "T07c", "sha": "T08", "note": "T10 abn - roadmap 3c, or replaced (T16)"}
+{"increment": "P2-I6", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "f567b59", "note": "marts sync; gate 3472 P; APPROVALS"}
+{"increment": "P2-I6", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "b92cfef", "note": "3 marts; lake 283 P; +hidden-IWP test"}
+{"increment": "P2-I6", "id": "T03", "kind": "t", "state": "mrg", "review": "l", "sha": "ecb78e1", "note": "audit 16 rows, D01-D05 drafts; req/WO not in seed"}
+{"increment": "P2-I6", "id": "B1", "kind": "p", "state": "todo", "review": "f", "sha": "-", "note": "exit wave 5; not staged"}
+{"increment": "P2-I6", "id": "T01", "kind": "t", "state": "todo", "review": "f", "sha": "-", "note": "exit wave 5; needs B1"}
+{"increment": "P2-I6", "id": "T04", "kind": "t", "state": "todo", "review": "f", "sha": "-", "note": "exit demo; needs T01 T02"}
+{"increment": "P2-I6", "id": "T05", "kind": "t", "state": "todo", "review": "-", "sha": "-", "note": "phase report; orchestrator"}
+{"increment": "P2-INS", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "96d4a51", "note": "Activity read, route, client; APPROVALS a6a854e"}
+{"increment": "P2-INS", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "06e2c3e", "note": "Checks, telemetry, note_need; APPROVALS 2fbcdcf"}
+{"increment": "P2-INS", "id": "T01", "kind": "t", "state": "mrg", "review": "l", "sha": "8b54026", "note": "real text bodies over committed stub; ready"}
+{"increment": "P2-INS", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "8c9682d", "note": "ActivityTab + InsightsTab stub widgets, no record_view; ready"}
+{"increment": "P2-INS", "id": "T02b", "kind": "t", "state": "mrg", "review": "f", "sha": "2f3c264", "note": "record_view wiring, keys 4/h/9, keymap, pins; after T01+T02"}
+{"increment": "P2-INS", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "48c1561", "note": "Insights tab Checks + 3 unmet subtabs; after T02b"}
+{"increment": "P2-INS", "id": "T04", "kind": "t", "state": "mrg", "review": "f", "sha": "e7691d6", "note": "twin tests core level; independent, ready now"}
+{"increment": "P2-INT", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "9c60a80", "note": "event intent: model, column, hash ext, archive"}
+{"increment": "P2-INT", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "0fc06f1", "note": "boundary: validation, carrier, API reads, proposals, walk (after S1)"}
+{"increment": "P2-INT", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "c55317a", "note": "tl:valid_time tag + frozen baseline"}
+{"increment": "P2-INT", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "9e897a7", "note": "CLI --why/--next/--toward on record+link (D6)"}
+{"increment": "P2-INT", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "e337656", "note": "MCP intent param on 12 propose submits"}
+{"increment": "P2-INT", "id": "T04", "kind": "t", "state": "mrg", "review": "f", "sha": "97a2ede", "note": "Activity-tab intent panel + core redact in record_activity, embedded.history"}
+{"increment": "P2-INT", "id": "T05", "kind": "t", "state": "mrg", "review": "l", "sha": "9f3599e", "note": "demo driver (after T02-T04)"}
+{"increment": "P2-PUNCH", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "7c4ebaa", "note": "schema + module spec; APPROVALS done"}
+{"increment": "P2-PUNCH", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "1752551", "note": "six commands, subject join, row; APPROVALS done"}
+{"increment": "P2-PUNCH", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "d6f91e0", "note": "read views; provided test + stub committed r4; dispatch now"}
+{"increment": "P2-PUNCH", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "df020f8", "note": "tl punch group; D28"}
+{"increment": "P2-PUNCH", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "028128c", "note": "3 GET routes + generic door; D28"}
+{"increment": "P2-PUNCH", "id": "T05", "kind": "t", "state": "mrg", "review": "f", "sha": "49dfc6d", "note": "MCP reads + propose_punch_item"}
+{"increment": "P2-PUNCH", "id": "T04", "kind": "t", "state": "mrg", "review": "f", "sha": "fbd1873", "note": "client reads + quality_command + fake; D29"}
+{"increment": "P2-PUNCH", "id": "T06", "kind": "t", "state": "mrg", "review": "f", "sha": "166e112", "note": "TUI punch log + record screen"}
+{"increment": "P2-PUNCH", "id": "T07", "kind": "t", "state": "mrg", "review": "f", "sha": "d82bb60", "note": "generator quality section + roster grant + pins; dispatch now"}
+{"increment": "P2-PUNCH", "id": "T08", "kind": "t", "state": "mrg", "review": "f", "sha": "f6fb221", "note": "demo 7 sq + 6 pg PASS; D30"}
+{"increment": "P2-PUNCH", "id": "T09", "kind": "t", "state": "mrg", "review": "l", "sha": "065713e", "note": "docs; 2s on wording only (model name, gate coverage); fixed at merge"}
+{"increment": "P2-REL", "id": "S1", "kind": "p", "state": "stg", "review": "f", "sha": "-", "note": "installable wheels; schema_root locator; data in wheels"}
+{"increment": "P2-REL", "id": "S2", "kind": "p", "state": "stg", "review": "f", "sha": "-", "note": "real server mode; bind policy; plain-http refusal; human gate"}
+{"increment": "P2-REL", "id": "T01", "kind": "t", "state": "stg", "review": "l", "sha": "-", "note": "version 0.1.0; --version flags; needs S1"}
+{"increment": "P2-REL", "id": "T02", "kind": "t", "state": "stg", "review": "f", "sha": "-", "note": "/health version; TUI minor warning; needs S2"}
+{"increment": "P2-REL", "id": "T03", "kind": "t", "state": "stg", "review": "f", "sha": "-", "note": "release-build, check_wheels; needs S1 T01"}
+{"increment": "P2-REL", "id": "T04", "kind": "t", "state": "stg", "review": "l", "sha": "-", "note": "starter bundle; needs T03; WAVE2"}
+{"increment": "P2-REL", "id": "T05", "kind": "t", "state": "stg", "review": "f", "sha": "-", "note": "smoke.sh clean install, both paths; needs S2 T03 T04; WAVE2"}
+{"increment": "P2-REL", "id": "T06", "kind": "t", "state": "stg", "review": "l", "sha": "-", "note": "runbook terminal-release; needs T05; WAVE2"}
+{"increment": "P2-REL", "id": "T07", "kind": "t", "state": "stg", "review": "l", "sha": "-", "note": "CI release-smoke job; owner may cut; needs T05"}
+{"increment": "P2-SEED", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "-", "note": "generator framework, core/eng/docs/corr sections"}
+{"increment": "P2-SEED", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "-", "note": "awp section (report exists)"}
+{"increment": "P2-SEED", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "-", "note": "materials section"}
+{"increment": "P2-SEED", "id": "T05", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "fixed anchors"}
+{"increment": "P2-SEED", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "-", "note": "tour seeds from project (report exists; verify in log)"}
+{"increment": "P2-SEED", "id": "T04", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "runbook (report exists; verify in log)"}
+{"increment": "P2-SEED", "id": "T06", "kind": "t", "state": "mrg", "review": "f", "sha": "-", "note": "constraints section (constraints.py on trunk)"}
+{"increment": "P2-SEED", "id": "T07", "kind": "t", "state": "mrg", "review": "f", "sha": "19ca2fa", "note": "schedule + 4 snapshots; 11 P"}
+{"increment": "P2-SEED", "id": "T08", "kind": "t", "state": "mrg", "review": "f", "sha": "de8a92c", "note": "req 4 kinds + WO lifecycle; 16 P"}
+{"increment": "P2-SEED", "id": "T09", "kind": "t", "state": "mrg", "review": "f", "sha": "cc3957b", "note": "release: 2 sign-offs, issue, start; 17 P"}
+{"increment": "P2-SEED", "id": "T10", "kind": "t", "state": "mrg", "review": "f", "sha": "2d56cda", "note": "5 weekly plans; MissReason; 12 P"}
+{"increment": "P2-SEED", "id": "T11", "kind": "t", "state": "mrg", "review": "f", "sha": "e892471", "note": "scope inside constraints + progress; 22 P"}
+{"increment": "P2-W0", "id": "RM-S1", "kind": "p", "state": "mrg", "review": "f", "sha": "55931f7", "note": "module roles table, grants, resolver, company grants; C1"}
+{"increment": "P2-W0", "id": "W0-B1", "kind": "p", "state": "mrg", "review": "f", "sha": "4824bf6", "note": "readiness, reserved, 11 keys, access words; C1"}
+{"increment": "P2-W0", "id": "A1", "kind": "t", "state": "mrg", "review": "l", "sha": "8dbe138", "note": "dev/state.sh; justfile recipe added r3"}
+{"increment": "P2-W0", "id": "A2", "kind": "t", "state": "mrg", "review": "l", "sha": "484337c", "note": "dev/review-pack.sh; justfile recipe added r3"}
+{"increment": "P2-W0", "id": "A3", "kind": "t", "state": "mrg", "review": "l", "sha": "266e29a", "note": "dev/relay-lint; justfile recipe added r2"}
+{"increment": "P2-W0", "id": "RM-S2", "kind": "p", "state": "mrg", "review": "f", "sha": "2ee1c0e", "note": "API-side module-role gates, D1-D3 orch; APPROVALS 9563763"}
+{"increment": "P2-W0", "id": "W0-B2", "kind": "p", "state": "mrg", "review": "f", "sha": "bfd4629", "note": "load/publish targets by entry point"}
+{"increment": "P2-W0", "id": "OC-S1", "kind": "p", "state": "mrg", "review": "f", "sha": "fc09ce7", "note": "offline annotation, tables; APPROVALS b203322"}
+{"increment": "P2-W0", "id": "RM-S3", "kind": "p", "state": "mrg", "review": "f", "sha": "bdff740", "note": "admin surfaces; agent pin, keymap m widened; 26 PASS; APPROVALS 672d87d"}
+{"increment": "P2-W0", "id": "RM-S4", "kind": "p", "state": "mrg", "review": "f", "sha": "97f3436", "note": "gate sweep; 3 attempts; ADR-0016 fix class; gate_sweep 0 ungated; APPROVALS ac9c0d2"}
+{"increment": "P2-W0", "id": "OC-S2", "kind": "p", "state": "mrg", "review": "f", "sha": "41353f7", "note": "capture hook, load checks, node kind; 43 PASS"}
+{"increment": "P2-W0", "id": "OC-T1", "kind": "t", "state": "mrg", "review": "f", "sha": "1de9428", "note": "T04 GET /record-types + record_types(); merge 5d0442c"}
+{"increment": "P2-W0", "id": "OC-T2", "kind": "t", "state": "mrg", "review": "f", "sha": "b2b3f2d", "note": "T05 Offline class row, technical mode; merge 65cc353"}
+{"increment": "P2-W0", "id": "OC-T3", "kind": "t", "state": "mrg", "review": "l", "sha": "c6dbfd9", "note": "T06 scaffold tl:offline none + expected pin"}
+{"increment": "P2-W0", "id": "RM-S3L", "kind": "t", "state": "mrg", "review": "l", "sha": "d8cd917", "note": "T07 four lows F1-F4"}
+{"increment": "P2-W0", "id": "OC-T4", "kind": "t", "state": "mrg", "review": "l", "sha": "2dddcb7", "note": "T08 InboundDelivery none; orch regen models.py 1eedbeb; APPROVALS 6d7f35f"}
+{"increment": "P2-W0", "id": "TA", "kind": "p", "state": "mrg", "review": "f", "sha": "4b354db", "note": "S9 tests roles; gate before _upload fix"}
+{"increment": "P2-W0", "id": "TB", "kind": "p", "state": "mrg", "review": "f", "sha": "d868c2a", "note": "S10 tests core"}
+{"increment": "P2-W0", "id": "DOC-1", "kind": "t", "state": "mrg", "review": "l", "sha": "a970c2f", "note": "T09 runbook, access-words reference"}
+{"increment": "P2-W0", "id": "DOC-2", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "T10 docs targets offline (README cap waived)"}
+{"increment": "P2-W0", "id": "DEMO", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "T11 demo P2-W0 11 clauses sq+pg"}
+{"increment": "P2-W0", "id": "PERF", "kind": "p", "state": "mrg", "review": "f", "sha": "b0b1ff2", "note": "10k screens; confidentiality pushdown; P2-PERF.md"}
+{"increment": "P2-W0", "id": "FIX-REST", "kind": "p", "state": "mrg", "review": "f", "sha": "ef4c0df", "note": "end-run fixes (36/37)"}
+{"increment": "P2-W0", "id": "FIX-TUI", "kind": "p", "state": "mrg", "review": "f", "sha": "b649e50", "note": "end-run TUI pins 134/134"}
+{"increment": "P2-W0", "id": "ADOPT", "kind": "p", "state": "mrg", "review": "f", "sha": "454d8bb", "note": "AdoptSchemaSet; F1 HI fixed; APPROVALS 1f03078"}
+{"increment": "P2-W0", "id": "TOUR", "kind": "p", "state": "mrg", "review": "f", "sha": "1880d7d", "note": "phase 1 tour module roles (83 shots)"}
+{"increment": "P2-W0", "id": "PGFIX", "kind": "p", "state": "mrg", "review": "f", "sha": "492a116", "note": "pg test setup seeds accounts"}
+{"increment": "P2-WEB1", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "3145932", "note": "foundation; F1 csrf catch-all fixed; deviations ratified"}
+{"increment": "P2-WEB1", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "3145932", "note": "run_command + action_ui (merge 773f38c)"}
+{"increment": "P2-WEB1", "id": "T06", "kind": "t", "state": "mrg", "review": "l", "sha": "3145932", "note": "licence check; blk was subject prefix only"}
+{"increment": "P2-WEB1", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "26708be", "note": "page1 route + web mirrors; argv pin ratified (merge 0274a26)"}
+{"increment": "P2-WEB1", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "8fb6905", "note": "reads, WebLog, /do; ~1,160 line overrun accepted"}
+{"increment": "P2-WEB1", "id": "T15", "kind": "t", "state": "mrg", "review": "f", "sha": "88ddfe7", "note": "RFI log page (merge a2f0a1d)"}
+{"increment": "P2-WEB1", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "86b4338", "note": "correspondence register; transmittal rows no actions (359a3e6)"}
+{"increment": "P2-WEB1", "id": "T05", "kind": "t", "state": "mrg", "review": "f", "sha": "9e5e1b3", "note": "PDF viewer page, pdfview.js (merge 0ca0d5f)"}
+{"increment": "P2-WEB1", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "567ed55", "note": "document log page (merge e16b5bd)"}
+{"increment": "P2-WEB1", "id": "S6", "kind": "p", "state": "mrg", "review": "f", "sha": "70f45e4", "note": "record screen, Details Properties History (merge 54d80da)"}
+{"increment": "P2-WEB1", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "14f0536", "note": "Links + Trace tabs (merge 9de8bac)"}
+{"increment": "P2-WEB1", "id": "T04", "kind": "t", "state": "mrg", "review": "f", "sha": "979699a", "note": "Thread + Files tabs (merge d8c8e45)"}
+{"increment": "P2-WEB1", "id": "S5", "kind": "p", "state": "mrg", "review": "f", "sha": "230e2ae", "note": "tests piece, 338 tests; +500 headers fix (merge c89e9bc)"}
+{"increment": "P2-WEB1", "id": "T08", "kind": "t", "state": "mrg", "review": "l", "sha": "250a7d3", "note": "demo script P2-WEB1.sh, sqlite+postgres 5/5 (merge fb0c930)"}
+{"increment": "P2-WEB1", "id": "T19", "kind": "t", "state": "mrg", "review": "l", "sha": "e9798e3", "note": "stock keeps Location, panel text pre (merge da07d37)"}
+{"increment": "P2-WEB1", "id": "SEC-C4", "kind": "-", "state": "mrg", "review": "-", "sha": "da07d37..904dfb0", "note": "review: 9 none"}
+{"increment": "P2-WEB1", "id": "T20", "kind": "t", "state": "mrg", "review": "l", "sha": "0a9e5d4", "note": "demo clauses 6, 7; unknown project = empty 200 accepted (merge 53e0033)"}
+{"increment": "P2-WEB1", "id": "SECFIX", "kind": "p", "state": "mrg", "review": "f", "sha": "b817341", "note": "F1 login CSRF, F2 guard default-on, F3 rate-limit tests (merge 0118cb0)"}
+{"increment": "P2-WEB1", "id": "T09", "kind": "t", "state": "mrg", "review": "f", "sha": "31e80f1", "note": "CWP register page; panel drops Id row (panel=False) accepted"}
+{"increment": "P2-WEB1", "id": "T09b", "kind": "t", "state": "mrg", "review": "f", "sha": "7208d55", "note": "CWA register page"}
+{"increment": "P2-WEB1", "id": "T10", "kind": "t", "state": "mrg", "review": "f", "sha": "a49fd1d", "note": "WBS tree page; HTML collapses subject indent, accepted"}
+{"increment": "P2-WEB1", "id": "T11", "kind": "t", "state": "mrg", "review": "f", "sha": "f8244cb", "note": "packages page; subject T11: only, accepted; Id row dropped"}
+{"increment": "P2-WEB1", "id": "T16", "kind": "t", "state": "mrg", "review": "f", "sha": "a5a6fda", "note": "path page (merge fa86730); F1 LO ?version= >4300 digits 500 -> T18"}
+{"increment": "P2-WEB1", "id": "T17", "kind": "t", "state": "mrg", "review": "l", "sha": "-", "note": "materials seed (test support)"}
+{"increment": "P2-WEB1", "id": "T12", "kind": "t", "state": "mrg", "review": "f", "sha": "5b455ff", "note": "M4 page merged"}
+{"increment": "P2-WEB1", "id": "T12b", "kind": "t", "state": "mrg", "review": "f", "sha": "15f5b92", "note": "M4 page merged"}
+{"increment": "P2-WEB1", "id": "T13", "kind": "t", "state": "mrg", "review": "f", "sha": "b0fa415", "note": "M4 page merged"}
+{"increment": "P2-WEB1", "id": "T13b", "kind": "t", "state": "mrg", "review": "f", "sha": "1aa1dd9", "note": "M4 page merged"}
+{"increment": "P2-WEB1", "id": "T14", "kind": "t", "state": "mrg", "review": "f", "sha": "bcaeaf6", "note": "M4 page merged"}
+{"increment": "P2-WEB1", "id": "T14b", "kind": "t", "state": "mrg", "review": "f", "sha": "aa20143", "note": "M4 page merged"}
+{"increment": "P2-WEB1", "id": "T18", "kind": "t", "state": "mrg", "review": "f", "sha": "-", "note": "digit-string tidy merged"}
+{"increment": "P2-WEB1", "id": "T07", "kind": "t", "state": "mrg", "review": "l", "sha": "b3f8815", "note": "docs; subject only, accepted (merge 61aeca6)"}
+{"increment": "P2-X1", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "4b42fa5", "note": "store+helper; mrg 77e9b51; review P 3 LO"}
+{"increment": "P2-X1", "id": "T04", "kind": "t", "state": "mrg", "review": "f", "sha": "77a1d8c", "note": "openapi diff; +became-required test"}
+{"increment": "P2-X1", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "b7d64e4", "note": "header on /commands; 270 P"}
+{"increment": "P2-X1", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "9eb471c", "note": "five MCP tools take key; 38 P"}
+{"increment": "P2-X1", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "3701a08", "note": "client key + one retry on reset/timeout; 38 P"}
+{"increment": "P2-X1", "id": "T05", "kind": "t", "state": "mrg", "review": "f", "sha": "f92108d", "note": "baseline 1.5 MB stripped + check step"}
+{"increment": "P2-X1", "id": "T06", "kind": "t", "state": "mrg", "review": "l", "sha": "3cd8853", "note": "api-compat.md with Q1 rule"}
+{"increment": "P2-X1", "id": "T07", "kind": "t", "state": "mrg", "review": "f", "sha": "49a80b8", "note": "walk 5 readers + Q3 x3 green; hash drops expected_version; APPROVALS"}
+{"increment": "P2-X1", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "ac97d72", "note": "replay before budget+precheck; APPROVALS; pg at DONE"}
+{"increment": "P2-X1", "id": "T08", "kind": "t", "state": "mrg", "review": "f", "sha": "99d2021", "note": "demo 6 clauses sq+pg OK"}
+{"increment": "P2-X1", "id": "T09", "kind": "t", "state": "mrg", "review": "l", "sha": "fc88788", "note": "runbook api-retries + AGENTS rows"}
+{"increment": "P2-X1", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "4fcd833", "note": "replay through /events filter; MCP key no echo; APPROVALS"}
+{"increment": "P2-X2", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "8b71e3b9", "note": "review P; F1 F2 LO accepted"}
+{"increment": "P2-X2", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "a03515d2", "note": "stop switch; review P 3 LO; 52 P 2a; APPROVALS"}
+{"increment": "P2-X2", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "2224887f", "note": "review P; APPROVALS"}
+{"increment": "P2-X2", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "a9dc1eca", "note": "admin stop routes+client; orch fixed wording"}
+{"increment": "P2-X2", "id": "T02", "kind": "t", "state": "mrg", "review": "f", "sha": "11c163b9", "note": "tl agent stop|resume|stopped; 42 P"}
+{"increment": "P2-X2", "id": "T03", "kind": "t", "state": "mrg", "review": "f", "sha": "12b0a7bb", "note": "accounts screen stopped flag + held; 91 P"}
+{"increment": "P2-X2", "id": "S3b", "kind": "p", "state": "mrg", "review": "f", "sha": "2bfd7f61", "note": "review P; held accept fix; APPROVALS"}
+{"increment": "P2-X2", "id": "S3c", "kind": "p", "state": "mrg", "review": "f", "sha": "59c63a8d", "note": "SR-X2 F1 fix; orch read diff"}
+{"increment": "P2-X2", "id": "T04", "kind": "t", "state": "mrg", "review": "f", "sha": "3404c59d", "note": "review P; amend 1 (T01 helper grant)"}
+{"increment": "P2-X2", "id": "T05", "kind": "t", "state": "mrg", "review": "f", "sha": "7139c557", "note": "review P after amend 2; demo OK both adapters"}
+{"increment": "P2-X2", "id": "T06", "kind": "t", "state": "mrg", "review": "l", "sha": "acbad682", "note": "review P attempt 2"}
+{"increment": "P2-X2", "id": "T07", "kind": "t", "state": "mrg", "review": "f", "sha": "fd874cf0", "note": "DONE-gate fallout; contract excludes Agent.* (admin-only)"}
+{"increment": "P2-X2", "id": "T08", "kind": "t", "state": "mrg", "review": "f", "sha": "21bc6a36", "note": "S1 grant fallout (tests, accept scripts)"}
+{"increment": "P2-X2", "id": "T09", "kind": "t", "state": "mrg", "review": "f", "sha": "16a9b277", "note": "sim suite + 14 demos grant agents"}
+{"increment": "P2-X2", "id": "T10", "kind": "t", "state": "mrg", "review": "f", "sha": "82757dab", "note": "tui count pins + parity webhook exclusion; plain-walk f7 = load flake"}
+{"increment": "P2-X2", "id": "T11", "kind": "t", "state": "mrg", "review": "f", "sha": "12478945", "note": "schema+api fallout; agent_stopped 403 error row (orch accepted)"}
+{"increment": "P2-X4", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "9f0bc5ce", "note": "hooks merged (C1)"}
+{"increment": "P2-X4", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "1afa1cfb", "note": "MCP tools from hooks"}
+{"increment": "P2-X4", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "1ec89b00", "note": "CLI groups from hooks"}
+{"increment": "P2-X4", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "ee6fa66e", "note": "API table and routers (C2)"}
+{"increment": "P2-X4", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "4e39ff78", "note": "review P; APPROVALS"}
+{"increment": "P2-X4", "id": "T02a", "kind": "t", "state": "mrg", "review": "f", "sha": "479f41bb", "note": "review P; amend 1"}
+{"increment": "P2-X4", "id": "T02b", "kind": "t", "state": "mrg", "review": "f", "sha": "338e5265", "note": "review P"}
+{"increment": "P2-X4", "id": "S5", "kind": "p", "state": "mrg", "review": "f", "sha": "30e31f3d", "note": "review P"}
+{"increment": "P2-X4", "id": "S6", "kind": "p", "state": "mrg", "review": "f", "sha": "b28bec8f", "note": "SR-X4 fixes; APPROVALS"}
+{"increment": "P2-X4", "id": "T04", "kind": "t", "state": "mrg", "review": "l", "sha": "b432050f", "note": "review fixes applied"}
+{"increment": "P2-X4", "id": "T05a", "kind": "t", "state": "mrg", "review": "f", "sha": "f9d8323f", "note": "review P"}
+{"increment": "P2-X4", "id": "T05b", "kind": "t", "state": "mrg", "review": "f", "sha": "6208be85", "note": "review P"}
+{"increment": "P2-X4", "id": "T05c", "kind": "t", "state": "mrg", "review": "f", "sha": "b260787d", "note": "demo OK both adapters (C3)"}
+{"increment": "P2-X4", "id": "T06", "kind": "t", "state": "mrg", "review": "l", "sha": "c04751ab", "note": "report cleaned"}
+{"increment": "P2-X4", "id": "F1", "kind": "t", "state": "mrg", "review": "f", "sha": "82e61b40", "note": "stale fixture (core name)"}
+{"increment": "P2-X4", "id": "F2", "kind": "t", "state": "mrg", "review": "f", "sha": "a5f6e924", "note": "requisitions pins, test-only"}
+{"increment": "P2-X4", "id": "F3", "kind": "t", "state": "mrg", "review": "f", "sha": "43cc9630", "note": "reload fixture isolation"}

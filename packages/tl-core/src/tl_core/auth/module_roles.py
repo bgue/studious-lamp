@@ -41,7 +41,7 @@ from tl_core.auth.errors import ForbiddenError, RoleTableError
 from tl_core.auth.names import actor_for, is_id
 from tl_core.auth.queries import find_account
 from tl_core.auth.types import ROLES, AccountKind, Principal
-from tl_core.modules import ModuleLoadError, load_modules
+from tl_core.modules import ModuleLoadError, core_command_names, load_modules
 from tl_core.services.commands import Command
 
 if TYPE_CHECKING:
@@ -409,7 +409,10 @@ def command_index() -> Mapping[str, tuple[str, str]]:
     fine one.
     """
     index: dict[str, tuple[str, str]] = {}
+    core = core_command_names()
     for spec in load_modules():
+        if core.intersection(spec.command_words):  # refused whole: it never blocks a core command
+            continue
         for name, word in spec.command_words.items():
             if name in index:
                 raise ModuleLoadError(

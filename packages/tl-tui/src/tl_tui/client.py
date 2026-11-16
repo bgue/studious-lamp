@@ -97,6 +97,7 @@ from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
 from tl_mod_quality import insp_views
 from tl_mod_quality import views as punch_views
+from tl_mod_scaffold import views as scaffold_views
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.handlers.activity import LinkActivity
@@ -1096,6 +1097,47 @@ class ClientInterface(Protocol):
 
     def quality_command(self, name: str, cmd: Command) -> CommandResult:
         """Run a quality command by name (a model of ``QUALITY_COMMANDS``, as the person)."""
+        ...
+
+    # --- the scaffold module: the register's reads (P2-I4B-T09b2) -----------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. The reads answer the module's
+    # views under the signed-in person's clearance (ADR-0016) and need ``scaffold.view`` on the
+    # project; a missing or hidden scaffold raises ``RecordNotFoundError`` with one text.
+    # ``export_scaffolds`` returns the text; a format other than csv or jsonl is ``ValueError``.
+
+    def list_scaffolds(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        tag: str | None = None,
+        overdue: bool = False,
+        limit: int = 200,
+    ) -> scaffold_views.ScaffoldPage:
+        """A project's scaffolds by key, filtered; ``total`` counts the visible matches."""
+        ...
+
+    def get_scaffold(self, project: str, key: str) -> scaffold_views.ScaffoldDetail:
+        """One scaffold with its inspections, oldest first."""
+        ...
+
+    def list_scaffolds_due(
+        self, project: str, *, limit: int = 200
+    ) -> list[scaffold_views.ScaffoldRow]:
+        """Standing scaffolds whose next inspection is due today or earlier, soonest first."""
+        ...
+
+    def export_scaffolds(
+        self,
+        project: str,
+        *,
+        fmt: str = "csv",
+        state: str | None = None,
+        tag: str | None = None,
+        overdue: bool = False,
+    ) -> str:
+        """The visible scaffolds matching the filters as csv or jsonl text."""
         ...
 
     # --- the awp module: CWPs, CWAs, the WBS, the path, packages (P2-I1 T03b) ------------------

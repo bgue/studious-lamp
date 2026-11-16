@@ -1,0 +1,163 @@
+id: https://example.org/throughline/modules/scaffold/scaffold
+name: tl_mod_scaffold_scaffold
+title: Scaffolds and their inspections (brief 9, M9)
+description: >-
+  A scaffold is one erected structure, registered from an approved scaffold request. Its life is the workflow
+  `scaffold-scaffold`. The title of the record is the subject on the envelope. A scaffold is hidden as the
+  record it serves is (`for_record_id`, copied from the request); an inspection is hidden with its scaffold.
+  Dates are `YYYY-MM-DD`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: scaffold
+
+enums:
+  TagColour:
+    description: The colour of the tag on a scaffold; only green allows use.
+    permissible_values:
+      green:
+        description: Inspected and safe to use.
+      yellow:
+        description: Usable with a stated limit (a conditional inspection).
+      red:
+        description: Not to be used (a failed inspection).
+  InspectionResult:
+    description: The result of one inspection.
+    permissible_values:
+      pass:
+        description: Passed; the tag is green.
+      conditional:
+        description: Passed with a condition; the tag is yellow.
+      fail:
+        description: Failed; the tag is red.
+
+classes:
+  Scaffold:
+    title: Scaffold
+    description: >-
+      One scaffold. Record type `scaffold.Scaffold`; its key is the number the allocator gives it
+      (`P123-SCF-0001`, gap-free). Offline class `none`: a tag and a register entry are acts on the authority.
+      It is hidden through the record its request serves (`for_record_id`).
+    annotations:
+      tl:current_state: true
+      tl:record_types: "scaffold.Scaffold"
+      tl:offline: none
+      tl:table: cur_scaffold_scaffold
+      tl:ix_request: "request_id"
+      tl:ix_for_record: "for_record_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      request_id:
+        range: Ulid
+        required: true
+        description: "The `requisitions.ScaffoldRequest` it was registered from; one scaffold per request."
+      for_record_id:
+        range: Ulid
+        description: "The record the request serves (an IWP), copied from the request; null when none. The confidentiality subject."
+      location_text:
+        pattern: "^.{1,120}$"
+        description: "Where it stands, at most 120 characters; null when none."
+      elevation:
+        pattern: "^.{1,32}$"
+        description: "Elevation, copied from the request, at most 32 characters; null when none."
+      gridline:
+        pattern: "^.{1,32}$"
+        description: "Gridline, copied from the request, at most 32 characters; null when none."
+      load_class:
+        pattern: "^.{1,32}$"
+        description: "Load class, copied from the request, at most 32 characters; null when none."
+      tag:
+        range: TagColour
+        description: "The tag colour; null until the first inspection."
+      tagged_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date of the last tag, `YYYY-MM-DD`; null until the first inspection."
+      last_inspected_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date of the last inspection, `YYYY-MM-DD`; null until the first inspection."
+      next_due_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date the next inspection falls due, `YYYY-MM-DD`; set at erection, then at each inspection."
+      flagged_due_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "The `next_due_on` the inspections-due job last flagged; null when never flagged."
+      inspection_count:
+        range: integer
+        required: true
+        minimum_value: 0
+        ifabsent: int(0)
+        description: "How many inspections were recorded; default 0."
+      modify_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Reason of the last modification, at most 300 characters; null when never modified."
+      dismantle_reason:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "Why it is being taken down, at most 300 characters; null before dismantling."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."
+
+  ScaffoldInspection:
+    title: Scaffold inspection
+    description: >-
+      One inspection of a scaffold, a fact with no workflow. Record type `scaffold.ScaffoldInspection`; its key is
+      allocated (`P123-SCI-0001`, gap-free). Offline class `none`. It is hidden with its scaffold.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "scaffold.ScaffoldInspection"
+      tl:offline: none
+      tl:table: cur_scaffold_scaffold_inspection
+      tl:ix_scaffold: "scaffold_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      scaffold_id:
+        range: Ulid
+        required: true
+        description: "The scaffold inspected."
+      inspector:
+        pattern: "^.{1,64}$"
+        required: true
+        description: "Actor text of the inspector, at most 64 characters."
+      inspected_on:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        required: true
+        description: "Date of the inspection, `YYYY-MM-DD`."
+      result:
+        range: InspectionResult
+        required: true
+        description: "pass, conditional or fail."
+      tag:
+        range: TagColour
+        required: true
+        description: "The tag the result gave."
+      note:
+        pattern: "^[\\s\\S]{1,300}$"
+        description: "What the inspector found, at most 300 characters; null when none."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

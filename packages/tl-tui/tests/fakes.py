@@ -30,6 +30,7 @@ from fakes_materials import FakeMaterialsSupport
 from fakes_punch import FakePunchSupport
 from fakes_query import FakeQuerySupport
 from fakes_requisitions import FakeRequisitionSupport
+from fakes_scaffold import FakeScaffoldSupport
 from fakes_schedule import FakeScheduleSupport
 from fakes_schemareg import FakeSchemaRegistrySupport
 from fakes_settings import FakeSettingsSupport
@@ -245,6 +246,7 @@ class FakeClient(
     FakeMaterialsSupport,
     FakeInspSupport,
     FakePunchSupport,
+    FakeScaffoldSupport,
     FakeWeekSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
@@ -285,6 +287,7 @@ class FakeClient(
         self._init_materials()
         self._init_insp()
         self._init_punch()
+        self._init_scaffold()
         self._init_week()
 
     # --- seeding -----------------------------------------------------------------------------

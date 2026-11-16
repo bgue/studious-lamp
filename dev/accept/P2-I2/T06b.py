@@ -28,9 +28,6 @@ MATERIALS = "materials_reserved"
 # inspections_planned is no longer a placeholder: the quality module registers it (P2-INSP-S3).
 EXPECTED: dict[str, str] = {
     "permits_planned": "not applicable yet: permit records are built in Phase 3",
-    "labour_requested": (
-        "not applicable yet: labour requisitions arrive with the requisitions module"
-    ),
     "predecessors_handed_over": "not applicable yet: hand-over of predecessor work is not recorded",
     "model_slice_available": "not applicable yet: model records are built in Phase 3",
 }

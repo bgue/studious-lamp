@@ -145,6 +145,7 @@ def readiness() -> None:
             "permits_planned",
             "predecessors_handed_over",
             "rfis_answered",
+            "scaffold_tagged",
         },
         "load_checks() holds materials_reserved and rfis_answered",
     )

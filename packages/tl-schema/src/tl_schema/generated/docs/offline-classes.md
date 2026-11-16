@@ -72,6 +72,8 @@ Classes:
 | `requisitions.MaterialRequisition` | Material requisition | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `requisitions.ScaffoldRequest` | Scaffold request | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `requisitions.WorkOrder` | Work order | `none` | Online only. |
+| `scaffold.Scaffold` | Scaffold | `none` | Online only. |
+| `scaffold.ScaffoldInspection` | Scaffold inspection | `none` | Online only. |
 | `schedule.ActivityRef` | Activity reference | `none` | Online only. |
 | `schedule.Schedule` | Schedule | `none` | Online only. |
 | `schedule.ScheduleSnapshot` | Schedule snapshot | `none` | Online only. |

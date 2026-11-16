@@ -1,10 +1,11 @@
 """Four readiness checks that answer ``n_a`` until the modules they wait for exist (P2-I2-T06b).
 
-The names are reserved now so the readiness screen lists them. Each check watches ``awp.IWP``,
-reads nothing, uses no connection and answers ``n_a`` with a fixed detail; ``n_a`` counts as
-passing for readiness (README D9) and never blocks a release. Found through the entry-point group
-``throughline.readiness_checks``; each entry point names one zero-argument function below that
-returns its check.
+The names are reserved now so the readiness screen lists them. ``labour_requested`` is no longer
+here: its real check ships in ``tl_mod_scaffold.labour`` (P2-I4B-T05b). Each check watches
+``awp.IWP``, reads nothing, uses no connection and answers ``n_a`` with a fixed detail; ``n_a``
+counts as passing for readiness (README D9) and never blocks a release. Found through the
+entry-point group ``throughline.readiness_checks``; each entry point names one zero-argument
+function below that returns its check.
 """
 
 from __future__ import annotations
@@ -41,13 +42,6 @@ def permits_planned() -> NotApplicable:
     return NotApplicable(
         "permits_planned",
         "not applicable yet: permit records are built in Phase 3",
-    )
-
-
-def labour_requested() -> NotApplicable:
-    return NotApplicable(
-        "labour_requested",
-        "not applicable yet: labour requisitions arrive with the requisitions module",
     )
 
 

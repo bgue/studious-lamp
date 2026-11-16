@@ -19,6 +19,7 @@ dependencies = [
   "tl-mod-qr",
   "tl-mod-forms",
   "tl-mod-permits",
+  "tl-mod-scaffold",
 ]
 
 [project.scripts]

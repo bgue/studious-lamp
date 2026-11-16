@@ -36,6 +36,8 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("receipts", "Receipts: deliveries, inspection, MTR", "E", "receipts"),
     AppCommand("items", "Items: the company item library", "I", "items"),
     AppCommand("locations", "Locations: storage places and what they hold", "W", "locations"),
+    # P2-I4B toolcrib (T07a; the crib keys are in `tl_tui/widgets/toolcrib_screen.py`).
+    AppCommand("toolcrib", "Toolcrib: issue and return a tool in one line", "", "toolcrib"),
     AppCommand("cwps", "Work packages: CWPs, state, budget, allocation", "", "cwps"),
     AppCommand("wbs", "WBS: the work breakdown tree and its cost codes", "", "wbs"),
     AppCommand("cwas", "Work areas: CWAs and their order on the path", "", "cwas"),
@@ -54,6 +56,13 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("path", "Path of construction: the order of the areas, by version", "", "path"),
     AppCommand("packages", "External packages: EWP and PWP, forecast and actual", "", "packages"),
     AppCommand("punch", "Punch list: items by state, area and system", "", "punch"),
+    # P2-I4B scaffold register (T07b; `tl_tui/widgets/scaffold_register.py`).
+    AppCommand(
+        "scaffolds",
+        "Scaffold register: what stands, its state and next inspection",
+        "",
+        "scaffolds",
+    ),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
     AppCommand("admin", "Accounts and agent tokens (admins)", "F10", "admin"),
     AppCommand("review", "Review queue: accept or reject proposed values", "Ctrl+R", "review"),
