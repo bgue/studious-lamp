@@ -1,6 +1,6 @@
 # Report P2-I4B: scaffold module
 
-Status: items merged (C3); DONE gate and SR-I4B owed by the orchestrator (see Open gates). Base `485b85b5`, head `58412752`, branch `p2/i4b`. Written from `docs/tickets/P2-I4B/STATE.md` and `docs/reports/P2-I4B/`.
+Status: done (C4, 2026-11-16). Base `485b85b5`, branch `p2/i4b`; trunk with P2-X4 merged in by S2 (`da006372`). Written from `docs/tickets/P2-I4B/STATE.md` and `docs/reports/P2-I4B/`.
 
 ## What was built
 Scaffold requests become scaffolds with a lifecycle, inspections, a green tag and a readiness check, reachable over the API, the TUI, a demo and the tour. Increment plan: `docs/tickets/P2-I4B/README.md`. Runbook `docs/runbooks/scaffold.md`; module doc `docs/modules/scaffold/README.md`.
@@ -42,3 +42,12 @@ Every piece and full-review ticket passed review; S1 needed a second pass (findi
 
 ## Learnings
 Appended to `docs/memory/LEARNINGS.md`: L-P2-I4B-1 to L-P2-I4B-4.
+
+## DONE (orchestrator, 2026-11-16)
+- SR-I4B: S1b fixed the hidden-IWP dismantle check collapse; F2 and F5 LO are in DEFERRED.
+- T13 (scaffold events carry record_id) and the green-tag agent decision (`TagScaffoldGreen` agent-may-not) closed the DONE-gate fallout.
+- S2 merged trunk (P2-X4 hooks) and moved scaffold onto its `ModuleSpec` hooks (`commands`, `read_routers`); `scaffold` joins
+  `IN_TREE_SURFACES` (one core line, APPROVALS); no scaffold line is left in the tl-api registries; nine scaffold commands are
+  excluded:reserved.
+- Gates: whole suite per directory before S2 (all pass, schema generate and offline classes alone); after S2: tl-api five chunks,
+  tl-mcp 648, tests/services 677, contract 189, webhooks 105, scaffold 126, plus S2's named files. Demo clauses 5 to 7 OK earlier.

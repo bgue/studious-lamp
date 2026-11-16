@@ -1,4 +1,4 @@
-# P2-I4B STATE  r=5 base=485b85b5 C=3 ck=- gate=n/a wt=/home/user/wt/p2-i4b
+# P2-I4B STATE  r=5 base=485b85b5 C=4 ck=0 gate=pass wt=/home/user/wt/p2-i4b
 ## BOARD   (S1 = plan B4; `todo` ready to dispatch, `stg` staged)
 S1 p mrg f 256d9014 C1; findings dec by orch; APPROVALS
 S1b p mrg f 6260c4de SR-I4B F1 F3 F4 F6; orch read diff
@@ -39,7 +39,7 @@ D17 2026-11-15 r4: demo clause numbers 5 (plan 2), 6 (plan 3), 7 (plan 6) follow
 D18 2026-11-15 r4: T09c added (T09a Q): scaffold errors map to 422 scaffold_error, scaffold_scope, scaffold_rule; 409 scaffold_state, scaffold_dismantle_refused, scaffold_stale_version; plan 10 -> 14 items (T09c, T10 split a/b, T11 split a/b), still pieces=1; no PLANCHK (items are small, one batch per seam)
 D19 2026-11-15 r4: P200 has 4 scaffold requisitions and no scaffolds, so the tour needs data: T11a adds a demo-project section with no `requires` links (IWP readiness unchanged); T11b the shots
 ## SEC
-(none yet; T09a Q (500 on a domain refusal) -> T09c; SR4 rows: S1 confidentiality part (hidden IWP hides its scaffold and the dismantle text), green-tag word, dismantle guard; T09b1 five-reader walk; one wave review)
+SR-I4B done: S1b fixed the dismantle check collapse; F2 F5 LO DEFERRED. (was: T09a Q (500 on a domain refusal) -> T09c; SR4 rows: S1 confidentiality part (hidden IWP hides its scaffold and the dismantle text), green-tag word, dismantle guard; T09b1 five-reader walk; one wave review)
 ## OPEN
 Q3 closed 2026-11-15 (orch): accept D10 (blocked when hours and no labour requisition). T05b adds labour requisitions to demo/accept/tour data that expects ready; if more than 3 scripts are affected it stops and lists them.
 Q1 Offline-class and `valid_time` choices for scaffold are the supervisor's (D7); orchestrator may veto at the S1 human gate | needs orch | raised r1
