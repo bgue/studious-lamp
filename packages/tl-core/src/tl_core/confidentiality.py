@@ -227,16 +227,6 @@ class _Chain:
     prefix: str = ""
 
 
-def _links_sql() -> str:
-    """One derived table ``(id, subject)`` of every installed ``SUBJECT_LINKS`` table. A record id
-    is in one table only (a table is one record type), so a hop is one lookup of that key."""
-    links = [link for link in SUBJECT_LINKS if is_module_record_type(link[0])]
-    return " UNION ALL ".join(
-        f"SELECT {id_column} AS id, {subject_column} AS subject FROM {table}"
-        for _, table, id_column, subject_column in links
-    )
-
-
 def _chain_sql() -> tuple[str, str]:
     """``(joins, id expression)``: the constraint row and the hops from ``hr`` (a flat LEFT JOIN
     to each ``SUBJECT_LINKS`` table on its primary key, the planner then knows each table's key
@@ -256,41 +246,17 @@ def _chain_sql() -> tuple[str, str]:
     return joins, f"COALESCE({', '.join([*found, 'k.subject_id', 'hr.id'])})"
 
 
-def _lookup_sql() -> str:
-    """The chain as a derived table ``(id, subj, rid, rtype)`` whose every hop is a scalar
-    subquery on the key of the record it follows. Read for a few records (``only``), the database
-    finds each by its primary key; as joins it reads the whole link tables for every record asked
-    about (a hash join each time), a cost that grows with the ledger."""
-    links = _links_sql() if any(is_module_record_type(r[0]) for r in SUBJECT_LINKS) else None
-    found: list[str] = []  # the subject columns reached so far, the latest hop first
-    inner = (
-        "SELECT h.id AS id, h.type AS type, k.subject_id AS ks FROM cur_core_record h "
-        "LEFT JOIN cur_core_constraint k ON k.id = h.id AND h.type = 'core.Constraint'"
-    )
-    for hop in range(_HOPS if links else 0):
-        current = f"COALESCE({', '.join([*found, 'd.ks', 'd.id'])})"
-        step = f"(SELECT l.subject FROM ({links}) l WHERE l.id = {current}) AS s{hop}"
-        inner = f"SELECT d.*, {step} FROM ({inner}) d"
-        found = [f"s{hop}", *found]
-    final = f"COALESCE({', '.join([*found, 'd.ks', 'd.id'])})"
-    return (
-        f"SELECT d.id AS id, {final} AS subj, "
-        f"(SELECT r.id FROM cur_core_record r WHERE r.id = {final}) AS rid, "
-        f"(SELECT r.type FROM cur_core_record r WHERE r.id = {final}) AS rtype "
-        f"FROM ({inner}) d"
-    )
-
-
 def _subject_chain(shared: bool) -> _Chain:
     """The chain a part reads. ``shared`` (the whole-ledger form): every part reads one ``WITH``
-    table, computed once with joins, instead of its own copy of the chain. Otherwise (``only``
-    names the records asked about) each part follows the chain by key lookups for those records."""
-    if not shared:
-        return _Chain(f"({_lookup_sql()}) hr", "hr.subj", "hr.rid", "hr.rtype")
+    table, computed once, instead of its own copy of the chain. Otherwise (``only`` names the
+    records asked about) the chain is inline and the database follows it for those records."""
     joins, final = _chain_sql()
+    rr = f" LEFT JOIN cur_core_record rr ON rr.id = {final}"
+    if not shared:
+        return _Chain(f"cur_core_record hr{joins}{rr}", final, "rr.id", "rr.type")
     table = (
         f"_cf_chain AS (SELECT hr.id AS id, {final} AS subj, rr.id AS rid, rr.type AS rtype "
-        f"FROM cur_core_record hr{joins} LEFT JOIN cur_core_record rr ON rr.id = {final})"
+        f"FROM cur_core_record hr{joins}{rr})"
     )
     return _Chain("_cf_chain hr", "hr.subj", "hr.rid", "hr.rtype", f"WITH {table} ")
 
