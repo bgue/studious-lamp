@@ -1,6 +1,6 @@
 # P2-X4 — Module-supplied commands, read routes and agent tools
 
-Status: in-progress. Plan: `docs/build-spec/12-extension-plan.md` (P2-X4, plan-checked). Live board: `STATE.md`. Branch `p2/x4`.
+Status: done (2026-11-16; report `docs/reports/P2-X4.md`). Plan: `docs/build-spec/12-extension-plan.md` (P2-X4, plan-checked). Live board: `STATE.md`. Branch `p2/x4`.
 
 ## Objective
 A new module adds its API commands, read routes, agent tools and CLI group by declaring them on its `ModuleSpec`. No edit to

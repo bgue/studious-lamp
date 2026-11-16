@@ -1,4 +1,4 @@
-# P2-X4 STATE  r=5 base=e1bd8d83 C=3 ck=0 gate=n/a wt=/home/user/wt/p2-x4
+# P2-X4 STATE  r=5 base=e1bd8d83 C=4 ck=0 gate=pass wt=/home/user/wt/p2-x4
 ## BOARD
 S1 p mrg f 9f0bc5ce hooks merged (C1)
 S3 p mrg f 1afa1cfb MCP tools from hooks
@@ -14,6 +14,9 @@ T05a t mrg f f9d8323f review P
 T05b t mrg f 6208be85 review P
 T05c t mrg f b260787d demo OK both adapters (C3)
 T06 t mrg l c04751ab report cleaned
+F1 t mrg f 82e61b40 stale fixture (core name)
+F2 t mrg f a5f6e924 requisitions pins, test-only
+F3 t mrg f 43cc9630 reload fixture isolation
 ## DEC
 D1 2026-11-15 core row type `ModuleCommand` in tl_core/modules.py: CommandSpec lives in tl_api, core cannot import it; S2 maps rows to CommandSpec (+meta); spec S1
 D2 2026-11-15 hook names: `commands`, `read_routers`, `tools`, `cli_groups` (plural: awp has 3 routers, corr has 4 CLI groups); plan said singular
