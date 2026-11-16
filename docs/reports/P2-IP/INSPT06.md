@@ -4,7 +4,7 @@ Branch: `p2/insp-t06-api-routes`   Commit(s): see the commit on the branch (repo
 
 ## Deviations
 `docs/reference/openapi.json` is regenerated (in Allowed paths): five paths and six schemas, plus reordered existing schema entries that are generator output. `docs/reference/openapi.baseline.json` is NOT regenerated (`--baseline` is a release step; `--compat` passes without it).
-Commit subject follows the dispatch (`P2-IP-INSPT06: ...`), not the ticket's `P2-INSP-T06: ...`. The trailer names this session's model (Haiku 5.5), not the Opus name in the dispatch text.
+Commit subject follows the dispatch (`P2-IP-INSPT06: ...`), not the ticket's `P2-INSP-T06: ...`.
 
 ## Changed files
 - `packages/tl-api/src/tl_api/routes/insp.py` (new) — five GET routes on `router`; each one calls one `insp_views` function under `current_viewer()`; `ValueError` from the views maps to 422 `invalid_argument`; missing, hidden and other-project keys give 404 `record_not_found` with `no inspection` / `no checklist`.
