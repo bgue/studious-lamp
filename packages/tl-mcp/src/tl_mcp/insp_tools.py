@@ -38,7 +38,7 @@ from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     _result,
 )
 
-#: The four ``mcp.<tool>`` actions this module's tools ask the authorizer about. ``identity.py``
+#: The five ``mcp.<tool>`` actions this module's tools ask the authorizer about. ``identity.py``
 #: ORs them into ``MCP_ACTIONS``; a tool not listed there is refused.
 INSP_MCP_ACTIONS: frozenset[str] = frozenset(
     {
