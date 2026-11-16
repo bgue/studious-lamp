@@ -126,3 +126,9 @@ def test_the_committed_manifest_is_found_and_passes() -> None:
     manifests = CHECK.find_manifests(ROOT)
     assert [m.name for m in manifests] == ["VENDORED.toml"]
     assert CHECK.vendored_problems(manifests[0]) == []
+
+
+@pytest.mark.parametrize("licence", ["SEE LICENSE IN LICENSE", "Proprietary"])
+def test_a_commercial_licence_statement_is_refused(tree: Path, licence: str) -> None:
+    bad = write_manifest(tree, entry(licence=licence, sha256=sha(BODY)))
+    assert CHECK.vendored_problems(bad) == [f"vendored htmx: licence not allowed ({licence})"]
