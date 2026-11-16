@@ -27,8 +27,9 @@ A new module adds its API commands, read routes, agent tools and CLI group by de
 | T02 | `tl new module` scaffold emits the hooks, an example route and tool | ticket, full | S2, S3, T01 |
 | S5 | Fixture module `ext_demo` under `tests/` (was T03; access-worded command plus confidential read: builder piece, D11) | piece | S4 |
 | T04 | TUI note and `docs/runbooks/new-module.md` | ticket, lite | T02 |
-| T05 | Demo driver `dev/demos/P2-X4.sh` | ticket, full | T02, S5 |
-| T06 | `AGENTS.md` rows; module README template | ticket, lite | T05 |
+| T05a, T05b | Demo drivers `dev/demos/p2_x4_demo.py` (clauses 1, 2, 6) and `p2_x4_ext_demo.py` (3, 4, 5) | tickets, full | T02, S5 |
+| T05c | Demo script `dev/demos/P2-X4.sh` (all seven clauses) | ticket, full | T05a, T05b |
+| T06 | `AGENTS.md` rows; module README template line; DEFERRED rows | ticket, lite | T04, T05c (names only) |
 
 ## Checkpoints
 C1 S1 merged. C2 S2, S3, T01 merged. C3 S4 and scaffold merged. C4 demo green, SR-X3 closed.

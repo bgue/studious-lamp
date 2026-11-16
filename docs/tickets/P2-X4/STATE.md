@@ -1,4 +1,4 @@
-# P2-X4 STATE  r=4 base=e1bd8d83 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-x4
+# P2-X4 STATE  r=5 base=e1bd8d83 C=3 ck=0 gate=n/a wt=/home/user/wt/p2-x4
 ## BOARD
 S1 p mrg f 9f0bc5ce hooks merged (C1)
 S3 p mrg f 1afa1cfb MCP tools from hooks
@@ -8,9 +8,11 @@ S4 p mrg f 4e39ff78 review P; APPROVALS
 T02a t mrg f 479f41bb review P; amend 1
 T02b t mrg f 338e5265 review P
 S5 p mrg f 30e31f3d review P
-T04 t stg l - runbook new-module; waits T02b
-T05 t stg f - demo driver; waits T02b,S5
-T06 t stg l - AGENTS rows; waits T05
+T04 t disp l - runbook new-module; spec T04-new-module-runbook.md
+T05a t disp f - driver A clauses 1,2,6 (scaffold, failing hook)
+T05b t disp f - driver B clauses 3,4,5 (ext_demo API, CLI, MCP)
+T05c t stg f - demo shell P2-X4.sh; waits T05a,T05b mrg
+T06 t disp l - AGENTS rows, README line, DEFERRED rows; merge after T04,T05c
 ## DEC
 D1 2026-11-15 core row type `ModuleCommand` in tl_core/modules.py: CommandSpec lives in tl_api, core cannot import it; S2 maps rows to CommandSpec (+meta); spec S1
 D2 2026-11-15 hook names: `commands`, `read_routers`, `tools`, `cli_groups` (plural: awp has 3 routers, corr has 4 CLI groups); plan said singular
@@ -24,6 +26,10 @@ D9 2026-11-16 legacy ratchet: pre-ADR-0027-d4 commands neither proposable nor ex
 D10 2026-11-16 drift test scans the four registries by ast; pre-hook lines of integration branches go in tests/tools/prehook_lines.toml (starts empty); spec S4
 D11 2026-11-16 T03 became piece S5: ext_demo has an access-worded command and a confidential read of record text (core list, ticket-tier checklist 5 and 7 fail); spec S5-ext-demo.md; lives in tests/ext_demo, own tests in services, tl-api, tl-mcp test dirs (harnesses are per package)
 D12 2026-11-16 T02b text pasted and checked (ruff format+check, pyright, 2 names incl. 20 chars); generated test count 3 to 5 (module), 5 to 7 (record-type, projector pins); deps are bare names as in tl-api, tl-mcp, tl-cli
+D13 2026-11-16 demo clauses 1 and 2 show the scaffold's route, tool and CLI group (no example command, D7); `/commands/ExtDemoAddNote` is shown under clause 2 and 3 on ext_demo; README demo text left as written
+D14 2026-11-16 demo clause 4 uses the read tool `ext_demo_get_note` (closed until `mcp.ext_demo_get_note` is allowed, then reads): ExtDemoAddNote is `excluded:reserved`, so no proposal is filed; spec T05b
+D15 2026-11-16 T05 split by file (checklist 4: >400 lines): T05a driver file A, T05b driver file B, T05c shell; shape tests provided (tests/services/test_demo_p2_x4_{drivers,script}.py, linted there)
+D16 2026-11-16 T04, T05a, T05b, T06 have disjoint Allowed paths and run in parallel; T05c after T05a and T05b; T06 cites T04 and T05c files by fixed name, merge it last
 ## SEC
 F1 LO open S1 non-str ref item gives TypeError not ModuleLoadError; folded into S4 (modules.py __post_init__, test 8)
 F2 LO addressed-by-spec S2,S3 build tables once per app/server start (tests 5/6)
@@ -33,21 +39,25 @@ Sec rows for SR-X3: ref prefix rule (Q1 closed), closed-by-default tools (S3 tes
 Q1 ref rule: plan says refs refused outside the module's own package, but routers, tool registrars and CLI apps of the 10 in-tree modules live in tl_api.routes, tl_mcp, tl_cli (modules depend on tl-core only). S1 uses own package + per-kind surface prefix (routes tl_api.routes., tools tl_mcp., cli tl_cli.). Looser than Q1 text; alternatives: move surfaces into modules (adds fastapi/mcp/typer deps, big) or exact allowlist. needs orch raised r1
 Q2 requisitions commands are not in tl_api.COMMANDS (docstring says API builds routes; code does not). S2 equality test excepts it; serving them is additive new routes. needs orch (decide before S2 spec) raised r1
 Q3 error rows: ModuleSpec has no errors hook; module error rows stay hand-listed in tl_api/errors.py (X2 hot file). New module whose command raises its own error gets no row. Want an `errors` hook (core interface, APPROVALS) in S4 or later? S2 leaves errors.py alone. needs orch raised r2
+Q4 opening a module tool to agents needs `mcp.<tool>` added to `MCP_ACTIONS` (tl_mcp/identity.py): a platform edit, so "no tl-mcp edit" holds for closed tools only; runbook says so, DEFERRED row C (T06); hook for tool actions = later core change. needs orch (accept wording or order a hook), not blocking raised r5
 ## DEC-ORCH
 Q1 closed 2026-11-15 orch: own package always; surface prefixes only for an explicit in-tree set (IN_TREE_SURFACES)
 Q2 closed 2026-11-15 orch: S2 serves REQUISITIONS_COMMANDS (additive); S4 walks them
 Q3 closed 2026-11-15 orch: no errors hook now; new modules raise core error classes (rows exist); T04 guide says so; hook in DEFERRED
 ## NEXT
-1. Orch: dispatch T02b (p2/x4-t02b-scaffold-surfaces, wt /home/user/wt/x4/t02b, review full) and S5 (p2/x4-s5-ext-demo, wt /home/user/wt/x4/s5, builder, full review); disjoint (tl-cli templates vs tests/ext_demo and three test dirs). Gates one at a time each; never two heavy at once.
-2. r5: T04 (lite), T05 (full) as ticket files, text pasted from merged T02b and S5 reports; T06 after T05. C3 = S4, T02a, T02b, S5 merged.
-3. After X4 reaches trunk (follow-ups in other increments, not X4 files): P2-I4B ticket moves tl_mod_scaffold SCAFFOLD_COMMANDS (commands.py pre-hook line), routes/scaffold.py and its app.py line into
-   tl_mod_scaffold module.py hooks (`commands`, `read_routers`); `scaffold` must join IN_TREE_SURFACES (core edit, gated) or its router moves into its own package; add its lines to prehook_lines.toml until then.
-4. P2-IP (QR, INSP, PTW S2 specs): new modules are not in IN_TREE_SURFACES, so every hook ref must sit in the module's own package (`tl_mod_<m>.routes:router`, `.tools:register_tools`, `.cli:<m>_app`),
-   commands rows are ModuleCommand-like (model, handler, access, optional meta with `delegation`), their commands need a mark in row meta, and each needs a proposable row or an exclusion entry.
-5. Worktrees: /home/user/wt/x4/{t02b,s5} (lowercase id; created by the orchestrator at dispatch).
-6. Open for S4 follow-up (report): should the marks file move to row meta when a dispatcher reads marks (D6)? StartExtraction stays eligible? needs orch, not blocking.
+1. Orch: dispatch T05a, T05b (heavy: driver runs, SQLite) as one workflow; T04, T06 (docs, `just check` only) as a second. Worktrees /home/user/wt/x4/{t04,t05a,t05b,t06}. Merge T04 and T06 order free; T06 last.
+2. After T05a and T05b merge: r6 supervisor stages T05c ready (spec T05c-demo-script.md: check modes as merged) and dispatches it; C4 = T05c merged, demo green on both adapters.
+3. DONE round (88) notes for the r6/r7 supervisor, written from this STATE:
+   - Report: docs/reports/P2-X4.md (≤ 80 lines, throughline-docs), STATUS.md line, APPROVALS already holds S1, S4 lines.
+   - AGENTS row: T06 (two rows). Package README line: T06. Deferred rows: T06 (A I4B scaffold lines, B P2-IP refs, C tool actions).
+   - Learnings to record (≤ 6 lines each, by id): (a) COMMANDS and its router are made at import; tests reload `tl_api.commands` inside `use_modules` and restore COMMAND_BODIES, `intent._REGISTERED`; `create_schema` inside `use_modules` (S5); (b) fake module for hook tests: in-tree name or own `tl_mod_<name>` refs, else ModuleLoadError; fake tools need `guarded` (S3); (c) ticket without Context section makes the author guess the reading list (T02b); (d) `just check` can exit 247 at pyright under memory pressure: rerun `uv run pyright` alone (T02b); (e) template text is pasted and linted for a short and a 20-character name, never retyped (T02a, T02b).
+   - Whole gate per directory (tl-api OOM: name files, never test_commands.py alone with others): `just check`; `just gate` whole suite (orch, 4 parts); `just gate-pg` on packages/tl-core/tests, packages/tl-api/tests, packages/tl-mcp/tests, tests/services (touched dirs; tl-cli tests are sqlite only). Then `just demo P2-X4` on both adapters (`just dev up` first).
+   - SR-X4 (one fresh security review, ≤ 450 k tokens, `F<n> <HI|MD|LO> file:line`): scope = commit range `11621381..<p2/x4 head>` (11621381 is trunk as last merged at cf752722; 38 commits, 84 files, X4 only: tl-core modules.py, tl-api commands/app/routes tables, tl-mcp server.py, tl-cli main.py and scaffold, tl-modules module.py hooks, tests/ext_demo, tests/tools, tests/services). Sec rows: ref prefix rule (Q1, IN_TREE_SURFACES), closed-by-default tools (S3 test 3), name clash fail-fast, a failed module opens no other (S2 t5, S3 t4, T01), hidden equals missing on ext_demo (route, tool, CLI), F1-F3 above.
+4. After X4 reaches trunk (other increments, not X4 files): P2-I4B scaffold lines to hooks; P2-IP refs in own packages (both now DEFERRED rows via T06).
+5. Open for S4 follow-up (report): marks file to row meta when a dispatcher reads marks (D6); StartExtraction eligible? needs orch, not blocking.
 ## REFS
-Specs: docs/tickets/P2-X4/{T02b-scaffold-surfaces,S5-ext-demo,T04-T06-staged}.md (merged: S1,S2,S3,S4,T01,T02a; reports in docs/reports/P2-X4/).
+Specs (r5): docs/tickets/P2-X4/{T04-new-module-runbook,T05a-demo-driver-scaffold,T05b-demo-driver-ext-demo,T05c-demo-script,T06-agents-rows}.md. Merged: S1-S5, T01, T02a, T02b (reports docs/reports/P2-X4/).
+Provided (r5): provided/test_demo_p2_x4_drivers.py (T05a, T05b) and test_demo_p2_x4_script.py (T05c), to tests/services/; ruff format, ruff check, pyright clean at that path (red until the drivers and script exist).
 Provided (r4): provided/test_new_module_surfaces.py (T02b; copy to packages/tl-cli/tests/; checked ruff format, ruff check, pyright there).
 Provided (merged): provided/test_new_module_spec.py (T02a). Baselines: OLD_TOOL_NAMES, OLD_GROUPS, tests/expected/route_order.txt.
 T01 group-name rule: tl_cli.<m>:app -> <m>; tl_cli.<m>:<x>_app -> <x>.
