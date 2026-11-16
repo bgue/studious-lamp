@@ -476,3 +476,9 @@ POST /commands/RequestPermit
 POST /commands/ResumePermit
 POST /commands/RevalidatePermit
 POST /commands/SuspendPermit
+POST /commands/ApplyIsolation
+POST /commands/VerifyIsolation
+POST /commands/RemoveIsolation
+POST /commands/LinkIsolation
+POST /commands/UnlinkIsolation
+POST /commands/RecordGasTest

@@ -12,6 +12,7 @@ from tl_adapters.db import DbTarget, create_schema
 sys.path.insert(0, str(Path(__file__).parent))
 
 from permit_world import World  # noqa: E402
+from tl_mod_permits.handlers import common as common_handlers  # noqa: E402
 from tl_mod_permits.handlers import permit as permit_handlers  # noqa: E402
 
 
@@ -29,4 +30,5 @@ def world(db: DbTarget, monkeypatch: pytest.MonkeyPatch) -> World:
     w = World(db)
     w.people()
     monkeypatch.setattr(permit_handlers, "now", lambda: w.at)
+    monkeypatch.setattr(common_handlers, "now", lambda: w.at)  # the S3 handlers read it here
     return w

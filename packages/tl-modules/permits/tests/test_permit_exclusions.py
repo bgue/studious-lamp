@@ -8,12 +8,24 @@ from pathlib import Path
 from tl_mod_permits.module import COMMANDS, PROPOSABLE, spec
 
 EXCLUSIONS = Path(__file__).resolve().parents[4] / "tests" / "tools" / "proposable_exclusions.toml"
-NAMES = {c.model.__name__ for c in COMMANDS}
+PERMIT_NAMES = {
+    "RequestPermit",
+    "ApprovePermit",
+    "RejectPermit",
+    "IssuePermit",
+    "RevalidatePermit",
+    "SuspendPermit",
+    "ResumePermit",
+    "HandBackPermit",
+    "ClosePermit",
+    "CancelPermit",
+}
+NAMES = {c.model.__name__ for c in COMMANDS if c.model.__name__ in PERMIT_NAMES}
 
 
 def test_all_ten_commands_are_excluded_reserved_in_the_row() -> None:
-    assert len(COMMANDS) == len(NAMES) == 10
-    assert {c.model.__name__: c.meta for c in COMMANDS} == {
+    assert len(NAMES) == 10
+    assert {c.model.__name__: c.meta for c in COMMANDS if c.model.__name__ in NAMES} == {
         name: {"delegation": "excluded:reserved"} for name in NAMES
     }
 

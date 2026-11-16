@@ -302,8 +302,12 @@ class World:
             return [dict(r) for r in uow.conn().execute(text(sql), params).mappings()]
 
     def state(self, record: str) -> str:
-        found = self.scalar("SELECT status FROM cur_core_record WHERE id = :i", i=record)
-        return "Requested" if found is None else str(found)
+        """The workflow state (the initial one while no transition has run: Applied for an
+        isolation, Requested for a permit)."""
+        row = self.rows("SELECT status, type FROM cur_core_record WHERE id = :i", i=record)[0]
+        if row["status"] is not None:
+            return str(row["status"])
+        return "Applied" if row["type"] == ISOLATION else "Requested"
 
     def version(self, record: str) -> int:
         return int(self.scalar("SELECT version FROM cur_core_record WHERE id = :i", i=record))

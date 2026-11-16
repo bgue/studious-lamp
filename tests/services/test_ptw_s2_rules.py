@@ -6,6 +6,8 @@ from ip_rules import problems
 
 NAMES = {"RequestPermit", "ApprovePermit", "RejectPermit", "IssuePermit", "RevalidatePermit"}
 NAMES |= {"SuspendPermit", "ResumePermit", "HandBackPermit", "ClosePermit", "CancelPermit"}
+NAMES |= {"ApplyIsolation", "VerifyIsolation", "RemoveIsolation", "LinkIsolation"}  # P2-PTW S3
+NAMES |= {"UnlinkIsolation", "RecordGasTest"}
 
 
 def test_the_permit_rows_pass_every_rule() -> None:
