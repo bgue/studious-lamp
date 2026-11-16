@@ -15,7 +15,7 @@ from tl_core.auth.module_grants import (
     grant_module_role,
     revoke_module_role,
 )
-from tl_core.modules import ModuleSpec, use_modules
+from tl_core.modules import ModuleSpec, ProposableCommand, use_modules
 from tl_core.services.commands import CreateRecord
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.proposals import propose, submit
@@ -26,6 +26,15 @@ NEVER = "project:NEVER"
 AGENT = "agent:bot"
 ADMIN = "user:ada"
 TOOL = "create_record"
+MODULE_TOOL = "vault_create"
+
+
+class VaultCreate(CreateRecord):
+    """The module's own command: a core name may not be gated by a module (it is refused whole)."""
+
+
+#: The command class and tool ``cmd`` and the ``do_*`` helpers use; a fixture switches them.
+_ACTIVE: dict[str, object] = {"cls": CreateRecord, "tool": TOOL}
 
 
 @pytest.fixture
@@ -51,10 +60,17 @@ def module_command() -> Iterator[None]:
         name="vault",
         record_types=frozenset(),
         projectors=lambda: [],
-        command_words={"CreateRecord": "controller"},
+        command_words={"VaultCreate": "controller"},
+        proposable=(
+            ProposableCommand(MODULE_TOOL, VaultCreate, lambda uow, c: None, "controller"),  # type: ignore[arg-type,return-value]
+        ),
     )
-    with use_modules([spec]):
-        yield
+    _ACTIVE.update(cls=VaultCreate, tool=MODULE_TOOL)
+    try:
+        with use_modules([spec]):
+            yield
+    finally:
+        _ACTIVE.update(cls=CreateRecord, tool=TOOL)
 
 
 @pytest.fixture
@@ -106,7 +122,7 @@ def world(db: DbTarget) -> World:
 
 
 def cmd(scope: str = SCOPE, *, key: str | None = None, rk: str = "R-1") -> CreateRecord:
-    return CreateRecord(
+    return _ACTIVE["cls"](  # type: ignore[no-any-return,operator]
         actor=AGENT, source="mcp:x", scope=scope, record_type="core.Record",
         title="A record", key=rk, idempotency_key=key,
     )  # fmt: skip
@@ -115,13 +131,15 @@ def cmd(scope: str = SCOPE, *, key: str | None = None, rk: str = "R-1") -> Creat
 def do_submit(factory: object, c: CreateRecord, *, budget: int = 5, agent: str = AGENT):  # type: ignore[no-untyped-def]
     return submit(
         factory,  # type: ignore[arg-type]
-        tool=TOOL, agent=agent, command=c, summary="Create a record", budget=budget,
+        tool=str(_ACTIVE["tool"]), agent=agent, command=c, summary="Create a record", budget=budget,
     )  # fmt: skip
 
 
 def do_propose(db: DbTarget, c: CreateRecord, *, agent: str = AGENT):  # type: ignore[no-untyped-def]
     with open_uow(db) as uow:
-        return propose(uow, tool=TOOL, agent=agent, command=c, summary="Create a record")
+        return propose(
+            uow, tool=str(_ACTIVE["tool"]), agent=agent, command=c, summary="Create a record"
+        )
 
 
 def refusal(
