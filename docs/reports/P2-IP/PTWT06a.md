@@ -5,7 +5,6 @@ Branch: `p2/ptw-t06a-cli-isolation`   Commit(s): this report is in the one commi
 ## Deviations
 - Commit subject uses the dispatch prefix `P2-IP-PTWT06a:`; the ticket id is `P2-PTW-T06a` (ticket says `P2-PTW-TNN`).
 - Report path is `docs/reports/P2-IP/PTWT06a.md` (dispatch), not the ticket's `docs/reports/P2-PTW/T06a.md`.
-- Trailer names Claude Haiku 5.5 (my own model), not the "Opus 5.5" the dispatch text mentions.
 - Every write verb takes `--actor` (default dev), as the T04 permit writes do; the ticket's option list omits it.
 - Isolation writes run build, gate and handler under the acting person's viewer (`_execute` in `cli_isolation.py`). T04's `cli_permit_write._execute` does not. Reason in Learnings 1. Handler code is untouched.
 
