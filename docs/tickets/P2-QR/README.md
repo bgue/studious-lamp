@@ -7,6 +7,8 @@ Branch `p2/qr` from the integration branch `p2/ip`. Worktree `/home/user/wt/p2-q
 ticket branches `p2/qr-t<nn>-<slug>`, worktrees `/home/user/wt/qr/<id>`. Board: `STATE.md` (round 1 writes it).
 This file also holds the fan-out across P2-QR, P2-INSP and P2-PTW (last section).
 
+S2 (r2, P2-IP): spec `S2-code-service.md` with `../P2-IP/S2-common.md`; S2 declares its module hooks (X4 is complete on `p2/x4`), which supersedes every "no hook fields" line below; the S2 branch needs `p2/ip` merged with `p2/x4` and waits for X4 on trunk to merge.
+
 ## Objective
 After this increment a person who can see an IWP or a scaffold prints a label for it (CLI, terminal, web); a phone
 scan of the label opens a sign-in-protected status page that says what the record's state is now; a label can be
