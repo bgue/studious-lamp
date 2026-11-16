@@ -5,7 +5,7 @@ review: full
 branch: p2/forms-w2-fill-page
 worktree: /home/user/wt/forms/w2
 Status: staged, **not dispatchable until** W1, B1, T04 and S3 are merged and P2-X4 is on `p2/ip` (the page reads through routes that exist only through the X4 hooks). It does not run in the round of S6 (both edit `tl_web/app.py`; the orchestrator staggers).
-Depends on: W1 (vendored renderer and `dev/tools/surveyjs_probe`), **B1** (`tl_core/forms/surveyjs.py`, `to_surveyjs(fields, fmt)`: a Haiku ticket after W1 and T01; the page gets its model from it), S3 (commands), T04 (read routes; X4 C2: the hooks).
+Depends on: W1 (vendored renderer and `dev/tools/surveyjs_probe`), **B1** (`tl_core/forms/surveyjs.py`, `to_surveyjs(fields, fmt)`: an implementer ticket after W1 and T01; the page gets its model from it), S3 (commands), T04 (read routes; X4 C2: the hooks).
 Gated: security (a page that renders template text into a script-bearing page, and a web write path for answers; the owner approves, APPROVALS line). Labels: web, security. Heavy runs: at most 2 at once.
 
 ## Why
