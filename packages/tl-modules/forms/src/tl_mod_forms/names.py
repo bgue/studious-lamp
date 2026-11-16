@@ -129,5 +129,7 @@ T_ACCEPT: Final = "accept"
 T_RETURN: Final = "return"
 T_VOID: Final = "void"
 T_DISCARD: Final = "discard"
+T_REVOKE: Final = "revoke"
+T_REJECT: Final = "reject"
 
 PROPOSE_SUBMISSION: Final = "propose_form_submission"

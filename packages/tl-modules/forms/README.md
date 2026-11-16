@@ -5,9 +5,10 @@ public zero-login intake. Four record types (`forms.Template`, `forms.Submission
 `forms.IntakeItem`) with tables `cur_forms_*`, and one operational table, `forms_intake_body`, that no event
 produces.
 
-P2-FORMS S2 holds the schema, the projectors and the names. P2-FORMS S3 (this piece) holds the eleven commands and the
-one seam that runs a module command inside the caller's unit of work (`tl_core.services.nested.run_nested_command`).
-Views, routes, the CLI, the tools and the intake endpoint come later.
+P2-FORMS S2 holds the schema, the projectors and the names. P2-FORMS S3 holds eleven commands and the one seam that runs a
+module command inside the caller's unit of work (`tl_core.services.nested.run_nested_command`). P2-FORMS S7c adds the four
+intake commands (fifteen in all) and `tl_core/qr/codes.py`. Views, routes, the CLI, the tools and the intake endpoint come
+later.
 
 ## Who reads what (P2-FORMS CR1)
 
@@ -33,6 +34,12 @@ no feed card. An intake code or item with no context is not hidden by this modul
 | `AcceptFormSubmission` | `forms.review` (controller) | Submitted only; never the author |
 | `ReturnFormSubmission` | `forms.review` | as Accept; `note` required |
 | `VoidFormSubmission` | `forms.void` (controller) | Submitted, Accepted or Returned; also `Record.Voided` on the envelope |
+| `IssueIntakeCode` | `forms.intake.issue` (controller) | project scope; takes `code_hash`, never a code; a Published public template (version and hash pinned); optional readable `context_id`; `heading` 1-60; `expires_on` today to today + `forms.intake.code_max_days` |
+| `RevokeIntakeCode` | `forms.intake.issue` | Active only; `reason` |
+| `AcceptIntakeItem` | `forms.intake.review` (controller) | Pending only; runs `command_type` (in the template's `accepts_as`, a module proposable) with the controller's `command_args` as the controller, then `IntakeItem.Accepted`, the `accept` move, body delete, `IntakeItem.Purged`; one unit |
+| `RejectIntakeItem` | `forms.intake.review` | Pending only; `reason` of `spam`, `duplicate`, `not_ours`, `unclear`; the body stays for retention |
+
+None of the four is proposable (`tests/tools/proposable_exclusions.toml`, `person acts directly`).
 
 Generic commands: none on a template; on a submission `SetPsetValues`, `AddLink`, `AttachFile` and the link life, only
 once it is submitted (`guards.submitted_or_later`).
@@ -47,6 +54,10 @@ once it is submitted (`guards.submitted_or_later`).
 | `MSG_DRAFT_SAVES` | the draft was saved as often as it may be; submit it or discard it |
 | `MSG_SELF_REVIEW` | the person who filled a form may not review it |
 | `MSG_NOT_FILLABLE` / `MSG_NOT_PUBLISHED` | bound or public template / template not published |
+| `MSG_CODE_TAKEN` | that code is already in use (a second issue of the same hash) |
+| `MSG_NOT_INTAKE` | that template is not open to public intake (not public, or bound) |
+| `MSG_EXPIRY` | the expiry is in the past or beyond the days a code may last |
+| `MSG_NOT_ACCEPTED_AS` | that template does not accept an item as that command |
 | `MSG_ONE_DRAFT` | that template already has a version in draft |
 | `FormAnswersError`, `FormTemplateError` | the rules' problem texts, joined (field ids, never an answer value) |
 
@@ -62,3 +73,19 @@ once it is submitted (`guards.submitted_or_later`).
 - D10 `SaveFormDraft` and `SubmitForm` take general, Published templates; an existing draft finishes after Retired.
 - D11 refusal order: scope, subject (hidden looks absent, before any answer), the actor's own submission and its state, template,
   version, save bound, answers. A continued draft is looked up before its template (the draft's author comes first).
+
+## Decisions D15 to D18 (P2-FORMS S7c, as applied)
+
+- D15 `tl_core.qr.codes` (frozen, pure): `ALPHABET` (32 symbols, no `I O 0 1`), `CODE_LENGTH` 16, `new_code()`,
+  `normalise_code(text) -> str | None`, `code_hash(code) -> str` (sha256 hex of the normalised code; `ValueError` on a
+  non-code), `grouped(code)`. This module imports it and never `tl_mod_qr`; the QR module imports it and defines none.
+- D16 the server never sees a code: `IssueIntakeCode` takes `code_hash`. A caller may choose a weak code; the issuer holds
+  `forms.intake.issue` and a code opens a staging door only (listed for the wave's security review).
+- D17 accept takes the controller's completed `command_type` and `command_args`. The staged body is read once, for
+  `on_behalf_of_claim` (`claim_name`, `claim_company`, each cleaned and at most 80 characters; `claim_phone` never copied).
+  The seam sets actor, scope and source (`intake:<code id>`) and the cause (the `Received` event) and gets the controller's
+  holder, so the controller needs their own word for the command. The result lists the move and purge events only: the
+  `Accepted` event (the claim) stays in the ledger.
+- D18 accept deletes the `forms_intake_body` row and appends `IntakeItem.Purged` in the same unit; reject keeps the body.
+- An intake code takes no number, so `Record.Created` is appended with `key: null` directly (as `SaveFormDraft` does);
+  `create_module_record(key=None)` would look for a numbering pattern that does not exist.

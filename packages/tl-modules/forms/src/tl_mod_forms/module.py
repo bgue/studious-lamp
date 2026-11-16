@@ -1,7 +1,8 @@
 """What the forms module gives the platform (``tl_core.modules``; ADR-0010).
 
 The entry point ``throughline.modules`` / ``forms`` names ``spec``. This slice holds the record
-types, their projectors and the eleven commands (P2-FORMS S3); the intake commands (S7c) come later.
+types, their projectors and the fifteen commands (P2-FORMS S3 and S7c: eleven for templates,
+submissions and review, four for intake).
 ``forms.Submission`` is ``draft_only``: a form is filled and saved offline (``SaveFormDraft``,
 ``SubmitForm``); template, review and void commands are central. The module declares no
 hook field. Its one ``confidential`` source classes a submission by its ``answer_class``
@@ -21,19 +22,29 @@ from tl_core.services.commands import Command
 from tl_mod_forms import MODULE
 from tl_mod_forms.commands import (
     AcceptFormSubmission,
+    AcceptIntakeItem,
     DiscardFormDraft,
     DraftFormTemplate,
     EditFormTemplate,
+    IssueIntakeCode,
     PublishFormTemplate,
+    RejectIntakeItem,
     RetireFormTemplate,
     ReturnFormSubmission,
     ReviseFormTemplate,
+    RevokeIntakeCode,
     SaveFormDraft,
     SubmitForm,
     VoidFormSubmission,
 )
 from tl_mod_forms.confidential import CONFIDENTIAL
 from tl_mod_forms.guards import submitted_or_later
+from tl_mod_forms.handlers.intake import (
+    handle_accept_intake_item,
+    handle_issue_intake_code,
+    handle_reject_intake_item,
+    handle_revoke_intake_code,
+)
 from tl_mod_forms.handlers.review import (
     handle_accept_form_submission,
     handle_return_form_submission,
@@ -52,6 +63,8 @@ from tl_mod_forms.handlers.template import (
     handle_revise_form_template,
 )
 from tl_mod_forms.names import (
+    INTAKE_ISSUE,
+    INTAKE_REVIEW,
     PROPOSE_SUBMISSION,
     RECORD_TYPES,
     REVIEW,
@@ -93,6 +106,10 @@ FORMS_COMMANDS: tuple[FormsCommand, ...] = (
     FormsCommand(AcceptFormSubmission, handle_accept_form_submission, REVIEW),
     FormsCommand(ReturnFormSubmission, handle_return_form_submission, REVIEW),
     FormsCommand(VoidFormSubmission, handle_void_form_submission, VOID_WORD),
+    FormsCommand(IssueIntakeCode, handle_issue_intake_code, INTAKE_ISSUE),
+    FormsCommand(RevokeIntakeCode, handle_revoke_intake_code, INTAKE_ISSUE),
+    FormsCommand(AcceptIntakeItem, handle_accept_intake_item, INTAKE_REVIEW),
+    FormsCommand(RejectIntakeItem, handle_reject_intake_item, INTAKE_REVIEW),
 )
 
 #: The life of a link that starts at the record (accept, decline, re-pin, verify, flag, retract).
@@ -106,8 +123,8 @@ LINK_LIFE = frozenset(
 FORMS_GENERIC_COMMANDS = frozenset({"SetPsetValues", "AddLink", "AttachFile"}) | LINK_LIFE
 
 #: What an agent may propose: a submission (``SubmitForm``). Accepting runs it as the accepting
-#: person, who becomes its author and needs ``forms.submit`` (a ``user`` word). The other ten
-#: commands are in ``tests/tools/proposable_exclusions.toml`` with the reason.
+#: person, who becomes its author and needs ``forms.submit`` (a ``user`` word). The other
+#: fourteen commands are in ``tests/tools/proposable_exclusions.toml`` with the reason.
 PROPOSABLE = (ProposableCommand(PROPOSE_SUBMISSION, SubmitForm, handle_submit_form, "user"),)
 
 
