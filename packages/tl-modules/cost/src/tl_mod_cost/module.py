@@ -36,5 +36,8 @@ def spec() -> ModuleSpec:
         generic_commands={COST_CODE: COST_CODE_GENERIC_COMMANDS, COST_SNAPSHOT: frozenset()},
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
+        commands="tl_mod_cost.commands:API_COMMANDS",
+        read_routers=("tl_api.routes.cost:router",),
+        cli_groups=("tl_cli.cost:app",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )

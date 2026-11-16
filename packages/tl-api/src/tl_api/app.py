@@ -10,13 +10,16 @@ from __future__ import annotations
 import importlib.util
 import logging
 import os
-from collections.abc import AsyncIterator, Awaitable, Callable
+import re
+from collections.abc import AsyncIterator, Awaitable, Callable, Collection, Iterable
 from contextlib import asynccontextmanager
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
+from fastapi.dependencies.models import Dependant
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from tl_core.auth.env import dev_tokens_allowed
@@ -29,6 +32,7 @@ from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 from tl_core.integration.inbound import store as inbound_store
+from tl_core.modules import ModuleHookError, load_modules, refused_hook, resolve_hook
 from tl_mod_documents.derivation import store as derivation_store
 
 from tl_api import commands
@@ -55,15 +59,7 @@ from tl_api.routes import (
     admin,
     agent_stop,
     auth,
-    awp,
-    awp_progress,
-    awp_weeks,
     constraints,
-    correspondence,
-    cost,
-    derivation,
-    documents,
-    engineering,
     events,
     extypes,
     files,
@@ -71,14 +67,9 @@ from tl_api.routes import (
     insights,
     integration,
     links,
-    materials,
     proposals,
-    punch,
     records,
     reference,
-    requisitions,
-    schedule,
-    schemareg,
     threads,
 )
 from tl_api.routes import feed as feed_routes
@@ -170,6 +161,76 @@ def install_error_handlers(app: FastAPI) -> None:
     async def _internal(_: Request, exc: Exception) -> JSONResponse:
         log.error("unhandled error", exc_info=exc)
         return _json(500, ErrorBody(error="internal_error", message="internal server error"))
+
+
+_PARAM = re.compile(r"\{[^}]*\}")
+
+
+def _shape(path: str) -> str:
+    """A route path with its parameter names erased: ``/a/{x}`` and ``/a/{y}`` match one URL."""
+    return _PARAM.sub("{}", path)
+
+
+def _flat(routes: Iterable[Any]) -> list[Any]:
+    """The routes of an app or router with every included router replaced by its own routes."""
+    found: list[Any] = []
+    for route in routes:
+        inner = getattr(route, "original_router", None)
+        if inner is not None:
+            found.extend(_flat(inner.routes))
+        else:
+            found.append(route)
+    return found
+
+
+def _has_guard(dependant: Dependant) -> bool:
+    """True when the route's dependency tree holds a ``guard(...)`` dependency."""
+    if hasattr(dependant.call, "action"):
+        return True
+    return any(_has_guard(sub) for sub in dependant.dependencies)
+
+
+def _closed_routes(router: APIRouter) -> bool:
+    """Every route of ``router`` is an API route with a ``guard(...)`` dependency (SR-X4 F2).
+
+    A mounted sub-app, a websocket or a route without the guard is open to any caller.
+    """
+    return all(isinstance(r, APIRoute) and _has_guard(r.dependant) for r in _flat(router.routes))
+
+
+def _core_route_paths(app: FastAPI) -> list[str]:
+    """The path of every route on ``app`` (called when every core router is mounted)."""
+    return [getattr(r, "path", "") for r in _flat(app.routes)]
+
+
+def _include_module_routers(app: FastAPI, core_paths: Collection[str] = ()) -> None:
+    """Register each installed module's read routers, in module-name order, declared order inside.
+
+    A module whose ``read_routers`` hook does not resolve registers none of its routes: the fixed
+    text is logged once and the other modules still register. So does a module with a route whose
+    path is a core path (or an earlier module's), or with a route that has no ``guard(...)``
+    dependency: the platform never mounts a route nothing checks (SR-X4 F1, F2).
+    """
+    taken = {_shape(p) for p in core_paths}
+    for spec in load_modules():
+        try:
+            routers = cast(tuple[APIRouter, ...], resolve_hook(spec, "read_routers"))
+        except ModuleHookError as exc:
+            log.warning("%s", exc)
+            continue
+        paths = [
+            _shape(cast(str, getattr(r, "path", ""))) for rt in routers for r in _flat(rt.routes)
+        ]
+        if (
+            len(set(paths)) != len(paths)
+            or taken.intersection(paths)
+            or not all(_closed_routes(rt) for rt in routers)
+        ):
+            log.warning("%s", refused_hook(spec, "read_routers"))
+            continue
+        taken.update(paths)
+        for router in routers:
+            app.include_router(router)
 
 
 def _web_mount() -> Callable[[FastAPI], None] | None:
@@ -338,26 +399,19 @@ def create_app(
         proposals,
         extypes,
         settings_routes,
-        engineering,
-        documents,
-        derivation,
+    ):
+        app.include_router(module.router)
+    for module in (
         integration,
         threads,  # P1-I7 WS-B
-        correspondence,
-        schedule,
-        cost,
-        materials,  # P2-I3-T04a
-        schemareg,  # P1-I8
-        awp_progress,  # P2-I5 T11a1: the progress and count reads (before awp: iwps/counts)
-        awp_weeks,  # P2-I5 T11a2: the weekly-plan and look-ahead reads (before awp)
-        awp,  # P2-I1 T03a: the awp read routes
-        punch,  # P2-PUNCH T03: the punch read routes
-        requisitions,  # P2-I4A T04c1: the requisition and work order read routes
         constraints,  # P2-I2 T04c1: the constraint read routes
         insights,  # P2-INS S2: the Checks read and the one telemetry write
     ):
         app.include_router(module.router)
     app.include_router(commands.router)
+    # last of the routers: the modules' read routes, from their ``read_routers`` hooks, so a core
+    # literal path (``/threads/mine``) always beats a module's parameter path (SR-X4 F7)
+    _include_module_routers(app, _core_route_paths(app))
     if web_mount is not None:
         web_mount(app)  # last: its catch-all 404 page and its outermost headers middleware
     return app

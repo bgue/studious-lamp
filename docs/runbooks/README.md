@@ -37,3 +37,4 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `materials.md` — daily materials work: load the item library, receive and accept deliveries with their MTR, move, reserve and adjust stock, read shortages and the movement log (M4).
 - `demo-project.md` — build the demo project P200 (North Refinery, HT-2) in a new ledger and read it with the API and the TUI (P2-SEED).
 - `terminal-release.md` — install the terminal release, try it on the demo project, run a real server, connect a user, and cut a release (P2-REL-T06).
+- `new-module.md` — scaffold a module, add a record type and a command row, the three surfaces, what agents cannot reach yet (P2-X4).

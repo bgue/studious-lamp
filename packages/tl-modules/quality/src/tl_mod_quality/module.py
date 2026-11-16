@@ -101,6 +101,10 @@ def spec() -> ModuleSpec:
         actions={PUNCH_ITEM: punch_actions},
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in PUNCH_COMMANDS},
+        commands="tl_mod_quality.module:PUNCH_COMMANDS",
+        read_routers=("tl_api.routes.punch:router",),
+        tools=("tl_mcp.punch_tools:register_punch_tools",),
+        cli_groups=("tl_cli.punch:app",),
         # a walkdown raises items offline; each is numbered when it syncs (offline classes)
         offline_drafts={PUNCH_ITEM: frozenset({"RaisePunchItem"})},
     )

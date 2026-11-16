@@ -1,0 +1,26 @@
+"""The example agent tool of the ${name} module (`tl new module`; ADR-0029).
+
+The tool is closed to agents until an allow row names the action
+`mcp.${name}_ping`. It answers a fixed text and reads no record; a tool that
+reads one runs under `guarded`, which sets the lowest clearance, so a hidden
+record answers as a missing one.
+"""
+
+from __future__ import annotations
+
+from mcp.server.mcpserver import MCPServer
+from mcp.types import ToolAnnotations
+from tl_mcp.context import McpContext
+from tl_mcp.errors import guarded
+
+from ${package} import MODULE
+
+READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
+
+
+def register_tools(server: MCPServer, ctx: McpContext) -> None:
+    @server.tool(name="${name}_ping", annotations=READ_ONLY)
+    def ping() -> str:
+        """The name of the ${name} module (fixed text; reads no record)."""
+        with guarded(ctx, "${name}_ping", MODULE):
+            return MODULE

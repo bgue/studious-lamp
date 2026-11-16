@@ -6,9 +6,11 @@ live here.
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
 from importlib.metadata import version as package_version
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 import typer
 from sqlalchemy import Connection
@@ -31,6 +33,7 @@ from tl_core import confidentiality
 from tl_core.auth.env import current_env, demo_allowed
 from tl_core.auth.seed import DEMO_WARNING, seed_demo
 from tl_core.extypes.provider import attach
+from tl_core.modules import ModuleHookError, ModuleSpec, load_modules, refused_hook, resolve_hook
 from tl_core.settings.effects import mark_applied
 from tl_sim import cli as sim_cli
 from typer.core import TyperGroup
@@ -44,18 +47,14 @@ from tl_cli import (
     admin_user,
     agent_stop,
     archive,
-    awp,
     backup,
-    comm,
     config,
     constraint,
     corr,
     corr_clock,
     corr_registry,
     corr_report,
-    cost,
     delivery,
-    derive,
     dev,
     doc,
     doc_import,
@@ -76,18 +75,12 @@ from tl_cli import (
     lake,
     ledger,
     link,
-    load,
     login,
-    mat,
     new,
     proposal,
     pset,
-    punch,
     record,
-    req,
     restore,
-    review,
-    rfi,
     rule,
     schema,
     serve,
@@ -99,11 +92,9 @@ from tl_cli import (
     tag_report,
     thread,
     thread_dispatch,
-    transmittal,
     tui,
     webhook,
     wf,
-    xer,
 )
 from tl_cli.session import open_backend, session_viewer
 
@@ -128,6 +119,50 @@ class TlGroup(TyperGroup):
             raise typer.Exit(code=1) from None
 
 
+log = logging.getLogger("tl_cli")
+
+
+def _group_name(ref: str) -> str:
+    """The top-level name of a module CLI group from its ``tl_cli.<mod>:<attr>`` ref.
+
+    ``:app`` names the group by its module (``tl_cli.corr:app`` is ``corr``); ``:<x>_app`` names it
+    ``<x>`` (``tl_cli.req:wo_app`` is ``wo``). Any other attribute is refused, naming the module.
+    """
+    module_path, _, attr = ref.partition(":")
+    if attr == "app":
+        return module_path.rpartition(".")[2]
+    if attr.endswith("_app") and len(attr) > len("_app"):
+        return attr[: -len("_app")]
+    raise ValueError(f"module CLI group ref names no group attribute: {module_path}")
+
+
+def _add_module_groups(root: typer.Typer, specs: Iterable[ModuleSpec]) -> None:
+    """Add every module's ``cli_groups`` to ``root``. A module whose hook fails is skipped.
+
+    Call it after every core command and group is on ``root``: a module group named like one is
+    refused with the fixed hook message (the module is skipped, the platform is not), so a module
+    never replaces a core command (SR-X4 F1).
+    """
+    taken = {info.name for info in root.registered_groups if info.name}
+    taken |= {
+        info.name or getattr(info.callback, "__name__", "").replace("_", "-")
+        for info in root.registered_commands
+    }
+    for spec in specs:
+        try:
+            groups = resolve_hook(spec, "cli_groups")
+        except ModuleHookError as exc:
+            log.warning("%s", exc)
+            continue
+        names = [_group_name(ref) for ref in spec.cli_groups]
+        if len(set(names)) != len(names) or taken.intersection(names):
+            log.warning("%s", refused_hook(spec, "cli_groups"))
+            continue
+        for name, group in zip(names, groups, strict=True):
+            root.add_typer(cast(typer.Typer, group), name=name)
+        taken.update(names)
+
+
 app = typer.Typer(
     cls=TlGroup,
     name="tl",
@@ -149,23 +184,7 @@ thread.app.command("reminders")(thread_dispatch.reminders)
 app.add_typer(proposal.app, name="proposal")
 app.add_typer(standards.app, name="standards")
 standards.app.add_typer(standards_class.app, name="class")
-app.add_typer(tag.app, name="tag")
-app.add_typer(doc.app, name="doc")
-app.add_typer(derive.app, name="derive")
-app.add_typer(xer.app, name="xer")
-app.add_typer(load.app, name="load")
-app.add_typer(cost.app, name="cost")
-app.add_typer(awp.app, name="awp")
 app.add_typer(constraint.app, name="constraint")
-app.add_typer(transmittal.app, name="transmittal")
-app.add_typer(review.app, name="review")
-app.add_typer(corr.app, name="corr")
-app.add_typer(rfi.app, name="rfi")
-app.add_typer(comm.app, name="comm")
-app.add_typer(mat.app, name="mat")  # P2-I3
-app.add_typer(punch.app, name="punch")  # P2-PUNCH
-app.add_typer(req.app, name="req")  # P2-I4A-T04e1
-app.add_typer(req.wo_app, name="wo")  # P2-I4A-T04e1
 app.command("evidence")(evidence.evidence_cmd)
 corr.app.add_typer(corr_clock.app, name="clock")
 corr.app.add_typer(corr_registry.thread_app, name="thread")
@@ -330,3 +349,6 @@ def rebuild(
         db, types=only or None, after_replay=None if only else carried_out
     )
     typer.echo(f"replayed {replayed} events")
+
+
+_add_module_groups(app, load_modules())  # last, so core names are taken (P2-X4, SR-X4 F1)

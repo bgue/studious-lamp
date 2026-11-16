@@ -168,6 +168,21 @@ def spec() -> ModuleSpec:
         },
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
+        commands="tl_mod_documents.commands:API_COMMANDS",
+        read_routers=(
+            "tl_api.routes.documents:router",
+            "tl_api.routes.derivation:router",
+        ),
+        tools=(
+            "tl_mcp.document_tools:register_document_tools",
+            "tl_mcp.derivation_tools:register_derivation_tools",
+        ),
+        cli_groups=(
+            "tl_cli.doc:app",
+            "tl_cli.derive:app",
+            "tl_cli.transmittal:app",
+            "tl_cli.review:app",
+        ),
         offline_drafts={  # record type -> its drafting commands (offline-classes spec, section 4)
             DOCUMENT: frozenset({"RegisterDocument", "UpdateDocument"}),
             REVISION: frozenset({"CreateRevision", "VoidRevision"}),

@@ -131,6 +131,13 @@ def spec() -> ModuleSpec:
         actions={record_type: requisitions_actions for record_type in RECORD_TYPES},
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in REQUISITIONS_COMMANDS},
+        commands="tl_mod_requisitions.module:REQUISITIONS_COMMANDS",
+        read_routers=("tl_api.routes.requisitions:router",),
+        tools=("tl_mcp.requisition_tools:register_requisition_tools",),
+        cli_groups=(
+            "tl_cli.req:app",
+            "tl_cli.req:wo_app",
+        ),
         # a foreman raises a requisition offline; it is numbered when it syncs (offline classes)
         offline_drafts={t: frozenset({"RaiseRequisition"}) for t in REQUISITION_TYPES},
     )

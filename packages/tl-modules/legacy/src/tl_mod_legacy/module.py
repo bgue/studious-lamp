@@ -42,5 +42,6 @@ def spec() -> ModuleSpec:
         generic_commands={LOAD_RUN: frozenset()},
         confidential=CONFIDENTIAL,
         command_words={},  # the module has no API commands (no `API_COMMANDS`)
+        cli_groups=("tl_cli.load:app",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )
