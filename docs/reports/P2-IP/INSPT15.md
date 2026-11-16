@@ -6,7 +6,7 @@ Branch: `p2/insp-t15-docs`   Commit(s): the docs commit and this report (sha in 
 - Scope: docs only, as the ticket says. No code, schema, generated or test file changed. Allowed paths only.
 - Commit subject is `P2-IP-INSPT15:` (dispatch), not `P2-INSP-T15:` (ticket). Base is `7c6561fa` (dispatch), not `p2/ip-r3`.
 - Worktree is `/home/user/wt/ip4/inspt15` (dispatch), not `/home/user/wt/insp/t15` (ticket).
-- The trailer names the implementer's own model as the session attribution gives it (Claude Haiku 5.5); the dispatch text said Opus 5.5.
+- The commit trailer names the implementer's own model as the session attribution gives it; the dispatch text named a different model. Only the required trailer names a model.
 - Documented "as built" gaps that the ticket did not list: the `--answers` export (design section 7), and the TUI filters `o`, `d`, `h`
   and by area (design section 6). Both are in the runbook's and the module page's "not built" lists.
 - Design wording "open punch count" is documented as `punch_count` (punch items the result raised), as S2 built it.
