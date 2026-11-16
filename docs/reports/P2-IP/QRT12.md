@@ -31,6 +31,10 @@ $ uv run tl qr --help
 $ link check (relative links in the four module, reference and runbook pages)
 (no missing targets)
 $ grep for model names in the new and rewritten pages: none added
+$ uv run pyright packages/tl-modules/permits/src/tl_mod_permits/cli_gastest.py tests/confidentiality/twin_channels.py
+  .../cli_gastest.py:113:14 - error: Argument missing for parameter "build" (reportCallIssue)
+  .../twin_channels.py:758:5 - warning: Expression value is unused (reportUnusedExpression)
+  1 error, 1 warning  (gate item 7; outside Allowed paths, not fixed here)
 ```
 
 ## Tests added
@@ -47,5 +51,10 @@ None (docs only).
 4. The exact install command for the `labels` extra (`segno`) is not verified; the runbook names the extra only.
 5. The follow-up slice for the not-built items is not in `docs/build-spec/DEFERRED.md` (no QR entry at base 7c6561fa).
 6. No T01 report exists on this base. `packages/tl-modules/qr/src/tl_mod_qr/views.py` still has a docstring that says "stub: T01 fills them", but its functions are implemented. Docs describe them as built. Outside Allowed paths, so not edited.
+7. GATE (red, not caused by this branch). `just check` reports pyright errors in files this ticket may not touch:
+   - `packages/tl-modules/permits/src/tl_mod_permits/cli_gastest.py:113:14` reportCallIssue, missing argument `build`.
+   - `tests/confidentiality/twin_channels.py:758:5` reportUnusedExpression (warning).
+   Both reproduce on this branch with `uv run pyright <the two files>`. `git diff 7c6561fa HEAD` touches neither file, so both come from base `7c6561fa`. Fixing them needs edits outside Allowed paths and a test edit, so not fixed here.
+8. The gate's "changed" list names five code files (`dev/demos/P2-QR.sh`, `tl_core/qr/types.py`, `tl_mod_qr/cli.py`, `tl_mod_qr/routes.py`, `tl_web/pages/scan.py`). None differs from `7c6561fa` on this branch; the list likely used another diff base.
 
-Blocked: none. Items 1 and 2 need an owner or orchestrator decision before the runbook is final.
+Blocked: gate item 7 needs an owner decision (fix on base by the permits and confidentiality owners, or a ruling). Items 1 and 2 need an owner decision before the runbook is final.
