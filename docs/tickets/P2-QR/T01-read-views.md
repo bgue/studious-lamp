@@ -129,3 +129,7 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-16)
+The provided test's hundred-row case raises the per-record cap first (`world.cap(100)`); the default
+`qr.codes_per_record_max` is 20. Both copies of the test are updated to the same bytes.
