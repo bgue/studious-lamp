@@ -46,3 +46,9 @@ you are built on (the base below), never from memory.
 - No model names in committed text; commit `P2-<INC>-S2: ...` with the session trailers named in the dispatch message; do not merge, do not push.
 - Escalate (write under *Blocked*, stop): a hook ref outside the module's own package is needed; `tl_api/errors.py` or `tl_core/modules.py` must change; the join budget fails;
   the uv lock cannot be regenerated; a provided test fails on its own logic.
+
+## Amendment 1 (orchestrator, 2026-11-16; INSP-S2 block)
+`provided/S2_ip_rules.py` `problems` now checks only this module's delegation marks (the toml holds every module's), and
+`tests/services/conftest.py` puts `tests/services` on `sys.path`, so `ip_rules` and `test_module_conformance` import by
+bare name whatever pytest collects first. Each S2 merges p2/ip-x4 to pick both up; its landed `ip_rules.py` equals the
+provided copy.
