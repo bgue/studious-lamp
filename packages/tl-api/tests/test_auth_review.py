@@ -420,6 +420,13 @@ AGENT_MAY_NOT = {
     # recovery: flag or retract any link, a module's rule link included (the admin's, ADR-0013)
     "admin.command.AdminFlagLink",
     "admin.command.AdminRetractLink",
+    # P2-I4A: requisition and work-order decisions are a controller's; an agent proposes
+    # (RaiseRequisition is delegation-eligible)
+    "control.command.ApproveRequisition",
+    "control.command.RejectRequisition",
+    "control.command.AssignWorkOrder",
+    "control.command.ScheduleWorkOrder",
+    "control.command.CloseWorkOrder",
     # the documents module (P1-I2, ADR-0013): the controlling acts are the controller's
     "control.command.SetDocumentConfidentiality",
     "control.command.SupersedeDocument",

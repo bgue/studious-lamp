@@ -13,9 +13,14 @@ EXPECTED = [
     "packages/tl-modules/inspection/README.md",
     "packages/tl-modules/inspection/pyproject.toml",
     "packages/tl-modules/inspection/src/tl_mod_inspection/__init__.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/cli.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/commands.py",
     "packages/tl-modules/inspection/src/tl_mod_inspection/handlers/__init__.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/module.py",
     "packages/tl-modules/inspection/src/tl_mod_inspection/projectors/__init__.py",
     "packages/tl-modules/inspection/src/tl_mod_inspection/py.typed",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/routes.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/tools.py",
     "packages/tl-modules/inspection/tests/test_module.py",
     "schema/modules/inspection/module.yaml",
 ]
@@ -38,7 +43,7 @@ def test_it_lists_every_created_file_on_stdout(tmp_path: Path) -> None:
 def test_the_generated_files_pass_ruff_and_their_own_tests(tmp_path: Path) -> None:
     tl_new(tmp_path, "module", "inspection")
     ruff_clean(tmp_path)
-    assert "2 passed" in generated_tests_pass(tmp_path, "packages/tl-modules/inspection")
+    assert "5 passed" in generated_tests_pass(tmp_path, "packages/tl-modules/inspection")
 
 
 def test_the_package_is_named_for_the_workspace(tmp_path: Path) -> None:
@@ -54,7 +59,7 @@ def test_the_longest_module_name_still_gives_formatted_code(tmp_path: Path) -> N
     name = "abcdefghijklmnopqrst"
     assert tl_new(tmp_path, "module", name).exit_code == 0
     ruff_clean(tmp_path)
-    assert "2 passed" in generated_tests_pass(tmp_path, f"packages/tl-modules/{name}")
+    assert "5 passed" in generated_tests_pass(tmp_path, f"packages/tl-modules/{name}")
 
 
 def test_a_second_run_overwrites_nothing(tmp_path: Path) -> None:

@@ -145,6 +145,14 @@ def spec() -> ModuleSpec:
         actions={record_type: item_actions for record_type in ITEM_TYPES},
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
+        commands="tl_mod_correspondence.commands:API_COMMANDS",
+        read_routers=("tl_api.routes.correspondence:router",),
+        tools=("tl_mcp.correspondence_tools:register_correspondence_tools",),
+        cli_groups=(
+            "tl_cli.corr:app",
+            "tl_cli.rfi:app",
+            "tl_cli.comm:app",
+        ),
         offline_drafts={  # record type -> its drafting commands (offline-classes spec, section 4)
             CORRESPONDENCE: frozenset({"DraftCorrespondence", "UpdateCorrespondence", "VoidDraft"}),
             TECHNICAL: frozenset({"RaiseTechnical", "UpdateTechnical"}),

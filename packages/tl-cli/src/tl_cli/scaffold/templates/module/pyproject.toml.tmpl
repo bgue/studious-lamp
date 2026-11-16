@@ -8,7 +8,15 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  "tl-api",
+  "tl-mcp",
+  "fastapi",
+  "mcp",
+  "typer",
 ]
+
+[project.entry-points."throughline.modules"]
+${name} = "${package}.module:spec"
 
 [build-system]
 requires = ["hatchling"]

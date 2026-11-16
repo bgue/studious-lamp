@@ -1,0 +1,40 @@
+sha,date,subject
+bc69800a,2026-11-16,"Merge P2-X4: modules supply their own commands, read routes, MCP tools and CLI groups (DONE)"
+11621381,2026-11-15,"Merge P2-X2: agent filing scope (explicit grants only), queue cap, per-agent stop switch (C4)"
+c7fa8dc3,2026-11-14,"P2-TOUR2: merge S2, the four missing tour shots (cause: bare actor names)"
+fe3d7b43,2026-11-14,"P2-TOUR2: merge T01, the Phase 2 screenshot tour (8 screens on P200)"
+4b811fdd,2026-11-14,"P2-WHR: merge S1, webhook bodies redact payload references to hidden records (SR-X1 F3)"
+c4b872ca,2026-11-14,"P2-I6: merge wave-1 prep (marts sync S1, gold marts T02, T03)"
+1ae95869,2026-11-14,P2-X1: merge idempotency keys (DONE)
+56093ce4,2026-11-14,P2-SEED: demo-project seed sections for the Phase 2 modules
+237a1a6b,2026-11-13,P2-PUNCH DONE: quality module and punch list (roadmap 4a)
+8e7134b1,2026-11-13,"P2-I5 DONE: weekly work planning (cycle, look-ahead, readiness, progress, pack, closeout)"
+f76a8a6a,2026-11-13,"Merge p2/x3-adr: ADR-0029 delegation by policy, accepted"
+4624fcfe,2026-11-13,Merge p2/ext-plan: extension plan X1-X5 with plan check answered
+1177e48b,2026-11-12,"P2-I4A DONE: requisitions and work orders (whole suite green, gate-pg green, demo both adapters, SR3 clean)"
+72e8253b,2026-11-09,Merge p2/twin-walker (P2-TWIN: hidden-vs-absent twin-world walk; five known leaks as strict xfail)
+cb208517,2026-11-09,"Merge p2/schema-guard (P2-GUARD: event schema compatibility gate, payload validation in collect mode)"
+3ff3e167,2026-11-09,Merge p2/rel (P2-REL: terminal release; owner go-ahead 2026-11-09)
+87a89de8,2026-11-09,"Merge p2/fix-conf-payloads (P2-FIX-CONF: constraint payload, lake, cursor and history redaction)"
+cf47626e,2026-11-09,Merge p2/fix-cli-admin (CLI admin-gate regression tests; finding did not reproduce)
+9f1fd3c3,2026-11-08,"Merge p2/int (P2-INT: event intent, valid-time tag, CLI/MCP/TUI intent)"
+3190aea7,2026-11-08,"Merge p2/ins (P2-INS: Activity tab, Insights Checks, telemetry of needs)"
+4fff6752,2026-11-08,Merge p2/fix-pg-api-seed (P2-FIX Postgres documents seed actor)
+289ee56a,2026-11-08,Merge p2/seed (P2-SEED-T06 constraint seeds)
+b3c43233,2026-11-08,"Merge p2/wave2-close (P2-I2 wave 2: IWPs, scope items, constraints on any record, readiness, sign-off, issue, hold)"
+201e6ff0,2026-11-07,"Merge p2/seed (P2-SEED demo project generator: framework, sections, anchors, tour, runbook)"
+34696bc5,2026-11-07,"Phase 2 wave 1: M3 field work packaging part 1, M4 materials, web client wave 1"
+189b9640,2026-10-31,"Merge p2/w0: Phase 2 wave 0 (roles MVP, offline classes, readiness, tools, performance)"
+4e8bcdc6,2026-10-22,"Merge p1/ux2: log standard with breadcrumb and actions bar, RFI record narrative and timeline, document preview"
+4a881074,2026-10-21,"Merge p1/ux: usability increment — record screen for every type, plain language by default, admin technical-details toggle, example property sets, re-shot tours"
+2bcedda8,2026-10-21,Merge fix/p0-i2-demo-count: the P0-I2 demo checks its test run by outcome
+2e8285cb,2026-10-21,Merge fix/domain-screen-clock: the evidence-trail test pins its day instead of reading the wall clock
+b394ac0e,2026-10-20,Merge p1/tour-i8: Phase 1 tour sections 20-22 (P1-I8); tour marked as the Phase 1 exit
+7c1ce254,2026-10-20,"Merge p1/exit: Phase 1 report, risk register after Phase 1 (ADR-0020), learnings curated"
+3bb8f227,2026-10-20,"Merge p1/i8: P1-I8 schema registry, governance, legacy loads and lake marts; Phase 1 exit demo"
+4bcfae2b,2026-10-20,Merge p1/tour-final: Phase 1 tour covers P1-I3 to P1-I7; Phase 0 tour regenerated
+a36be2e6,2026-10-20,"Merge process/v2: token-efficient build process (short-lived supervisors, builders, one gate, lite reviewers, TL92, planner-tier plan check; ADR-0004 addendum; Phase 2 plan v0.3)"
+70ddd597,2026-10-20,"Merge tools/gate: just gate, sequential test gate"
+c026dcc5,2026-10-20,"Merge p1/i6: P1-I6 Technical/RFI and Commercial domains, escalation rule, evidence trail"
+558abe9a,2026-10-20,Merge p1/i7a: P1-I7 integration layer and record threads (WS-A + WS-B)
+10bed812,2026-10-20,"Merge p3/prep: planning drafts (p3/prep), documentation only"

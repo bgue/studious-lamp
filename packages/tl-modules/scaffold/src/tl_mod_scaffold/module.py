@@ -2,8 +2,8 @@
 
 The entry point ``throughline.modules`` / ``scaffold`` in this package's ``pyproject.toml`` names
 ``spec``. Both record types are offline class ``none`` (a register entry and a tag are acts on the
-authority): no ``offline_drafts``. ``proposable`` is empty and the module has no hooks yet (a
-later piece adds the read surface and registers the commands with the platform).
+authority): no ``offline_drafts``. ``proposable`` is empty and the module declares its commands and
+its read router on the hooks (P2-I4B S2; ADR-0029).
 """
 
 from __future__ import annotations
@@ -104,4 +104,6 @@ def spec() -> ModuleSpec:
         generic_guards={(SCAFFOLD, c): not_removed for c in SCAFFOLD_GENERIC_COMMANDS},
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in SCAFFOLD_COMMANDS},
+        commands="tl_mod_scaffold.module:SCAFFOLD_COMMANDS",
+        read_routers=("tl_api.routes.scaffold:router",),
     )
