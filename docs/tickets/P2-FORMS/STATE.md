@@ -10,7 +10,7 @@ CR1 p mrg f 600591e3 security review P after fixes; APPROVALS
 CR1 p stg f - conf rows, own class, author-only draft; after S3
 T14 t stg f - webhook scenario rows + envelope required fix
 T01 t stg f - JSON Schema projection (full: no provided test)
-T13 t stg f - insp_rules re-exports core validators
+T13 t mrg f 2e0f9bbe review P
 S3s p todo f - form sources quality+permits; INSP C2, PTW C2
 T02 t todo f - runner model; needs a provided test first
 T03 t todo f - views; after S3, CR1
