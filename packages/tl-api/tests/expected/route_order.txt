@@ -153,6 +153,9 @@ GET /companies/materials/item-projects
 GET /projects/{project}/materials/lots/{key:path}
 GET /projects/{project}/materials/receipts/{number}
 GET /projects/{project}/materials/reports/{name}
+GET /qr/codes
+GET /qr/codes/export
+GET /qr/resolve/{code}
 GET /schema/packages
 GET /schema/packages/{ref:path}
 GET /schema/sample-tests/{ref:path}
