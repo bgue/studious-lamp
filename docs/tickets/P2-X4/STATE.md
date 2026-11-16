@@ -7,7 +7,7 @@ S2 p mrg f ee6fa66e API table and routers (C2)
 S4 p mrg f 4e39ff78 review P; APPROVALS
 T02a t mrg f 479f41bb review P; amend 1
 T02b t stg f - ready r4: templates pasted, provided test surfaces; waits dispatch
-S5 p stg f - ext_demo moved from T03 (D11); spec ready; waits dispatch
+S5 p mrg f 30e31f3d review P
 T04 t stg l - runbook new-module; waits T02b
 T05 t stg f - demo driver; waits T02b,S5
 T06 t stg l - AGENTS rows; waits T05
