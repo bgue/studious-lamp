@@ -28,7 +28,6 @@
           },
           "required": [
             "record_id",
-            "changes",
             "feed_policy"
           ],
           "title": "TemplateEditedPayload",

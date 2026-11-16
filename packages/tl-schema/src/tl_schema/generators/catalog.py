@@ -161,7 +161,7 @@ def _events_of(
         title = _first_sentence(str(definition.description))
         changes = json.loads(_annotation(definition, "tl:sample_changes") or "{}")
         links = json.loads(_annotation(definition, "tl:sample_links") or "[]")
-        envelope_schema = _envelope_schema(envelope_defs, event_type, version, payload_schema)
+        envelope_schema = _envelope_schema(envelope_defs, event_type, version, payload_schema, omit)
         found.append(
             EventTypeInfo(
                 event_type=event_type,
@@ -207,7 +207,11 @@ def build_events(schema_dir: Path) -> list[EventTypeInfo]:
 
 
 def _envelope_schema(
-    defs: dict[str, Any], event_type: str, version: int, payload_schema: dict[str, Any]
+    defs: dict[str, Any],
+    event_type: str,
+    version: int,
+    payload_schema: dict[str, Any],
+    omit: tuple[str, ...],
 ) -> dict[str, Any]:
     schema = _resolve(defs, "CloudEvent")
     properties = schema["properties"]
@@ -219,6 +223,9 @@ def _envelope_schema(
     data = properties["data"]
     data["additionalProperties"] = True
     detail = copy.deepcopy(payload_schema)
+    # a slot tagged tl:webhook: omit is never in a webhook body, so it is not required there
+    if "required" in detail:
+        detail["required"] = [name for name in detail["required"] if name not in omit]
     detail["description"] = properties["data"]["properties"]["detail"].get("description", "")
     data["properties"]["detail"] = detail
     schema.pop("examples", None)

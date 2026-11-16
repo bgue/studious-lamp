@@ -109,7 +109,6 @@
           "required": [
             "record_id",
             "format_version",
-            "form_fields",
             "field_count",
             "version",
             "feed_policy"
