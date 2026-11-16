@@ -21,7 +21,7 @@ from tl_core.services.reserved import refuse_reserved
 from tl_mod_permits import lapse, views
 from tl_mod_permits.commands import RequestPermit
 from tl_mod_permits.lapse import LapseKind, job_id, parse_job_id, request, run_once
-from tl_mod_permits.names import JOB_ACTOR, JOB_KIND, JOB_SOURCE
+from tl_mod_permits.names import JOB_ACTOR, JOB_KIND, JOB_SOURCE, PERMIT_TABLE
 
 LATE = START + timedelta(hours=12)  # 19:00, after the first valid_until (18:00)
 PROJECT = "P123"
@@ -242,7 +242,21 @@ def test_a_job_with_a_bad_id_fails_for_good(world: World) -> None:
     assert LapseKind.kind == JOB_KIND
 
 
-def test_the_limit_requeues_once(world: World) -> None:
+def test_an_active_permit_with_no_end_is_never_flagged(world: World) -> None:
+    permit = world.active()
+    with open_uow(world.db) as uow:
+        uow.conn().execute(
+            text(f"UPDATE {PERMIT_TABLE} SET valid_until = NULL WHERE id = :i"), {"i": permit}
+        )
+    world.at = LATE
+    assert run(world) == 0
+    assert run(world, LATE + timedelta(minutes=1)) == 0
+    assert flagged(world) == [] and flag_of(world, permit) is None
+
+
+def test_the_limit_requeues_once(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    if str(world.db).startswith("postgres"):  # the Postgres run seeds few: it is slow there
+        monkeypatch.setattr(lapse, "LIMIT", 3)
     ids = world.active_many(lapse.LIMIT + 1, START + timedelta(hours=11))
     world.at = LATE
     factory = make_uow_factory(world.db)

@@ -2,8 +2,8 @@
 
 Job id ``ptwlapse:<project>:<YYYY-MM-DDTHH:MM>`` (UTC; the minute of ``now``, a parameter of the
 run, not the clock). ``prepare`` reads each Active permit of the project whose ``valid_until`` is
-not after ``now`` (no end counts as lapsed, as ``rules.effective_state``) and that was not flagged
-for that same ``valid_until``; ``settle`` appends one ``Permit.Lapsed`` for each (source
+not after ``now`` (a permit with no end is never flagged: no instant to flag) and that was not
+flagged for that same ``valid_until``; ``settle`` appends one ``Permit.Lapsed`` for each (source
 ``job:permits.lapse``; the projector sets ``lapse_flagged_for``). At most ``LIMIT`` permits per
 run: when more remain, ``settle`` queues the same run again (the queue row is already done in that
 transaction), and the flagged ones no longer match. The job never changes a state, a
@@ -44,7 +44,8 @@ _MINUTE = "%Y-%m-%dT%H:%M"
 _ACTIVE_SQL = text(
     "SELECT p.id, p.valid_until, p.lapse_flagged_for "
     f"FROM {PERMIT_TABLE} p JOIN cur_core_record r ON r.id = p.id "
-    "WHERE p.scope = :scope AND r.voided = :no AND r.status = :active ORDER BY p.id"
+    "WHERE p.scope = :scope AND p.valid_until IS NOT NULL AND r.voided = :no "
+    "AND r.status = :active ORDER BY p.id"
 )
 _REQUEUE_SQL = text(
     "UPDATE job_queue SET state = :queued, attempt = 0, run_after = :now, lease_owner = NULL, "
@@ -105,7 +106,7 @@ def request(uow: UnitOfWork, project: str, now: datetime) -> bool:
 @dataclass(frozen=True)
 class Flag:
     permit_id: str
-    valid_until: datetime | None
+    valid_until: datetime
 
 
 @dataclass(frozen=True)
@@ -135,9 +136,9 @@ class LapseKind:
         flags: list[Flag] = []
         for r in rows:
             until = _instant(r.valid_until)
-            if until is not None and until > now:
-                continue
-            if until is not None and _instant(r.lapse_flagged_for) == until:
+            if until is None or until > now:
+                continue  # no end: never flagged, nothing to flag it for
+            if _instant(r.lapse_flagged_for) == until:
                 continue
             flags.append(Flag(str(r.id), until))
         return Outcome(claim.scope, now, flags[:LIMIT], max(0, len(flags) - LIMIT))
@@ -150,7 +151,7 @@ class LapseKind:
         for flag in outcome.flags:
             payload: dict[str, object] = {
                 "record_id": flag.permit_id,
-                "valid_until": None if flag.valid_until is None else iso_utc(flag.valid_until),
+                "valid_until": iso_utc(flag.valid_until),
                 "at": iso_utc(outcome.now),
                 "feed_policy": FEED_NONE,
             }
