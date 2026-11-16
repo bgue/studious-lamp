@@ -34,6 +34,21 @@ Pins moved:
 Merged with no textual conflict. Generated files were already current; only the compat baseline was stale
 (additive) and was refreshed with `compat --update`.
 
+## Merge 3: `p2/ip-r3` (later PTW, INSP, QR, forms, readiness tickets)
+
+Conflicts and resolutions:
+- `awp/pyproject.toml`, `awp/checks_na.py`, `dev/accept/P2-I2/T06b.py`: `permits_planned` is now a real
+  check in permits and `labour_requested` one in scaffold, so only `predecessors_handed_over` and
+  `model_slice_available` remain as placeholders (module docstring says two). T06b still asserts
+  `permits_planned` is loaded.
+- `tl_api/client/__init__.py`: `ScaffoldApi` and `PermitsApi` both kept.
+- `tl_tui/app.py`, `commands.py`: scaffolds and inspections screens/palette ids both kept.
+- `tl_tui/client.py`, `embedded.py`: the scaffold read section and the permits section both kept whole
+  (git interleaved the two sections; I rebuilt them from each side).
+- `tests/confidentiality/twin_channels.py`: the MCP walker needed values for the new required arguments
+  `permit_key` and `limit` of `list_gas_tests` (4 twin-walk cases failed); added.
+- `uv sync --all-packages` run after the merge. No generated file changed; compat baseline additive.
+
 ## Checks
 ruff check and format clean, pyright clean on touched files, generate/compat/openapi --check clean,
 `check_licences.py` ok. Gate results are in the return message.
