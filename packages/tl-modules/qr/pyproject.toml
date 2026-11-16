@@ -8,6 +8,9 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  "fastapi",
+  "mcp",
+  "typer",
 ]
 
 [project.optional-dependencies]

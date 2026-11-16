@@ -63,6 +63,7 @@ OLD_GROUPS = [
     "archive",
     "ledger",
     "projections",
+    "qr",  # P2-QR S2 (the module's own group, by hook)
 ]
 
 OLD_SUBGROUPS = {

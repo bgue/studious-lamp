@@ -138,7 +138,7 @@ def test_the_forms_rows_are_one_block_and_the_old_rows_are_unchanged() -> None:
         "requisitions.WorkOrder",
         "quality.PunchItem",
     ]
-    assert cf.SUBJECT_LINKS[6:] == (
+    assert cf.SUBJECT_LINKS[6:9] == (
         ("forms.Submission", "cur_forms_submission", "id", "subject_id"),
         ("forms.IntakeItem", "cur_forms_intake_item", "id", "code_id"),
         ("forms.IntakeCode", "cur_forms_intake_code", "id", "context_id"),
