@@ -107,7 +107,7 @@ def test_rows_keep_model_handler_access_and_an_empty_meta() -> None:
     for row in by_name.values():
         assert isinstance(row, ModuleCommand)
         assert callable(row.handler)
-        assert dict(row.meta) == {}
+        assert set(row.meta) <= {"delegation"}  # P2-PTW S2: the mark of a module with no table
 
 
 def test_command_names_are_unique_across_modules(fake_package: None) -> None:
