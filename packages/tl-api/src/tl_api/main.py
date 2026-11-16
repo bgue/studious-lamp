@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
@@ -97,6 +98,42 @@ def mark_server_started(backend: Backend) -> None:
         mark_applied(uow.conn(), ["restart"], applied_by="server")
 
 
+#: A scan code in a request path: ``/web/q/<code>``, ``/qr/resolve/<code>``, and the sign-in
+#: bounce's ``next=`` that carries a scan path (plain or percent-encoded).
+_CODE_PATHS = re.compile(
+    r"(?P<head>/web/q/|/qr/resolve/)[^\s?#&\"]*|(?P<next>next=(?:/web/q/|%2[Ff]web%2[Ff]q%2[Ff]))[^\s&#\"]*"
+)
+
+
+def redact_code_paths(text: str) -> str:
+    """``text`` with the code of every scan path replaced by ``<redacted>`` (else the same text)."""
+
+    def repl(found: re.Match[str]) -> str:
+        return (found.group("head") or found.group("next")) + "<redacted>"
+
+    return _CODE_PATHS.sub(repl, text)
+
+
+class ScanCodeRedactor(logging.Filter):
+    """Rewrites scan codes out of the arguments of an access-log record before any handler
+    formats it. A record that holds none is left as it was."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and any(isinstance(a, str) for a in args):
+            clean = tuple(redact_code_paths(a) if isinstance(a, str) else a for a in args)
+            if clean != args:
+                record.args = clean
+        return True
+
+
+def install_access_log_filter() -> None:
+    """Put one ``ScanCodeRedactor`` on ``uvicorn.access`` (a second call adds nothing)."""
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, ScanCodeRedactor) for f in access.filters):
+        access.addFilter(ScanCodeRedactor())
+
+
 def started_server(app: Any, settings: ApiSettings, on_started: Callable[[], None]) -> Any:
     """A uvicorn server for ``app`` that calls ``on_started`` once its sockets are bound.
 
@@ -113,6 +150,7 @@ def started_server(app: Any, settings: ApiSettings, on_started: Callable[[], Non
                 on_started()
 
     config = uvicorn.Config(app, host=settings.host, port=settings.port, log_level="info")
+    install_access_log_filter()  # after Config: it configures the uvicorn loggers
     return StartedServer(config)
 
 

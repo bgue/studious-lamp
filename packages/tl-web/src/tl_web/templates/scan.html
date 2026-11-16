@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Scan - Throughline{% endblock %}
+{% block scripts %}{% endblock %}
+{% block content %}
+{% if limited %}<div class="tl-card tl-scan"><h1>Slow down</h1>
+<p role="alert">{{ limited }}</p></div>
+{% elif card %}<div class="tl-card tl-scan">
+<p class="tl-scan-banner tl-tone-{{ card.tone }}" role="status">{{ card.banner }}</p>
+<h1>{{ card.key }}</h1>
+<p class="tl-scan-title">{{ card.title }}</p>
+<p class="tl-scan-asof">as of {{ as_of }}{% if valid_until %}, valid until {{ valid_until }}{% endif %}</p>
+{% if card.lines %}<dl class="tl-scan-lines">
+{% for line in card.lines %}<dt>{{ line.label }}</dt><dd>{{ line.value }}</dd>
+{% endfor %}</dl>
+{% endif %}{% if card.open_path %}<p><a class="tl-scan-open" href="{{ card.open_path }}">Open record</a></p>
+{% endif %}</div>
+{% else %}<div class="tl-card tl-scan"><h1>Scan code</h1>
+<form method="post" action="/web/q" class="tl-form" autocomplete="off">
+<label for="code">Code from the label</label>
+<input type="text" id="code" name="code" maxlength="40" autocapitalize="characters" autocomplete="off" spellcheck="false" required>
+<p><button type="submit">Look up</button></p>
+</form></div>
+{% endif %}{% endblock %}
