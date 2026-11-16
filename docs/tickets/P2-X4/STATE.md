@@ -12,7 +12,7 @@ S6 p mrg f b28bec8f SR-X4 fixes; APPROVALS
 T04 t mrg l b432050f review fixes applied
 T05a t mrg f f9d8323f review P
 T05b t mrg f 6208be85 review P
-T05c t stg f - demo shell P2-X4.sh; waits T05a,T05b mrg
+T05c t mrg f b260787d demo OK both adapters (C3)
 T06 t mrg l c04751ab report cleaned
 ## DEC
 D1 2026-11-15 core row type `ModuleCommand` in tl_core/modules.py: CommandSpec lives in tl_api, core cannot import it; S2 maps rows to CommandSpec (+meta); spec S1
