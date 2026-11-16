@@ -1,6 +1,6 @@
-# P2-IP STATE  r=4 base=ff727291 C=C2 ck=0 gate=n/a wt=/home/user/wt/ip-r3
-Fan-out across P2-QR, P2-INSP, P2-PTW. Plans: `docs/tickets/P2-{QR,INSP,PTW}/README.md` (Plan check answered, F1-F14). Round 4: the T01 views and QR-T04 are merged; the next surface, card and seed tickets and three piece specs are written.
-Branch `p2/ip-r3` (from `p2/ip-x4` head 10acf325 = `p2/ip` + `p2/x4` + the three S2 merges + F1/F2) carries every ticket of this batch; X4 is not on the trunk yet (D8). Heads: r3 end ff727291; r4 = the commit that holds this file.
+# P2-IP STATE  r=5 base=9ee5c5b4 C=C2 ck=0 gate=n/a wt=/home/user/wt/ip-r3
+Fan-out across P2-QR, P2-INSP, P2-PTW. Plans: `docs/tickets/P2-{QR,INSP,PTW}/README.md` (Plan check answered, F1-F14). Round 5: r4 batch merged (27 items); iso views, CLI, route, tool, client and readiness tickets and a seed piece written.
+Branch `p2/ip-r3` (from `p2/ip-x4` = `p2/ip` + `p2/x4` + three S2 merges + F1/F2) carries every ticket; X4 is not on trunk (D8). Heads: r4 cce88e5b; r5 = the commit that holds this file; ticket bases = `p2/ip-r3` head at dispatch.
 ## BOARD
 QR-S1 p mrg f a34abf02 review P; ADR-0030 accepted; APPROVALS
 INSP-S1 p mrg f ed1ff779 review P; F1 MD `at` accepted; APPROVALS
@@ -18,28 +18,35 @@ QR-T01 t mrg f 3088c62f review P after report fix (amend 1)
 INSP-T01 t mrg f 3482fbdb review P
 PTW-T01 t mrg f ff727291 review P; Lapsed via rules.effective_state; agreement test
 QR-T04 t mrg f f0ecbd20 review P; IWP card; 30 tests; window line shows the one planned date set
-QR-T07 t stg f - READY r4: CLI `tl qr` (label, ls, revoke, rotate, resolve, export); disp r4
-QR-T06 t stg f - READY r4: API router GET /qr/codes, /export, /resolve/{code}; agents closed; disp r4
-PTW-T04 t stg f - READY r4: `tl permit` ten write verbs in cli_permit_write.py; disp r4
-PTW-T05 t stg f - READY r4: `tl permit` ls/show/board/export in cli_permit_read.py; disp r4
-INSP-T09 t stg f - READY r4: card quality.Inspection copying QR-T04; disp r4
-PTW-T09 t stg f - READY r4: card permits.Permit; gas/isolation lines deferred to T02; disp r4
-INSP-T04 t stg f - READY r4: `tl insp` (tl_cli/insp*.py); appends cli_groups ref in quality module.py
-INSP-T05 t stg f - READY r4: `tl checklist` (tl_cli/checklist*.py); appends cli_groups ref (same tuple as T04)
-INSP-T06 t stg f - READY r4: five GET routes tl_api/routes/insp.py; route_order + openapi pins
-INSP-T07 t stg f - READY r4: MCP reads + propose_inspection; identity.py two lines; OLD_TOOL_NAMES pin
-PTW-T07 t stg f - READY r4: API router, permit routes only; isolation/gas routes = T07b after T02
-PTW-T08 t stg f - READY r4: MCP permit reads + propose_permit; list_isolations = T08b after T02
-QR-S3 p stg f - SPEC r4 (S3-scan-page.md); builder; waits for X4 on trunk to merge; start after QR-T06 (log filter names its route)
-PTW-S3 p stg f - SPEC r4 (S3-isolations-and-gas-tests.md); builder; writes provided test of T02
-PTW-S5 p stg f - SPEC r4 (S5-lapse-job.md); builder; copies the job on p2/i4b via git show
-INSP-T03 p stg f - SPEC r4 (T03-seed-section.md); a piece, not a ticket (D23); roster: lhartmann quality superuser
-INSP-S3 t todo f - readiness check; after S2 (merged); same awp pyproject file as PTW-S4: INSP first
-PTW-S4 t todo f - after PTW-S2 and INSP-S3 (same awp file)
-QR-T11 t todo f - demo; after T04, T06, T07
-QR-T12/INSP-T14,T15/PTW-T15,T16 t todo - demos, tour, docs; after their surfaces
-PTW-T02 t todo f - iso views; after PTW-S3 (provided test written by S3)
-INSP-T08/PTW-T10 t todo f - client methods; after the API routes
+QR-T07 t mrg f 04be50cb review P round 3; --project required on revoke/rotate (D26)
+QR-T06 t mrg f 182dc7ec review P; qr.read on no agent list; 27 controller actions decided
+PTW-T04 t mrg f a92df5ba review P
+PTW-T05 t mrg f 0d683b36 review P
+PTW-T09 t mrg f 6bdb4bda review P; gas/isolation card lines still deferred
+INSP-T09 t mrg f ac3334a0 review P
+INSP-T04 t mrg f 6e48a1b7 review P
+INSP-T05 t mrg f f18145ae review P; cli_groups union
+INSP-T06 t mrg f 8470eea4 review P; five GET routes
+INSP-T07 t mrg f 6e1fc511 review P; test_mcp_server TOOLS pin unioned
+PTW-T08 t mrg f 705b3f5d review P; permit reads + propose_permit
+INSP-T03 p mrg f 9ee5c5b4 seed; 2343 records/9793 events; review P (F1-F3 fixed)
+PTW-S3 p mrg f a25a6297 review P; sec F1 MD fixed; DEFERRED Q13; APPROVALS
+PTW-S5 p mrg f c3771554 lapse job; NULL valid_until never selected; APPROVALS
+PTW-T07 t disp f - API router, four permit routes; wf running (orch); do not re-dispatch
+PTW-T02 t stg f - READY r5: iso_views.py; provided T02_test_iso_views.py (ruff clean); batch A
+INSP-T08 t stg f - READY r5: inspection/checklist client methods, fake; quality_command widened; batch A
+PTW-T03 p stg f - SPEC r5 (T03-seed-section.md): builder piece; permits section of demo; batch B alone
+PTW-T06a t stg f - STAGED r5: `tl isolation` all verbs; after T02; batch C
+PTW-T06b t stg f - STAGED r5: `tl gastest` + permit export --gas-tests; after T02; batch C
+PTW-T08b t stg f - STAGED r5: list_isolations, list_gas_tests tools; after T02; batch C
+PTW-T07b t stg f - STAGED r5: iso and gas-test routes; after T07 AND T02 merge; batch D alone
+QR-S3 p stg f - SPEC r4 (S3-scan-page.md); QR-T06 merged so ready; DO NOT dispatch until X4 on trunk
+INSP-S3 t stg f - STAGED r5 (S3-readiness-check.md); waits X4; merges before PTW-S4
+PTW-S4 t stg f - STAGED r5 (S4-readiness-check.md); waits X4 and INSP-S3 (awp pyproject)
+QR-T11 t todo f - demo; clauses 2,3,6 need the scan page: write after QR-S3 merges
+PTW-T10 t todo f - client methods; after T07 and T07b
+INSP-T10 t todo f - terminal screens; after INSP-T08 merges
+INSP-T14/T15, PTW-T11/T15/T16, QR-T12 t todo - demos, screens, docs; after their surfaces
 ## DEC
 D1 2026-11-15 QR URL is <base>/web/q/<code> (cookie Path=/web); ADR-0030, spec, QR S1
 D2 2026-11-16 supersedes D2 of r1: S2 pieces DO declare hooks (X4 complete); rules in P2-IP/S2-common.md; errors hook still deferred (core error classes)
@@ -67,8 +74,15 @@ D22 2026-11-16 r4: PTW-T07/T08 cut to permit reads (T01 only); INSP-T04..T07 eac
 D23 2026-11-16 r4: INSP-T03 is a builder piece (seed ~150 lines, goldens in four files); `lhartmann` gets quality superuser so the verifier differs from the recorder `hsato`
 D24 2026-11-16 r4: PTW-S5 job id carries the minute of `now`; source `job:permits.lapse` is already reserved by the `job:` prefix; no core edit; no CLI or scheduler yet
 D25 2026-11-16 r4: PTW-S3 failing gas test suspends an Active or Lapsed gas-test permit without the suspend word; all six S3 commands `excluded:reserved`
+D26 2026-11-16 r5: QR-T07 revoke/rotate keep required --project; default label text = label_fields title (rulings applied)
+D27 2026-11-16 r5: Q10 ruled T07 adds the routes; Q11 ruled yes (qr.view per project on list/export; provider view word on resolve)
+D28 2026-11-16 r5: PTW-T06 split: T06a `tl isolation`, T06b `tl gastest` + permit export --gas-tests (disjoint files)
+D29 2026-11-16 r5: PTW-T03 is a builder piece like INSP-T03 (D23); no roster change (ipetrov approves/issues, cbrooks/pnair request, lhartmann second verifier)
+D30 2026-11-16 r5: INSP-S3 and PTW-S4 are full-review tickets (in a workflow) with a pyproject entry-point edit; uv sync once after it
+D31 2026-11-16 r5: PTW-S4 decides Lapsed at day granularity (valid_until before start of `today` UTC) via rules.effective_state; Q12
+D32 2026-11-16 every new controller action is decided in test_auth_review.py in its own ticket; MCP tickets name test_mcp_server.py TOOLS and test_module_tool_hooks.py OLD_TOOL_NAMES; route tickets name route_order.txt and openapi.json
 ## SEC
-(none yet; one wave review over d4e92ffc..<p2/ip head> at C4; rows listed in each README plus the S2 spec Goal items; r4 adds: QR-T06 agents closed and resolve 404s equal, QR-S3 whole spec, PTW-S3 hidden-permit text, PTW-S5 job writes the flag only)
+(none yet; one wave review over d4e92ffc..<p2/ip head> at C4; rows listed in each README plus the S2 spec Goal items; r4 adds: QR-T06 agents closed and resolve 404s equal, QR-S3 whole spec, PTW-S3 hidden-permit text, PTW-S5 job writes the flag only; r5: iso/gas views, routes, tools read hidden as missing; S4 check reads without viewer, keys only; PTW-S3 F1 MD fixed; residual LO per-account clearance privileged)
 ## OPEN
 Q2 gas limit defaults signed by safety lead needs owner raised PTW-S1
 Q3 forms: accept ADR-0031 (capture-only forms engine in core; INSP thin, PTW typed) needs owner raised FORMS-EVAL
@@ -78,19 +92,21 @@ Q6 forms: late window 72 h `forms.late_accept_hours`; general submissions review
 Q7 delegation: RequestPermit eligible for policy auto-accept? (default no, D10) needs owner raised PTW-S2
 Q8 p2/ip-x4 goes to p2/ip only after X4 is on trunk (D8); until then ticket bases are p2/ip-r3 needs orch raised IP-r2
 Q9 owner to confirm D15 (approver may issue a permit) needs owner raised PTW-S2
-Q10 PTW-S2 stub `routes.py` docstring says 'T05 adds them'; plan and T07 say T07: ticket wins, T07 may fix the docstring needs orch raised IP-r4
-Q11 QR-T06 asks `qr.view` per project on the list/export routes and the provider view word on resolve: confirm no extra word is wanted needs owner raised QR-T06
+Q12 PTW-S4 Lapsed at day granularity (contract gives a date): default per D31 needs owner raised PTW-S4
+Q13 PTW-S3 DEFERRED: add permits.Permit to SCANNED_STREAM_TYPES (core scan) needs orch raised PTW-S3
 ## NEXT
-1. Orch: dispatch the six DISPATCH items of the r4 relay (base `p2/ip-r3` head). Workflow A {QRT07, PTWT05, PTWT04} (CLI files), workflow B {INSPT09, PTWT09, QRT06}; at most 2 heavy runs.
-2. Next batch (disjoint paths): INSP-T04, INSP-T05 (one module.py tuple: serialise or accept an append merge), INSP-T06, INSP-T07, PTW-T07, PTW-T08 (route_order and openapi pins: one API-route ticket per workflow). Builder slots: PTW-S3, PTW-S5, INSP-T03 (one at a time, one workflow beside).
-3. After QR-T06 merges: QR-S3 builder (it edits tl_web app/routers and tl_api main). After PTW-S3 merges: PTW-T02 (provided test), PTW-T03 seed, PTW-T06 CLI iso/gastest, T07b/T08b.
-4. WAITS FOR X4 ON TRUNK (D8): no S2 merge into p2/ip (QR, INSP, PTW, F1, F2); QR-S3, INSP-S3, PTW-S4 (awp pyproject); every merge of a ticket branch into p2/ip; the three-S2 gate-pg rerun on freed disk.
+1. Orch: batch A {PTWT02, INSPT08} (no API-route ticket). Batch B {PTWT03 piece} alone (builder slot) while the PTW-T07 wf runs.
+2. After T02 merges: batch C {PTWT06a, PTWT06b, PTWT08b}. After PTW-T07 AND T02 merge: batch D {PTWT07b} alone (API route).
+3. After INSP-T08 merges: INSP-T10 terminal (r6). After T07, T07b merge: PTW-T10 client (r6). QR-T11 after QR-S3 merges.
+4. WAITS FOR X4 ON TRUNK (D8): no S2 merge into p2/ip; QR-S3, INSP-S3, PTW-S4 (INSP-S3 first); every merge of a ticket branch into p2/ip; the three-S2 gate-pg rerun. Staged, not dispatched.
 5. After X4 lands: merge trunk into p2/ip-x4, then p2/ip-x4 into p2/ip (Q8), re-issue bases of open tickets from p2/ip.
-6. Heavy runs at most 2; tl-api test_commands.py alone is 7-9 GB: in no gate. tl-api and tl-mcp test files gated one per call.
+6. Heavy runs at most 2; tl-api test_commands.py in no gate; tl-api and tl-mcp test files gated one per call.
+7. Owed (r6): PTW card gas/isolation lines after T02 (small ticket: permits/scan_card.py + test).
 ## REFS
 Specs: docs/tickets/P2-IP/S2-common.md; S2 specs under P2-{QR,INSP,PTW}; S2 reports docs/reports/P2-{QR,INSP,PTW}/S2.md; T01/T04 reports under docs/reports/P2-*.
 r4 tickets: P2-QR/{T06-api-read-router,T07-cli-qr}.md; P2-PTW/{T04-cli-permit-writes,T05-cli-permit-reads,T07-api-router,T08-mcp-tools,T09-scan-card}.md; P2-INSP/{T04-cli-insp,T05-cli-checklist,T06-api-routes,T07-mcp-tools,T09-scan-card}.md.
 r4 specs: P2-QR/S3-scan-page.md; P2-PTW/S3-isolations-and-gas-tests.md, S5-lapse-job.md; P2-INSP/T03-seed-section.md. Job pattern for S5: `git show p2/i4b:packages/tl-modules/scaffold/src/tl_mod_scaffold/inspections_due.py` (never check out).
+r5 tickets: P2-PTW/{T02-iso-views,T06a-cli-isolation,T06b-cli-gastest,T07b-api-iso-routes,T08b-mcp-list-isolations,S4-readiness-check}.md; P2-INSP/{T08-client-methods,S3-readiness-check}.md. r5 piece: P2-PTW/T03-seed-section.md. IP-ticket reports: docs/reports/P2-IP/.
 Finished patterns to copy: card = packages/tl-modules/awp/src/tl_mod_awp/scan_card.py (+ its test); CLI = tl_cli/punch*.py; API = tl_api/routes/punch.py; MCP = tl_mcp/punch_tools.py; tests = test_cli_punch.py, test_api_punch.py, test_punch_tools.py.
 ## TRAPS
 Provided rules tests (S2_*) need the X4 hooks: green only on p2/ip-x4 and later. Base failures not ours (pre-existing on the base): forms/permits lacked commands hook pin, 7 agent-grant failures in test_forms_rows (F1 may have fixed: orchestrator confirm).
