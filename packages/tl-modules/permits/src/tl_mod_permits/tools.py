@@ -1,4 +1,4 @@
-"""The agent tools of the permits module (P2-PTW T08): three reads and one proposal.
+"""The agent tools of the permits module (P2-PTW T08, T08b): five reads and one proposal.
 
 The reads answer from ``tl_mod_permits.views`` under ``confidentiality.current_viewer()``, the
 viewer ``guarded`` sets (the lowest clearance for an agent), so a hidden permit answers as a missing
@@ -13,6 +13,8 @@ cancels a permit.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
@@ -35,6 +37,7 @@ from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     _result,
 )
 
+from tl_mod_permits import iso_views
 from tl_mod_permits import views as permit_views
 from tl_mod_permits.commands import (
     MAX_AREA,
@@ -53,10 +56,37 @@ PERMIT_MCP_ACTIONS: frozenset[str] = frozenset(
         "mcp.get_permit",
         "mcp.permit_board",
         "mcp.propose_permit",
+        "mcp.list_isolations",
+        "mcp.list_gas_tests",
     }
 )
 
 DEFAULT_LIMIT = 50
+
+
+@dataclass(frozen=True)
+class IsolationItem:
+    """An isolation as the agent tools carry it: the view fields without the record id."""
+
+    key: str
+    point_text: str
+    energy: str
+    method: str | None
+    lock_number: str | None
+    tag_number: str | None
+    state: str
+    applied_by: str | None
+    applied_at: datetime
+    verified_by: str | None
+    verified_at: datetime | None
+    depends: int
+
+
+@dataclass(frozen=True)
+class IsolationListing:
+    rows: list[IsolationItem]
+    total: int
+
 
 Project = Annotated[
     str,
@@ -109,6 +139,62 @@ def list_permits_impl(
             limit=limit,
             viewer=confidentiality.current_viewer(),
         )
+
+
+def _isolation_item(row: iso_views.IsolationRow) -> IsolationItem:
+    return IsolationItem(
+        key=row.key,
+        point_text=row.point_text,
+        energy=row.energy,
+        method=row.method,
+        lock_number=row.lock_number,
+        tag_number=row.tag_number,
+        state=row.state,
+        applied_by=row.applied_by,
+        applied_at=row.applied_at,
+        verified_by=row.verified_by,
+        verified_at=row.verified_at,
+        depends=row.depends,
+    )
+
+
+def list_isolations_impl(
+    ctx: McpContext,
+    *,
+    project: str,
+    state: str | None,
+    energy: str | None,
+    limit: int,
+) -> IsolationListing:
+    """The project's visible isolations by key, with the total of the matches."""
+    with ctx.factory(True) as uow:
+        page = iso_views.isolation_list(
+            uow.conn(),
+            _scope(project),
+            state=state,
+            energy=energy,
+            limit=limit,
+            viewer=confidentiality.current_viewer(),
+        )
+    return IsolationListing(rows=[_isolation_item(row) for row in page.rows], total=page.total)
+
+
+def list_gas_tests_impl(
+    ctx: McpContext, *, project: str, permit_key: str, limit: int
+) -> list[iso_views.GasRow]:
+    """The gas tests of one permit, newest first. A missing, hidden or other-project permit
+    answers the same error as ``get_permit``; a visible permit with no tests is an empty list."""
+    now = utcnow()
+    with ctx.factory(True) as uow:
+        conn = uow.conn()
+        viewer = confidentiality.current_viewer()
+        found = permit_views.permit_detail(
+            conn, _scope(project), permit_key, now=now, viewer=viewer
+        )
+        if found is None:
+            raise RecordNotFoundError(f"no permit {permit_key}")
+        tests = iso_views.gas_tests_for(conn, found.row.id, viewer=viewer)
+    return tests[:limit]
 
 
 def get_permit_impl(ctx: McpContext, *, project: str, key: str) -> permit_views.PermitDetail:
@@ -187,7 +273,7 @@ def propose_permit_impl(
 
 
 def register_tools(server: MCPServer, ctx: McpContext) -> None:
-    """Add the three permit read tools and the proposing tool to ``server``."""
+    """Add the permit read tools, the isolation and gas test reads and the proposing tool."""
 
     @server.tool(annotations=READ_ONLY)
     def list_permits(
@@ -260,6 +346,52 @@ def register_tools(server: MCPServer, ctx: McpContext) -> None:
         """
         with guarded(ctx, "permit_board", resource_name("permit", project)):
             return permit_board_impl(ctx, project=project, area=area)
+
+    @server.tool(annotations=READ_ONLY)
+    def list_isolations(
+        project: Project,
+        state: Annotated[
+            str | None,
+            Field(
+                min_length=1,
+                max_length=MAX_PART,
+                description="Only isolations in this state: Applied, Verified or Removed.",
+            ),
+        ] = None,
+        energy: Annotated[
+            str | None,
+            Field(min_length=1, max_length=MAX_PART, description="Only isolations of this energy."),
+        ] = None,
+        limit: Annotated[
+            int,
+            Field(ge=1, le=MAX_PART, description="The most rows to return."),
+        ] = DEFAULT_LIMIT,
+    ) -> IsolationListing:
+        """List a project's isolations by key, with the total number of matches.
+
+        Isolations you may not read are left out of the rows and the total.
+        """
+        with guarded(ctx, "list_isolations", resource_name("isolation", project)):
+            return list_isolations_impl(
+                ctx, project=project, state=state, energy=energy, limit=limit
+            )
+
+    @server.tool(annotations=READ_ONLY)
+    def list_gas_tests(
+        project: Project,
+        permit_key: Key,
+        limit: Annotated[
+            int,
+            Field(ge=1, le=MAX_PART, description="The most rows to return."),
+        ],
+    ) -> list[iso_views.GasRow]:
+        """List one permit's gas tests, newest first.
+
+        A permit that does not exist, that you may not read, or that is in another project gives
+        the same error as `get_permit`.
+        """
+        with guarded(ctx, "list_gas_tests", resource_name("permit", project, permit_key)):
+            return list_gas_tests_impl(ctx, project=project, permit_key=permit_key, limit=limit)
 
     @server.tool(annotations=PROPOSES)
     def propose_permit(
