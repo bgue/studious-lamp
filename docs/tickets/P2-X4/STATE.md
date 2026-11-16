@@ -9,11 +9,11 @@ T02a t mrg f 479f41bb review P; amend 1
 T02b t mrg f 338e5265 review P
 S5 p mrg f 30e31f3d review P
 S6 p mrg f b28bec8f SR-X4 fixes; APPROVALS
-T04 t disp l - runbook new-module; spec T04-new-module-runbook.md
+T04 t mrg l b432050f review fixes applied
 T05a t mrg f f9d8323f review P
 T05b t mrg f 6208be85 review P
 T05c t stg f - demo shell P2-X4.sh; waits T05a,T05b mrg
-T06 t disp l - AGENTS rows, README line, DEFERRED rows; merge after T04,T05c
+T06 t mrg l c04751ab report cleaned
 ## DEC
 D1 2026-11-15 core row type `ModuleCommand` in tl_core/modules.py: CommandSpec lives in tl_api, core cannot import it; S2 maps rows to CommandSpec (+meta); spec S1
 D2 2026-11-15 hook names: `commands`, `read_routers`, `tools`, `cli_groups` (plural: awp has 3 routers, corr has 4 CLI groups); plan said singular
