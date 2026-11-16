@@ -70,8 +70,11 @@ PUNCH = (
     "s.key AS source_key, p.raised_by AS raised_by "
     "FROM cur_core_record r JOIN cur_quality_punch_item p ON p.id = r.id "
     "LEFT JOIN cur_core_record s ON s.id = p.source_id "
-    "WHERE r.type = 'quality.PunchItem' ORDER BY r.key"
-)
+    "WHERE r.type = 'quality.PunchItem' AND NOT EXISTS ("
+    "SELECT 1 FROM cur_links l JOIN cur_core_record i ON i.id = l.to_id "
+    "WHERE l.from_id = r.id AND l.relation = 'raised_against' AND i.type = 'quality.Inspection') "
+    "ORDER BY r.key"
+)  # the seed's own 29: the punch items an inspection raised are counted in their own test
 
 
 def punch(db: Path) -> list[dict[str, object]]:
@@ -103,6 +106,22 @@ def test_the_counts_by_state(runs: dict[str, Run]) -> None:
     assert states.count("Cleared") == 8
     assert states.count("Verified") == 7
     assert states.count("Void") == 2
+
+
+def test_the_inspections_raise_six_more_punch_items(runs: dict[str, Run]) -> None:
+    db = runs["main"].db
+    everything = rows(db, "SELECT key FROM cur_core_record WHERE type = 'quality.PunchItem'")
+    assert len(everything) == len(punch(db)) + 6
+    assert (
+        len(
+            rows(
+                db,
+                "SELECT 1 FROM cur_links l JOIN cur_core_record i ON i.id = l.to_id "
+                "WHERE l.relation = 'raised_against' AND i.type = 'quality.Inspection'",
+            )
+        )
+        == 6
+    )
 
 
 def test_every_item_has_a_key_and_there_is_no_gap(runs: dict[str, Run]) -> None:
@@ -165,7 +184,8 @@ def test_without_quality_the_other_types_do_not_move(runs: dict[str, Run]) -> No
     def per_type(db: Path) -> dict[str, int]:
         found = rows(db, "SELECT type, COUNT(*) AS n FROM cur_core_record GROUP BY type")
         counts = {str(r["type"]): int(str(r["n"])) for r in found}
-        counts.pop("quality.PunchItem", None)
+        for kind in ("quality.PunchItem", "quality.Inspection", "quality.Checklist"):
+            counts.pop(kind, None)
         return counts
 
     assert per_type(runs["main"].db) == per_type(runs["without"].db)
@@ -174,7 +194,7 @@ def test_without_quality_the_other_types_do_not_move(runs: dict[str, Run]) -> No
 
 def test_the_note_is_printed_when_there_is_no_correspondence(runs: dict[str, Run]) -> None:
     assert NO_SOURCES_NOTE in runs["main"].stdout
-    assert "quality: 29 records" in runs["main"].stdout
+    assert "quality: 57 records" in runs["main"].stdout  # 29 punch, 4 checklists, 18 inspections, 6
 
 
 def test_restricted_sources_come_from_the_correspondence_section(runs: dict[str, Run]) -> None:
