@@ -58,6 +58,7 @@ OLD_GROUPS = [
     "integration",
     "sim",
     "admin",
+    "agent",  # P2-X2 T02 (tl agent stop|resume|stopped), merged after the baseline was captured
     "backup",
     "archive",
     "ledger",
