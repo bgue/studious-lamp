@@ -16,6 +16,9 @@ dependencies = [
 [project.entry-points."throughline.modules"]
 permits = "tl_mod_permits.module:spec"
 
+[project.entry-points."throughline.readiness_checks"]
+permits_planned = "tl_mod_permits.checks:permits_planned"
+
 [project.entry-points."throughline.scan_cards"]
 permits_permit = "tl_mod_permits.scan_card:provider"
 
