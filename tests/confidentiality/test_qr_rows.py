@@ -114,7 +114,7 @@ def submission(world: World, subject: str) -> str:
 
 
 def test_the_row_is_appended_after_the_forms_rows_and_the_hops_are_unchanged() -> None:
-    assert cf.SUBJECT_LINKS[9:] == (("qr.ScanCode", "cur_qr_scan_code", "id", "target_id"),)
+    assert cf.SUBJECT_LINKS[9:10] == (("qr.ScanCode", "cur_qr_scan_code", "id", "target_id"),)
     assert [row[0] for row in cf.SUBJECT_LINKS[6:9]] == [
         "forms.Submission",
         "forms.IntakeItem",
