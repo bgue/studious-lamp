@@ -194,6 +194,7 @@ def test_the_answers_are_in_two_events_only(world: World) -> None:
 
 
 def test_the_proposal_of_an_agent_accepted_by_a_person_submits_as_that_person(world: World) -> None:
+    world.agent("forms-bot")
     tpl = world.template()
     command = SubmitForm(
         actor="agent:forms-bot",

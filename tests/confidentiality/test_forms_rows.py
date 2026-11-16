@@ -34,7 +34,7 @@ for _tests in ("tl-modules/forms/tests", "tl-api/tests"):
         sys.path.insert(0, str(_ROOT / _tests))
 
 from forms_world import MARKER, PASSWORD, SCOPE, World, answer  # noqa: E402
-from harness import Harness  # noqa: E402
+from harness import Harness, grant_filing  # noqa: E402
 from tl_mod_forms.commands import SubmitForm  # noqa: E402
 from tl_mod_forms.module import FORMS_COMMANDS  # noqa: E402
 from tl_mod_forms.names import INTAKE_CODE, INTAKE_ITEM, SUBMISSION  # noqa: E402
@@ -373,6 +373,8 @@ READERS = {"uma": AUTHOR, "vera": LOW, "dora": CLEARED, "ada": ADMIN, "bot": AGE
 def _proposals(world: World, subject: str | None = None) -> dict[str, str]:
     """One pending proposal per answer class, each with the marker in its answers."""
     made: dict[str, str] = {}
+    with open_uow(world.db) as uow:  # P2-X2 S1: an agent files only under an explicit grant
+        grant_filing(uow, "forms-bot")
     for cls in CLASSES:
         tpl = world.template(answer_class=cls)
         command = SubmitForm(
