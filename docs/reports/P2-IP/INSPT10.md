@@ -1,44 +1,72 @@
 # Report — P2-INSP-T10
 
-Branch: `p2/insp-t10-terminal`   Commit(s): the single report commit on the branch (sha in the return message)
+Branch: `p2/insp-t10-terminal`   Commits: `9ba9d1c3` (failed answers on the detail, the ruling), `091bbbbd` (terminal screens, palette), then the report commit.
 
 ## Deviations
-- Stopped before writing code. No source, test or pin file changed. Only this report is added, under the dispatch's path `docs/reports/P2-IP/INSPT10.md`, not the ticket's `docs/reports/P2-INSP/...`.
-- Commit subject is `P2-IP-INSPT10: ...` as the dispatch names it, not the ticket's `P2-INSP-T10: ...`.
-- Base is `229bc67b` per the dispatch, not `p2/ip-r3` as the ticket says. The dispatch says it supersedes.
+- Scope extended by the ruling: `insp_views.py`, `test_insp_views.py`, `docs/reference/openapi.json` (regenerated), `tests/fakes_insp.py`. Nothing else outside the ticket's paths.
+- Base is `229bc67b` per the dispatch, not `p2/ip-r3`. This report replaces the blocked report in `dc6a4485`.
+- `InspectionDetail.failed` is computed in the detail's own statement: a join to the pinned checklist's `questions_json`, filtered by the viewer, then `insp_rules.failed_questions`. No extra statement.
+- Result cell reads `-` when none, as the ticket says. The tui-layout skill says never show `-`; see Open questions.
+- Result and point values print as stored (`reject`, `hold`), as the ticket's state-line example does. The state is humanized.
+- A refusal reloads the inspection screen (ticket). The punch screen does not reload on refusal.
+- A checklist the viewer may not read joins to nothing, so `failed` is `[]` for it.
+- The ticket's acceptance `ruff`/`pyright` lines are covered by the lite gate (`ruff check .`, `ruff format --check .`, pyright on changed files). Committed first, because the lite gate checks the committed diff.
 
 ## Changed files
-- `docs/reports/P2-IP/INSPT10.md` — this report (new).
+- `packages/tl-modules/quality/src/tl_mod_quality/insp_views.py` — `FailedAnswer`; `failed` on `InspectionDetail`.
+- `packages/tl-modules/quality/tests/test_insp_views.py` — two view tests for `failed`.
+- `docs/reference/openapi.json` — regenerated (additive: `FailedAnswer`, `failed`).
+- `packages/tl-tui/tests/fakes_insp.py` — one failed answer seeded on inspection 3.
+- `packages/tl-tui/src/tl_tui/inspection_text.py` (new) — cells, summary, page.
+- `packages/tl-tui/src/tl_tui/widgets/inspection_log.py` (new) — `InspectionLogScreen`, `InspectionScreen`.
+- `packages/tl-tui/src/tl_tui/commands.py`, `app.py` — `inspections` row, screens entry, `action_inspections`.
+- `packages/tl-tui/tests/test_inspection_text.py`, `test_inspection_screens.py`, `test_inspection_nav.py` (new).
 
 ## Commands and output
-The Acceptance commands were not run. They test code that does not exist yet on this branch, so a run would prove nothing. The read-only checks below confirm the blocking fact.
 ```
-$ grep -n "answers" packages/tl-modules/quality/src/tl_mod_quality/handlers/inspection.py
-  (stored answers are the command's `answers` list, `{q, value, note}`; see Blocked)
-$ grep -n "class InspectionDetail" -A 18 packages/tl-modules/quality/src/tl_mod_quality/insp_views.py
-  (fields: row, checklist_key, checklist_version, answers: list[dict[str, Any]], note, done_at, recorded_by, verified_by, verified_on, reinspection_of_key, cancel_reason, punch_keys, version; no questions)
-$ grep -n "fail" packages/tl-tui/tests/fakes_insp.py
-  (no failed answer is seeded; every seeded detail has answers=[])
+$ uv run python -m tl_api.openapi            -> wrote docs/reference/openapi.json
+$ uv run python -m tl_api.openapi --compat   -> exit 0
+$ bash lite-gate.sh /home/user/wt/ip4/inspt10 229bc67b <the five TUI test files>
+ruff: ok
+format: ok
+pyright (changed files): 0 errors, 0 warnings, 0 informations
+generate: ok
+compat: ok
+openapi: ok
+licences: ok
+part 1: exit 0, 68 passed in 23.39s
+gate: PASS
+$ just gate packages/tl-modules/quality/tests/test_insp_views.py
+part 1: exit 0, 22 passed in 32.10s
+gate: PASS
+$ just gate packages/tl-api/tests/test_api_insp.py
+part 1: exit 0, 15 passed in 9.16s
+gate: PASS
 ```
 
 ## Tests added
-none (blocked before any test was written).
+- `test_insp_views.py::test_a_failing_required_answer_is_listed_by_question_text_and_note` — `failed == [("Gauge fitted?", "Gauge missing")]`.
+- `test_insp_views.py::test_a_passing_or_unrecorded_inspection_has_no_failed_answers` — `[]` for Verified and Planned.
+- `test_inspection_text.py` (9) — cells per state, summary and filter line, state lines, Result failed line by text, punch keys, no 32-hex id, pinned plan and history lines.
+- `test_inspection_screens.py` (14) — 80 and 170 columns, `s`/`p`/`m` counts, Enter, `v` on Done sends Verify with row id and version, `v` on Planned does nothing, `x` sends Cancel, `r` with no date sends `planned_on=None`, refusal on the status line, unknown key gives an error status.
+- `test_inspection_nav.py` (1) — palette lists `inspections`; choosing it shows the log.
+- `test_palette.py`, `test_awp_nav.py` needed no change.
+
+## tui-layout checklist (skill has nine items)
+1. Glance: breadcrumb, key and title, state line, keys row — yes.
+2. Identity line first; other values are `Label  value`; no stray values — yes.
+3. Sections Where, Plan, Result, History, Punch, one blank line apart — yes.
+4. Technical tier: Version is shown only in technical mode.
+5. Log columns Number, Title, State first; Point and Result vary; no sideways scroll at 170 — yes.
+6. Panel: summary line under the state; Inspector appears in the summary and in Plan (as the punch page does).
+7. Empty values `—` in fixed sections; Punch shows "No punch items" — yes.
+8. Labels match the punch screens' conventions; no sibling inspection screen exists yet.
+9. 80 and 170 columns tested; no line over the width.
 
 ## Learnings (proposed)
-- The ticket's Result section says "failed answers are the dicts of `detail.answers` whose result is `fail`". The stored answer dict is `{q, value, note}`. It has no `result` field. Failure is decided by `insp_rules._fails(question, value)`, which needs the checklist question (`fails_when`, `kind`, `min`, `max`). The question text is the other field a failed line needs. Neither is on `InspectionDetail`. A future ticket should either add the checklist questions to the detail or pass them to `inspection_page`.
+- The ticket's "failed answers are the dicts whose result is fail" does not match stored data. Answers are `{q, value, note}`; failure needs the pinned checklist's questions. A spec for the detail should say so.
+- The lite gate's pyright covers only files in `git diff base...HEAD`. Commit before gating.
+- `ruff format` on the tree rewrites files read earlier; re-read before editing them.
 
 ## Open questions / Blocked
-**Blocked: the Result section cannot be built from the ticket's interface.**
-
-The ticket's `inspection_page(detail, labels=None, technical=False, panel=False)` takes only `InspectionDetail`. The spec requires the Result section to list, for each failed answer, its question text and note, and never an index or id.
-- `InspectionDetail.answers` holds `{q, value, note}` only. The `q` field is a question id.
-- `InspectionDetail` carries `checklist_key` and `checklist_version`, but not the checklist's questions. `get_checklist` is a separate read.
-- Whether an answer fails needs the question's `fails_when`, `kind`, `min` and `max` (`insp_rules._fails`). The detail does not carry them.
-- The ticket's text "whose result is `fail`" matches no field the code writes.
-
-Question for the supervisor: which of these should T10 do?
-1. Keep `inspection_page(detail, ...)` as written, and extend `InspectionDetail` (in `insp_views.py`) with the checklist questions, or with a precomputed failed-answer list (question text and note). That is a change to a Context file outside T10's Allowed paths, and it needs a ticket in its own right.
-2. Change `inspection_page` to take the questions as an extra argument, and have `InspectionScreen` call `get_checklist(project, detail.checklist_key)`. That is an interface change; the ticket forbids it.
-3. Drop the failed-answer lines from T10 and show only the count of failed answers.
-
-No code was written until this is answered. The ticket's other parts (the log, the screen, the palette glue) do not depend on this question, but they cannot be finished cleanly without a decision here.
+- Result cell: ticket says `-` when none; tui-layout says `—` (never `-`). I followed the ticket. Supervisor to pick one.
