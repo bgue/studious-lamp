@@ -23,6 +23,7 @@ ORDER = (
     "release",
     "materials",
     "quality",
+    "permits",
     "requisitions",
     "weekly",
     "progress",

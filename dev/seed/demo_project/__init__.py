@@ -14,6 +14,7 @@ from dev.seed.demo_project import (  # noqa: F401  (each module registers its se
     documents,
     engineering,
     materials,
+    permits,
     progress,
     quality,
     release,
