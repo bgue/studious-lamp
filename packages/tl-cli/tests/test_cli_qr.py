@@ -9,6 +9,7 @@ the person they name; writes run with ``--actor`` on the dev ledger file.
 from __future__ import annotations
 
 import csv
+import html
 import io
 import json
 import re
@@ -23,13 +24,14 @@ import pytest
 import tl_mod_qr.resolve as resolve_module
 import typer.main
 from auth_support import sign_in
-from tl_adapters.db import as_target, create_schema
+from tl_adapters.db import as_target, create_schema, open_uow
 from tl_cli.derive_support import cell
 from tl_cli.main import app
+from tl_core import confidentiality as cf
 from tl_core.qr import registry
 from tl_core.settings import resolver
 from tl_core.util import utcnow
-from tl_mod_qr import service
+from tl_mod_qr import labels, service
 from tl_mod_qr.codes import new_code
 from tl_mod_qr.labels import NO_QR_NOTE
 from typer.testing import CliRunner, Result
@@ -52,6 +54,7 @@ SIX = ("label", "ls", "revoke", "rotate", "resolve", "export")
 MISS = "no such code\n"
 GROUPED = re.compile(r'<div class="code">([A-Z0-9-]{19})</div>')
 CODE16 = re.compile(r"[A-Z0-9]{16}")
+TEXT_LINE = re.compile(r'<div class="text">(.*?)</div>')
 
 
 class Later(datetime):
@@ -152,11 +155,11 @@ def qr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Qr]:
     yield Qr(path, tmp_path, made)
 
 
-def labelled(qr: Qr, name: str = "label.html") -> tuple[Path, str]:
+def labelled(qr: Qr, name: str = "label.html", *more: str) -> tuple[Path, str]:
     """Set the public address, label the punch record once; the file and the register id."""
     qr.world.base()
     out = qr.tmp / name
-    return out, register_of(qr.label(out))
+    return out, register_of(qr.label(out, *more))
 
 
 # --- 1. label -------------------------------------------------------------------------------------
@@ -174,8 +177,8 @@ def test_label_without_the_public_address_is_refused_and_writes_nothing(qr: Qr) 
 def test_label_writes_an_svg_or_the_note_and_prints_no_code(qr: Qr) -> None:
     qr.world.base()
     out = qr.tmp / "label.html"
-    # The world titles every record with its key, so the default text would print the key; an
-    # explicit text keeps the key out of the printed page (see the Decision in the report).
+    # The world titles every record with its key, so the default text would print the key (see
+    # test_label_without_text_prints_the_label_fields_text); an explicit text keeps it out here.
     result = qr.label(out, "--label", "Pump room")
     assert result.exit_code == 0, result.output
     page = out.read_text(encoding="utf-8")
@@ -234,23 +237,72 @@ def ls_line(row: Mapping[str, Any]) -> str:
 
 
 def test_export_csv_and_jsonl_rows_equal_the_ls_rows(qr: Qr) -> None:
-    out, register = labelled(qr)
-    shown = qr.ls()[1]
+    # A label with spaces, and a rotation, so there are two rows whose cells are not single words.
+    out, register = labelled(qr, "label.html", "--label", "Pump room")
+    rotated = qr.run("rotate", register, "--project", PROJECT, "--reason", "lost",
+                     "--output", str(qr.tmp / "new.html"), "--actor", "user:uma")  # fmt: skip
+    assert rotated.exit_code == 0, rotated.output
+    shown = qr.ls()[1:]
     csv_out = qr.export("csv")
     jsonl_out = qr.export("jsonl")
     assert csv_out.exit_code == 0, csv_out.output
     assert jsonl_out.exit_code == 0, jsonl_out.output
     rows = list(csv.DictReader(io.StringIO(csv_out.output)))
     lines = [json.loads(line) for line in jsonl_out.output.splitlines()]
-    assert len(rows) == len(lines) == 1
-    # Every field of the row is the cell `ls` prints (label, issued by, issued at, expires too).
-    assert shown == ls_line(rows[0]) == ls_line(lines[0])
-    assert rows[0]["id"] == register
+    assert len(shown) == len(rows) == len(lines) == 2
+    assert register in {row["id"] for row in rows}
+    for ls_row, row, line in zip(shown, rows, lines, strict=True):
+        # Both exports carry the same fields; a null is an empty CSV cell.
+        assert set(row) == set(line)
+        for field, value in line.items():
+            assert row[field] == ("" if value is None else str(value)), field
+        # Every column `ls` prints is the cell of the csv row, in the order `ls` prints them.
+        assert ls_row == ls_line(row) == ls_line(line)
     assert plain(grouped_code(out)) not in csv_out.output + jsonl_out.output
 
 
 def test_export_with_a_bad_format_is_a_usage_error(qr: Qr) -> None:
     assert qr.export("xml").exit_code == 2
+
+
+def test_label_without_text_prints_the_label_fields_text(qr: Qr) -> None:
+    qr.world.base()
+    out = qr.tmp / "default.html"
+    register_of(qr.label(out))
+    record = qr.world.rows("SELECT id FROM cur_core_record WHERE key = :key", key=KEY)
+    with open_uow(as_target(str(qr.db)), readonly=True) as uow:
+        conn = uow.conn()
+        viewer = cf.viewer_for_actor(conn, "user:uma")
+        expected = labels.label_fields(conn, str(record[0]["id"]), viewer).text
+    assert expected is not None
+    match = TEXT_LINE.search(out.read_text(encoding="utf-8"))
+    assert match is not None, "no text line in the label file"
+    assert html.unescape(match.group(1)) == expected
+
+
+def test_label_warns_on_stderr_when_the_web_setting_is_unset(
+    qr: Qr, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    qr.world.base()
+    monkeypatch.delenv("TL_WEB", raising=False)
+    out = qr.tmp / "label.html"
+    result = qr.label(out, "--label", "Pump room")
+    assert result.exit_code == 0, result.output
+    assert "warning: TL_WEB is not set" in result.stderr
+    assert "TL_WEB" not in result.stdout
+    assert result.stdout.startswith("label ")
+
+
+def test_label_without_the_qr_library_writes_the_note_and_says_so(
+    qr: Qr, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    qr.world.base()
+    monkeypatch.setattr(labels, "make_svg", lambda url: None)
+    out = qr.tmp / "note.html"
+    result = qr.label(out, "--label", "Pump room")
+    assert result.exit_code == 0, result.output
+    assert NO_QR_NOTE in out.read_text(encoding="utf-8")
+    assert "no QR drawn" in result.stdout
 
 
 # --- 3. rotate and revoke -------------------------------------------------------------------------
