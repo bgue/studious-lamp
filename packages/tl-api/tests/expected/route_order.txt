@@ -437,3 +437,6 @@ POST /commands/AdoptSchemaSet
 POST /commands/RequestWaiver
 POST /commands/ApproveWaiver
 POST /commands/RevokeWaiver
+POST /commands/IssueScanCode
+POST /commands/RevokeScanCode
+POST /commands/RotateScanCode

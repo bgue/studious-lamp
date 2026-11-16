@@ -75,3 +75,12 @@ DiscardFormDraft = "person acts directly"
 AcceptFormSubmission = "act: accepting a form is the reviewer's decision"
 ReturnFormSubmission = "act: returning a form is the reviewer's decision"
 VoidFormSubmission = "act: voiding a form is the controller's decision"
+# P2-FORMS S7c intake (a public submission is never proposed by an agent)
+IssueIntakeCode = "person acts directly"
+RevokeIntakeCode = "person acts directly"
+AcceptIntakeItem = "person acts directly"
+RejectIntakeItem = "person acts directly"
+# P2-QR S2 scan codes (an agent never issues, rotates or revokes a code)
+IssueScanCode = "a label is a bearer path to site status; a person prints it"
+RotateScanCode = "a label is a bearer path to site status; a person prints it"
+RevokeScanCode = "act: revoking is the controller's decision"

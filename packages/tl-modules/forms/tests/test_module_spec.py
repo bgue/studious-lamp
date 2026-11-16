@@ -10,7 +10,9 @@ from tl_mod_forms.names import (
     EVENTS,
     INTAKE_ACTOR,
     INTAKE_CODE,
+    INTAKE_ISSUE,
     INTAKE_ITEM,
+    INTAKE_REVIEW,
     RECORD_TYPES,
     REVIEW,
     SETTINGS,
@@ -43,7 +45,7 @@ def test_spec_loads_with_the_record_types_and_the_projectors() -> None:
     assert INTAKE_ACTOR == "svc:intake"
 
 
-def test_eleven_commands_with_their_words_the_one_proposable_row_and_the_offline_drafts() -> None:
+def test_fifteen_commands_with_their_words_the_one_proposable_row_and_the_offline_drafts() -> None:
     built = spec()
     assert dict(built.command_words) == {
         "DraftFormTemplate": TEMPLATE_EDIT,
@@ -57,8 +59,12 @@ def test_eleven_commands_with_their_words_the_one_proposable_row_and_the_offline
         "AcceptFormSubmission": REVIEW,
         "ReturnFormSubmission": REVIEW,
         "VoidFormSubmission": VOID_WORD,
+        "IssueIntakeCode": INTAKE_ISSUE,
+        "RevokeIntakeCode": INTAKE_ISSUE,
+        "AcceptIntakeItem": INTAKE_REVIEW,
+        "RejectIntakeItem": INTAKE_REVIEW,
     }
-    assert len(FORMS_COMMANDS) == 11
+    assert len(FORMS_COMMANDS) == 15
     assert {c.model.__name__ for c in FORMS_COMMANDS} == set(built.command_words)
     assert {c.access for c in FORMS_COMMANDS} <= set(WORDS)
     (row,) = built.proposable

@@ -3206,11 +3206,14 @@ name = "tl-mod-qr"
 version = "0.1.0"
 source = { editable = "packages/tl-modules/qr" }
 dependencies = [
+    { name = "fastapi" },
+    { name = "mcp" },
     { name = "pydantic" },
     { name = "sqlalchemy" },
     { name = "tl-adapters" },
     { name = "tl-core" },
     { name = "tl-schema" },
+    { name = "typer" },
 ]
 
 [package.optional-dependencies]
@@ -3220,12 +3223,15 @@ labels = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi" },
+    { name = "mcp" },
     { name = "pydantic", specifier = ">=2" },
     { name = "segno", marker = "extra == 'labels'" },
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+    { name = "typer" },
 ]
 provides-extras = ["labels"]
 

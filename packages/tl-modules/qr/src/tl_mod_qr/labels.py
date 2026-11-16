@@ -11,6 +11,11 @@ from __future__ import annotations
 
 import html
 import re
+from dataclasses import dataclass
+
+from sqlalchemy import Connection, text
+from tl_core import confidentiality
+from tl_core.confidentiality import LOWEST, Viewer
 
 LABEL_SIZES: dict[str, tuple[int, int]] = {"tag": (50, 80)}  # millimetres, width x height
 
@@ -91,3 +96,30 @@ def render_label(*, code: str, text: str | None, size: str = "tag", svg: str | N
         "</body>\n"
         "</html>\n"
     )
+
+
+@dataclass(frozen=True)
+class LabelFields:
+    """What a label may print about its record: the key and the typed text, or ``None`` for each."""
+
+    key: str | None
+    text: str | None
+
+
+_NOTHING = LabelFields(None, None)
+_RECORD = text("SELECT key, title, voided FROM cur_core_record WHERE id = :id")
+
+
+def label_fields(conn: Connection, target_id: str, viewer: Viewer = LOWEST) -> LabelFields:
+    """The record's key and title for a record at the lowest class (``internal``) that ``viewer``
+    can read; both ``None`` above it, when the viewer cannot read it, or when it does not exist.
+    One rule: every label surface calls it. The text is cut to ``_TEXT_MAX`` characters."""
+    if confidentiality.is_hidden(conn, target_id, LOWEST):
+        return _NOTHING
+    if confidentiality.is_hidden(conn, target_id, viewer):
+        return _NOTHING
+    row = conn.execute(_RECORD, {"id": target_id}).first()
+    if row is None or bool(row.voided):
+        return _NOTHING
+    title = None if row.title is None else str(row.title)[:_TEXT_MAX] or None
+    return LabelFields(key=None if row.key is None else str(row.key), text=title)

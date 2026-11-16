@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, open_uow
@@ -22,9 +23,12 @@ from tl_core.auth import accounts
 from tl_core.auth.module_roles import require_command_access
 from tl_core.auth.password import prepare_password
 from tl_core.intent import check_intent, intent_scope
+from tl_core.ledger import NewEvent
+from tl_core.qr.codes import code_hash, new_code
 from tl_core.services.commands import Command
 from tl_core.services.records import create_module_record
 from tl_core.services.settings import ChangeSetting, handle_change_setting
+from tl_core.util import new_ulid, utcnow
 from tl_mod_correspondence.handlers.confidentiality import (
     SetCorrespondenceConfidentiality,
     handle_set_confidentiality,
@@ -33,7 +37,13 @@ from tl_mod_correspondence.handlers.create import create_item
 from tl_mod_correspondence.handlers.models import Recipient
 from tl_mod_correspondence.testing import frozen_today
 from tl_mod_forms.module import FORMS_COMMANDS
-from tl_mod_forms.names import SUBMISSION_TABLE, TEMPLATE_TABLE
+from tl_mod_forms.names import (
+    INTAKE_BODY_TABLE,
+    INTAKE_CODE,
+    INTAKE_ITEM,
+    SUBMISSION_TABLE,
+    TEMPLATE_TABLE,
+)
 
 _API_TESTS = str(Path(__file__).resolve().parents[3] / "tl-api" / "tests")
 if _API_TESTS not in sys.path:
@@ -115,8 +125,9 @@ class World:
                 uow, cmd, record_type=record_type, title=key, key=key
             ).stream_id
 
-    def hidden_record(self) -> str:
-        """The id of a restricted correspondence item (the lowest viewer cannot read it)."""
+    def hidden_record(self, to_class: Literal["restricted", "privileged"] = "restricted") -> str:
+        """The id of a correspondence item of class ``to_class``: ``restricted`` is hidden from
+        the lowest viewer, ``privileged`` from the controllers (``ada``, ``bea``) too."""
         cmd = Command(actor="user:dora", source="test", scope=SCOPE)
         with cf.system_view(), frozen_today("2026-10-19"), open_uow(self.db) as uow:
             made = create_item(
@@ -139,7 +150,8 @@ class World:
                     source="test",
                     scope=SCOPE,
                     stream_id=made.stream_id,
-                    to_class="restricted",
+                    to_class=to_class,
+                    grant=["user:dora"] if to_class == "privileged" else [],
                     reason="test",
                 ),
             )
@@ -203,6 +215,148 @@ class World:
             more["template_id"] = template
         return self.call(who, "SubmitForm", **more)
 
+    # --- intake (S7c) ----------------------------------------------------------------------
+
+    def intake_template(
+        self, *, accepts_as: list[str] | None = None, publish: bool = True, **more: Any
+    ) -> str:
+        """A public intake template (its id): published by default, accepted as ``SubmitForm``."""
+        fields = [
+            field("topic"),
+            field("claim_name", required=False),
+            field("claim_company", required=False),
+            field("claim_phone", required=False),
+        ]
+        return self.template(
+            publish=publish,
+            fields=fields,
+            intake="public",
+            purpose="request",
+            accepts_as=accepts_as or ["SubmitForm"],
+            **more,
+        )
+
+    def days_from_now(self, days: int) -> str:
+        return (utcnow().date() + timedelta(days=days)).isoformat()
+
+    def issue(self, template: str, *, who: str = "ada", **more: Any) -> tuple[str, str]:
+        """Issue a code through the command: the code (printed once, never stored) and its id."""
+        code = new_code()
+        more.setdefault("heading", "Scaffold request")
+        more.setdefault("controller_role", "controller")
+        more.setdefault("expires_on", self.days_from_now(30))
+        made = self.call(
+            who, "IssueIntakeCode", code_hash=code_hash(code), template_id=template, **more
+        )
+        return code, str(made.stream_id)
+
+    def _append_as_service(self, stream: str, record_type: str, events: list[NewEvent]) -> None:
+        with open_uow(self.db) as uow:
+            uow.append(
+                stream_id=stream,
+                stream_type=record_type,
+                scope=SCOPE,
+                expected_version=0,
+                events=events,
+                actor="svc:test",
+                source="test",
+                correlation_id=new_ulid(),
+            )
+
+    def stage_code(self, template: str, *, context_id: str | None = None) -> str:
+        """An Active code written straight to the ledger (a context the issuer could not read can
+        be given), bypassing the command: its id."""
+        code_id = new_ulid()
+        row = self.template_row(template)
+        created = NewEvent(
+            event_type="Record.Created",
+            payload={
+                "record_type": INTAKE_CODE,
+                "key": None,
+                "title": "Staged",
+                "description": None,
+                "psets": {},
+            },
+        )
+        issued = NewEvent(
+            event_type="IntakeCode.Issued",
+            payload={
+                "code_hash": code_hash(new_code()),
+                "template_id": template,
+                "template_version": row["template_version"],
+                "template_hash": row["content_hash"],
+                "context_id": context_id,
+                "context_type": None,
+                "heading": "Staged",
+                "controller_role": "controller",
+                "expires_on": self.days_from_now(30),
+                "feed_policy": "none",
+            },
+        )
+        self._append_as_service(code_id, INTAKE_CODE, [created, issued])
+        return code_id
+
+    def stage_item(self, code_id: str, body: str | None = None) -> str:
+        """A received item as the intake service would stage it (S6 does not exist yet): a
+        ``Received`` event by ``svc:intake`` and a body row. Returns the item id."""
+        code = self.rows("SELECT * FROM cur_forms_intake_code WHERE id = :i", i=code_id)[0]
+        item = new_ulid()
+        text_body = body if body is not None else intake_body()
+        created = NewEvent(
+            event_type="Record.Created",
+            payload={
+                "record_type": INTAKE_ITEM,
+                "key": None,
+                "title": "Intake item",
+                "description": None,
+                "psets": {},
+            },
+        )
+        received = NewEvent(
+            event_type="IntakeItem.Received",
+            payload={
+                "item_id": item,
+                "code_id": code_id,
+                "template_id": code["template_id"],
+                "template_version": code["template_version"],
+                "template_hash": code["template_hash"],
+                "body_mac": "cd" * 32,
+                "body_bytes": len(text_body.encode()),
+                "received_at": "2026-12-01T09:00:00Z",
+                "feed_policy": "none",
+            },
+        )
+        with open_uow(self.db) as uow:
+            uow.append(
+                stream_id=item,
+                stream_type=INTAKE_ITEM,
+                scope=SCOPE,
+                expected_version=0,
+                events=[created, received],
+                actor="svc:intake",
+                source=f"intake:{code_id}",
+                correlation_id=new_ulid(),
+            )
+            uow.conn().execute(
+                text(
+                    f"INSERT INTO {INTAKE_BODY_TABLE} (item_id, code_id, salt, body, received_at) "
+                    "VALUES (:i, :c, :s, :b, :r)"
+                ),
+                {
+                    "i": item,
+                    "c": code_id,
+                    "s": "0f" * 16,
+                    "b": text_body,
+                    "r": "2026-12-01T09:00:00Z",
+                },
+            )
+        return item
+
+    def body_rows(self, item: str) -> int:
+        return int(
+            self.scalar(f"SELECT count(*) FROM {INTAKE_BODY_TABLE} WHERE item_id = :i", i=item)
+        )
+
     def scalar(self, sql: str, **params: Any) -> Any:
         with open_uow(self.db, readonly=True) as uow:
             return uow.conn().execute(text(sql), params).scalar_one()
@@ -211,9 +365,9 @@ class World:
         with open_uow(self.db, readonly=True) as uow:
             return [dict(r) for r in uow.conn().execute(text(sql), params).mappings()]
 
-    def state(self, record: str) -> str:
+    def state(self, record: str, initial: str = "Draft") -> str:
         found = self.scalar("SELECT status FROM cur_core_record WHERE id = :i", i=record)
-        return "Draft" if found is None else str(found)
+        return initial if found is None else str(found)
 
     def version(self, record: str) -> int:
         return int(self.scalar("SELECT version FROM cur_core_record WHERE id = :i", i=record))
@@ -249,4 +403,26 @@ class World:
         return int(self.scalar(f"SELECT count(*) FROM {table}"))
 
 
-__all__ = ["COMPANY", "MARKER", "SCOPE", "World", "answer", "field", "two_fields"]
+def intake_body(
+    topic: str = "Need a ladder",
+    name: str | None = "Sam Smith",
+    company: str | None = "Acme Scaffolding",
+    phone: str | None = "555-0100",
+) -> str:
+    """A staged body as S6 stores it: canonical JSON ``{"answers": [...]}``."""
+    pairs = [("topic", topic), ("claim_name", name), ("claim_company", company)]
+    pairs.append(("claim_phone", phone))
+    answers = [answer(q, v) for q, v in pairs if v is not None]
+    return json.dumps({"answers": answers}, sort_keys=True, separators=(",", ":"))
+
+
+__all__ = [
+    "COMPANY",
+    "MARKER",
+    "SCOPE",
+    "World",
+    "answer",
+    "field",
+    "intake_body",
+    "two_fields",
+]

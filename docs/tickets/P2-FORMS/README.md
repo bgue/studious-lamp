@@ -1,6 +1,6 @@
 # P2-FORMS — Forms engine, general forms, zero-login intake, web fill page
 
-Status: round 2 (2026-11-15; S1, S2, S2w merged; S3, CR1 specs, T01, T13, T14 tickets written). Plan of record: `docs/build-spec/module-designs/forms-eval.md` §8.3 (plan-checked there,
+Status: round 3 (2026-11-16; S1, S2, S2w, S3, CR1 merged; round 3 wrote S7c, S6, W1, W2 specs, tickets T02 and I02 with provided tests). Plan of record: `docs/build-spec/module-designs/forms-eval.md` §8.3 (plan-checked there,
 15 findings answered; this plan does not differ from it except as the decisions of `STATE.md` say). Pieces specified: S1, S2, S3, CR1.
 Sources: ADR-0031 (accepted), ADR-0032 (accepted, owner 2026-11-15), `forms-eval.md` (§2 engine, §3 API, §8), ADR-0030
 and `tl_core/qr/types.py` (the pattern), `docs/tickets/P2-INSP/README.md` (pattern for this file). Branch `p2/forms`
@@ -44,7 +44,7 @@ Tier B = builder piece (`kind: piece`); H = implementer ticket. Sec = a row for 
 | S3 | Commands: template edit, publish, revise, retire; `SubmitForm`, `SaveFormDraft` (bounded by `forms.draft_saves_max`), `DiscardFormDraft`; review accept, return, void (reviewer is not the submitter); the one seam that runs a command inside the caller's unit of work; `PROPOSABLE` row `propose_form_submission`; submission number allocated at submit | B | S1, S2 | yes (draft row) | full | later |
 | S3s | Form sources for `quality.Inspection` and permits (`RequestPermit`, precaution ticks), entry points; writes in two other modules; approvers: the INSP and PTW supervisors | B | S3, INSP C2, PTW C2 | yes | full | later |
 | T01 | Projection `tl_core/forms/jsonschema.py` (`to_json_schema(fields, fmt)`; property test: agrees with `validate_answers` on every fixture template) | H | S1 | - | lite | later |
-| T02 | Runner model `tl_core/forms/runner.py` (pure: one field per step, back, forward, skip hidden, review, confirm); moved from INSP T02 | H | S1 | - | full | later |
+| T02 | Runner model `tl_core/forms/runner.py` (pure: one field per step, back, forward, skip hidden, review, confirm); moved from INSP T02; ticket `T02-runner-model.md`, provided test | H | S1 | - | full | **ready** |
 | T03 | Views `tl_mod_forms/views.py`: template list and detail, submission list and detail, `form_for(record)` over the form sources; `viewer=` defaults to the lowest clearance; filter before LIMIT and counts | H | S3, CR1 | yes | full | later |
 | T04 | API read routes (`GET /forms/templates`, `.../versions/{n}` with `?as=jsonschema` and ETag, `/forms/for/{key}`, `/forms/submissions[/{key}]`); five-reader walk; waits P2-X4 C2 | H | T03, T01, X4 C2 | yes | full | later |
 | T05 | CLI `tl form` (`ls`, `show`, `fill`, `drafts`, `submit`, `review`); `--answer q1=yes`, `--answers-file`; waits X4 C2 | H | T03, T01 | - | full | later |
@@ -61,11 +61,11 @@ Tier B = builder piece (`kind: piece`); H = implementer ticket. Sec = a row for 
 ## Items, slice INTAKE (released; waits for QR C2 for the code service; specs written after FORMS S3)
 | ID | Title | Tier | Depends |
 |---|---|---|---|
-| I00 | Lift code generate, normalise and hash into `tl_core/qr`, with re-exports (a move; existing tests are the proof) | H | QR C2 |
-| S6 | Public route and `/i/` mount, staging, limits, settings use, purge job and its delete path; owner of the `/i/` edit in `app.py`; owner approves | B | S2, S3 seam, I00 |
-| S7c | Commands: `IssueIntakeCode`, `RevokeIntakeCode`, `AcceptIntakeItem` (through the S3 seam), `RejectIntakeItem` | B | S3, CR1 |
+| I00 | **Dropped (D15)**: QR S2 is not started, so there is nothing to lift; S7c creates the frozen `tl_core/qr/codes.py` (`new_code`, `normalise_code`, `code_hash`, `grouped`) and QR S2 imports it | - | - |
+| S6 | Public route and `/i/` mount, staging, limits, settings use, purge job and its delete path; owner of the `/i/` edit in `app.py`; owner approves; spec `S6-intake-public-route.md` | B | S7c, I02 |
+| S7c | Commands: `IssueIntakeCode`, `RevokeIntakeCode`, `AcceptIntakeItem` (through the S3 seam), `RejectIntakeItem`; plus `tl_core/qr/codes.py` (D15); spec `S7c-intake-commands.md` | B | S3, CR1 |
 | I01 | Poster: `tl intake label` over the QR renderer (additive `/i/` path argument) | H | S7c |
-| I02 | Plain page render `intake_page.py` (pure, escaped, script-free; provided test) | H | S2 |
+| I02 | Plain page render `intake_page.py` (pure, escaped, script-free; provided test `provided/I02_test_intake_page.py`; ticket `I02-intake-page-render.md`) | H | S2 |
 | I03 | Queue views and signed-in routes `/forms/intake/` | H | S7c |
 | I04 | `tl intake ls\|show\|accept\|reject`, `tl intake code issue\|revoke\|ls` | H | I03 |
 | I05 | Terminal "Intake" log beside the proposal queue | H | I03 |
@@ -75,9 +75,9 @@ Tier B = builder piece (`kind: piece`); H = implementer ticket. Sec = a row for 
 ## Items, slice WEB (waits for FORMS C2)
 | ID | Title | Tier | Depends |
 |---|---|---|---|
-| W1 | Vendor `survey-core` and `survey-js-ui` (MIT) with manifest rows, licence check, content-policy proof; owner approves the licence line | B | - |
-| W2 | Fill page and the `/web/forms` mount (owner of that edit in `tl_api/app.py` and `tl_web`; never in the round of S6) | B | W1, S3, T04 |
-| B1 | `to_surveyjs` projection and `?as=surveyjs` | H | W1, T01 |
+| W1 | Vendor `survey-core` and `survey-js-ui` (MIT) with manifest rows, licence check, content-policy proof (browser probe); owner approves the licence line; spec `W1-vendor-surveyjs.md` (the tarballs ship no LICENSE file: text from upstream) | B | - |
+| W2 | Fill page and the `/web/forms` mount (owner of that edit in `tl_web`; never in the round of S6); spec `W2-fill-page.md`; reads through the X4 hook routes of T04 | B | W1, B1, S3, T04 (X4 on trunk) |
+| B1 | `to_surveyjs` projection (`tl_core/forms/surveyjs.py`) and `?as=surveyjs`; the first half is W2's input, so it runs before W2 | H | W1, T01 |
 | B2 | Card `open_path` for the inspection and permit cards: `/web/forms/for/<key>` | H | W2 |
 | B3 | Draft resume on the page | H | W2 |
 | B4 | Demo and runbook | H | B1-B3 |

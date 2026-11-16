@@ -128,6 +128,7 @@ OLD_COMMANDS = [
     ("IssueCorrespondence", "controller", "correspondence", False, False),
     ("IssueIwp", "awp.iwp.issue", "awp", False, False),
     ("IssueRevision", "controller", "documents", False, False),
+    ("IssueScanCode", "qr.issue", "qr", False, False),  # P2-QR S2
     ("IssueStock", "materials.move", "materials", False, False),
     ("IssueTechnical", "controller", "correspondence", False, False),
     ("IssueTransmittal", "controller", "documents", False, False),
@@ -232,7 +233,9 @@ OLD_COMMANDS = [
     ("ReviseSchemaPackage", "user", "schemareg", False, False),
     ("ReviseTagClass", "admin", "engineering", False, False),
     ("ReviseWbsNode", "awp.wbs.configure", "awp", False, False),
+    ("RevokeScanCode", "qr.revoke", "qr", False, False),  # P2-QR S2
     ("RevokeWaiver", "admin", "schemareg", False, False),
+    ("RotateScanCode", "qr.issue", "qr", False, False),  # P2-QR S2
     ("RunEnricher", "user", None, False, False),
     ("ScrapStock", "materials.adjust", "materials", False, False),
     ("SendIwpToConstraintCheck", "awp.iwp.edit", "awp", False, False),

@@ -179,6 +179,10 @@ SUBJECT_LINKS: Final = (
     ("forms.Submission", "cur_forms_submission", "id", "subject_id"),
     ("forms.IntakeItem", "cur_forms_intake_item", "id", "code_id"),
     ("forms.IntakeCode", "cur_forms_intake_code", "id", "context_id"),
+    # qr (P2-QR S2). A scan code is hidden when its target is. A code whose target is a permit or
+    # an inspection follows that record's own subject on the second hop; a deeper chain stops
+    # there (``_HOPS`` is unchanged: the record reached on the last hop governs).
+    ("qr.ScanCode", "cur_qr_scan_code", "id", "target_id"),
 )
 _HOPS: Final = 2
 #: Record types whose own source row is also checked when a subject governs: a submission's

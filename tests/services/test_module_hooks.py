@@ -107,7 +107,8 @@ def test_rows_keep_model_handler_access_and_an_empty_meta() -> None:
     for row in by_name.values():
         assert isinstance(row, ModuleCommand)
         assert callable(row.handler)
-        assert dict(row.meta) == {}
+        # a module outside IN_TREE_SURFACES carries its delegation mark in the row meta
+        assert dict(row.meta) == {} or set(row.meta) == {"delegation"}
 
 
 def test_command_names_are_unique_across_modules(fake_package: None) -> None:

@@ -1,65 +1,81 @@
-# P2-FORMS STATE  r=2 base=f137cca7 C=C1 ck=0 gate=n/a wt=/home/user/wt/forms-plan
-Plan `docs/tickets/P2-FORMS/README.md` (plan-checked via forms-eval). Branch `p2/forms-plan`, merged with `p2/ip`@f137cca7 (S1, S2, S2w in).
-C1 reached: S1 and S2 merged with APPROVALS. Round 2 wrote S3, CR1, T01, T13, T14.
+# P2-FORMS STATE  r=3 base=8878427d C=C2 ck=0 gate=n/a wt=/home/user/wt/forms-plan
+Plan `docs/tickets/P2-FORMS/README.md` (plan-checked via forms-eval). Branch `p2/forms-plan` merged with `p2/ip`@8878427d.
+C2 reached for S3 and CR1 (S3s waits for INSP C2 and PTW C2). Round 3 wrote S7c, S6, W1, W2 specs and tickets T02, I02 (provided tests).
 ## BOARD
-S1 p mrg f 10737874 review P after fix; APPROVALS
+S1 p mrg f 10737874 review P; APPROVALS
 S2 p mrg f 01b4bc46 review P; APPROVALS
-S2w p mrg f b7e4ce92 security review P; answers omitted from webhook bodies
-S3 p mrg f 38c22c8e security review P; APPROVALS
-CR1 p mrg f 600591e3 security review P after fixes; APPROVALS
-CR1 p stg f - conf rows, own class, author-only draft; after S3
-T14 t stg f - webhook scenario rows + envelope required fix
-T01 t stg f - JSON Schema projection (full: no provided test)
-T13 t mrg f 2e0f9bbe review P
+S2w p mrg f b7e4ce92 answers omitted from webhook bodies
+S3 p mrg f 38c22c8e seam + 11 commands; APPROVALS
+CR1 p mrg f 600591e3 confidentiality rows, author rule; APPROVALS
+S7c p mrg f 629257b5 security review P; APPROVALS; wave items: code_hash omit, CLI-only issue
+T14 t disp f - webhook scenario rows + envelope fix; in flight
+T13 t mrg f 033059de review P
+T01 t stg f - JSON Schema projection; ready, branch exists
+T02 t stg f - runner model; provided test T02_test_forms_runner.py
+I02 t stg f - intake page render; provided test I02_test_intake_page.py
+S7c p stg f - intake commands + tl_core/qr/codes.py (D15)
+W1 p stg f - vendor SurveyJS MIT; owner licence line; free slot
+S6 p todo f - public /i/ route; after S7c, I02; owner human gate
+W2 p todo f - fill page; after W1, B1, T04, X4 on trunk
 S3s p todo f - form sources quality+permits; INSP C2, PTW C2
-T02 t todo f - runner model; needs a provided test first
-T03 t todo f - views; after S3, CR1
-T04 t todo f - read routes; after T03, X4 C2
-T05 t todo f - tl form; after T03, X4 C2
-T06 t todo f - MCP tools; after T03, S3, X4 C2
+T03 t todo f - views; deps S3, CR1 merged: stage next round
+T09 t todo f - generator; dep S3 merged: stage next round
+T04 t todo f - read routes via X4 hooks; X4 on trunk
+T05 t todo f - tl form; X4 on trunk
+T06 t todo f - MCP tools; X4 on trunk
 T07 t todo f - runner screen; after T02, T03
 T08 t todo f - draft resume; after T05, T07
-T09 t todo f - generator; after S3
 T10 t todo f - walks; after T04, T06
 T11 t todo f - demo; after T05-T10
 T12 t todo l - docs and tour; after T11
-INTAKE I00 S6 S7c I01-I07, WEB W1 W2 B1-B4: README tables; specs later (no board rows yet)
+I01 t todo f - poster label; after S7c
+I03 t todo f - queue views + routes; after S7c
+I04 t todo f - tl intake incl purge command (D19); after I03
+I05-I07 t todo f - TUI log, walks, runbook+demo; after I03, S6
+B1 t todo f - to_surveyjs; after W1, T01 (before W2)
+B2-B4 t todo f - card open_path, draft resume, demo; after W2
 ## DEC
-D1 2026-11-15 intake schema folded into S2 (ADR-0032 accepted); intake commands stay S7c; README, S2
-D2 2026-11-15 format 2 field id `^[a-z][a-z0-9_]{0,31}$` so claim_* ids fit; S1 spec
-D3 2026-11-15 S1 core writes format 1 rules itself; T13 re-exports later; S1 spec
-D4 2026-11-15 no ticket staged before S1/S2 merged (checklist 2); T01, T13, T14 staged r2
-D5 2026-11-15 S2 declares no `confidential` source: CR1 adds it with the subject rows
-D6 2026-11-15 numbering at submit: record created at first save with key null, `allocate_key` + `Record.Updated` key at submit (projector supports it); discarded draft takes no number; S3 spec (answers S2 Q2)
-D7 2026-11-15 submissions are project scope only in v1; no company FRM pattern; templates are company scope; S3 spec, Q4
-D8 2026-11-15 the seam `tl_core/services/nested.py` runs only module ProposableCommands, never core, workflow, dispatch, action or setting commands; S3 spec (answers F3)
-D9 2026-11-15 template versions are records; revise = new Draft n+1; publish does not retire the predecessor; Draft always clean; S3 spec
-D10 2026-11-15 general SaveFormDraft/SubmitForm take only general, Published templates; existing draft may finish after retire; S3 spec
-D11 2026-11-15 refusal order: project, hidden subject BEFORE answers, template, own draft, version, save bound, answers; S3 spec
-D12 2026-11-15 T14 carries the envelope fix (generator drops omit slots from detail.required; ledger payloads and compat untouched) because the contract schema test would fail on Template.Created, Template.Edited, IntakeCode.Issued once the scenario delivers them (S2w Open 1); T14 spec
-D13 2026-11-15 CR1 follows S3 (both edit forms module.py); CR1 is the only forms piece in confidentiality.py (F8); answer_class also governs when a subject exists (own-class notion); CR1 spec
-D14 2026-11-15 T01 review is full, not lite: no provided test exists (skill rule 5); README row said lite
+D1-D14 2026-11-15 recorded in earlier rounds (intake schema in S2; format 2 id pattern; numbering at submit D6; seam D8; T14 envelope D12); see S1-S3, CR1 specs.
+D15 2026-11-16 I00 dropped: QR S2 not started, nothing to lift; S7c creates frozen pure `tl_core/qr/codes.py`; QR S2 must import it; S7c spec
+D16 2026-11-16 server never sees an intake code: IssueIntakeCode takes code_hash; weak caller-chosen code accepted, noted for security review; S7c spec
+D17 2026-11-16 accept takes the controller's completed command_type + command_args; stored body read once, only for the claim (no phone); S7c spec
+D18 2026-11-16 accept deletes the body row and appends Purged in the same unit; reject keeps body to retention; S7c spec
+D19 2026-11-16 purge = job kind + purge_due; only S6 intake.py and S7c accept delete body rows (repo test); scheduling is `tl intake purge` (I04) and runbook; S6 spec
+D20 2026-11-16 stranger writes through a service (no command door), actor svc:intake, source intake:<code id>; S6 spec
+D21 2026-11-16 limits count every request, before body read and code lookup, keyed on address and on hash of presented segment, bounded LRU; S6 spec
+D22 2026-11-16 item id = ULID from sha256(code id : form key), receipt word from item id; double tap writes once; S6 spec
+D23 2026-11-16 stored text NFC, control and bidi removed, canonical JSON <= 8 KB, HMAC under per-item salt kept in body row; S6 spec
+D24 2026-11-16 /i/ headers and no cookie on every answer incl errors; own stylesheet /web/static/intake.css; auth open prefix /i/; S6 spec
+D25 2026-11-16 access-log path redaction via tl_api/accesslog.py with prefix tuple (QR S3 appends /web/q/); S6 spec
+D26 2026-11-16 not built in S6: controller feed card (count only), photo, captcha, fill-time, outbox; S6 spec
+D27 2026-11-16 W2 reads through T04's X4 hook routes; forms names hooks in its own package only (not in IN_TREE_SURFACES); W2 spec
+D28-D31 2026-11-16 W2 routes under /web/forms, JSON model block via tojson, plain-text renderer, policy unchanged, drafts via CR1 rule; W2 spec
+D32 2026-11-16 W1 finding: neither npm tarball ships a LICENSE file; MIT from package.json and banners; licence text from upstream v3.2.5 sha256 ef2cef07; W1 spec
+D33 2026-11-16 W2 consumes B1 (`to_surveyjs`); B1 runs after W1 and T01, before W2; README rows updated
 ## SEC
+F-S3a fixed@600591e3 agent-proposed answers in cur_proposals.command_json now filtered (hidden_answer_templates); CR1 proofs
+F-CR1 fixed@600591e3 security review P after fixes (activity feed, own class, author exemption)
+F-S6 open (review row) public route: dead-code bytes, limits before read, no cookie, body only in forms_intake_body; at S6
+F-S7c open (review row) D16 weak caller-chosen code; accept runs nested command as controller with holder
 (wave review over b91ee33d..<p2/ip head> at C4; rows in README)
-F-S3a open  agent-proposed answers sit in `cur_proposals.command_json` (Proposal.Created): S3 reports which readers filter it; Q5
-F-CR1 open  draft read by author alone, own-class rule, intake rows: CR1 tests five readers
 ## OPEN
-Q3 closed r2: S2w omits the slots; T14 fixes the envelope schema (D12)
-Q4 submissions with no project (company-wide toolbox talk): default project only in v1 (D7); a company FRM block needs a schema line and APPROVALS needs owner raised S3 round
-Q5 do proposal rows (`command_json`) hold answer text readable beyond the proposer: wave-review row or a fix piece after S3 report needs orch raised S3 round
+Q4 submissions with no project (company-wide toolbox talk): project only in v1 (D7); company FRM block needs schema line + APPROVALS; needs owner raised S3 round
+Q6 QR supervisor must import tl_core/qr/codes.py (D15) and not write its own generate/hash; needs orch raised r3
+Q7 forms clearance table (privileged class hides from all but author, CR1 Q4): owner decision pending; deferred
+Q8 gate-pg of tests/confidentiality twin walk OOM/stall on Postgres (CR1 Q5): not told apart from base; needs orch raised CR1
+Q9 owner: W1 licence line; S6 and S7c security APPROVALS; owner approves S6 human gate raised r3
 ## NEXT
-1. Orch: APPROVALS for S3 (core interface: seam; security: drafts, numbering at submit) and CR1 (security, owner); dispatch S3 and workflow {T14} now.
-2. After S3 merged: dispatch CR1 (orch confirms no other piece holds confidentiality.py; builder merges p2/ip first).
-3. Next free slot: workflow {T01, T13} (staged, branches named in the tickets). Heavy runs at most 2 at once.
-4. Round 3: T02 provided test (runner model: steps, back, skip hidden, review, confirm) then ticket; T09 after S3; T03 after S3 and CR1.
-5. S3s spec after INSP C2 and PTW C2. T04-T06 wait for X4 C2 (not on trunk).
-6. INTAKE specs after S3 and QR C2; WEB specs after FORMS C2.
+1. Orch: dispatch S7c (builder) and workflow {T01, T02, I02} now (2 slots beside T13/T14); W1 next free slot (owner licence line before merge).
+2. After S7c and I02 merged: S6 dispatch (owner APPROVALS first; not in the round of W2).
+3. Round 4: stage T03 and T09 (deps merged); I01, I03 after S7c; B1 after W1 and T01.
+4. When X4 on trunk: write T04-T06 against hooks (own package refs, D27); then W2 dispatch.
+5. S3s spec after INSP C2 and PTW C2.
+6. Tell QR supervisor: codes.py is S7c's (Q6); QR S2 imports it.
 ## REFS
-Specs: docs/tickets/P2-FORMS/{S1,S2,S2w,S3,CR1}-*.md. Tickets: T01-json-schema-projection.md, T13-insp-rules-reexport.md, T14-webhook-scenario.md.
-Reports: docs/reports/P2-FORMS/{S1,S2,S2w}.md (S2 report holds the names table for S3, S6, S7c). Provided tests: docs/tickets/P2-FORMS/provided/.
-No provided test this round: S3 and CR1 name their tests; T01 and T14 carry behaviours, T13 uses the merged T00 test.
+Specs: docs/tickets/P2-FORMS/{S1,S2,S2w,S3,CR1,S7c,S6,W1,W2}-*.md. Tickets: T01, T02, T13, T14, I02 (`*-*.md`). Provided tests: docs/tickets/P2-FORMS/provided/ (S1, S2w, T02_test_forms_runner.py, I02_test_intake_page.py; both new ones ran green against a reference implementation, ruff clean).
+Reports: docs/reports/P2-FORMS/{S1,S2,S2w,S3,CR1}.md (S2 names table; S3 seam and command table; CR1 rows). X4 interfaces: `git show p2/x4:packages/tl-core/src/tl_core/modules.py`, `p2/x4:tests/ext_demo/src/tl_mod_ext_demo/`.
 ## TRAPS
-Provided or added tests must be lint-clean where they land: `ruff format`, `ruff check`, strict `pyright` over tests (`just check` runs it); wrong-typed calls carry `# pyright: ignore[...]`.
-Statement-count tests ignore BEGIN, COMMIT, ROLLBACK. Schema gates run per file group (combined runs OOM on 16 GB; S2 gate was five runs). `uv run` in this worktree
-lacks sqlalchemy (venv stripped by a `uv sync` without `--all-packages`): builders run `uv sync --all-packages` first.
-Contract scenario (`tests/webhooks/scenario.py`) is shared with `tests/parity/test_webhooks_parity.py` and tl-tui `test_domain_plain.py`: pins move with it.
+Provided or added tests lint-clean where they land (`ruff format`, `ruff check`, strict pyright over tests). Statement-count tests ignore BEGIN, COMMIT, ROLLBACK. Schema gates per file group.
+Gate runner kills runs over about 10 minutes: S6 and S7c gates are split per file group. `uv sync --all-packages` first in a builder worktree (stripped venv).
+Contract scenario `tests/webhooks/scenario.py` is shared (T14). `tl_web/app.py`: S6 (/i/) and W2 (/web/forms) never in one round. Downloaded npm tarballs are untrusted: fresh empty dir, `python -I`.
+p2/x4 branched from an older base (591 files differ): read interfaces with `git show`, merge only when the orchestrator lands X4.
