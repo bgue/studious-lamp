@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 from tl_core.modules import (
+    IN_TREE_SURFACES,
     ModuleCommand,
     ModuleHookError,
     ModuleLoadError,
@@ -107,7 +108,11 @@ def test_rows_keep_model_handler_access_and_an_empty_meta() -> None:
     for row in by_name.values():
         assert isinstance(row, ModuleCommand)
         assert callable(row.handler)
-        assert dict(row.meta) == {}
+        # a module outside the in-tree set carries its delegation mark in row meta (D6)
+        if row.module in IN_TREE_SURFACES:
+            assert dict(row.meta) == {}
+        else:
+            assert set(row.meta) <= {"delegation"}
 
 
 def test_command_names_are_unique_across_modules(fake_package: None) -> None:
