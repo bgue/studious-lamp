@@ -7229,7 +7229,7 @@ A recorded inspection was verified by a controller. Stream type `quality.Inspect
     "detail": {
       "feed_policy": "none",
       "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
-      "verified_on": "2026-12-07"
+      "verified_on": "2026-12-07T09:00:00Z"
     },
     "links": [],
     "origin": {
