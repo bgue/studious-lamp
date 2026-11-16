@@ -33,7 +33,7 @@ from tl_mod_quality.names import INSPECTION, POINTS
 
 from tl_tui.action_ui import FormField
 from tl_tui.client import ClientInterface
-from tl_tui.display import mode_of
+from tl_tui.display import humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.inspection_text import (
     INSPECTION_COLUMNS,
@@ -146,7 +146,7 @@ class InspectionLogScreen(LogScreen[InspectionRow]):
             )
         named: list[str] = []
         if self.state_filter is not None:
-            named.append(f"state {self.state_filter}")
+            named.append(f"state {humanize(self.state_filter)}")
         if self.point_filter is not None:
             named.append(f"point {self.point_filter}")
         named.append("mine")
