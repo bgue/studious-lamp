@@ -154,7 +154,7 @@ class World:
             "work_description": "Weld repair, rack 12",
             "holder": "Rob",
             "needed_from": "2026-12-01",
-            "needed_until": "2026-12-03",
+            "needed_until": "2026-12-31",
         }
         return str(self.call(who, "RequestPermit", **{**fields, **more}).stream_id)
 

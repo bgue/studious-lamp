@@ -84,3 +84,19 @@ def test_the_blockers_come_in_the_rules_order(world: World) -> None:
         "precaution_unticked:rescue_plan",
         "precaution_unticked:entry_log",
     ]
+
+
+def test_a_gas_test_dated_after_now_is_not_evidence(world: World) -> None:
+    permit = world.approved("hot_work")
+    world.gas_test(permit, at=world.at + timedelta(hours=1))
+    assert blockers(world, permit, HOT) == ["gas_test_missing"]
+
+
+def test_a_link_to_a_record_that_is_not_an_isolation_counts_for_nothing(world: World) -> None:
+    permit = world.approved("isolation")
+    ticks = ["points_listed", "locks_tags_applied", "zero_energy_proven"]
+    world.link(permit, world.record("awp.IWP", "IWP-1"))
+    world.link(permit, "01JXXXXXXXXXXXXXXXXXXXXXXX")
+    assert blockers(world, permit, ticks) == ["isolation_missing"]
+    world.isolation(permit)  # applied, never verified: not Verified
+    assert blockers(world, permit, ticks) == ["isolation_unverified"]

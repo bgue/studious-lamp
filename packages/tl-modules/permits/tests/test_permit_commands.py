@@ -22,7 +22,9 @@ from tl_mod_permits.handlers.permit import (
     MSG_MAX_DAYS,
     MSG_NOT_PARTY,
     MSG_SELF_APPROVE,
+    MSG_SELF_ISSUE,
     MSG_UNKNOWN_PRECAUTION,
+    MSG_WINDOW_OVER,
 )
 
 
@@ -286,7 +288,7 @@ def test_revalidate_is_for_the_holder_or_a_controller_only(world: World) -> None
 
 
 def test_revalidate_is_never_past_the_longest_validity_from_issue(world: World) -> None:
-    permit = world.active("work_at_height", needed_until="2026-12-30")
+    permit = world.active("work_at_height")
     # the permit was issued at 07:00 on day 1: seven days end at 07:00 on day 8
     world.at = world.at.replace(day=8, hour=6, minute=30)
     world.call("rob", "RevalidatePermit", permit=permit)
@@ -466,3 +468,53 @@ def test_a_namesake_with_another_account_is_not_the_holder(world: World) -> None
     world.call("rob", "RevalidatePermit", permit=permit)  # the requester
     world.call("sue", "HandBackPermit", permit=permit, handback_note="Clear")  # a controller
     assert world.state(permit) == "Handed back"
+
+
+def test_a_second_revalidate_in_one_shift_leaves_valid_until_and_the_next_shift_extends(
+    world: World,
+) -> None:
+    permit = world.active()
+    world.at = world.at.replace(hour=17)
+    world.call("rob", "RevalidatePermit", permit=permit)
+    first = iso(world.row(permit)["valid_until"])
+    assert first == "2026-12-02T06:00:00"
+    world.at = world.at.replace(hour=17, minute=30)
+    world.call("rob", "RevalidatePermit", permit=permit)
+    assert iso(world.row(permit)["valid_until"]) == first
+    assert world.row(permit)["revalidation_count"] == 2
+    world.at = world.at.replace(day=2, hour=6, minute=30)  # the next shift
+    world.call("rob", "RevalidatePermit", permit=permit)
+    assert iso(world.row(permit)["valid_until"]) == "2026-12-02T18:00:00"
+
+
+def test_needed_until_caps_revalidate_and_resume_as_it_does_issue(world: World) -> None:
+    permit = world.active(needed_until="2026-12-01")
+    other = world.active(needed_until="2026-12-01")
+    world.at = world.at.replace(hour=17)
+    world.call("rob", "RevalidatePermit", permit=permit)
+    assert iso(world.row(permit)["valid_until"]) == "2026-12-02T00:00:00"
+    world.at = world.at.replace(day=2, hour=0, minute=30)
+    assert raises(PermitRuleError, world, "rob", "RevalidatePermit", permit=permit) == (
+        MSG_WINDOW_OVER
+    )
+    world.at = world.at.replace(day=1, hour=17)
+    world.call("uma", "SuspendPermit", permit=other, reason="Stop")
+    world.at = world.at.replace(day=1, hour=20)
+    world.call("pam", "ResumePermit", permit=other)
+    assert iso(world.row(other)["valid_until"]) == "2026-12-02T00:00:00"
+    world.call("uma", "SuspendPermit", permit=other, reason="Stop")
+    world.at = world.at.replace(day=2, hour=1)
+    assert raises(PermitRuleError, world, "pam", "ResumePermit", permit=other) == MSG_WINDOW_OVER
+
+
+def test_the_requesting_account_may_not_issue_but_the_approver_may(world: World) -> None:
+    mine = world.request("sue")
+    world.call("pam", "ApprovePermit", permit=mine)
+    assert raises(
+        ForbiddenError, world, "sue", "IssuePermit", permit=mine, precautions=["jha_attached"]
+    ) == (MSG_SELF_ISSUE)
+    assert world.state(mine) == "Approved"
+    theirs = world.request("rob")
+    world.call("sue", "ApprovePermit", permit=theirs)
+    world.call("sue", "IssuePermit", permit=theirs, precautions=["jha_attached"])
+    assert world.state(theirs) == "Active"

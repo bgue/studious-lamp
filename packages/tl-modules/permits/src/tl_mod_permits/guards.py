@@ -21,6 +21,7 @@ from tl_mod_permits.names import (
     APPLIED,
     APPROVED,
     HANDED_BACK,
+    ISOLATION,
     LAPSED,
     PERMIT_ISOLATION_LINKED,
     PERMIT_ISOLATION_UNLINKED,
@@ -30,14 +31,6 @@ from tl_mod_permits.names import (
 from tl_mod_permits.types_table import load_types
 
 GAS_VALID_MINUTES = "permits.gas_test.valid_minutes"
-GAS_LIMITS = {
-    "o2_min_pct": "permits.gas.o2_min_pct",
-    "o2_max_pct": "permits.gas.o2_max_pct",
-    "lel_max_pct": "permits.gas.lel_max_pct",
-    "h2s_max_ppm": "permits.gas.h2s_max_ppm",
-    "co_max_ppm": "permits.gas.co_max_ppm",
-}
-
 #: The states (Lapsed included, as ``rules.effective_state`` shows it) each command takes.
 NEEDS: dict[str, tuple[str, ...]] = {
     "ApprovePermit": (REQUESTED,),
@@ -56,9 +49,9 @@ _LINK_SQL = text(
     "SELECT event_type, payload FROM events WHERE stream_id = :id AND event_type IN "
     "(:linked, :unlinked) ORDER BY seq"
 )
-_ISOLATION_SQL = text("SELECT id, status FROM cur_core_record WHERE id IN :ids").bindparams(
-    bindparam("ids", expanding=True)
-)
+_ISOLATION_SQL = text(
+    "SELECT id, status FROM cur_core_record WHERE id IN :ids AND type = :type AND voided = :voided"
+).bindparams(bindparam("ids", expanding=True))
 
 
 def as_time(value: Any) -> datetime:
@@ -92,7 +85,7 @@ def isolation_states(conn: Connection, permit_id: str) -> list[str]:
     ids = linked_isolations(conn, permit_id)
     if not ids:
         return []
-    rows = conn.execute(_ISOLATION_SQL, {"ids": ids}).all()
+    rows = conn.execute(_ISOLATION_SQL, {"ids": ids, "type": ISOLATION, "voided": False}).all()
     return [APPLIED if status is None else str(status) for _id, status in rows]
 
 
@@ -105,8 +98,11 @@ def issue_guards(conn: Connection, permit: Mapping[str, Any], now: datetime) -> 
     project = project_of_scope(str(permit["scope"]))
     minutes = int(value_of(conn, GAS_VALID_MINUTES, project=project))
     tests = [
-        (as_time(taken), str(result))
-        for taken, result in conn.execute(_GAS_SQL, {"id": permit["id"]})
+        (when, str(result))
+        for when, result in (
+            (as_time(t), r) for t, r in conn.execute(_GAS_SQL, {"id": permit["id"]})
+        )
+        if when <= now  # a reading dated after now is no evidence yet
     ]
     return rules.issue_blockers(
         needs_gas_test=rule.needs_gas_test,

@@ -90,6 +90,7 @@ MSG_NOT_PARTY = "only the permit holder or a controller may do this to a permit"
 MSG_UNKNOWN_PRECAUTION = "a ticked precaution is not one of the permit type's"
 MSG_ISSUE_REFUSED = "the permit cannot be made live: "
 MSG_MAX_DAYS = "the permit has reached the longest validity of its type; hand it back"
+MSG_SELF_ISSUE = "the person who requested a permit may not issue it"
 MSG_WINDOW_OVER = "the permit's window has ended"
 _ROW_SQL = text(f"SELECT * FROM {PERMIT_TABLE} WHERE id = :id")
 
@@ -174,6 +175,15 @@ def _longest(permit: Permit) -> datetime:
     """The latest ``valid_until`` the type allows: ``max_days`` after issue."""
     days = load_types()[str(permit.row["permit_type"])].max_days
     return as_time(permit.row["issued_at"]) + timedelta(days=days)
+
+
+def _capped(permit: Permit, until: datetime, at: datetime) -> datetime:
+    """``until`` cut at the end of the window ``needed_until`` names; refused if nothing is left."""
+    if permit.row["needed_until"]:
+        until = min(until, _window_end(str(permit.row["needed_until"])))
+    if until <= at:
+        raise PermitRuleError(MSG_WINDOW_OVER)
+    return until
 
 
 def _refuse_blockers(uow: UnitOfWork, row: dict[str, Any], at: datetime) -> None:
@@ -287,6 +297,8 @@ def handle_issue_permit(uow: UnitOfWork, cmd: IssuePermit) -> CommandResult:
     """Approved to Active: the issue guards pass, ``valid_until`` is the end of the shift (or the
     window's end if sooner) and the ticked precautions are stored."""
     cmd, permit, at = _open(uow, cmd, "IssuePermit")
+    if cmd.actor == permit.row["requested_by"]:
+        raise ForbiddenError(MSG_SELF_ISSUE)
     require_version(uow, permit.id, cmd.expected_version)
     asked = {p.id: p for p in load_types()[str(permit.row["permit_type"])].precautions}
     if any(tick not in asked for tick in cmd.precautions):
@@ -314,7 +326,8 @@ def handle_revalidate_permit(uow: UnitOfWork, cmd: RevalidatePermit) -> CommandR
     longest = _longest(permit)
     if at >= longest:
         raise PermitRuleError(MSG_MAX_DAYS)
-    until = min(_shift_end(uow, cmd.scope, max(ends, at)), longest)
+    base = min(max(ends, at), _shift_end(uow, cmd.scope, at))  # never chain ahead of this shift
+    until = _capped(permit, min(_shift_end(uow, cmd.scope, base), longest), at)
     return _step(
         uow,
         cmd,
@@ -343,7 +356,7 @@ def handle_resume_permit(uow: UnitOfWork, cmd: ResumePermit) -> CommandResult:
     longest = _longest(permit)
     if at >= longest:
         raise PermitRuleError(MSG_MAX_DAYS)
-    until = min(_shift_end(uow, cmd.scope, at), longest)
+    until = _capped(permit, min(_shift_end(uow, cmd.scope, at), longest), at)
     return _step(
         uow,
         cmd,
