@@ -24,7 +24,7 @@ from tl_core.qr.types import (
     Tone,
 )
 
-from tl_mod_permits import views
+from tl_mod_permits import guards, iso_views, views
 from tl_mod_permits.names import (
     APPROVED,
     CANCELLED,
@@ -78,7 +78,33 @@ def _type_word(permit_type: str) -> str:
     return permit_type.replace("_", " ").capitalize()
 
 
-def _lines(detail: views.PermitDetail) -> list[ScanLine]:
+def _gas_value(conn: Connection, permit_id: str, viewer: confidentiality.Viewer) -> str:
+    """The newest gas test as ``Pass at HH:MM UTC``; ``none taken`` when there is none."""
+    tests = iso_views.gas_tests_for(conn, permit_id, viewer=viewer)
+    if not tests:
+        return "none taken"
+    newest = tests[0]
+    when = newest.taken_at.astimezone(UTC).strftime("%H:%M")
+    return f"{newest.result.capitalize()} at {when} UTC"
+
+
+def _isolation_value(
+    conn: Connection, permit_id: str, scope: str, viewer: confidentiality.Viewer
+) -> str | None:
+    """``<n> of <m> verified`` over the linked isolations the viewer can read; none when the
+    permit links none the viewer can read. A hidden isolation counts in neither number."""
+    linked = set(guards.linked_isolations(conn, permit_id))
+    if not linked:
+        return None
+    page = iso_views.isolation_list(conn, scope, limit=500, viewer=viewer)
+    visible = [row for row in page.rows if row.id in linked]
+    if not visible:
+        return None
+    verified = sum(1 for row in visible if row.state == "Verified")
+    return f"{verified} of {len(visible)} verified"
+
+
+def _lines(detail: views.PermitDetail, gas: str, isolations: str | None) -> list[ScanLine]:
     """Label and value pairs; a missing value is left out, never shown as ``None``."""
     row = detail.row
     pairs: list[tuple[str, str | None]] = [
@@ -87,6 +113,8 @@ def _lines(detail: views.PermitDetail) -> list[ScanLine]:
         ("Holder", row.holder),
         ("Location", detail.location_text),
         ("For", row.for_key),
+        ("Gas test", gas),
+        ("Isolations", isolations),
         ("Revalidated", f"{row.revalidation_count} times" if row.revalidation_count > 0 else None),
     ]
     return [
@@ -94,7 +122,7 @@ def _lines(detail: views.PermitDetail) -> list[ScanLine]:
     ]
 
 
-def _card(detail: views.PermitDetail, now: datetime) -> ScanCard:
+def _card(detail: views.PermitDetail, now: datetime, gas: str, isolations: str | None) -> ScanCard:
     row = detail.row
     banner, tone = _banner(row, now)
     return ScanCard(
@@ -105,7 +133,7 @@ def _card(detail: views.PermitDetail, now: datetime) -> ScanCard:
         tone=tone,
         as_of=now,
         valid_until=row.valid_until if row.state in _DATED_STATES else None,
-        lines=_lines(detail),
+        lines=_lines(detail, gas, isolations),
         open_path=None,
     )
 
@@ -134,7 +162,9 @@ class PermitScanCard:
             )
             if detail is None:
                 return None
-        return _card(detail, now)
+            gas = _gas_value(conn, record_id, viewer)
+            isolations = _isolation_value(conn, record_id, str(found.scope), viewer)
+        return _card(detail, now, gas, isolations)
 
 
 def provider() -> ScanCardProvider:

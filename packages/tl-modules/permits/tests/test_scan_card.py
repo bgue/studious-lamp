@@ -164,6 +164,7 @@ def test_lines_are_bounded_and_a_missing_value_is_left_out(cards: World) -> None
         "Area": "A1",
         "Holder": "Rob",
         "Location": "Pump room",
+        "Gas test": "none taken",
     }
     assert len(card.lines) <= MAX_LINES
     assert all(len(line.label) <= MAX_LABEL_CHARS for line in card.lines)
@@ -231,3 +232,106 @@ def test_the_registry_finds_the_provider_for_permits_permit() -> None:
     found = load_scan_cards([point])
     assert list(found) == [PERMIT]
     assert isinstance(found[PERMIT], PermitScanCard)
+
+
+def labelled(card: ScanCard | None) -> dict[str, str]:
+    assert card is not None
+    return {line.label: line.value for line in card.lines}
+
+
+def test_no_gas_test_reads_none_taken_and_a_pass_is_shown_with_its_time(cards: World) -> None:
+    permit = cards.approved("hot_work")
+    assert labelled(card_of(cards, permit))["Gas test"] == "none taken"
+    cards.call("uma", "RecordGasTest", permit=permit, instrument_text="MX6", o2_pct="20.9")
+    card = card_of(cards, permit)
+    assert labelled(card)["Gas test"] == "Pass at 07:00 UTC"
+    assert card is not None and card.banner == "APPROVED - not issued"
+
+
+def test_the_newest_gas_test_decides_and_a_failure_suspends_the_permit(cards: World) -> None:
+    permit = cards.approved("hot_work")
+    cards.call("uma", "RecordGasTest", permit=permit, instrument_text="MX6", o2_pct="20.9")
+    cards.at += timedelta(minutes=1)
+    cards.issue(permit)
+    cards.at += timedelta(minutes=1)
+    cards.call("rob", "RecordGasTest", permit=permit, instrument_text="MX6", co_ppm="40")
+    card = card_of(cards, permit)
+    assert labelled(card)["Gas test"] == "Fail at 07:02 UTC"
+    assert card is not None
+    assert shown_state(cards, permit, cards.at) == "Suspended"
+    assert (card.banner, card.tone) == ("SUSPENDED", "stop")
+
+
+def test_no_linked_isolation_means_no_isolations_line(cards: World) -> None:
+    permit = cards.request()
+    assert "Isolations" not in labelled(card_of(cards, permit))
+
+
+def test_the_isolation_line_counts_the_verified_of_the_linked(cards: World) -> None:
+    permit = cards.request()
+    open_one = cards.isolation(permit)
+    assert labelled(card_of(cards, permit))["Isolations"] == "0 of 1 verified"
+    cards.isolation(permit, verified=True)
+    assert labelled(card_of(cards, permit))["Isolations"] == "1 of 2 verified"
+    cards.verify_isolation(open_one)
+    assert labelled(card_of(cards, permit))["Isolations"] == "2 of 2 verified"
+
+
+def test_the_isolation_count_follows_an_unlink(cards: World) -> None:
+    permit = cards.request()
+    cards.isolation(permit, verified=True)
+    second = cards.isolation(permit)
+    assert labelled(card_of(cards, permit))["Isolations"] == "1 of 2 verified"
+    cards.call("uma", "UnlinkIsolation", permit=permit, isolation=second)
+    assert labelled(card_of(cards, permit))["Isolations"] == "1 of 1 verified"
+
+
+def test_a_hidden_isolation_counts_in_neither_number_and_its_text_is_never_shown(
+    cards: World,
+) -> None:
+    permit = cards.request()
+    cards.isolation(permit, verified=True)
+    secret = cards.call(
+        "dora",
+        "ApplyIsolation",
+        point_text="Secret valve V-9",
+        energy="electrical",
+        method="Lock and tag",
+        lock_number="L-99",
+        tag_number="T-99",
+        point_record_id=cards.hidden_record(),
+    )
+    cards.link(permit, str(secret.stream_id))
+    low = card_of(cards, permit, cf.LOWEST)
+    assert low is not None and "Secret" not in low.model_dump_json()
+    assert labelled(low)["Isolations"] == "1 of 1 verified"
+    assert labelled(card_of(cards, permit, CLEARED))["Isolations"] == "1 of 2 verified"
+
+
+def test_a_permit_hidden_for_the_viewer_is_still_none_with_the_new_lines(cards: World) -> None:
+    hidden = cards.request("dora", for_record_id=cards.hidden_record())
+    cards.isolation(hidden, verified=True)
+    assert card_of(cards, hidden, cf.LOWEST) is None
+
+
+def test_a_full_card_with_every_optional_line_stays_within_the_bound(cards: World) -> None:
+    for_record = cards.record("awp.IWP", "P123-IWP-0002")
+    permit = cards.approved("hot_work", for_record_id=for_record)
+    cards.call("uma", "RecordGasTest", permit=permit, instrument_text="MX6", o2_pct="20.9")
+    cards.at += timedelta(minutes=1)
+    cards.issue(permit)
+    cards.call("rob", "RevalidatePermit", permit=permit)
+    cards.isolation(permit, verified=True)
+    card = card_of(cards, permit)
+    assert card is not None
+    assert [line.label for line in card.lines] == [
+        "Type",
+        "Area",
+        "Holder",
+        "Location",
+        "For",
+        "Gas test",
+        "Isolations",
+        "Revalidated",
+    ]
+    assert len(card.lines) <= MAX_LINES
