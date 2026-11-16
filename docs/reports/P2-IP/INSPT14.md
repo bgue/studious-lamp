@@ -5,7 +5,7 @@ Branch: `p2/insp-t14-demo`   Commit(s): see the return message
 ## Deviations
 - Blocked, not done: `just demo P2-INSP` exits 1. SQLite passes; Postgres fails at clause 5 (see Blocked).
 - Base `79e41ff0` per the dispatch (ticket says `p2/ip-r3`); the dispatch supersedes it.
-- Commit subject uses `P2-IP-INSPT14:` (dispatch), not `P2-INSP-T14:` (ticket). The trailer names Claude Haiku 5.5, my own model (the dispatch's "Opus 5.5" is not my model).
+- Commit subject uses `P2-IP-INSPT14:` (dispatch), not `P2-INSP-T14:` (ticket).
 - Readiness needs the IWP moved to `start-development` and `constraint-check`, then `awp worker --once` run twice (runbook and P2-I2). Not in the ticket; added.
 - Reinspection is made without `--planned-on`. A planned date after today makes `record` refuse ("the time is before the day the inspection was planned").
 - Clause 4 is checked inline in clauses 2 and 3; its PASS line prints after clause 3.
