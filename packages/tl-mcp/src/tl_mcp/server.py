@@ -12,10 +12,12 @@ text agents read, and error handling.
 
 from __future__ import annotations
 
+import functools
+import inspect
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ResourceError
@@ -27,7 +29,7 @@ from tl_core.addable import AddableProperties
 from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
-from tl_core.modules import ModuleHookError, load_modules, resolve_hook
+from tl_core.modules import ModuleHookError, ModuleSpec, load_modules, refused_hook, resolve_hook
 from tl_core.query.parser import MAX_QUERY_LENGTH
 from tl_core.services.link_queries import LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
@@ -98,21 +100,85 @@ ScopeForKey = Annotated[
 _log = logging.getLogger("tl_mcp")
 
 
+class _StagedServer:
+    """What a module registrar sees as ``server``: tools are staged, not registered.
+
+    ``tool`` and ``add_tool`` record the function and its keywords. Resources and prompts are
+    refused (a module's concrete URI would beat a core template; SR-X4 F5): the registrar raises
+    and ``_register_module_tools`` skips the module. Any other attribute is missing, so it is
+    refused the same way. ``_register_module_tools`` checks the staged names and registers each
+    function behind ``guarded`` (SR-X4 F1, F2).
+    """
+
+    def __init__(self) -> None:
+        self.staged: list[tuple[str, Callable[..., Any], dict[str, Any]]] = []
+
+    def tool(self, name: str | None = None, **kwargs: Any) -> Callable[[Any], Any]:
+        def decorate(fn: Callable[..., Any]) -> Callable[..., Any]:
+            self.add_tool(fn, name=name, **kwargs)
+            return fn
+
+        return decorate
+
+    def add_tool(self, fn: Callable[..., Any], name: str | None = None, **kwargs: Any) -> None:
+        self.staged.append((name or fn.__name__, fn, kwargs))
+
+    def _refuse(self, *args: Any, **kwargs: Any) -> Any:
+        raise ModuleHookError("a module may register tools only")
+
+    resource = add_resource = prompt = add_prompt = _refuse
+
+
+def _closed(ctx: McpContext, tool: str, fn: Callable[..., Any]) -> Callable[..., Any]:
+    """``fn`` behind the access check: ``guarded(ctx, tool, ...)`` runs before its body."""
+
+    if inspect.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def run_async(*args: Any, **kwargs: Any) -> Any:
+            with guarded(ctx, tool, f"module:{tool}"):
+                return await fn(*args, **kwargs)
+
+        return run_async
+
+    @functools.wraps(fn)
+    def run(*args: Any, **kwargs: Any) -> Any:
+        with guarded(ctx, tool, f"module:{tool}"):
+            return fn(*args, **kwargs)
+
+    return run
+
+
 def _register_module_tools(server: MCPServer, ctx: McpContext) -> None:
     """Register every installed module's tools (``ModuleSpec.tools``), module-name order.
 
-    Hooks are resolved once, before any registration. A module whose hook cannot be resolved
-    registers none of its tools (fixed warning, no ref); the others still register.
+    Called after every core tool is registered. Hooks are resolved once, before any registration.
+    A module whose hook cannot be resolved, or that names a tool a core tool or an earlier module
+    already has, registers none of its tools (fixed warning, no ref); the others still register.
+    Each registered function runs ``guarded`` first, so a registrar that forgets it is still closed.
     """
-    resolved: list[tuple[object, ...]] = []
+    resolved: list[tuple[ModuleSpec, tuple[object, ...]]] = []
     for spec in load_modules():
         try:
-            resolved.append(resolve_hook(spec, "tools"))
+            resolved.append((spec, resolve_hook(spec, "tools")))
         except ModuleHookError as exc:
             _log.warning("%s", exc)
-    for registrars in resolved:
-        for register in registrars:
-            register(server, ctx)  # type: ignore[operator]
+    taken = {tool.name for tool in server._tool_manager.list_tools()}  # noqa: SLF001
+    for spec, registrars in resolved:
+        stage = _StagedServer()
+        try:
+            for register in registrars:
+                register(stage, ctx)  # type: ignore[operator]
+        except Exception:
+            _log.warning("%s", refused_hook(spec, "tools"))
+            continue
+        names = [name for name, _, _ in stage.staged]
+        if len(set(names)) != len(names) or taken.intersection(names):
+            _log.warning("%s", refused_hook(spec, "tools"))
+            continue
+        for name, fn, kwargs in stage.staged:
+            server.add_tool(_closed(ctx, name, fn), name=name, **kwargs)
+        taken.update(names)
 
 
 def build_server(
@@ -153,7 +219,6 @@ def build_server(
     register_write_tools(server, ctx, modes)
     register_type_tools(server, ctx)
     register_thread_tools(server, ctx)  # P1-I7 WS-B
-    _register_module_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(
@@ -345,4 +410,5 @@ def build_server(
         with guarded(ctx, "resource.relations", "tl://relations", error=ResourceError):
             return resources.relations_resource(ctx)
 
+    _register_module_tools(server, ctx)  # last: a module never shadows a core tool
     return server
