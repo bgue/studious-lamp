@@ -7,9 +7,9 @@
 {% if csrf %}<meta name="csrf-token" content="{{ csrf }}">
 {% endif %}<meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"includeIndicatorStyles":false,"historyCacheSize":0}'>
 <link rel="stylesheet" href="/web/static/tl.css">
-<script src="/web/static/vendor/htmx/htmx.min.js" defer></script>
+{% block scripts %}<script src="/web/static/vendor/htmx/htmx.min.js" defer></script>
 <script type="module" src="/web/static/tl.js"></script>
-</head>
+{% endblock %}</head>
 <body>
 <header class="tl-bar">
 <span class="tl-brand">Throughline</span>

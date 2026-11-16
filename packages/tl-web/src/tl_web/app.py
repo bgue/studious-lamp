@@ -15,13 +15,14 @@ import os
 import re
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, FastAPI, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from tl_api.auth import TOKEN_KEY, guard
+from tl_api.auth import TOKEN_KEY, WEB_SIGN_IN, guard
 from tl_api.context import ApiContext, get_ctx
 from tl_api.errors import body_for
 from tl_api.routes import auth as auth_routes
@@ -46,6 +47,13 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     (b"x-content-type-options", b"nosniff"),
     (b"referrer-policy", b"same-origin"),
 )
+#: The scan area: its own referrer policy, and the one return address a sign-in may carry.
+SCAN_AREA = "/web/q"
+SCAN_NEXT = re.compile(r"/web/q/[A-Z0-9]{16}")
+NO_REFERRER = (b"referrer-policy", b"no-referrer")
+#: A page that hosts a form sends ``strict-origin``: no path or query leaves, and the browser's
+#: POST keeps its real ``Origin`` (under ``no-referrer`` it is ``null``: the origin check refuses).
+STRICT_ORIGIN = (b"referrer-policy", b"strict-origin")
 PROJECT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
 # the platform's table may not know module scripts; the worker and pdf.js are .mjs
@@ -61,6 +69,47 @@ def is_web_path(path: str) -> bool:
     return path == "/web" or path.startswith("/web/")
 
 
+def is_scan_path(path: str) -> bool:
+    return path == SCAN_AREA or path.startswith(SCAN_AREA + "/")
+
+
+def referrer_policy(path: str, query: bytes = b"", method: str = "GET") -> tuple[bytes, bytes]:
+    """The ``Referrer-Policy`` of an answer: ``no-referrer`` where a code is in the address and no
+    form is on the page (the card, a miss, a 429, the bounce), ``strict-origin`` for the typed-code
+    form and for the sign-in page that echoes a ``next``, else the app's own."""
+    if path == SCAN_AREA and method == "GET":
+        return STRICT_ORIGIN
+    if is_scan_path(path):
+        return NO_REFERRER
+    if path == WEB_SIGN_IN and b"next=" in query:
+        return STRICT_ORIGIN
+    return next(h for h in SECURITY_HEADERS if h[0] == NO_REFERRER[0])
+
+
+def headers_for(
+    path: str, query: bytes = b"", method: str = "GET"
+) -> tuple[tuple[bytes, bytes], ...]:
+    """The security headers of ``path``: the app's, with the policy of ``referrer_policy``."""
+    policy = referrer_policy(path, query, method)
+    return tuple(policy if name == NO_REFERRER[0] else (name, v) for name, v in SECURITY_HEADERS)
+
+
+def safe_next(value: str) -> str:
+    """``value`` when it is exactly a scan path (``/web/q/`` and 16 upper-case letters or digits),
+    else ``""``: the only return address a sign-in may carry (no open redirect)."""
+    return value if SCAN_NEXT.fullmatch(value) else ""
+
+
+def bounce_location(path: str) -> bytes:
+    """Where the sign-in bounce of a scan path goes: the sign-in page, with ``next`` only when the
+    segment typed, upper-cased, is a well-formed code (a malformed one is not echoed)."""
+    segment = path[len(SCAN_AREA) + 1 :]
+    wanted = safe_next(f"{SCAN_AREA}/{segment.upper()}") if segment.isascii() else ""
+    if not wanted:
+        return WEB_SIGN_IN.encode("ascii")
+    return f"{WEB_SIGN_IN}?next={quote(wanted, safe='')}".encode("ascii")
+
+
 class WebHeadersMiddleware:
     """Adds the security headers to every HTTP answer under ``/web``."""
 
@@ -72,11 +121,26 @@ class WebHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        path = scope["path"]
+        scan = is_scan_path(path)
+        query, method = scope.get("query_string", b""), scope["method"]
+
         async def with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
-                names = {name for name, _ in SECURITY_HEADERS}
+                ours = headers_for(path, query, method)
+                names = {name for name, _ in ours}
                 headers = [(n, v) for n, v in message["headers"] if n.lower() not in names]
-                headers.extend(SECURITY_HEADERS)
+                headers.extend(ours)
+                if scan and message["status"] == 303:  # the middleware's sign-in bounce
+                    headers = [
+                        (
+                            n,
+                            bounce_location(path)
+                            if n.lower() == b"location" and v == WEB_SIGN_IN.encode()
+                            else v,
+                        )
+                        for n, v in headers
+                    ]
                 if not any(n.lower() == b"cache-control" for n, _ in headers):
                     headers.append((b"cache-control", b"no-store"))  # a handler's own is kept
                 message = {**message, "headers": headers}
@@ -89,7 +153,11 @@ def render(request: Request, name: str, status: int = 200, **values: Any) -> HTM
     """An HTML page; the CSRF token is offered only to a request that holds a session."""
     token = request.scope.get(TOKEN_KEY)
     token_value = (
-        csrf.csrf_token(token, request.app.state.web_secret) if isinstance(token, str) else None
+        csrf.csrf_token(token, request.app.state.web_secret)
+        if isinstance(token, str)
+        and referrer_policy(request.url.path, request.url.query.encode(), request.method)
+        != NO_REFERRER
+        else None  # a no-referrer page hosts no form (its POST would carry ``Origin: null``)
     )
     html = _templates.get_template(name).render(csrf=token_value, **values)
     return HTMLResponse(html, status_code=status)
@@ -100,8 +168,8 @@ Ctx = Annotated[ApiContext, Depends(get_ctx)]
 
 
 @router.get("/sign-in")
-def sign_in_form(request: Request) -> Response:
-    return render(request, "sign_in.html", username="", error=None)
+def sign_in_form(request: Request, next: str = "") -> Response:
+    return render(request, "sign_in.html", username="", error=None, next=safe_next(next))
 
 
 @router.post("/sign-in", dependencies=[Depends(csrf.verify_origin)])
@@ -110,6 +178,7 @@ def sign_in_submit(
     ctx: Ctx,
     username: Annotated[str, Form()] = "",
     password: Annotated[str, Form()] = "",
+    next: Annotated[str, Form()] = "",
 ) -> Response:
     """The JSON route's own handler does the work: lockout, audit, timing and error text are its.
 
@@ -123,12 +192,19 @@ def sign_in_submit(
         if mapped is None:
             raise
         status, error = mapped
-        page = render(request, "sign_in.html", status, username=username, error=error.message)
+        page = render(
+            request,
+            "sign_in.html",
+            status,
+            username=username,
+            error=error.message,
+            next=safe_next(next),
+        )
         if isinstance(exc, AuthBusyError):
             page.headers["Retry-After"] = "2"
         return page
     host = request.url.hostname or ""
-    response = RedirectResponse("/web/", status_code=303)
+    response = RedirectResponse(safe_next(next) or "/web/", status_code=303)
     response.headers.append("set-cookie", session.session_cookie(out.token, host, current_env()))
     return response
 

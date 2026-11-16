@@ -13,10 +13,12 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 from auth_support import sign_in
 from tl_adapters.db import as_target, create_schema, open_uow
+from tl_cli import insp_write
 from tl_cli.main import app
 from tl_core import confidentiality as cf
 from tl_mod_quality import insp_views
@@ -365,6 +367,31 @@ def test_an_oversized_answers_file_is_refused(cli: Cli, tmp_path: Path) -> None:
     result = cli.write("record", key, "--project", PROJECT, "--answers-file", str(big), who="rob")
     assert result.exit_code == 1, result.output
     assert result.output == "error: answers file is too large\n"
+
+
+def test_an_inspection_write_runs_its_handler_as_the_acting_person(
+    cli: Cli, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # No refusal names a record here, so the test spies on the viewer the handler runs under: it
+    # must be the actor's, not the process's (LOWEST on a dev ledger).
+    seen: list[cf.Viewer] = []
+    original = insp_write._handler
+
+    def spy(model: Any) -> Any:
+        handler = original(model)
+
+        def run(uow: Any, command: Any) -> Any:
+            seen.append(cf.current_viewer())
+            return handler(uow, command)
+
+        return run
+
+    monkeypatch.setattr(insp_write, "_handler", spy)
+    cli.plan("uma")
+    with open_uow(cli.world.db, readonly=True) as uow:
+        expected = cf.viewer_for_actor(uow.conn(), "user:uma")
+    assert seen == [expected]
+    assert expected != cf.LOWEST
 
 
 # 5. the group is registered ------------------------------------------------------------------

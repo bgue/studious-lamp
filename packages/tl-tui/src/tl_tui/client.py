@@ -95,6 +95,8 @@ from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
 from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
+from tl_mod_permits import iso_views as permit_iso_views
+from tl_mod_permits import views as permit_views
 from tl_mod_quality import insp_views
 from tl_mod_quality import views as punch_views
 from tl_mod_scaffold import views as scaffold_views
@@ -1138,6 +1140,62 @@ class ClientInterface(Protocol):
         overdue: bool = False,
     ) -> str:
         """The visible scaffolds matching the filters as csv or jsonl text."""
+        ...
+
+    # --- permits: permits, isolations and gas tests (P2-PTW-T10) -----------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. The reads answer the module's
+    # views under the signed-in person's clearance and need ``permits.view`` on the project; a
+    # missing or hidden permit, isolation or gas-test permit raises ``RecordNotFoundError`` with one
+    # text ("no permit", "no isolation"). ``permit_command(name, cmd)`` takes a model of
+    # ``tl_mod_permits.module.COMMANDS``, else ``ForbiddenError``.
+
+    def list_permits(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        permit_type: str | None = None,
+        area: str | None = None,
+        holder: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> permit_views.PermitPage:
+        """A project's permits by key, filtered; ``total`` counts the visible matches."""
+        ...
+
+    def get_permit(self, project: str, key: str) -> permit_views.PermitDetail:
+        """One permit with its fields."""
+        ...
+
+    def get_permit_board(
+        self, project: str, *, area: str | None = None
+    ) -> permit_views.PermitBoard:
+        """The live permits of a project by area, with the counts by shown state."""
+        ...
+
+    def list_isolations(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        energy: str | None = None,
+        limit: int = 100,
+    ) -> permit_iso_views.IsolationPage:
+        """A project's isolations by key, filtered; ``total`` counts the visible matches."""
+        ...
+
+    def get_isolation(self, project: str, key: str) -> permit_iso_views.IsolationDetail:
+        """One isolation with its trail and the keys of the permits it is read for."""
+        ...
+
+    def list_gas_tests(self, project: str, permit_key: str) -> list[permit_iso_views.GasRow]:
+        """The gas tests of one permit, newest first."""
+        ...
+
+    def permit_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a permit command by name (a model of ``tl_mod_permits.module.COMMANDS``, as the
+        person)."""
         ...
 
     # --- the awp module: CWPs, CWAs, the WBS, the path, packages (P2-I1 T03b) ------------------

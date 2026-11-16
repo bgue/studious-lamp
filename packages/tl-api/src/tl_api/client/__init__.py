@@ -27,6 +27,7 @@ from tl_api.client.integration import IntegrationApi
 from tl_api.client.iwp import IwpApi
 from tl_api.client.links import LinksApi
 from tl_api.client.materials import MaterialsApi
+from tl_api.client.permits import PermitsApi
 from tl_api.client.proposals import ProposalsApi
 from tl_api.client.quality import QualityApi
 from tl_api.client.records import RecordsApi
@@ -60,6 +61,7 @@ class ApiClient(
     MaterialsApi,
     QualityApi,
     ScaffoldApi,
+    PermitsApi,
     SchemaRegistryApi,
     AuthApi,
     AdminApi,

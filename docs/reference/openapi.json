@@ -16921,6 +16921,31 @@
         "title": "ExtractionProblem",
         "type": "object"
       },
+      "FailedAnswer": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "note"
+        ],
+        "title": "FailedAnswer",
+        "type": "object"
+      },
       "FeedItem": {
         "description": "One row of a feed query: a post or an event card, newest first by ``at`` then ``seq``.\n\nFor a post, ``id`` is the post id; for a card, a deterministic card id derived from its first\nevent id. ``event_count`` is 1 for a post; for a card, the number of aggregated ledger events.",
         "properties": {
@@ -18662,6 +18687,13 @@
             ],
             "title": "Done At"
           },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/FailedAnswer"
+            },
+            "title": "Failed",
+            "type": "array"
+          },
           "note": {
             "anyOf": [
               {
@@ -18745,7 +18777,8 @@
           "reinspection_of_key",
           "cancel_reason",
           "punch_keys",
-          "version"
+          "version",
+          "failed"
         ],
         "title": "InspectionDetail",
         "type": "object"
@@ -19052,6 +19085,206 @@
           "action"
         ],
         "title": "InvokeActionBody",
+        "type": "object"
+      },
+      "IsolationDetail": {
+        "properties": {
+          "permits": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permits",
+            "type": "array"
+          },
+          "point_record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Point Record Id"
+          },
+          "removed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Removed At"
+          },
+          "removed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Removed By"
+          },
+          "row": {
+            "$ref": "#/components/schemas/IsolationRow"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "point_record_id",
+          "removed_by",
+          "removed_at",
+          "version",
+          "permits"
+        ],
+        "title": "IsolationDetail",
+        "type": "object"
+      },
+      "IsolationPage": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/IsolationRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total"
+        ],
+        "title": "IsolationPage",
+        "type": "object"
+      },
+      "IsolationRow": {
+        "properties": {
+          "applied_at": {
+            "format": "date-time",
+            "title": "Applied At",
+            "type": "string"
+          },
+          "applied_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied By"
+          },
+          "depends": {
+            "title": "Depends",
+            "type": "integer"
+          },
+          "energy": {
+            "title": "Energy",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "lock_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lock Number"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "point_text": {
+            "title": "Point Text",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "tag_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Number"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "verified_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified By"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "point_text",
+          "energy",
+          "method",
+          "lock_number",
+          "tag_number",
+          "state",
+          "applied_by",
+          "applied_at",
+          "verified_by",
+          "verified_at",
+          "depends"
+        ],
+        "title": "IsolationRow",
         "type": "object"
       },
       "Issue": {
@@ -96689,6 +96922,409 @@
         ]
       }
     },
+    "/permits/isolations": {
+      "get": {
+        "description": "The isolations of a project by key, filtered by state and energy. ``total`` counts the\nvisible matches. Hidden isolations (and those on a hidden point) are left out.",
+        "operationId": "list_isolations",
+        "parameters": [
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The isolation state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Applied",
+                    "Verified",
+                    "Removed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The isolation state.",
+              "title": "State"
+            }
+          },
+          {
+            "description": "The energy kind.",
+            "in": "query",
+            "name": "energy",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "electrical",
+                    "mechanical",
+                    "process",
+                    "other"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The energy kind.",
+              "title": "Energy"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "At most this many rows.",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IsolationPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Isolations",
+        "tags": [
+          "permits"
+        ]
+      }
+    },
+    "/permits/isolations/export": {
+      "get": {
+        "description": "The rows of the isolation list as CSV (``text/csv``) or JSON lines\n(``application/x-ndjson``).",
+        "operationId": "export_isolations",
+        "parameters": [
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "csv or jsonl.",
+            "in": "query",
+            "name": "format",
+            "required": true,
+            "schema": {
+              "description": "csv or jsonl.",
+              "enum": [
+                "csv",
+                "jsonl"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The isolation state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Applied",
+                    "Verified",
+                    "Removed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The isolation state.",
+              "title": "State"
+            }
+          },
+          {
+            "description": "The energy kind.",
+            "in": "query",
+            "name": "energy",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "electrical",
+                    "mechanical",
+                    "process",
+                    "other"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The energy kind.",
+              "title": "Energy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Isolations",
+        "tags": [
+          "permits"
+        ]
+      }
+    },
+    "/permits/isolations/{key}": {
+      "get": {
+        "description": "One isolation with its trail and the keys of the permits it is read for. 404\n`record_not_found` when it is missing or hidden (one answer for both).",
+        "operationId": "get_isolation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IsolationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Isolation",
+        "tags": [
+          "permits"
+        ]
+      }
+    },
     "/permits/{key}": {
       "get": {
         "description": "One permit with its fields. 404 `record_not_found` when it is missing or hidden (one answer\nfor both).",
@@ -96784,6 +97420,126 @@
           }
         ],
         "summary": "Get Permit",
+        "tags": [
+          "permits"
+        ]
+      }
+    },
+    "/permits/{key}/gas-tests": {
+      "get": {
+        "description": "The gas tests of one permit, newest first: a JSON list, or the export text with\n``format``. The permit is read as ``get_permit`` reads it, so a hidden, unknown or other-project\npermit is the one 404 `no permit`; a visible permit with no tests is ``[]``.",
+        "operationId": "list_gas_tests",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "csv or jsonl.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "csv",
+                    "jsonl"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "csv or jsonl.",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Gas Tests",
         "tags": [
           "permits"
         ]

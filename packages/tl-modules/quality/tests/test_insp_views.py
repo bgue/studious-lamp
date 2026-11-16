@@ -213,6 +213,22 @@ def test_detail_carries_the_answers_the_checklist_and_the_punch_items(
     assert eight.verified_on is not None and eight.row.result == "accept"
 
 
+def test_a_failing_required_answer_is_listed_by_question_text_and_note(
+    insp: InspWorld, built: Built
+) -> None:
+    # i1 is Done with q1 = "no" (required, fails when "no") and the note "Gauge missing"
+    assert need(insp, key(1)).failed == [
+        insp_views.FailedAnswer(question="Gauge fitted?", note="Gauge missing")
+    ]
+
+
+def test_a_passing_or_unrecorded_inspection_has_no_failed_answers(
+    insp: InspWorld, built: Built
+) -> None:
+    assert need(insp, key(8)).failed == []  # Verified, every answer passes
+    assert need(insp, key(2)).failed == []  # Planned, no answers recorded
+
+
 def test_an_unknown_key_gives_none(insp: InspWorld, built: Built) -> None:
     assert det(insp, key(9999)) is None
 

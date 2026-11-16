@@ -376,10 +376,12 @@ def create_app(
         async def _warn(
             request: Request, call_next: Callable[[Request], Awaitable[Response]]
         ) -> Response:
+            from tl_api.main import redact_code_paths  # a scan code never reaches a log
+
             log.warning(
                 "INSECURE DEV SERVER: %s %s (bound beyond loopback; --insecure-dev)",
                 request.method,
-                request.url.path,
+                redact_code_paths(request.url.path),
             )
             return await call_next(request)
 

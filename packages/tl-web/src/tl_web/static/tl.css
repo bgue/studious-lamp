@@ -168,3 +168,16 @@ main:has(.tl-sign-in) button[type="submit"] { width: 100%; justify-content: cent
   main { padding: 12px; }
   .tl-keys { display: none; }
 }
+
+/* Scan page: a phone-width card; the banner word is always printed, the tone only adds colour */
+.tl-scan { max-width: 480px; margin: 0 auto; padding: 16px; }
+.tl-scan h1 { margin: 8px 0 4px; font-size: 20px; font-weight: 600; }
+.tl-scan-banner { margin: 0; padding: 12px; border-radius: var(--radius-sm); font-size: 20px; font-weight: 700; border: 2px solid var(--border); }
+.tl-tone-go { color: var(--done); background: var(--done-weak); border-color: var(--done); }
+.tl-tone-caution { color: var(--waiting); background: var(--waiting-weak); border-color: var(--waiting); }
+.tl-tone-stop { color: var(--bad); background: var(--bad-weak); border-color: var(--bad); }
+.tl-tone-neutral { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+.tl-scan-asof { color: var(--muted); font-size: 13px; }
+.tl-scan-lines { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 12px 0; }
+.tl-scan-lines dt { color: var(--muted); }
+.tl-scan-lines dd { margin: 0; overflow-wrap: anywhere; }

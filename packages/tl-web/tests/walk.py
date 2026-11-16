@@ -315,4 +315,9 @@ _CATCH_ALL = "the 404 page: one text for every unknown path, it reads no record"
 NO_RECORD_TEXT: dict[tuple[str, str], str] = {
     (method, "/web/{rest:path}"): _CATCH_ALL
     for method in ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD")
+} | {
+    ("GET", "/web/q/{code}"): (
+        "the scan card: a code, not a record key, selects it; the five readers, the one miss and "
+        "the sign-in bounce are walked in test_scan_page.py"
+    ),
 }

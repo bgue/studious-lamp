@@ -25,9 +25,9 @@ TODAY = date(2026, 10, 30)
 RECORD_TYPES = frozenset({"awp.IWP", "documents.Revision"})
 MATERIALS = "materials_reserved"
 
+# permits_planned now comes from the permits module (P2-PTW-S4); it is still loaded (checked below).
 # inspections_planned is no longer a placeholder: the quality module registers it (P2-INSP-S3).
 EXPECTED: dict[str, str] = {
-    "permits_planned": "not applicable yet: permit records are built in Phase 3",
     "predecessors_handed_over": "not applicable yet: hand-over of predecessor work is not recorded",
     "model_slice_available": "not applicable yet: model records are built in Phase 3",
 }
@@ -59,10 +59,11 @@ def main() -> int:
     def loaded() -> None:
         missing = sorted(set(EXPECTED) - set(checks))
         assert not missing, f"not loaded: {missing}"
+        assert "permits_planned" in checks, "permits_planned is no longer loaded"
         assert MATERIALS in checks, "materials_reserved is no longer loaded"
         assert not (set(EXPECTED) & {MATERIALS}), "a name collides with materials_reserved"
 
-    check_one("load_checks finds the four names", loaded)
+    check_one("load_checks finds the three names", loaded)
 
     for name, detail in EXPECTED.items():
 

@@ -759,6 +759,7 @@ class TlApp(App[None]):
         from tl_tui.widgets.constraint_screen import ConstraintScreen
         from tl_tui.widgets.cwa_register import CwaRegisterScreen
         from tl_tui.widgets.cwp_register import CwpRegisterScreen
+        from tl_tui.widgets.inspection_log import InspectionLogScreen
         from tl_tui.widgets.iwp_register import IwpRegisterScreen
         from tl_tui.widgets.package_log import PackageLogScreen
         from tl_tui.widgets.path_screen import PathScreen
@@ -784,6 +785,7 @@ class TlApp(App[None]):
             "backlog": BacklogScreen,
             "punch": PunchLogScreen,
             "scaffolds": ScaffoldLogScreen,
+            "inspections": InspectionLogScreen,
             "week": LookAheadScreen,
             "requisitions": RequisitionLogScreen,
             "work-orders": WorkOrderBacklogScreen,
@@ -838,6 +840,10 @@ class TlApp(App[None]):
         """The scaffold register of this project: what stands, its state and next inspection
         (palette only)."""
         self._push_awp("scaffolds")
+
+    def action_inspections(self) -> None:
+        """The inspections of this project: by state and point (palette only)."""
+        self._push_awp("inspections")
 
     def action_week(self) -> None:
         """The weekly cycle of this project: look-ahead, constraints, release (palette only)."""

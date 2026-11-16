@@ -30,6 +30,23 @@ recover from first-run problems. Package: `packages/tl-web/README.md`. Spec: `do
 `just demo P2-WEB1` runs `dev/demos/P2-WEB1.sh` over HTTP with a cookie jar (curl), against a `tl serve` on a free
 loopback port, on SQLite and on Postgres. Each of its five clauses ends in a PASS line.
 
+## Scan labels
+
+A printed label opens `<api.public_base_url>/web/q/<code>`. Crews must check the address bar before they
+sign in: it is the site's own address, never another host. A signed-out visitor is always sent to the sign-in
+page (the same page for every code, whether or not the code exists) and returns to the card after sign-in.
+Every miss (malformed, unknown, revoked, expired, hidden, no view word, no card provider) is the same 404 page.
+
+Lookups are limited in process: a session may miss 10 times and an address 30 times in 10 minutes
+(`tl_web/scan_limit.py`). Past either limit every lookup of that session or address answers 429 with
+`Retry-After` and one fixed text, hit or miss, until the oldest miss leaves the window. Only misses count.
+The address is the socket peer, or the last entry of `TL_TRUSTED_PROXY_HEADER` when it is set.
+
+The API's own access log (`uvicorn.access`) shows `/web/q/<redacted>` and `/qr/resolve/<redacted>` in place of
+the code (`tl_api.main.install_access_log_filter`, installed when the server starts). A reverse proxy in front
+writes its own access log and the filter cannot reach it: configure the proxy to strip or mask the path after
+`/web/q/` and `/qr/resolve/` (and the `next` query value of `/web/sign-in`) in what it logs.
+
 ## Settings
 - `TL_WEB`: `on` or `off`. Unset means on where `TL_ENV` is dev, test or ci, and off elsewhere. Anything else is refused.
 - `TL_WEB_SECRET`: at least 32 bytes; required outside dev, test and ci, refused at start-up when short. Dev makes one

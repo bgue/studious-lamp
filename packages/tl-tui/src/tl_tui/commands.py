@@ -63,6 +63,7 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
         "",
         "scaffolds",
     ),
+    AppCommand("inspections", "Inspections: by state and point", "", "inspections"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
     AppCommand("admin", "Accounts and agent tokens (admins)", "F10", "admin"),
     AppCommand("review", "Review queue: accept or reject proposed values", "Ctrl+R", "review"),
