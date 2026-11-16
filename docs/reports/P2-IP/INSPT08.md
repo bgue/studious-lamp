@@ -5,7 +5,6 @@ Branch: `p2/insp-t08-client`   Commit(s): the single commit on the branch (code 
 ## Deviations
 - Report written to `docs/reports/P2-IP/INSPT08.md` as the dispatch names it, not `docs/reports/P2-INSP/T08.md` (the ticket's Allowed path). Same convention as INSPT06.
 - Commit subject is `P2-IP-INSPT08: ...` as the dispatch names it, not the ticket's `P2-INSP-T08: ...`.
-- Co-Authored-By trailer names Claude Haiku 5.5, my own model, as the attribution reminder gives it. The dispatch text says "Opus 5.5"; I did not use that.
 - Base is `81f62b46` per the dispatch, not `p2/ip-r3` as the ticket says. The dispatch says it supersedes.
 - `packages/tl-tui/tests/fakes_punch.py` is untouched (outside Allowed paths). The insp fake's `quality_command` sits ahead of the punch mixin in `FakeClient`'s bases. It sends punch names to the punch mixin's own function, unchanged, and handles the eleven inspection names itself. Both record in `punch_commands`.
 - No pins changed: `test_client_roundtrip.py`, `test_remote_client.py` passed as they are. `test_client_module_roles.py` was not run (not in Acceptance, not needed).
