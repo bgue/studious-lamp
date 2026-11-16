@@ -8,9 +8,10 @@ S4 p mrg f 4e39ff78 review P; APPROVALS
 T02a t mrg f 479f41bb review P; amend 1
 T02b t mrg f 338e5265 review P
 S5 p mrg f 30e31f3d review P
+S6 p mrg f b28bec8f SR-X4 fixes; APPROVALS
 T04 t disp l - runbook new-module; spec T04-new-module-runbook.md
-T05a t disp f - driver A clauses 1,2,6 (scaffold, failing hook)
-T05b t disp f - driver B clauses 3,4,5 (ext_demo API, CLI, MCP)
+T05a t mrg f f9d8323f review P
+T05b t mrg f 6208be85 review P
 T05c t stg f - demo shell P2-X4.sh; waits T05a,T05b mrg
 T06 t disp l - AGENTS rows, README line, DEFERRED rows; merge after T04,T05c
 ## DEC

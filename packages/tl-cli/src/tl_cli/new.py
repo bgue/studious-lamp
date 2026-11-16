@@ -64,6 +64,15 @@ def _finish(root: Path, plan: Plan, dry_run: bool) -> None:
         typer.echo(f"next: {step}", err=True)
 
 
+def core_cli_names() -> frozenset[str]:
+    """Every top-level command and group of `tl` (imported late: ``tl_cli.main`` imports this)."""
+    from tl_cli.main import app as root
+
+    names = {info.name for info in root.registered_groups if info.name}
+    names |= {info.name for info in root.registered_commands if info.name}
+    return frozenset(names)
+
+
 @app.command("module")
 def new_module(
     name: Annotated[
@@ -75,6 +84,8 @@ def new_module(
     """Create packages/tl-modules/NAME, schema/modules/NAME/module.yaml and docs/modules/NAME/."""
     try:
         module = parse_module(name)
+        if module.name in core_cli_names():  # its `<name>` CLI group would shadow a core command
+            _fail(f"module name {module.name!r} is a `tl` command or group; choose another name")
         base = use_root(root)
         plan = plan_module(module)
     except (NameError_, ScaffoldError) as exc:

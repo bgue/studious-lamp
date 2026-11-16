@@ -13,10 +13,11 @@ from collections.abc import Iterator
 
 import pytest
 import test_confidentiality_walk as walk
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from harness import Harness
 from test_confidentiality_walk import Seed, harness, seeded, week_seeded  # noqa: F401
 from tl_api.app import create_app
+from tl_api.auth import guard
 from tl_api.tokens import TokenStore
 from tl_core.modules import ModuleSpec, load_modules, use_modules
 
@@ -28,10 +29,12 @@ FILLABLE = "/0x4walk/{key}"
 def fake_package() -> Iterator[None]:
     package = types.ModuleType("tl_mod_x4walk")
 
-    def mystery(mystery: str) -> dict[str, str]:  # the walk has no values for this name
+    def mystery(
+        mystery: str, actor: str = Depends(guard("document.read"))
+    ) -> dict[str, str]:  # the walk has no values for this name
         return {"ok": mystery}
 
-    def keyed(key: str) -> dict[str, str]:
+    def keyed(key: str, actor: str = Depends(guard("document.read"))) -> dict[str, str]:
         return {"ok": key}
 
     package.UNFILLABLE_ROUTER = APIRouter()  # type: ignore[attr-defined]

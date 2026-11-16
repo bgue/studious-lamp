@@ -31,9 +31,10 @@ projector would leave tables empty without a trace.
 from __future__ import annotations
 
 import importlib
+import logging
 import re
 import threading
-from collections.abc import Callable, Generator, Mapping, Sequence
+from collections.abc import Callable, Collection, Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
@@ -46,6 +47,8 @@ from tl_core.numbering.config import NumberingPattern
 from tl_core.projection.types import Projector
 from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
+
+_log = logging.getLogger("tl_core.modules")
 
 if TYPE_CHECKING:
     from tl_core.actions import ActionsHook
@@ -225,6 +228,10 @@ def _check_ref(name: str, kind: str, ref: str) -> None:
         raise ModuleLoadError(f"module {name!r}: {kind} must hold text references")
     if _REF.fullmatch(ref) is None:
         raise ModuleLoadError(f"module {name!r}: {kind} has a malformed reference")
+    if kind == "cli_groups":  # the group is named by the attribute: ``app`` or ``<x>_app``
+        attr = ref.split(":", 1)[1]
+        if attr != "app" and not (attr.endswith("_app") and len(attr) > len("_app")):
+            raise ModuleLoadError(f"module {name!r}: {kind} names no group attribute")
     package = ref.split(":", 1)[0]
     own = f"tl_mod_{name}"
     if package == own or package.startswith(own + "."):
@@ -679,27 +686,59 @@ def resolve_hook(spec: ModuleSpec, kind: str) -> tuple[object, ...]:
         raise _unresolved(spec, kind) from None
 
 
-def _collect_commands() -> tuple[list[ModuleCommand], dict[str, str]]:
+def core_command_names() -> frozenset[str]:
+    """The class names of every ``tl_core`` command imported so far (a module's never count)."""
+    names: set[str] = set()
+    seen: set[type] = set()
+    stack: list[type] = [Command]
+    while stack:
+        for sub in stack.pop().__subclasses__():
+            if sub not in seen:
+                seen.add(sub)
+                stack.append(sub)
+                if sub.__module__.startswith("tl_core."):
+                    names.add(sub.__name__)
+    return frozenset(names)
+
+
+def refused_hook(spec: ModuleSpec, kind: str) -> ModuleHookError:
+    """The fixed error for a hook a surface refuses (a name that is already a core one)."""
+    return _unresolved(spec, kind)
+
+
+def _collect_commands(
+    reserved: Collection[str] = (),
+) -> tuple[list[ModuleCommand], dict[str, str], frozenset[str]]:
+    """Rows, failures by module, and the modules refused for naming a ``reserved`` command."""
     rows: list[ModuleCommand] = []
     failures: dict[str, str] = {}
+    refused: set[str] = set()
     for spec in load_modules():
         try:
             resolved = resolve_hook(spec, "commands")
         except ModuleHookError as exc:
             failures[spec.name] = str(exc)
             continue
-        rows.extend(row for row in resolved if isinstance(row, ModuleCommand))
-    return rows, failures
+        mine = [row for row in resolved if isinstance(row, ModuleCommand)]
+        if any(row.name in reserved for row in mine):
+            failures[spec.name] = str(refused_hook(spec, "commands"))
+            refused.add(spec.name)
+            continue
+        rows.extend(mine)
+    return rows, failures, frozenset(refused)
 
 
-def module_commands() -> tuple[ModuleCommand, ...]:
+def module_commands(reserved: Collection[str] = ()) -> tuple[ModuleCommand, ...]:
     """Every module's commands, module by module in name order, rows in declared order.
 
-    A module whose ``commands`` hook fails is skipped (see ``hook_failures``). A command name
-    declared twice, by two modules or twice in one, raises ``ModuleLoadError``: an ambiguous
-    name stops the process.
+    A module whose ``commands`` hook fails is skipped (see ``hook_failures``). A module that
+    declares a command named in ``reserved`` (the core command names) is skipped whole, with one
+    warning of the fixed text; it never replaces a core row. A command name declared twice, by
+    two modules or twice in one, raises ``ModuleLoadError``: an ambiguous name stops the process.
     """
-    rows, _ = _collect_commands()
+    rows, failures, refused = _collect_commands(reserved)
+    for module in sorted(refused):
+        _log.warning("%s", failures[module])
     owner: dict[str, str] = {}
     for row in rows:
         if row.name in owner:
@@ -709,6 +748,7 @@ def module_commands() -> tuple[ModuleCommand, ...]:
     return tuple(rows)
 
 
-def hook_failures() -> dict[str, str]:
-    """Module name to the fixed message, for modules whose ``commands`` hook did not resolve."""
-    return _collect_commands()[1]
+def hook_failures(reserved: Collection[str] = ()) -> dict[str, str]:
+    """Module name to the fixed message, for modules whose ``commands`` hook did not resolve
+    (or, given ``reserved``, was refused for naming a core command)."""
+    return _collect_commands(reserved)[1]
