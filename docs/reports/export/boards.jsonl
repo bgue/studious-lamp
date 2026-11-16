@@ -345,3 +345,20 @@
 {"increment": "P2-X2", "id": "T09", "kind": "t", "state": "mrg", "review": "f", "sha": "16a9b277", "note": "sim suite + 14 demos grant agents"}
 {"increment": "P2-X2", "id": "T10", "kind": "t", "state": "mrg", "review": "f", "sha": "82757dab", "note": "tui count pins + parity webhook exclusion; plain-walk f7 = load flake"}
 {"increment": "P2-X2", "id": "T11", "kind": "t", "state": "mrg", "review": "f", "sha": "12478945", "note": "schema+api fallout; agent_stopped 403 error row (orch accepted)"}
+{"increment": "P2-X4", "id": "S1", "kind": "p", "state": "mrg", "review": "f", "sha": "9f0bc5ce", "note": "hooks merged (C1)"}
+{"increment": "P2-X4", "id": "S3", "kind": "p", "state": "mrg", "review": "f", "sha": "1afa1cfb", "note": "MCP tools from hooks"}
+{"increment": "P2-X4", "id": "T01", "kind": "t", "state": "mrg", "review": "f", "sha": "1ec89b00", "note": "CLI groups from hooks"}
+{"increment": "P2-X4", "id": "S2", "kind": "p", "state": "mrg", "review": "f", "sha": "ee6fa66e", "note": "API table and routers (C2)"}
+{"increment": "P2-X4", "id": "S4", "kind": "p", "state": "mrg", "review": "f", "sha": "4e39ff78", "note": "review P; APPROVALS"}
+{"increment": "P2-X4", "id": "T02a", "kind": "t", "state": "mrg", "review": "f", "sha": "479f41bb", "note": "review P; amend 1"}
+{"increment": "P2-X4", "id": "T02b", "kind": "t", "state": "mrg", "review": "f", "sha": "338e5265", "note": "review P"}
+{"increment": "P2-X4", "id": "S5", "kind": "p", "state": "mrg", "review": "f", "sha": "30e31f3d", "note": "review P"}
+{"increment": "P2-X4", "id": "S6", "kind": "p", "state": "mrg", "review": "f", "sha": "b28bec8f", "note": "SR-X4 fixes; APPROVALS"}
+{"increment": "P2-X4", "id": "T04", "kind": "t", "state": "mrg", "review": "l", "sha": "b432050f", "note": "review fixes applied"}
+{"increment": "P2-X4", "id": "T05a", "kind": "t", "state": "mrg", "review": "f", "sha": "f9d8323f", "note": "review P"}
+{"increment": "P2-X4", "id": "T05b", "kind": "t", "state": "mrg", "review": "f", "sha": "6208be85", "note": "review P"}
+{"increment": "P2-X4", "id": "T05c", "kind": "t", "state": "mrg", "review": "f", "sha": "b260787d", "note": "demo OK both adapters (C3)"}
+{"increment": "P2-X4", "id": "T06", "kind": "t", "state": "mrg", "review": "l", "sha": "c04751ab", "note": "report cleaned"}
+{"increment": "P2-X4", "id": "F1", "kind": "t", "state": "mrg", "review": "f", "sha": "82e61b40", "note": "stale fixture (core name)"}
+{"increment": "P2-X4", "id": "F2", "kind": "t", "state": "mrg", "review": "f", "sha": "a5f6e924", "note": "requisitions pins, test-only"}
+{"increment": "P2-X4", "id": "F3", "kind": "t", "state": "mrg", "review": "f", "sha": "43cc9630", "note": "reload fixture isolation"}
