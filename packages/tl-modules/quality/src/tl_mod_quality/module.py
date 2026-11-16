@@ -174,7 +174,10 @@ def spec() -> ModuleSpec:
         command_words={c.model.__name__: c.access for c in QUALITY_COMMANDS},
         commands="tl_mod_quality.module:QUALITY_COMMANDS",
         read_routers=("tl_api.routes.punch:router", "tl_api.routes.insp:router"),
-        tools=("tl_mcp.punch_tools:register_punch_tools",),
+        tools=(
+            "tl_mcp.punch_tools:register_punch_tools",
+            "tl_mcp.insp_tools:register_insp_tools",
+        ),
         cli_groups=("tl_cli.punch:app", "tl_cli.insp:app", "tl_cli.checklist:app"),
         # a walkdown raises items offline; each is numbered when it syncs (offline classes)
         offline_drafts={
