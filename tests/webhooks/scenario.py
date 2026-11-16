@@ -303,6 +303,42 @@ MODULE_STREAMS = (
             "PunchItem.Voided",
         ),
     ),
+    # qr (P2-QR): a scan code is issued, then revoked (a rotate writes Revoked plus Issued)
+    ("qr.ScanCode", "ScanCode.Issued", ("ScanCode.Revoked",)),
+    # quality (P2-INSP): a checklist from creation to retirement; two inspections, one cancelled
+    (
+        "quality.Checklist",
+        "Checklist.Created",
+        ("Checklist.Edited", "Checklist.Published", "Checklist.Retired"),
+    ),
+    (
+        "quality.Inspection",
+        "Inspection.Planned",
+        ("Inspection.Scheduled", "Inspection.ResultRecorded", "Inspection.Verified"),
+    ),
+    ("quality.Inspection", "Inspection.Planned", ("Inspection.Cancelled",)),
+    # permits (P2-PTW): a permit through its whole life, one rejected, one cancelled; the isolation
+    # and the gas test (the gas test names its permit: see PARENTS)
+    (
+        "permits.Permit",
+        "Permit.Requested",
+        (
+            "Permit.Approved",
+            "Permit.Issued",
+            "Permit.Suspended",
+            "Permit.Resumed",
+            "Permit.Revalidated",
+            "Permit.Lapsed",
+            "Permit.IsolationLinked",
+            "Permit.IsolationUnlinked",
+            "Permit.HandedBack",
+            "Permit.Closed",
+        ),
+    ),
+    ("permits.Permit", "Permit.Requested", ("Permit.Rejected",)),
+    ("permits.Permit", "Permit.Requested", ("Permit.Cancelled",)),
+    ("permits.Isolation", "Isolation.Applied", ("Isolation.Verified", "Isolation.Removed")),
+    ("permits.GasTest", "GasTest.Recorded", ()),
     # awp part 3 (P2-I5): weekly plans and closeout
     (
         "awp.WeeklyPlan",
@@ -413,6 +449,7 @@ PARENTS = {
     "documents.ProcessingJob": ("derived_id", "documents.DerivedDocument"),
     "correspondence.CorrespondenceThread": ("governing_item_id", "correspondence.Correspondence"),
     "correspondence.ResponseClock": ("item_id", "correspondence.Correspondence"),
+    "permits.GasTest": ("permit_id", "permits.Permit"),
 }
 #: Events whose sample would change the class of the record to one the subscription owner may not
 #: read; the scenario keeps the record internal so that every event of it is delivered.

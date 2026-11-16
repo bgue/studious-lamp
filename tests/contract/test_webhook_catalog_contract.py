@@ -25,12 +25,40 @@ from world import World
 #: but internal: the dispatcher never delivers them (ADR-0009).
 #: So are the configuration and bookkeeping events of the integration layer (P1-I7, ADR-0017), and a
 #: thread's edits and retractions, which are in the catalog but not delivered (brief 21.5).
+#: Forms events are not in the scenario yet and are not delivered until the DEFERRED row
+#: "envelope schema vs omit" is fixed: a `tl:webhook: omit` field (Template.Created `form_fields`,
+#: Submission `answers`) stays required in the delivered-body schema, so no body can validate.
+#: Temporary; remove these names when that row closes.
+FORMS_DEFERRED_EVENT_TYPES = frozenset(
+    {
+        "Template.Created",
+        "Template.Edited",
+        "Template.Published",
+        "Template.Retired",
+        "Submission.Submitted",
+        "Submission.Accepted",
+        "Submission.Returned",
+        "Submission.Voided",
+        "IntakeCode.Issued",
+        "IntakeCode.Revoked",
+        "IntakeItem.Received",
+        "IntakeItem.Accepted",
+        "IntakeItem.Rejected",
+        "IntakeItem.Purged",
+    }
+)
+#: Draft-only events are permanent exclusions: a draft is visible to its author only, so the
+#: webhook never delivers it (Submission.DraftDiscarded, Submission.DraftSaved).
+DRAFT_ONLY_EVENT_TYPES = frozenset({"Submission.DraftSaved", "Submission.DraftDiscarded"})
+
 DELIVERABLE = (
     set(catalog.event_types())
     - ACCOUNT_EVENT_TYPES
     - STREAM_BUMP_EVENT_TYPES
     - INTEGRATION_INTERNAL_EVENT_TYPES
     - (set(THREAD_EVENT_TYPES) - set(THREAD_WEBHOOK_EVENT_TYPES))
+    - FORMS_DEFERRED_EVENT_TYPES
+    - DRAFT_ONLY_EVENT_TYPES
 )
 
 
