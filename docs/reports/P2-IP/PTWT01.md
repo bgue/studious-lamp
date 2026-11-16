@@ -1,40 +1,31 @@
-# Report — P2-PTW-T01 (harness id P2-IP-PTWT01)
+# Report - P2-PTW-T01 (harness id P2-IP-PTWT01)
 
-Branch: `p2/ptw-t01-views`   Commit(s): one commit, final sha reported by the harness
+Branch: `p2/ptw-t01-views`   Commit(s): see the branch log
 
 ## Deviations
-BLOCKED, not done: the provided test cannot pass without editing it or changing S2 behaviour (see Open questions). Report path is the harness path `docs/reports/P2-IP/PTWT01.md`, not the ticket's Allowed path `docs/reports/P2-PTW/T01.md`. Worktree base is `7f2e512d` (harness), not `p2/ip-r3` (ticket); the harness says its branch supersedes the ticket Branch field.
+- Amendment 1: the provided test issues the restricted-subject permits as `ada` (a controller), not `pam`, because `pam` cannot read a restricted subject. S2 handlers are unchanged.
+- Review fix: the shown state is built in `_row` by `rules.effective_state`. The SQL CASE (`_SHOWN`) stays only for the state filter, the counts and the board split.
+- `permits_for` has no `now` and returns the stored state by contract (`PermitRef`), so it is unchanged.
+- Report path is the harness path `docs/reports/P2-IP/PTWT01.md`. Worktree base is the harness one.
 
 ## Changed files
-- `packages/tl-modules/permits/src/tl_mod_permits/views.py` — bodies of `permit_list`, `permit_detail`, `permit_counts`, `permit_board`, `permits_for`, `export_rows`, plus private helpers; signatures and dataclasses unchanged.
-- `packages/tl-modules/permits/tests/test_views.py` — byte-identical copy of `docs/tickets/P2-PTW/provided/T01_test_views.py`.
-- `docs/reports/P2-IP/PTWT01.md` — this report.
+- `packages/tl-modules/permits/src/tl_mod_permits/views.py` - view bodies; `_row(raw, now)` uses `rules.effective_state`.
+- `packages/tl-modules/permits/tests/test_views.py` - the provided tests with Amendment 1 (ada issues).
+- `packages/tl-modules/permits/tests/test_views_lapse.py` - the SQL filter and `rules.effective_state` agree for valid_until == now, NULL, past, future.
+- `docs/reports/P2-IP/PTWT01.md` - this report.
 
 ## Commands and output
 ```
-$ cmp docs/tickets/P2-PTW/provided/T01_test_views.py packages/tl-modules/permits/tests/test_views.py
-(silent)
-$ just check
-0 errors, 1 warning, 0 informations
-  tests/confidentiality/twin_channels.py:758:5 - warning: Expression value is unused (not in scope)
-CHECK_EXIT=0
-$ just gate packages/tl-modules/permits/tests/test_views.py
-gate: FAIL
-part 1: exit 1, 1 failed, 4 passed, 15 errors in 27.42s
+$ just gate packages/tl-modules/permits/tests/test_views.py packages/tl-modules/permits/tests/test_views_lapse.py packages/tl-modules/permits/tests/test_rules.py
+part 1: exit 0, 88 passed
+gate: PASS
 ```
-Failure cause, all in the test's own setup: `IssuePermit` by `pam` at test line 107 (fixture `built`) and line 292 raises `RecordNotFoundError: no record with that id` from `handlers/common.py:111` (`load_record`, via `confidentiality.require_visible`). The permit's subject is restricted; `pam` is a superuser but not a controller, so it cannot read the subject.
-
-Throwaway check (file deleted, not committed): the same copy with lines 107 and 292 changed from `"pam"` to `"ada"` gives `20 passed in 34.07s`, including the statement-count test (each view at most two statements). Before two view fixes it failed 10 of 20: Requested permits were missing (no state row) and precautions were read as dicts.
-
-## Tests added
-- `packages/tl-modules/permits/tests/test_views.py` — the 20 provided tests, unmodified. Not green on the trunk fixture (see Blocked).
+ruff format and check clean; pyright on the touched files: 0 errors.
 
 ## Learnings (proposed)
-- A Requested permit has no `cur_workflow_state` row; `handlers.common.record_state` defaults it to Requested. Views must LEFT JOIN the state row and COALESCE, or Requested permits vanish from every list and count.
-- `precautions_json` stores `{"id", "text"}` objects, not bare ids; a view that returns the raw list fails the "ticked precaution ids" contract.
-- The ticket's stub and provided test assume a pam issue on a restricted subject succeeds; the handler's viewer rule says it cannot. The fixture and the rule disagree.
+- A Requested permit has no `cur_workflow_state` row; views LEFT JOIN and COALESCE to Requested.
+- `precautions_json` stores `{"id", "text"}` objects; views return the ids.
+- Keep the lapse rule in one place (`rules.effective_state`); a SQL copy needs an agreement test.
 
 ## Open questions / Blocked
-Blocked on the provided test (`docs/tickets/P2-PTW/provided/T01_test_views.py`, lines 107 and 292). The ticket says do not edit the test and write the question here.
-Question for the supervisor: should the fixture issue as a controller (ada or dora, and dora cannot issue a permit it requested, so ada), or should the issue rule for a restricted subject change? I did not change S2 handlers or the test. Decision needed before the gate can pass.
-Also: the report path differs from the ticket's Allowed path; confirm which location the supervisor reads.
+None.

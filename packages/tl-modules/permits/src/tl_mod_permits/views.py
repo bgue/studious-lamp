@@ -22,6 +22,7 @@ from sqlalchemy.engine import RowMapping
 from tl_core import confidentiality
 from tl_core.ledger import iso_utc
 
+from tl_mod_permits import rules
 from tl_mod_permits.names import ACTIVE, LAPSED, PERMIT_TABLE, REQUESTED
 
 #: The most rows one list returns.
@@ -120,7 +121,9 @@ class PermitRef:
 
 # The permit row, its record and its workflow state. A permit with no transition yet has no state
 # row: it is Requested, as ``handlers.common`` reads it. The stored Active is shown Lapsed when its
-# validity has ended at ``:now`` (a NULL end is Lapsed). The for-record is joined for its key only.
+# validity has ended at ``:now`` (a NULL end is Lapsed). ``_SHOWN`` is only for a filter or the
+# count/board split; the state a row shows is built in ``_row`` by ``rules.effective_state``.
+# The for-record is joined for its key only.
 _FROM = (
     f"FROM {PERMIT_TABLE} p JOIN cur_core_record r ON r.id = p.id "
     "LEFT JOIN cur_workflow_state w ON w.record_id = p.id "
@@ -132,7 +135,7 @@ _SHOWN = (
     f"THEN '{LAPSED}' ELSE {_STORED} END"
 )
 _ROW_COLUMNS = (
-    f"r.id, r.key, r.title, {_SHOWN} AS state, p.permit_type, p.area, p.holder, "
+    f"r.id, r.key, r.title, {_STORED} AS state, p.permit_type, p.area, p.holder, "
     "p.issued_at, p.valid_until, p.revalidation_count, p.closed_by, f.key AS for_key"
 )
 _DETAIL_COLUMNS = (
@@ -160,17 +163,18 @@ def _when(value: Any) -> datetime | None:
     return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 
-def _row(raw: RowMapping) -> PermitRow:
+def _row(raw: RowMapping, now: datetime) -> PermitRow:
+    valid_until = _when(raw["valid_until"])
     return PermitRow(
         id=str(raw["id"]),
         key=str(raw["key"]),
         subject=str(raw["title"]),
         permit_type=str(raw["permit_type"]),
-        state=str(raw["state"]),
+        state=rules.effective_state(str(raw["state"]), valid_until, now),
         area=_text(raw["area"]),
         holder=_text(raw["holder"]),
         issued_at=_when(raw["issued_at"]),
-        valid_until=_when(raw["valid_until"]),
+        valid_until=valid_until,
         revalidation_count=int(raw["revalidation_count"] or 0),
         closed_by=_text(raw["closed_by"]),
         for_key=_text(raw["for_key"]),
@@ -223,7 +227,7 @@ def permit_list(
         ),
         params,
     ).mappings()
-    return PermitPage(rows=[_row(raw) for raw in raws], total=int(total))
+    return PermitPage(rows=[_row(raw, now) for raw in raws], total=int(total))
 
 
 def permit_detail(
@@ -252,7 +256,7 @@ def permit_detail(
     if raw is None:
         return None
     return PermitDetail(
-        row=_row(raw),
+        row=_row(raw, now),
         description=_text(raw["description"]),
         location_text=_text(raw["location_text"]),
         requested_by=_text(raw["requested_by"]),
@@ -314,7 +318,7 @@ def permit_board(
     counts: dict[str, int] = dict.fromkeys(LIVE_STATES, 0)
     groups: dict[str | None, list[PermitRow]] = {}
     for raw in conn.execute(statement, params).mappings():
-        row = _row(raw)
+        row = _row(raw, now)
         counts[row.state] += 1
         groups.setdefault(row.area, []).append(row)
     names = sorted(name for name in groups if name is not None)
