@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+from filing_support import grant_filing
 from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core import settings
@@ -15,6 +16,12 @@ from typer.testing import CliRunner
 
 runner = CliRunner()
 AGENT = "agent:triage"
+
+
+def ensure_agent(db: str) -> None:
+    """The agent's account (role user): an agent files only where it holds a module role."""
+    with open_uow(db) as uow:
+        grant_filing(uow, "triage")
 
 
 @pytest.fixture
@@ -41,6 +48,7 @@ def propose(env: dict[str, str]) -> str:
     def factory(readonly: bool = False):  # type: ignore[no-untyped-def]
         return open_uow(env["TL_DB"], readonly=readonly)
 
+    ensure_agent(env["TL_DB"])
     return proposals.submit(
         factory, tool="propose_setting_change", agent=AGENT, command=command, summary="Allow hub"
     ).proposal_id
@@ -86,6 +94,7 @@ def test_a_user_layer_proposal_names_whose_preference_it_changes(env: dict[str, 
     def factory(readonly: bool = False):  # type: ignore[no-untyped-def]
         return open_uow(env["TL_DB"], readonly=readonly)
 
+    ensure_agent(env["TL_DB"])
     pid = proposals.submit(
         factory, tool="propose_setting_change", agent=AGENT, command=command, summary="vim for bob"
     ).proposal_id

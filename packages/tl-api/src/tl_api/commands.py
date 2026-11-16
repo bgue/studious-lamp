@@ -79,7 +79,14 @@ from tl_core.integration.rules.service import (
     handle_revise_rule,
 )
 from tl_core.intent import check_intent, intent_scope, register_command_names
+from tl_core.modules import module_commands
 from tl_core.services import idempotency, links, psets
+from tl_core.services.agent_stop import (
+    ResumeAgent,
+    StopAgent,
+    handle_resume_agent,
+    handle_stop_agent,
+)
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
@@ -99,15 +106,6 @@ from tl_core.threads import messages as thread_messages
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
 from tl_core.workflow.roles import workflow_roles
-from tl_mod_awp.commands import AWP_COMMANDS
-from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
-from tl_mod_cost.commands import API_COMMANDS as COST_COMMANDS
-from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
-from tl_mod_engineering.commands import API_COMMANDS
-from tl_mod_materials.commands import MATERIALS_COMMANDS
-from tl_mod_quality.module import PUNCH_COMMANDS
-from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
-from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS
 
 from tl_api.auth import AGENT_DIRECT_COMMANDS, current_principal, guard
 from tl_api.context import ApiContext, get_ctx
@@ -166,11 +164,6 @@ def effective_access(spec: CommandSpec) -> str:
     return normalise_word(spec.access)
 
 
-def _module_specs(module: str, commands: Iterable[Any]) -> tuple[CommandSpec, ...]:
-    """The ``CommandSpec`` rows of a module's ``API_COMMANDS``, each carrying its module name."""
-    return tuple(CommandSpec(c.model, c.handler, c.access, module=module) for c in commands)
-
-
 COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(CreateRecord, handle_create_record),
     CommandSpec(UpdateRecord, handle_update_record),
@@ -193,8 +186,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(RetractPost, handle_retract_post),
     CommandSpec(ReactToPost, handle_react_to_post),
     CommandSpec(ChangeSetting, handle_change_setting),
-    *_module_specs("engineering", API_COMMANDS),
-    *_module_specs("documents", DOCUMENT_COMMANDS),
     # P1-I7 WS-B: record threads. A message changes no record and never dispatches (D9).
     CommandSpec(thread_messages.PostThreadMessage, thread_messages.handle_post_thread_message),
     CommandSpec(thread_messages.EditThreadMessage, thread_messages.handle_edit_thread_message),
@@ -218,19 +209,27 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(RegisterEnricher, handle_register_enricher, "admin"),
     CommandSpec(ReviseEnricher, handle_revise_enricher, "admin"),
     CommandSpec(SetEnricherEnabled, handle_set_enricher_enabled, "admin"),
+    # P2-X2: the per-agent stop switch is an admin's alone (an agent never runs it, ADR-0009)
+    CommandSpec(StopAgent, handle_stop_agent, "admin"),
+    CommandSpec(ResumeAgent, handle_resume_agent, "admin"),
     # a person runs an enricher on a record, accepts or rejects a value (the target type decides)
     CommandSpec(RunEnricher, handle_run_enricher),
     CommandSpec(AcceptEnrichment, handle_accept_enrichment),
     CommandSpec(RejectEnrichment, handle_reject_enrichment),
-    *_module_specs("correspondence", CORRESPONDENCE_COMMANDS),
     # ADR-0024: core constraints; the word core.constraint.edit is also checked by the handler
     *(CommandSpec(c.model, c.handler, c.access) for c in constraint_commands()),
-    *_module_specs("awp", AWP_COMMANDS),
-    *_module_specs("cost", COST_COMMANDS),
-    *_module_specs("materials", MATERIALS_COMMANDS),
-    *_module_specs("quality", PUNCH_COMMANDS),
-    *_module_specs("schedule", SCHEDULE_COMMANDS),
-    *_module_specs("schemareg", SCHEMAREG_COMMANDS),
+    # every installed module's commands, from its ``commands`` hook (ADR-0029), built once here
+    *(
+        CommandSpec(
+            c.model,
+            c.handler,
+            c.access,
+            module=c.module,
+            needs_holds=c.needs_holds,
+            takes_roles=c.takes_roles,
+        )
+        for c in module_commands()
+    ),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have

@@ -163,6 +163,24 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Agent.Resumed.v1",
+      "event_type": "Agent.Resumed",
+      "payload_class": "AgentResumedPayload",
+      "sample": "samples/Agent.Resumed.v1.json",
+      "schema": "schemas/Agent.Resumed.v1.json",
+      "title": "An admin resumed a stopped agent.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Agent.Stopped.v1",
+      "event_type": "Agent.Stopped",
+      "payload_class": "AgentStoppedPayload",
+      "sample": "samples/Agent.Stopped.v1.json",
+      "schema": "schemas/Agent.Stopped.v1.json",
+      "title": "An admin stopped an agent.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.AgentToken.Issued.v1",
       "event_type": "AgentToken.Issued",
       "payload_class": "AgentTokenIssuedPayload",

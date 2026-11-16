@@ -70,7 +70,7 @@ def test_it_tells_what_to_do_next(root: Path) -> None:
 def test_the_generated_files_pass_ruff_and_their_own_tests(root: Path) -> None:
     tl_new(root, "record-type", "inspection.WeldInspection")
     ruff_clean(root)
-    assert "4 passed" in generated_tests_pass(root, "packages/tl-modules/inspection")
+    assert "7 passed" in generated_tests_pass(root, "packages/tl-modules/inspection")
 
 
 @pytest.mark.parametrize(

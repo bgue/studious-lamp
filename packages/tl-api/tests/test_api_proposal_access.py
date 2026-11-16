@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from harness import Harness
+from harness import Harness, ensure_agent
 from tl_core.auth import accounts, sessions
 from tl_core.auth.password import prepare_password
 from tl_core.services import proposals
@@ -41,6 +41,7 @@ def client_of(harness: Harness, name: str) -> TestClient:
 def propose(
     harness: Harness, tool: str, model: type[PublishDerivedTags | PublishDerivedDocuments]
 ) -> str:
+    ensure_agent(harness, AGENT)  # S1: an agent files only under an explicit grant
     command = model(
         actor=AGENT, source="mcp:triage", scope=SCOPE, derived_id="NOSUCH", expected_content_rev=1
     )

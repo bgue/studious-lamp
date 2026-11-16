@@ -1,0 +1,4 @@
+# Registry lines that predate the module hooks and may stay until they move to a hook (P2-X4 D10).
+# `"<registry file>" = ["<module path, local name or module:attr of the line>", ...]`.
+# Starts empty. An entry that exempts no line (the line moved to a hook) fails the drift test.
+[lines]

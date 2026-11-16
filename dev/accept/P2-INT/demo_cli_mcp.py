@@ -25,7 +25,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from mcp.types import CallToolResult
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "demos"))
+from agent_grant import grant_agent  # noqa: E402
+from mcp.types import CallToolResult  # noqa: E402
 from sqlalchemy import text
 from tl_adapters.db import as_target, display_target, make_engine, make_uow_factory, read_tx
 from tl_api.auth import Forbidden
@@ -98,6 +100,7 @@ def cli_clause(db: str, target_key: str) -> str:
 
 def mcp_clause(db: str, workdir: Path) -> None:
     """``create_record`` through the MCP server with the intent parameter; a proposal is pending."""
+    grant_agent(db, MCP_ACTOR, [SCOPE])  # S1: an agent files only under an explicit grant
     factory = make_uow_factory(as_target(db))
     actions: list[str] = []
 

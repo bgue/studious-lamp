@@ -9,6 +9,10 @@ import pytest
 from pydantic import ValidationError
 from settings_world import ALICE, P1, SRC, World, future
 from tl_adapters.db import open_uow
+from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.queries import find_account
+from tl_core.modules import load_modules
 from tl_core.proposals.types import PROPOSABLE_TOOLS
 from tl_core.services import proposals
 from tl_core.services.errors import (
@@ -24,6 +28,7 @@ from tl_core.services.errors import (
 )
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.settings.types import SETTING_CHANGED
+from tl_core.uow import UnitOfWork
 
 AGENT = "agent:triage"
 TOOL = "propose_setting_change"
@@ -48,7 +53,46 @@ def run(world: World, cmd: ChangeSetting) -> Any:
         return handle_change_setting(uow, cmd)
 
 
+PROJECTS = ("project:P123", "project:P1", "project:P2", "project:P999")
+
+
+def grant_filing(uow: UnitOfWork, name: str, projects: tuple[str, ...] = PROJECTS) -> None:
+    """The agent's account (role user) and an explicit ``user`` grant (P2-X2 S1).
+
+    An agent files only where an admin granted it a module role; a role derived from the account
+    role does not count."""
+    conn = uow.conn()
+    view = find_account(conn, username=name)
+    if view is None:
+        view = accounts.create_account(
+            uow, username=name, display_name=name, kind="agent",
+            roles=["user"], password=None, by="svc:test",
+        )  # fmt: skip
+    if find_account(conn, username="gadmin") is None:
+        accounts.create_account(
+            uow, username="gadmin", display_name="gadmin", kind="person",
+            roles=["admin"], password=None, by="svc:test",
+        )  # fmt: skip
+    targets = [(p, "*") for p in projects]
+    targets += [("company", s.name) for s in load_modules() if s.company_roles][:1]
+    for project, module in targets:
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=project, module=module, role="user", reason="test",
+            ),
+        )  # fmt: skip
+
+
+def ensure_agent(world: World) -> None:
+    """The agent's account (role user): an agent files only where it holds a module role."""
+    with open_uow(world.db) as uow:
+        grant_filing(uow, "triage")
+
+
 def propose(world: World, cmd: ChangeSetting, **kw: Any) -> Any:
+    ensure_agent(world)
     return proposals.submit(
         world.factory,
         tool=TOOL,
@@ -134,7 +178,7 @@ def test_a_proposal_changes_nothing_until_a_person_accepts(world: World) -> None
     assert done.status == "accepted"
     assert world.value("t.limit", project="P1") == 30
     changed = [e for e in world.events() if e.event_type == SETTING_CHANGED][0]
-    created = world.events()[0]
+    created = [e for e in world.events() if e.event_type == "Proposal.Created"][0]
     assert (changed.actor, changed.source) == (ALICE, "mcp:triage")
     assert changed.causation_id == created.event_id
     assert changed.correlation_id == view.proposal_id
@@ -224,6 +268,7 @@ def test_other_proposals_have_no_setting_info(world: World) -> None:
     command = CreateRecord(
         actor=AGENT, source="mcp:triage", scope=P1, record_type="core.Record", title="t", key="K-1"
     )
+    ensure_agent(world)
     shown = proposals.submit(
         world.factory, tool="create_record", agent=AGENT, command=command, summary="x"
     )

@@ -24,6 +24,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`ActivityRef.Defined`](#activityrefdefined) | `tl.core.ActivityRef.Defined.v1` | The first link to an activity made its reference. |
 | [`ActivityRef.PresenceChanged`](#activityrefpresencechanged) | `tl.core.ActivityRef.PresenceChanged.v1` | A publication found the activity gone from the schedule (present false) or back (present true). |
 | [`Adoption.Pinned`](#adoptionpinned) | `tl.core.Adoption.Pinned.v1` | A project pinned a version of a company package. |
+| [`Agent.Resumed`](#agentresumed) | `tl.core.Agent.Resumed.v1` | An admin resumed a stopped agent. |
+| [`Agent.Stopped`](#agentstopped) | `tl.core.Agent.Stopped.v1` | An admin stopped an agent. |
 | [`AgentToken.Issued`](#agenttokenissued) | `tl.core.AgentToken.Issued.v1` | An agent token was issued. |
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
 | [`CWA.Defined`](#cwadefined) | `tl.core.CWA.Defined.v1` | A construction work area was defined. |
@@ -1379,6 +1381,104 @@ A project pinned a version of a company package. The record is created by the fi
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Adoption.Pinned.v1"
+}
+```
+
+## Agent.Resumed
+
+An admin resumed a stopped agent. Internal: never delivered to webhooks.
+
+- CloudEvents type: `tl.core.Agent.Resumed.v1`
+- Ledger payload class: `AgentResumedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agent` | string | yes | The agent actor string, `agent:<name>`. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "agent": "agent:site-bot"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Agent.Resumed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Agent.Resumed.v1"
+}
+```
+
+## Agent.Stopped
+
+An admin stopped an agent. New filings and accepts of its proposals are refused until `Agent.Resumed`. Internal: never delivered to webhooks.
+
+- CloudEvents type: `tl.core.Agent.Stopped.v1`
+- Ledger payload class: `AgentStoppedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agent` | string | yes | The agent actor string, `agent:<name>`. |
+| `reason` | string or null | no | Short reason, no record text. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "agent": "agent:site-bot",
+      "reason": "filing the wrong packages"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Agent.Stopped/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Agent.Stopped.v1"
 }
 ```
 

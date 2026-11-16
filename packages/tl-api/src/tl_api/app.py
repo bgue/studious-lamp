@@ -12,9 +12,9 @@ import logging
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -29,6 +29,7 @@ from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 from tl_core.integration.inbound import store as inbound_store
+from tl_core.modules import ModuleHookError, load_modules, resolve_hook
 from tl_mod_documents.derivation import store as derivation_store
 
 from tl_api import commands
@@ -53,16 +54,9 @@ from tl_api.routes import (
     actions,
     activity,
     admin,
+    agent_stop,
     auth,
-    awp,
-    awp_progress,
-    awp_weeks,
     constraints,
-    correspondence,
-    cost,
-    derivation,
-    documents,
-    engineering,
     events,
     extypes,
     files,
@@ -70,14 +64,9 @@ from tl_api.routes import (
     insights,
     integration,
     links,
-    materials,
     proposals,
-    punch,
     records,
     reference,
-    requisitions,
-    schedule,
-    schemareg,
     threads,
 )
 from tl_api.routes import feed as feed_routes
@@ -169,6 +158,22 @@ def install_error_handlers(app: FastAPI) -> None:
     async def _internal(_: Request, exc: Exception) -> JSONResponse:
         log.error("unhandled error", exc_info=exc)
         return _json(500, ErrorBody(error="internal_error", message="internal server error"))
+
+
+def _include_module_routers(app: FastAPI) -> None:
+    """Register each installed module's read routers, in module-name order, declared order inside.
+
+    A module whose ``read_routers`` hook does not resolve registers none of its routes: the fixed
+    text is logged once and the other modules still register.
+    """
+    for spec in load_modules():
+        try:
+            routers = resolve_hook(spec, "read_routers")
+        except ModuleHookError as exc:
+            log.warning("%s", exc)
+            continue
+        for router in routers:
+            app.include_router(cast(APIRouter, router))
 
 
 def _web_mount() -> Callable[[FastAPI], None] | None:
@@ -325,6 +330,7 @@ def create_app(
         health,
         auth,
         admin,
+        agent_stop,  # P2-X2 T01: stop, resume and list stopped agents (admin only)
         records,
         activity,  # P2-INS-S1: the activity read of a record
         actions,  # P1-UX2: what the caller may do on a record
@@ -336,21 +342,12 @@ def create_app(
         proposals,
         extypes,
         settings_routes,
-        engineering,
-        documents,
-        derivation,
+    ):
+        app.include_router(module.router)
+    _include_module_routers(app)  # the modules' read routes, from their ``read_routers`` hooks
+    for module in (
         integration,
         threads,  # P1-I7 WS-B
-        correspondence,
-        schedule,
-        cost,
-        materials,  # P2-I3-T04a
-        schemareg,  # P1-I8
-        awp_progress,  # P2-I5 T11a1: the progress and count reads (before awp: iwps/counts)
-        awp_weeks,  # P2-I5 T11a2: the weekly-plan and look-ahead reads (before awp)
-        awp,  # P2-I1 T03a: the awp read routes
-        punch,  # P2-PUNCH T03: the punch read routes
-        requisitions,  # P2-I4A T04c1: the requisition and work order read routes
         constraints,  # P2-I2 T04c1: the constraint read routes
         insights,  # P2-INS S2: the Checks read and the one telemetry write
     ):

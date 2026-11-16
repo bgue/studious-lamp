@@ -89,13 +89,12 @@ def test_legacy_has_no_api_commands_and_no_words() -> None:
 
 def test_every_module_row_of_the_api_table_is_in_the_index_and_nothing_else_is() -> None:
     full = command_index()
-    # requisitions has only read routes in the API (``routes/requisitions.py``); its commands run
-    # from the CLI and as MCP proposals, so it has index rows and no API-table rows
+    # requisitions commands are served by the API since P2-X4 S2 (decision Q2), so the table and
+    # the index carry the same rows for every module
     assert any(m == "requisitions" for m, _ in full.values())
-    assert not any(s.module == "requisitions" for s in COMMANDS)
-    index = {n: row for n, row in full.items() if row[0] != "requisitions"}
-    assert {s.name for s in COMMANDS if s.module is not None} == set(index)
-    assert {m for m, _ in index.values()} == {"awp", *API_COMMANDS_OF}
+    assert any(s.module == "requisitions" for s in COMMANDS)
+    assert {s.name for s in COMMANDS if s.module is not None} == set(full)
+    assert {m for m, _ in full.values()} == {"awp", "requisitions", *API_COMMANDS_OF}
     assert {w for _, w in full.values()} <= {"admin", "company", "read", "user", "controller"}
 
 
@@ -218,7 +217,7 @@ class Seams:
 
 
 @pytest.fixture
-def seams(db: DbTarget) -> Iterator[Seams]:
+def seams(db: DbTarget, grant_filing: Callable[..., None]) -> Iterator[Seams]:
     create_schema(db)
     with use_provider(DirectorySchemaProvider(FIXTURES)):
         world = Seams(db)
@@ -228,6 +227,8 @@ def seams(db: DbTarget) -> Iterator[Seams]:
         world.person("sue")
         world.grant("pia", P1, "*", "superuser")
         world.grant("pia", P2, "*", "viewer")
+        with open_uow(db) as uow:
+            grant_filing(uow, "triage", (P1, P2))  # the filing agent of the proposals
         yield world
 
 

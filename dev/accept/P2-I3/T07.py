@@ -29,6 +29,9 @@ from tl_mcp.errors import MAX_PART
 from tl_mcp.materials_tools import MATERIALS_MCP_ACTIONS
 from tl_mcp.server import build_server
 
+sys.path.insert(0, str(Path(__file__).parents[3] / "packages/tl-modules/awp/tests"))
+from progress_world import grant_bot  # noqa: E402
+
 SEED = Path(__file__).resolve().parents[3] / ".accept" / "p2-i3.db"
 SCOPE = "project:P123"
 ACTOR = "agent:triage"
@@ -82,6 +85,7 @@ def run() -> int:
         db = root / "tl.db"
         shutil.copy(SEED, db)
         target = as_target(db)
+        grant_bot(target, ACTOR.split(":", 1)[1])  # P2-X2 S1: an explicit grant
         factory = make_uow_factory(target)
         hook = Hook()
         lake = root / "lake"

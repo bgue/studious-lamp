@@ -5,6 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import ${package}
+from tl_core.modules import resolve_hook
+from ${package}.module import spec
+from ${package}.routes import router
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -16,3 +19,16 @@ def test_the_package_names_its_module() -> None:
 def test_the_schema_header_names_the_module() -> None:
     header = ROOT / "schema" / "modules" / "${name}" / "module.yaml"
     assert "tl:module: ${name}" in header.read_text(encoding="utf-8")
+
+
+def test_the_module_spec_names_the_module() -> None:
+    assert spec().name == "${name}"
+
+
+def test_each_surface_hook_resolves_to_one_object() -> None:
+    for kind in ("read_routers", "tools", "cli_groups"):
+        assert len(resolve_hook(spec(), kind)) == 1
+
+
+def test_the_router_serves_the_one_ping_path() -> None:
+    assert router.url_path_for("ping") == "/modules/${name}/ping"

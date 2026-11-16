@@ -100,6 +100,22 @@ settings:
     risk: advanced
     since: "0.1.0"
 
+  - key: ai.agents.max_pending_per_project
+    type: int
+    default: 100
+    description: How many proposals may wait for review in one queue (a project, or the company)
+    docs: >-
+      A filing is refused with a fixed text while the queue holds this many pending proposals the filing agent
+      may read. A pending proposal that carries a record the agent may not read is not counted for that agent.
+      The cap cannot switch filing off (ai.agents.daily_proposals 0 does that).
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 100000
+    risk: advanced
+    since: "0.1.0"
+
   - key: project.mode
     type: enum
     default: live

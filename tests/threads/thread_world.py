@@ -129,6 +129,31 @@ def make_person(db: DbTarget, username: str, kind: AccountKind = "person", *role
             password=None,
             by="user:a",
         )
+        if kind == "agent":
+            _grant_filing(uow, username)
+
+
+def _grant_filing(uow: Any, username: str) -> None:
+    """An agent files only under an explicit ``user`` grant (P2-X2 S1, ADR-0027 F1)."""
+    from tl_core.auth import accounts
+    from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+    from tl_core.auth.queries import find_account
+
+    conn = uow.conn()
+    view = find_account(conn, username=username)
+    assert view is not None
+    if find_account(conn, username="gadmin") is None:
+        accounts.create_account(
+            uow, username="gadmin", display_name="gadmin", kind="person",
+            roles=["admin"], password=None, by="svc:test",
+        )  # fmt: skip
+    grant_module_role(
+        uow,
+        GrantModuleRole(
+            actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+            project=P1, module="*", role="user", reason="test",
+        ),
+    )  # fmt: skip
 
 
 Holds = Callable[[Access], bool]

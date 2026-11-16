@@ -20,8 +20,11 @@ from sqlalchemy import text
 from tl_adapters.db import as_target, create_schema, open_uow, rebuild_projections
 from tl_core import confidentiality as cf
 from tl_core import modules as core_modules
+from tl_core.auth import accounts
 from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.module_roles import holder_for_actor
+from tl_core.auth.queries import find_account
 from tl_core.constraints.commands import RaiseConstraint
 from tl_core.constraints.handlers import handle_raise_constraint
 from tl_core.modules import ConfidentialSource
@@ -44,6 +47,30 @@ TABLES = (
     ("cur_awp_iwp", "id"),
     ("cur_core_record", "id"),
 )
+
+
+def grant_bot(db: Any, name: str = "bot") -> None:
+    """The agent's account and an explicit ``user`` grant on the scope (P2-X2 S1 filing check)."""
+    with open_uow(db) as uow:
+        conn = uow.conn()
+        view = find_account(conn, username=name)
+        if view is None:
+            view = accounts.create_account(
+                uow, username=name, display_name=name, kind="agent",
+                roles=["user"], password=None, by="svc:test",
+            )  # fmt: skip
+        if find_account(conn, username="gadmin") is None:
+            accounts.create_account(
+                uow, username="gadmin", display_name="gadmin", kind="person",
+                roles=["admin"], password=None, by="svc:test",
+            )  # fmt: skip
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:gadmin", source="test", scope="company", account_id=view.account_id,
+                project=SCOPE, module="*", role="user", reason="test",
+            ),
+        )  # fmt: skip
 
 
 class ProgressWorld:
@@ -329,6 +356,7 @@ def checks(pw: ProgressWorld) -> None:
         steps=[{"scope_item_id": p1, "step": "Material received", "done": True}],  # type: ignore[list-item]
         expected_version=w.version(prop_iwp),
     )
+    grant_bot(w.db)
     with open_uow(w.db) as uow:
         filed = proposals.propose(
             uow, tool="propose_progress", agent="agent:bot", command=command, summary="Material in"
@@ -614,6 +642,7 @@ def week_checks(ww: WeekWorld) -> None:
         committed_hours="12.0",
         expected_version=w.version(plan2),
     )
+    grant_bot(w.db)
     with open_uow(w.db) as uow:
         filed = proposals.propose(
             uow,

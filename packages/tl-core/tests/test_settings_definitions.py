@@ -65,6 +65,7 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "lake.sync.interval",
         "ai.agents.default_mode",
         "ai.agents.daily_proposals",
+        "ai.agents.max_pending_per_project",
         "project.mode",
         "ui.tui.keymap",
         "ui.tui.graphics",

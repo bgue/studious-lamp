@@ -89,31 +89,20 @@ P2_PTW = {
 }
 
 
-#: The seven keys P2-FORMS S2 added (forms and public intake).
-P2_FORMS = {
-    "forms.draft_saves_max",
-    "forms.intake.enabled",
-    "forms.intake.rate_per_address_per_hour",
-    "forms.intake.rate_per_code_per_hour",
-    "forms.intake.pending_per_code_max",
-    "forms.intake.retention_days",
-    "forms.intake.code_max_days",
-}
-
-
-def test_the_platform_file_defines_52_keys_with_those_of_p2_qr_p2_insp_p2_ptw_and_p2_forms(
+def test_the_platform_file_defines_53_keys_with_those_of_p2_x2_p2_qr_p2_insp_p2_ptw_and_p2_forms(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert len(PHASE2) == 12
     # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
     # idempotency.retention_days is the P2-X1 S1 key: neither old nor wave-0.
-    assert len(definitions) == 52
-    assert 52 == OLD_KEYS + len(PHASE2) + 2 + len(P2_I5) + len(P2_QR) + len(P2_PTW) + len(P2_FORMS)
+    # ai.agents.max_pending_per_project is the P2-X2 S2 key: neither old nor wave-0 (the +3).
+    assert len(definitions) == 53
+    assert 53 == OLD_KEYS + len(PHASE2) + 3 + len(P2_I5) + len(P2_QR) + len(P2_PTW) + len(P2_FORMS)
     assert set(PHASE2) <= set(definitions) and P2_I5 <= set(definitions)
     assert P2_QR <= set(definitions) and P2_PTW <= set(definitions)
     assert P2_FORMS <= set(definitions)
     assert len(set(definitions) - set(PHASE2)) == (
-        OLD_KEYS + 2 + len(P2_I5) + len(P2_QR) + len(P2_PTW) + len(P2_FORMS)
+        OLD_KEYS + 3 + len(P2_I5) + len(P2_QR) + len(P2_PTW) + len(P2_FORMS)
     )
 
 

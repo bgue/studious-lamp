@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from filing_support import grant_filing
 from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core.services import proposals
@@ -46,6 +47,12 @@ def factory(env: dict[str, str]) -> Any:
     return open_one
 
 
+def ensure_agent(env: dict[str, str]) -> None:
+    """The agent's account (role user): an agent files only where it holds a module role."""
+    with open_uow(env["TL_DB"]) as uow:
+        grant_filing(uow, "triage")
+
+
 def propose_create(env: dict[str, str], key: str = KEY, scope: str = SCOPE) -> str:
     command = CreateRecord(
         actor=AGENT,
@@ -55,6 +62,7 @@ def propose_create(env: dict[str, str], key: str = KEY, scope: str = SCOPE) -> s
         title="Weld NCR",
         key=key,
     )
+    ensure_agent(env)
     view = proposals.submit(
         factory(env), tool="create_record", agent=AGENT, command=command, summary=f"Create {key}"
     )
@@ -227,6 +235,7 @@ def test_a_proposal_the_record_has_outgrown_fails_loudly_and_changes_nothing(
         layer="standard",
         values={"manufacturer": "Acme"},
     )
+    ensure_agent(env)
     view = proposals.submit(
         factory(env), tool="update_psets", agent=AGENT, command=command, summary="Set maker"
     )
