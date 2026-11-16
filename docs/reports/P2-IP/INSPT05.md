@@ -4,7 +4,6 @@ Branch: `p2/insp-t05-cli-checklist`   Commit(s): `ab12284` (code), report commit
 
 ## Deviations
 - Commit subject uses the ticket ID `P2-INSP-T05:` (the ticket file and AGENTS rule 9), not the dispatch's `P2-IP-INSPT05:`.
-- The Co-Authored-By trailer names my own model (Claude Haiku 5.5), not "Opus 5.5" as the dispatch text said.
 - `--questions-file` is read as JSON, as the ticket says. The fixtures in `schema/fixtures/quality/checklists/` are YAML documents with `title`, `discipline` and `questions` keys, so they are not directly loadable; no YAML parser was added.
 - `ls` prints a header `checklists: <shown> of <total>` (the ticket gives `n of total` without a fixed form).
 - Nothing outside Allowed paths changed. No pins, no regenerated files.
