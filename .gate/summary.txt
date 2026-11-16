@@ -1,5 +1,0 @@
-qr tests (whole dir): 86 passed
-qr_rows + qr rules: 6 passed
-acceptance: S2 ok
-gate-pg qr tests + test_qr_rows: 136 passed
-gate: PASS
