@@ -36347,7 +36347,7 @@
                     },
                     "verified_on": {
                       "description": "YYYY-MM-DD.",
-                      "format": "date-time",
+                      "format": "date",
                       "type": [
                         "string",
                         "null"

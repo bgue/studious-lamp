@@ -430,7 +430,7 @@ classes:
         required: true
       verified_on:
         description: "YYYY-MM-DD."
-        range: datetime
+        range: date
         annotations:
           tl:valid_time: at
       feed_policy:
