@@ -23,7 +23,7 @@ Conflicts and resolutions:
 Pins moved:
 - access words 86 + 10 (scaffold) = 96 (`test_access_words.py`).
 - `load_modules()` 14 + scaffold = 15 (`test_modules_offline.py`, two places).
-- `test_offline_classes.py` OFFLINE_CLASSES: kept 66 (the test passes; no change needed).
+- `test_offline_classes.py` OFFLINE_CLASSES 66 + 2 scaffold types = 68.
 - `test_commands.py` COMMANDS 262 -> 307: + forms 15, permits 16, qr 3, quality inspections 11. Controller-action
   set + 22 names (forms 9, qr 1, inspections 5, permits 7) in `test_commands.py` and
   `test_api_document_controller.py`.
