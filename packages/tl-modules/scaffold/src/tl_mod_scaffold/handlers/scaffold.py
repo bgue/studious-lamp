@@ -205,17 +205,21 @@ def handle_register_scaffold(uow: UnitOfWork, cmd: RegisterScaffold) -> CommandR
     if found is None:
         raise LookupError(f"no scaffold request row for {request.id}")
     made = create_module_record(
+        uow, cmd, record_type=SCAFFOLD, title=cmd.title, description=None, key=None
+    )
+    # the payload names the stream (`record_id` is required by the catalog), which exists only now;
+    # same unit of work, so the envelope and this event commit together
+    registered = append(
         uow,
         cmd,
-        record_type=SCAFFOLD,
-        title=cmd.title,
-        description=None,
-        key=None,
-        extra_events=[
+        made.stream_id,
+        SCAFFOLD,
+        [
             NewEvent(
                 event_type=REGISTERED,
                 payload=silent(
                     {
+                        "record_id": made.stream_id,
                         "request_id": request.id,
                         "for_record_id": found["for_record_id"],
                         "location_text": cmd.location_text,
@@ -245,8 +249,8 @@ def handle_register_scaffold(uow: UnitOfWork, cmd: RegisterScaffold) -> CommandR
     return CommandResult(
         stream_id=made.stream_id,
         key=made.key,
-        version=made.version,
-        events=[*made.events, *linked.events],
+        version=registered.new_version,
+        events=[*made.events, *registered.events, *linked.events],
     )
 
 
