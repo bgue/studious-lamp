@@ -11,7 +11,7 @@ S7c p mrg f 629257b5 security review P; APPROVALS; wave items: code_hash omit, C
 T14 t disp f - webhook scenario rows + envelope fix; in flight
 T13 t mrg f 033059de review P
 T01 t mrg f f29ff533 review P after report fix
-T02 t stg f - runner model; provided test T02_test_forms_runner.py
+T02 t mrg f 376da6cb review P
 I02 t stg f - intake page render; provided test I02_test_intake_page.py
 S7c p stg f - intake commands + tl_core/qr/codes.py (D15)
 W1 p stg f - vendor SurveyJS MIT; owner licence line; free slot
