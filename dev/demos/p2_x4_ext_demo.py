@@ -28,6 +28,7 @@ from fastapi.testclient import TestClient
 from mcp.server.mcpserver.exceptions import ToolError
 from tl_adapters.backend import open_backend
 from tl_adapters.db import DbTarget, as_target, create_schema, make_uow_factory
+from tl_cli import session as session_store
 from tl_core.auth import accounts, sessions
 from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.password import prepare_password
@@ -244,8 +245,22 @@ def clause3(led: Ledger) -> None:
     from tl_cli.main import _add_module_groups  # pyright: ignore[reportPrivateUsage]
 
     _add_module_groups(root, load_modules())
-    environ = {"TL_ENV": "test", "TL_SESSION_FILE": str(led.workdir / "session.json")}
+    session_path = led.workdir / "session.json"
+    environ = {"TL_ENV": "test", "TL_SESSION_FILE": str(session_path)}
+    # a Postgres ledger takes no bare --actor: bob signs in first, as `tl login bob` does
+    os.environ["TL_SESSION_FILE"] = str(session_path)
+    principal, token = sessions.sign_in(open_backend(led.target), username="bob", password=PASSWORD)
+    session_store.save(
+        session_store.StoredSession(
+            target=session_store.db_target(led.target),
+            username="bob",
+            actor=principal.actor,
+            expires_at=session_store.expires_at_from(sessions.SESSION_TTL),
+            token=token,
+        )
+    )
     args = ["ext_demo", "add", cli_key, "--project", "P123", "--title", "Cli", "--body", "x"]
+    args += ["--actor", principal.actor]
     result = CliRunner().invoke(root, args, obj=led.target, env=environ)
     check(
         (result.exit_code, result.output.strip()) == (0, f"added {cli_key}"),

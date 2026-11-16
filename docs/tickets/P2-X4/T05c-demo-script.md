@@ -55,3 +55,8 @@ Standard report; the seven PASS lines (≤ 8 lines).
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment 1 (orchestrator, 2026-11-16; review F2)
+On Postgres the demo is not a dev setup, so clause 3's CLI add needs a signed-in session. `dev/demos/p2_x4_ext_demo.py`
+clause3 signs bob in (`sessions.sign_in`, saved through the CLI session store) before the add; that driver file is allowed
+for this change only. No product code changes.
