@@ -1,4 +1,4 @@
-"""Acceptance for P2-I2-T06b: five n_a readiness checks (awp). SQLite, exit 0, one ``PASS <check>``
+"""Acceptance for P2-I2-T06b: four n_a readiness checks (awp). SQLite, exit 0, one ``PASS <check>``
 line per check; ``FAIL <check>`` and exit 1 otherwise.
 
 Run: ``uv run python dev/accept/P2-I2/T06b.py``.
@@ -25,11 +25,9 @@ TODAY = date(2026, 10, 30)
 RECORD_TYPES = frozenset({"awp.IWP", "documents.Revision"})
 MATERIALS = "materials_reserved"
 
+# inspections_planned is no longer a placeholder: the quality module registers it (P2-INSP-S3).
 EXPECTED: dict[str, str] = {
     "permits_planned": "not applicable yet: permit records are built in Phase 3",
-    "inspections_planned": (
-        "not applicable yet: inspection and test plan records are built in Phase 3"
-    ),
     "labour_requested": (
         "not applicable yet: labour requisitions arrive with the requisitions module"
     ),
@@ -67,7 +65,7 @@ def main() -> int:
         assert MATERIALS in checks, "materials_reserved is no longer loaded"
         assert not (set(EXPECTED) & {MATERIALS}), "a name collides with materials_reserved"
 
-    check_one("load_checks finds the five names", loaded)
+    check_one("load_checks finds the four names", loaded)
 
     for name, detail in EXPECTED.items():
 

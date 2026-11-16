@@ -15,6 +15,9 @@ dependencies = [
 [project.entry-points."throughline.modules"]
 quality = "tl_mod_quality.module:spec"
 
+[project.entry-points."throughline.readiness_checks"]
+inspections_planned = "tl_mod_quality.checks:inspections_planned"
+
 [project.entry-points."throughline.scan_cards"]
 quality_inspection = "tl_mod_quality.scan_card:provider"
 
