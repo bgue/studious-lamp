@@ -114,6 +114,8 @@ READING = (
         "list_kpis",
     }  # T11c
     | {"list_requisitions", "get_requisition", "list_work_orders", "get_work_order"}  # T08b
+    | {"list_permits", "get_permit", "permit_board"}  # PTW-T08: permit reads
+    | {"list_inspections", "get_inspection", "list_checklists", "get_checklist"}  # P2-INSP-T07
 )
 TOOLS = (
     READING
@@ -134,6 +136,8 @@ TOOLS = (
         "list_kpis",
     }  # T11c
     | {"propose_requisition"}  # T08b
+    | {"propose_permit"}  # PTW-T08: permit proposal
+    | {"propose_inspection"}  # P2-INSP-T07: planning proposal
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 
