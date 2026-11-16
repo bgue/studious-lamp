@@ -175,7 +175,7 @@ def spec() -> ModuleSpec:
         commands="tl_mod_quality.module:QUALITY_COMMANDS",
         read_routers=("tl_api.routes.punch:router",),
         tools=("tl_mcp.punch_tools:register_punch_tools",),
-        cli_groups=("tl_cli.punch:app", "tl_cli.insp:app"),
+        cli_groups=("tl_cli.punch:app", "tl_cli.insp:app", "tl_cli.checklist:app"),
         # a walkdown raises items offline; each is numbered when it syncs (offline classes)
         offline_drafts={
             PUNCH_ITEM: frozenset({"RaisePunchItem"}),
