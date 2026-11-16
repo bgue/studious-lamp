@@ -1,58 +1,60 @@
 # Report — P2-QR-T11 (demo `dev/demos/P2-QR.sh`)
 
-Branch: `p2/qr-t11-demo`   Commit(s): the report commit on this branch (no demo files created)
+Branch: `p2/qr-t11-demo`   Commit(s): the demo commit on top of `3f6720d1` (blocked report, superseded)
 
 ## Deviations
-1. Blocked before any demo file was written: `dev/demos/P2-QR.sh` and `dev/demos/p2_qr_demo.py` are not created (clause 1 cannot be set up with the verbs the ticket names, see Blocked).
-2. Worktree is the dispatched `/home/user/wt/ip4/qrt11` (the ticket's `/home/user/wt/qr/t11` path is superseded). Branch is `p2/qr-t11-demo`, base `380e03f7`.
-3. Report path is the dispatched `docs/reports/P2-IP/QRT11.md`.
+1. NOT DONE: `just demo P2-QR` exits 1. SQLite passes 8 of 8; Postgres passes clauses 1-6 and fails at clause 7 (Open questions 1).
+2. Agent grant by the admin CLI (`tl admin user add triage --kind agent`, `tl admin roles grant triage --module '*' --role user`), not `dev/demos/agent_grant.py`, which raises `AttributeError: 'PostgresUowFactory' object has no attribute 'close'` on Postgres. Outside Allowed paths; not edited.
+3. No QR is drawn: `segno` (the `labels` extra) is not installed, so every label carries the no-QR note. The QR text is checked only when an SVG is present.
+4. Clause 3's hidden miss is a permit made `--for` a correspondence item that `dora` restricts after the label. No command restricts an IWP or an inspection. A `visible` check proves uma sees the card before the restriction.
+5. Grants beyond the ticket: `sue` module superuser on `awp`, `quality`, `permits`, `qr` (revoke needs the QR controller word); `dora` on `documents`.
+6. Ruling (a): base address in a scratch copy of `platform.yaml` under the demo's temp dir; `TL_SETTINGS_PLATFORM_FILE` only inside the label calls; shipped file unchanged.
 
 ## Changed files
+- `dev/demos/P2-QR.sh` — new, executable: setup, eight clauses, cleanup trap.
+- `dev/demos/p2_qr_demo.py` — new: platform copy, label check, web clauses, card compare, no-code, export compare.
 - `docs/reports/P2-IP/QRT11.md` — this report.
 
 ## Commands and output
 ```
-$ uv sync --all-packages
-Resolved 183 packages in 3ms
-Checked 177 packages in 3ms
-$ TL_ENV=dev TL_DB=<scratch>/x.db uv run tl init --dev   -> exit 0
-$ TL_DB=<scratch>/x.db uv run tl config set api.public_base_url http://127.0.0.1:9999 --company
-error: api.public_base_url cannot be set at the company layer; it is set at: nowhere (it is a platform default only)
-$ ... tl config set api.public_base_url http://127.0.0.1:9999 --project P123
-error: api.public_base_url cannot be set at the project layer; it is set at: nowhere (it is a platform default only)
+$ uv run ruff format --check dev/demos/p2_qr_demo.py  -> 1 file already formatted
+$ uv run ruff check dev/demos/p2_qr_demo.py           -> All checks passed!
+$ uv run pyright dev/demos/p2_qr_demo.py              -> 0 errors, 0 warnings, 0 informations
+$ TL_DEMO_BACKENDS=sqlite bash dev/demos/P2-QR.sh     -> "[sqlite] clauses 1-8 passed", exit 0
+$ just demo P2-QR                                     -> exit 1 after 1407 s (sqlite ~10 min, postgres ~13 min)
+sqlite (5 decisive PASS lines; clauses 2, 5, 7 also PASS):
+PASS clause 1: unset: refused "error: set api.public_base_url first", no file; set: label, no key/id/project
+PASS clause 3: malformed, unknown, revoked, hidden: byte-identical 404 pages and headers (Date aside)
+PASS clause 4: rotated <old> to <new>; ls "scan codes: 3", no code; eleventh lookup 429
+PASS clause 6: agent 401 (scan path), 403 (/qr/codes, /qr/resolve); export rows equal ls rows
+PASS clause 8: inspection "HOLD POINT - not released"; permit "REQUESTED - not approved"; CLI equal to web
+postgres: clauses 1-6 PASS (same lines). Then:
+FAIL uma's scan gave 500, not a card  (driver card-compare, clause 7)
+pg8000 FATAL 57P03 "the database system is in recovery mode"; recipe `demo` exit 1
+Timing: postgres signed-in card lookups 114-120 s (SQLite 2-4 s).
 ```
-Supporting check (scratch copy, not committed): `schema/settings/platform.yaml` copied to the scratchpad with the default of `api.public_base_url` set to `http://127.0.0.1:8099`, loaded with `TL_SETTINGS_PLATFORM_FILE`, then `tl config get api.public_base_url` printed `http://127.0.0.1:8099`.
 
-Acceptance (`ruff format/check`, `pyright`, `just demo P2-QR`) not run: the files they check do not exist yet.
-
-## Clause surfaces (for the demo once unblocked)
-1. Label — CLI (`tl qr label`, file read as in `test_cli_qr.py`).
-2. Signed-out and signed-in page — web (`/web/q/...`, sign-in per `P2-WEB1.sh`).
-3. Misses — web (404 bytes and headers equal for uma).
-4. Rotate and `ls` — CLI, plus web for the old code.
-5. Scaffold card — deferred: `packages/tl-modules/` has no `scaffold` module, so no `scan_card` exists.
-6. Agents and export — web (401 for the agent token), API (403 guard), CLI (`export` equals `ls`).
-7. Resolve — CLI (`tl qr resolve`, code on stdin).
-8. Inspection and permit labels — web card (the inspection and permit scan cards), CLI label.
-
-## The one comparison per clause that would fail if the feature broke
-1. The file scan for KEY, PROJECT, register id, record id and the 16-character code outside the grouped print.
-2. The 303 `Location` of `/web/q/<code>` and `/web/q/<nonsense>`, compared after removing the `next` value.
-3. Status, bytes and headers of the five misses for uma, compared byte by byte.
-4. The old code's status (404) against the new code's card, and the `ls` rows for both codes.
-5. Not applicable (deferred).
-6. The 401 on the web path and 403 on the register path for the agent, before any lookup; `export` rows equal `ls` rows field by field.
-7. The stdout card text equals the page's banner and lines.
-8. The inspection banner by its state and `REQUESTED - not approved` for the permit.
+## Clauses: surface, and the comparison that fails if the feature breaks
+1. CLI + file. Output and file hold no KEY, record id, project or register id outside the grouped print, and no code.
+2. Web. Signed-out code and nonsense path: 303, same body, same Location before `?`; uma's card key = KEY.
+3. Web. Malformed, unknown, revoked and hidden codes for uma: status, headers (Date aside) and body equal.
+4. Web + CLI. Old code 404; new code's card; `ls` lists old, revoked and new rows; eleventh lookup 429.
+5. None. The driver checks `tl_mod_scaffold` has no `scan_card`.
+6. API (403 on `/qr/codes`, `/qr/resolve`), web (401 agent, 404 uma), CLI (`export` jsonl equals `ls`, field by field).
+7. CLI (`tl qr resolve`, stdin) against uma's card: banner, key, title and lines equal.
+8. Web + CLI. Inspection banner by state; permit banner equal to `REQUESTED - not approved`.
+MCP: none.
 
 ## Tests added
 none (the ticket adds a demo, not tests).
 
 ## Learnings (proposed)
-- `api.public_base_url` is platform-only: `tl config set` refuses it at both company and project layers with "it is set at: nowhere". The only way to give it a value found is a platform file, `TL_SETTINGS_PLATFORM_FILE`. The ticket's "set through the settings CLI" cannot happen as written.
+- `agent_grant.py` cannot run on Postgres (`PostgresUowFactory` has no `close`); a dev/demos ticket should fix it.
+- On this host Postgres card lookups take about 115 s. The kernel OOM-killed Postgres backends three times this session at 7.5-8.8 GB anon RSS, on the scan lookup path (core hidden filter; core unchanged).
+- Permits can be made `--for` a correspondence item and hidden by restricting it; IWPs and inspections cannot be restricted by a command.
+- The miss counter is 10 per session and 30 per address in 600 s; every demo miss from one address counts toward 30.
 
 ## Open questions / Blocked
-Clause 1 (and every later clause that needs a label) requires the base URL to be set, and the ticket names only the settings CLI. Options:
-(a) The demo writes a scratch copy of `schema/settings/platform.yaml` with `api.public_base_url` set, and exports `TL_SETTINGS_PLATFORM_FILE` for the label calls only. Unset state is the shipped file. No package or schema change. Needs the supervisor to accept a platform file as the demo's way to set a platform key.
-(b) A CLI or dev-seed change that lets a platform key be set (out of this ticket's Allowed paths; escalation trigger).
-Which of (a) or (b) should I use? I have not built either.
+1. Acceptance not met on Postgres: clause 7 fails because a backend was OOM-killed during a card lookup. Decide: (a) accept a SQLite pass with the Postgres failure logged; (b) a core ticket for the hidden-filter memory growth (outside these paths); (c) rerun on a host with more memory.
+2. QR text unverified here. Install the `labels` extra (`segno`), or accept the no-QR note? The ticket does not name the extra, so it is not added.
+3. `agent_grant.py` Postgres bug: a separate dev/demos ticket, if wanted.
