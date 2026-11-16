@@ -35,10 +35,10 @@ Purpose: scaffold a new module, add one record type and one command row, and kno
    ```
    uv run tl new record-type inspection.Finding
    ```
-   Expected: a schema stub, a handler, tests and a spec page for the class are written. The record's confidentiality class is set when the type is added (see the Reads section below).
+   Expected: a schema stub, a handler, tests and a spec page for the class are written. The scaffold does not set a confidentiality class; the module declares it on `ModuleSpec.confidential` (see the Reads section below).
 5. Add a command row. Each module lists its commands in `COMMANDS` in `<package>/commands.py`. A row is a `tl_core.modules.ModuleCommand` with these fields:
    - `module`: the module name.
-   - `model`: the Command class. Its class name is the command name. The name must be unique across all installed modules; a clash stops the process at load.
+   - `model`: the Command class. Its class name is the command name. The name must be unique across all installed modules, and must not equal a core command name (see Names a module may not reuse below).
    - `handler`: a callable `(UnitOfWork, Any) -> CommandResult`.
    - `access`: the access word the person needs to run it.
    - `meta`: a `delegation` mark, for example `{"delegation": "excluded:reserved"}`. The value is `eligible` or `excluded:<reason>`. A missing mark means excluded.
@@ -65,6 +65,12 @@ All three live in the module's own package, `tl_mod_<name>`, and are named by a 
 - A reference to anything outside the module's own package is refused (ADR-0029). Only the 11 in-tree modules may name `tl_api.routes.`, `tl_mcp.` or `tl_cli.` references.
 - The TUI is not hooked. Screens still import modules by name. A module without its own screens reads through the generic record views.
 
+## Names a module may not reuse
+- A module may not reuse a core command name, MCP tool name, CLI group name, route path or `command_words` key. Start-up clash checks refuse the whole hook of a module that does (`tl_core.modules.core_command_names` and `refused_hook`; the router mount in `tl_api/app.py`). The refusal is the same fixed message as an unresolvable hook.
+- Module routers mount after the core routers, and every route needs a `guard(...)` dependency or the router is refused.
+- `tl new module` refuses a name that is a core name.
+- Module MCP resources and prompts are refused for now; a module registers tools only.
+
 ## Agents: closed by default
 - An agent may call only the actions on its allow list.
 - A module tool's action is `mcp.<tool>`, for example `mcp.<name>_ping`.
@@ -73,7 +79,7 @@ All three live in the module's own package, `tl_mod_<name>`, and are named by a 
 - Routes: agents hold `document.read` and the other `AGENT_ACTIONS` only. A new route is denied to agents until someone allows it.
 
 ## Reads and confidentiality
-- A route or tool that returns record text reads through the viewer's class filter (`tl_core.confidentiality`, ADR-0016). The spec names the source with `ConfidentialSource`.
+- A route or tool that returns record text reads through the viewer's class filter (`tl_core.confidentiality`, ADR-0016). The module declares each source as a `ConfidentialSource` in `ModuleSpec.confidential` (`tl_core/modules.py`); the record-type scaffold does not.
 - A hidden record answers exactly as a missing one: same status, same text, same count.
 - Worked example: `tests/ext_demo/` (see `tests/ext_demo/README.md`). It is a test fixture and is never installed. Its tests are `tests/services/test_ext_demo_conformance.py`, `packages/tl-api/tests/test_ext_demo_api.py` and `packages/tl-mcp/tests/test_ext_demo_mcp.py`.
 
