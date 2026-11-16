@@ -229,6 +229,11 @@ from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
 from tl_mod_materials.commands import MATERIALS_COMMANDS
+from tl_mod_permits import MODULE as PERMIT_MODULE
+from tl_mod_permits import iso_views as permit_iso_views
+from tl_mod_permits import routes as permit_routes
+from tl_mod_permits import views as permit_views
+from tl_mod_permits.module import COMMANDS as PERMIT_COMMANDS
 from tl_mod_quality import MODULE as QUALITY_MODULE
 from tl_mod_quality import insp_views
 from tl_mod_quality import views as punch_views
@@ -1918,6 +1923,124 @@ class EmbeddedClient:
             if detail is None:
                 raise RecordNotFoundError(insp_routes.MSG_CHECKLIST_NOT_FOUND)
             return detail
+
+    # --- permits: permits, isolations and gas tests (P2-PTW-T10) -----------------------------
+    #
+    # The same calls the routes make (``tl_mod_permits.routes``), under the signed-in person's
+    # viewer (``_uow`` sets it), after the same ``permits.view`` check on the project. Lapsed is
+    # read at ``utcnow()``. A missing or hidden permit or isolation is one ``RecordNotFoundError``,
+    # with the route's text.
+
+    def _require_permit_view(self, uow: UnitOfWork, project: str) -> None:
+        require_word(
+            uow.conn(),
+            holder_for_actor(uow.conn(), self.actor),
+            scope=f"project:{project}",
+            module=PERMIT_MODULE,
+            word=normalise_word(permit_routes.VIEW_WORD),
+            what=permit_routes.VIEW_WORD,
+        )
+
+    def list_permits(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        permit_type: str | None = None,
+        area: str | None = None,
+        holder: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> permit_views.PermitPage:
+        with self._uow(True) as uow:
+            self._require_permit_view(uow, project)
+            return permit_views.permit_list(
+                uow.conn(),
+                f"project:{project}",
+                now=utcnow(),
+                state=state,
+                permit_type=permit_type,
+                area=area,
+                holder=holder,
+                limit=limit,
+                offset=offset,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def get_permit(self, project: str, key: str) -> permit_views.PermitDetail:
+        with self._uow(True) as uow:
+            self._require_permit_view(uow, project)
+            detail = permit_views.permit_detail(
+                uow.conn(),
+                f"project:{project}",
+                key,
+                now=utcnow(),
+                viewer=confidentiality.current_viewer(),
+            )
+            if detail is None:
+                raise RecordNotFoundError(permit_routes.MSG_NOT_FOUND)
+            return detail
+
+    def get_permit_board(
+        self, project: str, *, area: str | None = None
+    ) -> permit_views.PermitBoard:
+        with self._uow(True) as uow:
+            self._require_permit_view(uow, project)
+            return permit_views.permit_board(
+                uow.conn(),
+                f"project:{project}",
+                area,
+                now=utcnow(),
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def list_isolations(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        energy: str | None = None,
+        limit: int = 100,
+    ) -> permit_iso_views.IsolationPage:
+        with self._uow(True) as uow:
+            self._require_permit_view(uow, project)
+            return permit_iso_views.isolation_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                energy=energy,
+                limit=limit,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def get_isolation(self, project: str, key: str) -> permit_iso_views.IsolationDetail:
+        with self._uow(True) as uow:
+            self._require_permit_view(uow, project)
+            detail = permit_iso_views.isolation_detail(
+                uow.conn(),
+                f"project:{project}",
+                key,
+                viewer=confidentiality.current_viewer(),
+            )
+            if detail is None:
+                raise RecordNotFoundError(permit_routes.MSG_NO_ISOLATION)
+            return detail
+
+    def list_gas_tests(self, project: str, permit_key: str) -> list[permit_iso_views.GasRow]:
+        with self._uow(True) as uow:
+            self._require_permit_view(uow, project)
+            viewer = confidentiality.current_viewer()
+            permit = permit_views.permit_detail(
+                uow.conn(), f"project:{project}", permit_key, now=utcnow(), viewer=viewer
+            )
+            if permit is None:
+                raise RecordNotFoundError(permit_routes.MSG_NOT_FOUND)
+            return permit_iso_views.gas_tests_for(uow.conn(), permit.row.id, viewer=viewer)
+
+    def permit_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a permit command by name (a model of ``tl_mod_permits.module.COMMANDS``, as the
+        person)."""
+        return self._module_command(name, cmd, PERMIT_COMMANDS, "permit")
 
     # --- the awp module (P2-I1 T03b): the reads the API routes serve, under the viewer's filter --
 
