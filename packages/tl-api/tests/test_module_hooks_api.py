@@ -16,10 +16,11 @@ from typing import Any
 
 import pytest
 import tl_api.commands as commands_module
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from harness import Harness
 from test_api_requisitions import PROJECT, Rig, load_world, rig  # noqa: F401
 from tl_api.app import create_app
+from tl_api.auth import guard
 from tl_api.tokens import TokenStore, add_token
 from tl_core import intent
 from tl_core import modules as tl_modules
@@ -470,7 +471,7 @@ def fake_packages() -> Iterator[None]:
     router = APIRouter()
 
     @router.get("/x4fake/ping", name="x4fake_ping")
-    def ping() -> dict[str, str]:
+    def ping(actor: str = Depends(guard("x4fake.ping"))) -> dict[str, str]:
         return {"ok": "yes"}
 
     fake.ROUTER = router  # type: ignore[attr-defined]
