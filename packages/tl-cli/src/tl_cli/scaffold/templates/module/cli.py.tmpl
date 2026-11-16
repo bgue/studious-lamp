@@ -1,0 +1,19 @@
+"""The example CLI group of the ${name} module (`tl new module`; ADR-0029).
+
+The hook ref `<package>.cli:${name}_app` names the group `${name}`.
+An attribute `<x>_app` gives the group `<x>`.
+"""
+
+from __future__ import annotations
+
+import typer
+
+from ${package} import MODULE
+
+${name}_app = typer.Typer(no_args_is_help=True)
+
+
+@${name}_app.command()
+def ping() -> None:
+    """Print the module name."""
+    typer.echo(MODULE)
