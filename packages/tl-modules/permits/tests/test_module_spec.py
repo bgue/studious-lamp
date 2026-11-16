@@ -1,4 +1,4 @@
-"""The permits module spec (P2-PTW S1): loads, three record types, no commands, no proposable."""
+"""The permits module spec (P2-PTW S1, S2): three record types, ten commands, four hook kinds."""
 
 from __future__ import annotations
 
@@ -35,12 +35,26 @@ def test_the_module_loads_with_three_record_types() -> None:
     ]
 
 
-def test_no_commands_no_proposable_no_generic_rows_no_hooks() -> None:
+def test_ten_commands_one_proposable_row_and_four_hook_kinds() -> None:
     built = spec()
-    assert dict(built.command_words) == {}
-    assert built.proposable == ()
+    assert len(dict(built.command_words)) == 10
+    assert [p.tool for p in built.proposable] == ["propose_permit"]
     assert not built.generic_commands and not built.generic_guards
     assert not built.actions and not built.offline_drafts and not built.company_roles
+    assert built.commands == "tl_mod_permits.module:COMMANDS"
+    assert built.read_routers == ("tl_mod_permits.routes:router",)
+    assert built.tools == ("tl_mod_permits.tools:register_tools",)
+    assert built.cli_groups == (
+        "tl_mod_permits.cli:permit_app",
+        "tl_mod_permits.cli:isolation_app",
+        "tl_mod_permits.cli:gastest_app",
+    )
+
+
+def test_every_hook_ref_starts_with_the_modules_own_package() -> None:
+    built = spec()
+    refs = [built.commands, *built.read_routers, *built.tools, *built.cli_groups]
+    assert refs and all(str(r).startswith("tl_mod_permits") for r in refs)
 
 
 def test_the_platform_discovers_the_module_through_its_entry_point() -> None:

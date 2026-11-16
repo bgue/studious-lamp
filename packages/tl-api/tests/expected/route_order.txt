@@ -437,3 +437,13 @@ POST /commands/AdoptSchemaSet
 POST /commands/RequestWaiver
 POST /commands/ApproveWaiver
 POST /commands/RevokeWaiver
+POST /commands/ApprovePermit
+POST /commands/CancelPermit
+POST /commands/ClosePermit
+POST /commands/HandBackPermit
+POST /commands/IssuePermit
+POST /commands/RejectPermit
+POST /commands/RequestPermit
+POST /commands/ResumePermit
+POST /commands/RevalidatePermit
+POST /commands/SuspendPermit

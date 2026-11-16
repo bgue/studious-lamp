@@ -179,6 +179,12 @@ SUBJECT_LINKS: Final = (
     ("forms.Submission", "cur_forms_submission", "id", "subject_id"),
     ("forms.IntakeItem", "cur_forms_intake_item", "id", "code_id"),
     ("forms.IntakeCode", "cur_forms_intake_code", "id", "context_id"),
+    # permits (P2-PTW S2). A permit is hidden through the record the work is for. A gas test is
+    # hidden through its permit (the second hop reaches the permit's ``for_record_id``). An
+    # isolation with no ``point_record_id`` is its own subject and stays at the lowest class.
+    ("permits.Permit", "cur_permits_permit", "id", "for_record_id"),
+    ("permits.Isolation", "cur_permits_isolation", "id", "point_record_id"),
+    ("permits.GasTest", "cur_permits_gas_test", "id", "permit_id"),
 )
 _HOPS: Final = 2
 #: Record types whose own source row is also checked when a subject governs: a submission's

@@ -31,6 +31,8 @@ HANDED_BACK: Final = "Handed back"
 CLOSED: Final = "Closed"
 REJECTED: Final = "Rejected"
 CANCELLED: Final = "Cancelled"
+#: What an Active permit past its ``valid_until`` is shown as (``rules.effective_state``).
+LAPSED: Final = "Lapsed"
 PERMIT_STATES: Final = (
     REQUESTED,
     APPROVED,

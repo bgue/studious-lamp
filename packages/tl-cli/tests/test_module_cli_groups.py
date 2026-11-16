@@ -63,6 +63,9 @@ OLD_GROUPS = [
     "archive",
     "ledger",
     "projections",
+    "permit",  # P2-PTW S2: the permits module groups (empty until T04, T05)
+    "isolation",
+    "gastest",
 ]
 
 OLD_SUBGROUPS = {
