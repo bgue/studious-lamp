@@ -4054,7 +4054,6 @@
     "template_hash",
     "context_id",
     "context_type",
-    "heading",
     "controller_role",
     "expires_on",
     "feed_policy"
@@ -9637,7 +9636,6 @@
    "required": [
     "record_id",
     "format_version",
-    "form_fields",
     "field_count",
     "version",
     "feed_policy"
@@ -9660,7 +9658,6 @@
    },
    "required": [
     "record_id",
-    "changes",
     "feed_policy"
    ],
    "type": "object"
