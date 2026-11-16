@@ -237,8 +237,9 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
     assert (
         len(seen)
         == len(COMMANDS) - len(FEED_COMMANDS)
-        == 118 + 19 + 14 + 25 + 10 + 4 + 24 + 4 + 10 + 6 + 2 + 10 + 9
-    )  # P2-I4A: the requisitions module's ten rows (REQUISITIONS_COMMANDS), all refused to agents
+        == 118 + 19 + 14 + 25 + 10 + 4 + 24 + 4 + 10 + 6 + 2 + 10 + 9 + 15 + 16 + 3 + 11
+    )  # forms (15), permits (16), qr (3), inspection commands of quality (11)
+    # P2-I4A: the requisitions module's ten rows (REQUISITIONS_COMMANDS), all refused to agents
     # and the scaffold module's nine (P2-I4B S1)
     # incl. P1-I5, P1-I7 WS-A, RFIs, Commercial (P1-I6: 19), the registry (P1-I8: 14), awp (25),
     # awp IWP and scope commands (P2-I2: 10, the constraint ones left for the core; S3: 4),

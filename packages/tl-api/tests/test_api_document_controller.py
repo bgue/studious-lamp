@@ -117,7 +117,22 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
         "RetireLocation", "VoidReceipt", "AdjustStock", "ScrapStock", "PublishDerivedMto",
     }  # fmt: skip
     # the quality module (P2-PUNCH): verify, reopen and void of a punch item
-    quality = {"VerifyPunchItem", "ReopenPunchItem", "VoidPunchItem"}
+    # and the inspections (P2-INSP): checklist publish, revise and retire; verify, cancel
+    quality = {
+        "VerifyPunchItem", "ReopenPunchItem", "VoidPunchItem", "PublishChecklist",
+        "ReviseChecklist", "RetireChecklist", "VerifyInspection", "CancelInspection",
+    }  # fmt: skip
+    # forms (P2-FORMS), qr (P2-QR) and permits (P2-PTW): the controller's decisions
+    forms = {
+        "PublishFormTemplate", "RetireFormTemplate", "AcceptFormSubmission",
+        "ReturnFormSubmission", "VoidFormSubmission", "IssueIntakeCode", "RevokeIntakeCode",
+        "AcceptIntakeItem", "RejectIntakeItem",
+    }  # fmt: skip
+    qr = {"RevokeScanCode"}
+    permits = {
+        "ApprovePermit", "RejectPermit", "IssuePermit", "ResumePermit", "ClosePermit",
+        "CancelPermit", "VerifyIsolation",
+    }  # fmt: skip
     # the scaffold module (P2-I4B S1): tagging a scaffold green (scaffold.tag.green)
     scaffold = {"TagScaffoldGreen"}
     # P2-I4A: approve/reject a requisition, assign/schedule/close a work order
@@ -143,6 +158,9 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
             | quality
             | requisitions
             | scaffold
+            | forms
+            | qr
+            | permits
         )
     }
 

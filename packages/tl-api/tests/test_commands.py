@@ -38,7 +38,8 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # and the quality module's six punch commands (P2-PUNCH S2) and the admin's StopAgent and
     # ResumeAgent (P2-X2 S3: 2) and the requisitions module's ten (P2-X4 S2: served from the hook)
     # and the scaffold module's nine (P2-I4B S1: register, design, erect, inspect, tag green,
-    # release, modify, dismantle, remove)
+    # release, modify, dismantle, remove) and the forms (15), permits (16), qr (3) modules and
+    # the quality module's inspection commands (11), all served from the module hooks
     counts = (
         20,
         14,
@@ -66,6 +67,10 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
         2,
         10,
         9,
+        15,
+        16,
+        3,
+        11,
     )
     assert len(COMMANDS) == sum(counts)
 
@@ -353,6 +358,29 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "VoidPunchItem",
             # the scaffold module (P2-I4B S1): tagging a scaffold green is a controller word
             "TagScaffoldGreen",
+            # forms, qr, quality inspections and permits (served from the module hooks)
+            "PublishFormTemplate",
+            "RetireFormTemplate",
+            "AcceptFormSubmission",
+            "ReturnFormSubmission",
+            "VoidFormSubmission",
+            "IssueIntakeCode",
+            "RevokeIntakeCode",
+            "AcceptIntakeItem",
+            "RejectIntakeItem",
+            "RevokeScanCode",
+            "PublishChecklist",
+            "ReviseChecklist",
+            "RetireChecklist",
+            "VerifyInspection",
+            "CancelInspection",
+            "ApprovePermit",
+            "RejectPermit",
+            "IssuePermit",
+            "ResumePermit",
+            "ClosePermit",
+            "CancelPermit",
+            "VerifyIsolation",
         )
     }
     assert {s.name for s in COMMANDS if effective_access(s) == "controller"} == {
