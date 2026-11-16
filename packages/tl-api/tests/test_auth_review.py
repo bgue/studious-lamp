@@ -389,6 +389,7 @@ AGENT_MAY_NOT = {
     "admin.agents.stop",  # P2-X2 T01: an agent never stops or resumes an agent, nor lists the stops
     "admin.agents.resume",
     "admin.agents.list",
+    "qr.read",  # P2-QR-T06: the QR register, export and resolve reads are closed to agents
     # P2-X2 T01: the command route actions of the S3 stop commands are closed to agents as well
     "admin.command.StopAgent",
     "admin.command.ResumeAgent",
