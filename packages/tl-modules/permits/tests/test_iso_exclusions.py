@@ -46,3 +46,15 @@ def test_the_six_are_hooked_from_the_modules_own_package() -> None:
     assert {c.model.__module__ for c in COMMANDS if c.model.__name__ in SIX} == {
         "tl_mod_permits.iso_commands"
     }
+
+
+def test_an_agent_token_is_refused_every_one_of_the_six_by_the_common_path() -> None:
+    import pytest
+    from tl_api.auth import AGENT_DIRECT_COMMANDS, AGENT_MUST_PROPOSE, refuse_agent_writes
+    from tl_api.errors import ApiError
+
+    assert not set(SIX) & AGENT_DIRECT_COMMANDS
+    with pytest.raises(ApiError) as caught:
+        refuse_agent_writes("agent:bot")
+    assert caught.value.status == 403 and caught.value.error == AGENT_MUST_PROPOSE
+    refuse_agent_writes("user:uma")
