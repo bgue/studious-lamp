@@ -15,7 +15,7 @@ the inspection screen tests share.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
+from typing import Any, cast
 
 from fakes_punch import FakePunchSupport
 from tl_api.routes.insp import MSG_CHECKLIST_NOT_FOUND, MSG_INSPECTION_NOT_FOUND
@@ -189,6 +189,8 @@ def _inspection(
     done_on: str | None = None,
     punch_keys: Sequence[str] = (),
     cancel_reason: str | None = None,
+    answers: Sequence[dict[str, Any]] = (),
+    failed: Sequence[insp_views.FailedAnswer] = (),
 ) -> insp_views.InspectionDetail:
     """One inspection of the seed: the row and the facts a state carries."""
     scheduled = state in (SCHEDULED, DONE, VERIFIED)
@@ -213,7 +215,7 @@ def _inspection(
         row=row,
         checklist_key="P123-CHK-0002" if scheduled else None,
         checklist_version=1 if scheduled else None,
-        answers=[],
+        answers=list(answers),
         note=None,
         done_at=f"{done_on}T09:00:00Z" if done and done_on else None,
         recorded_by="user:rob" if done else None,
@@ -223,6 +225,7 @@ def _inspection(
         cancel_reason=cancel_reason,
         punch_keys=list(punch_keys),
         version=1,
+        failed=list(failed),
     )
 
 
@@ -230,7 +233,8 @@ def seed_inspections(client: FakeInspSupport, project: str = "P123") -> list[str
     """Six inspections and three checklists for ``project``; the inspection keys in key order.
 
     Inspections: Planned (hold), Scheduled (hold, inspector M. Okafor), Done with a Reject result
-    (witness, one punch item), Verified (review, Pass), Cancelled (surveillance) and Planned for
+    (witness, one punch item, one failed answer "Gauge fitted?" with the note "Gauge
+    missing"), Verified (review, Pass), Cancelled (surveillance) and Planned for
     the work package P123-IWP-0001. Checklists: Draft, Published and Retired.
     """
     inspections = [
@@ -253,6 +257,8 @@ def seed_inspections(client: FakeInspSupport, project: str = "P123") -> list[str
             result="Reject",
             done_on="2026-10-03",
             punch_keys=["P123-PUN-0001"],
+            answers=[{"q": "q1", "value": "no", "note": "Gauge missing"}],
+            failed=[insp_views.FailedAnswer(question="Gauge fitted?", note="Gauge missing")],
         ),
         _inspection(
             4,

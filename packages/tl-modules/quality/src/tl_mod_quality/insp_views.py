@@ -29,6 +29,7 @@ from sqlalchemy import Connection, text
 from sqlalchemy.engine import RowMapping
 from tl_core import confidentiality
 
+from tl_mod_quality.insp_rules import failed_questions
 from tl_mod_quality.names import (
     CANCELLED,
     CHECKLIST_TABLE,
@@ -87,6 +88,12 @@ class InspectionRow:
 
 
 @dataclass(frozen=True)
+class FailedAnswer:
+    question: str  # the checklist question text of the pinned checklist version
+    note: str | None  # the note the answer carries, if any
+
+
+@dataclass(frozen=True)
 class InspectionDetail:
     row: InspectionRow
     checklist_key: str | None
@@ -101,6 +108,9 @@ class InspectionDetail:
     cancel_reason: str | None
     punch_keys: list[str]  # the punch items linked raised_against it, by key
     version: int
+    failed: list[
+        FailedAnswer
+    ]  # the failed answers, in question order; [] when none or not recorded
 
 
 @dataclass(frozen=True)
@@ -150,6 +160,7 @@ _ROW_COLUMNS = (
 )
 _DETAIL_COLUMNS = (
     "ck.key AS checklist_key, i.checklist_version AS checklist_version, "
+    "cl.questions_json AS questions_json, "
     "i.answers_json AS answers_json, i.note AS note, i.recorded_by AS recorded_by, "
     "i.verified_by AS verified_by, i.verified_on AS verified_on, "
     "ro.key AS reinspection_of_key, i.cancel_reason AS cancel_reason, r.version AS version"
@@ -204,6 +215,18 @@ def _row(raw: RowMapping) -> InspectionRow:
         done_on=None if done_at is None else done_at[:10],
         punch_count=int(raw["punch_count"] or 0),
     )
+
+
+def _failed(questions: list[dict[str, Any]], answers: list[dict[str, Any]]) -> list[FailedAnswer]:
+    """The failed answers, by the rules of ``insp_rules`` against the pinned questions: the
+    question's text and the answer's note (never the question id)."""
+    failed = set(failed_questions(questions, answers))
+    by_q = {answer["q"]: answer for answer in answers if isinstance(answer, dict) and "q" in answer}
+    return [
+        FailedAnswer(question=str(question["text"]), note=_text(by_q[question["id"]].get("note")))
+        for question in questions
+        if question["id"] in failed
+    ]
 
 
 def _checklist_row(raw: RowMapping) -> ChecklistRow:
@@ -308,7 +331,11 @@ def inspection_detail(
     """One inspection; ``None`` when it is absent, in another project or hidden."""
     source, params = _joins(viewer)
     visible, extra = confidentiality.not_hidden("r.id", viewer)
-    params.update({**extra, "planned": PLANNED, "scope": scope, "key": key, "no": False})
+    # the pinned checklist's questions, read in this same statement under the same viewer
+    pinned, pinned_params = confidentiality.not_hidden("i.checklist_id", viewer)
+    source += f"LEFT JOIN {CHECKLIST_TABLE} cl ON cl.id = i.checklist_id AND {pinned} "
+    params.update({**extra, **pinned_params})
+    params.update({"planned": PLANNED, "scope": scope, "key": key, "no": False})
     statement = text(
         f"SELECT {_ROW_COLUMNS}, {_DETAIL_COLUMNS} {source} "
         f"WHERE r.scope = :scope AND r.key = :key AND r.voided = :no AND {visible}"
@@ -328,13 +355,15 @@ def inspection_detail(
         ),
         {**punch_extra, "inspection": row.id, "relation": RAISED_AGAINST, "no": False},
     ).mappings()
+    answers: list[dict[str, Any]] = json.loads(str(raw["answers_json"] or "[]"))
+    questions: list[dict[str, Any]] = json.loads(str(raw["questions_json"] or "[]"))
     return InspectionDetail(
         row=row,
         checklist_key=_text(raw["checklist_key"]),
         checklist_version=None
         if raw["checklist_version"] is None
         else int(raw["checklist_version"]),
-        answers=json.loads(str(raw["answers_json"] or "[]")),
+        answers=answers,
         note=_text(raw["note"]),
         done_at=_text(raw["done_at"]),
         recorded_by=_text(raw["recorded_by"]),
@@ -344,6 +373,7 @@ def inspection_detail(
         cancel_reason=_text(raw["cancel_reason"]),
         punch_keys=[str(p["key"]) for p in punch_rows],
         version=int(raw["version"]),
+        failed=_failed(questions, answers),
     )
 
 
