@@ -8,7 +8,8 @@
 <label for="username">Username</label>
 <input type="text" id="username" name="username" value="{{ username }}" autocomplete="username" required>
 <label for="password">Password</label>
-<input type="password" id="password" name="password" autocomplete="current-password" required>
+{% if next %}<input type="hidden" name="next" value="{{ next }}">
+{% endif %}<input type="password" id="password" name="password" autocomplete="current-password" required>
 <p><button type="submit">Sign in</button></p>
 </form>
 </div>

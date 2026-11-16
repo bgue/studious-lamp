@@ -15,13 +15,14 @@ import os
 import re
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, FastAPI, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from tl_api.auth import TOKEN_KEY, guard
+from tl_api.auth import TOKEN_KEY, WEB_SIGN_IN, guard
 from tl_api.context import ApiContext, get_ctx
 from tl_api.errors import body_for
 from tl_api.routes import auth as auth_routes
@@ -46,6 +47,10 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     (b"x-content-type-options", b"nosniff"),
     (b"referrer-policy", b"same-origin"),
 )
+#: The scan area: its own referrer policy, and the one return address a sign-in may carry.
+SCAN_AREA = "/web/q"
+SCAN_NEXT = re.compile(r"/web/q/[A-Z0-9]{16}")
+NO_REFERRER = (b"referrer-policy", b"no-referrer")
 PROJECT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
 # the platform's table may not know module scripts; the worker and pdf.js are .mjs
@@ -61,6 +66,36 @@ def is_web_path(path: str) -> bool:
     return path == "/web" or path.startswith("/web/")
 
 
+def is_scan_path(path: str) -> bool:
+    return path == SCAN_AREA or path.startswith(SCAN_AREA + "/")
+
+
+def headers_for(path: str) -> tuple[tuple[bytes, bytes], ...]:
+    """The security headers of ``path``: the app's, with ``Referrer-Policy: no-referrer`` for the
+    scan area (a code in the address must never leave in a ``Referer``)."""
+    if not is_scan_path(path):
+        return SECURITY_HEADERS
+    return tuple(
+        NO_REFERRER if name == NO_REFERRER[0] else (name, v) for name, v in SECURITY_HEADERS
+    )
+
+
+def safe_next(value: str) -> str:
+    """``value`` when it is exactly a scan path (``/web/q/`` and 16 upper-case letters or digits),
+    else ``""``: the only return address a sign-in may carry (no open redirect)."""
+    return value if SCAN_NEXT.fullmatch(value) else ""
+
+
+def bounce_location(path: str) -> bytes:
+    """Where the sign-in bounce of a scan path goes: the sign-in page, with ``next`` only when the
+    segment typed, upper-cased, is a well-formed code (a malformed one is not echoed)."""
+    segment = path[len(SCAN_AREA) + 1 :]
+    wanted = safe_next(f"{SCAN_AREA}/{segment.upper()}") if segment.isascii() else ""
+    if not wanted:
+        return WEB_SIGN_IN.encode("ascii")
+    return f"{WEB_SIGN_IN}?next={quote(wanted, safe='')}".encode("ascii")
+
+
 class WebHeadersMiddleware:
     """Adds the security headers to every HTTP answer under ``/web``."""
 
@@ -72,11 +107,25 @@ class WebHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        path = scope["path"]
+        scan = is_scan_path(path)
+
         async def with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
-                names = {name for name, _ in SECURITY_HEADERS}
+                ours = headers_for(path)
+                names = {name for name, _ in ours}
                 headers = [(n, v) for n, v in message["headers"] if n.lower() not in names]
-                headers.extend(SECURITY_HEADERS)
+                headers.extend(ours)
+                if scan and message["status"] == 303:  # the middleware's sign-in bounce
+                    headers = [
+                        (
+                            n,
+                            bounce_location(path)
+                            if n.lower() == b"location" and v == WEB_SIGN_IN.encode()
+                            else v,
+                        )
+                        for n, v in headers
+                    ]
                 if not any(n.lower() == b"cache-control" for n, _ in headers):
                     headers.append((b"cache-control", b"no-store"))  # a handler's own is kept
                 message = {**message, "headers": headers}
@@ -100,8 +149,8 @@ Ctx = Annotated[ApiContext, Depends(get_ctx)]
 
 
 @router.get("/sign-in")
-def sign_in_form(request: Request) -> Response:
-    return render(request, "sign_in.html", username="", error=None)
+def sign_in_form(request: Request, next: str = "") -> Response:
+    return render(request, "sign_in.html", username="", error=None, next=safe_next(next))
 
 
 @router.post("/sign-in", dependencies=[Depends(csrf.verify_origin)])
@@ -110,6 +159,7 @@ def sign_in_submit(
     ctx: Ctx,
     username: Annotated[str, Form()] = "",
     password: Annotated[str, Form()] = "",
+    next: Annotated[str, Form()] = "",
 ) -> Response:
     """The JSON route's own handler does the work: lockout, audit, timing and error text are its.
 
@@ -123,12 +173,19 @@ def sign_in_submit(
         if mapped is None:
             raise
         status, error = mapped
-        page = render(request, "sign_in.html", status, username=username, error=error.message)
+        page = render(
+            request,
+            "sign_in.html",
+            status,
+            username=username,
+            error=error.message,
+            next=safe_next(next),
+        )
         if isinstance(exc, AuthBusyError):
             page.headers["Retry-After"] = "2"
         return page
     host = request.url.hostname or ""
-    response = RedirectResponse("/web/", status_code=303)
+    response = RedirectResponse(safe_next(next) or "/web/", status_code=303)
     response.headers.append("set-cookie", session.session_cookie(out.token, host, current_env()))
     return response
 

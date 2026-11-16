@@ -45,6 +45,7 @@ PAGE_MODULES = (
     "tl_web.pages.iwps",
     "tl_web.pages.constraints",
     "tl_web.pages.readiness",
+    "tl_web.pages.scan",
 )
 
 
@@ -121,7 +122,9 @@ def test_tl_web_has_no_sqlalchemy_no_cur_names_and_no_core_query_import() -> Non
         for name, line in _imports(tree):
             assert not name.startswith("sqlalchemy"), f"{rel}:{line} imports {name}"
             if name.startswith("tl_core") and line not in annotations:
-                assert name.startswith("tl_core.auth"), f"{rel}:{line} imports {name}"
+                # the auth service, and the viewer context (not a query: the scan page reads it)
+                allowed = ("tl_core.auth", "tl_core.confidentiality")
+                assert name.startswith(allowed), f"{rel}:{line} imports {name}"
             if name.startswith("tl_tui"):
                 assert rel.name == "present.py", f"{rel}:{line} imports {name}"
 
