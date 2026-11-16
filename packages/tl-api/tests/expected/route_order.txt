@@ -188,6 +188,11 @@ GET /projects/{project}/awp/iwps/{number}/readiness
 GET /projects/{project}/punch
 GET /projects/{project}/punch/{key}
 GET /projects/{project}/punch-counts
+GET /quality/inspections
+GET /quality/inspections/export
+GET /quality/inspections/{key}
+GET /quality/checklists
+GET /quality/checklists/{key}
 GET /projects/{project}/requisitions
 GET /projects/{project}/requisitions/{key}
 GET /projects/{project}/work-orders
