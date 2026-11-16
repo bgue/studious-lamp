@@ -333,6 +333,72 @@ MODULE_STREAMS = (
             "WorkOrder.Closed",
         ),
     ),
+    # permits (P2-PTW): the permit, its isolations and gas tests
+    (
+        "permits.Permit",
+        "Permit.Requested",
+        (
+            "Permit.Approved",
+            "Permit.Rejected",
+            "Permit.Issued",
+            "Permit.Revalidated",
+            "Permit.Suspended",
+            "Permit.Resumed",
+            "Permit.HandedBack",
+            "Permit.Closed",
+            "Permit.Cancelled",
+            "Permit.Lapsed",
+            "Permit.IsolationLinked",
+            "Permit.IsolationUnlinked",
+        ),
+    ),
+    (
+        "permits.Isolation",
+        "Isolation.Applied",
+        ("Isolation.Verified", "Isolation.Removed"),
+    ),
+    ("permits.GasTest", "GasTest.Recorded", ()),
+    # quality (P2-INSP): checklists and inspections
+    (
+        "quality.Checklist",
+        "Checklist.Created",
+        ("Checklist.Edited", "Checklist.Published", "Checklist.Retired"),
+    ),
+    (
+        "quality.Inspection",
+        "Inspection.Planned",
+        (
+            "Inspection.Scheduled",
+            "Inspection.ResultRecorded",
+            "Inspection.Verified",
+            "Inspection.Cancelled",
+        ),
+    ),
+    # qr (P2-QR): scan codes
+    ("qr.ScanCode", "ScanCode.Issued", ("ScanCode.Revoked",)),
+    # forms (P2-FORMS): templates, submissions, intake codes and intake items
+    (
+        "forms.Template",
+        "Template.Created",
+        ("Template.Edited", "Template.Published", "Template.Retired"),
+    ),
+    (
+        "forms.Submission",
+        "Submission.DraftSaved",
+        (
+            "Submission.DraftDiscarded",
+            "Submission.Submitted",
+            "Submission.Accepted",
+            "Submission.Returned",
+            "Submission.Voided",
+        ),
+    ),
+    ("forms.IntakeCode", "IntakeCode.Issued", ("IntakeCode.Revoked",)),
+    (
+        "forms.IntakeItem",
+        "IntakeItem.Received",
+        ("IntakeItem.Accepted", "IntakeItem.Rejected", "IntakeItem.Purged"),
+    ),
 )
 
 

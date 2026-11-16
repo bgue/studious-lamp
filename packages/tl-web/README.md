@@ -27,7 +27,7 @@ Spec: `docs/build-spec/specs/web-client-i1.md`.
 | `pages/` | one module per page; `record_*.py` hold the record screen's tabs |
 | `templates/` | `base.html`, `log.html`, `panel.html`, `action_form.html`, `record/*.html`, `viewer.html` |
 | `static/` | `tl.css`, `viewer.css`, `tl.js` (keys and focus only), `pdfview.js` (viewer script, no logic) |
-| `static/vendor/` | htmx and pdf.js files, with `VENDORED.toml` (name, version, licence, url, sha256 per file) |
+| `static/vendor/` | htmx, pdf.js and SurveyJS (`survey-core`, `survey-js-ui` 3.2.5, MIT, unedited) files, with `VENDORED.toml` (name, version, licence, url, sha256 per file) |
 
 ## Pages
 Path `/web/p/{project}/<slug>`.

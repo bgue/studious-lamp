@@ -93,6 +93,13 @@ every pin changed with old and new count, the three (or more) envelope schemas t
 - An event cannot be delivered through the generic mechanism, or a projector refuses a sample.
 - A schema test fails for a reason other than a required omitted slot.
 
+## Amendment 1
+Orchestrator rulings, extra allowed paths: (1) `schema/modules/quality/events.yaml:441` `Inspection.Verified` sample `verified_on`
+becomes a valid date-time (sample only; additive compat; `just gen`). (2) `Submission.Draft` (a stream prefix in `cards.py`) goes
+into `NOT_EVENTS` in `packages/tl-schema/tests/test_catalog.py`; `cards.py` unchanged. (3) `tests/contract/test_webhook_catalog_contract.py::
+test_delivered_facts_match_the_ledger` compares delivered detail with the ledger payload minus `catalog.webhook_omit(type)`.
+(4) gate-pg parity run as its own background task after the sqlite gates pass.
+
 ## Blocked
 (implementer writes here)
 

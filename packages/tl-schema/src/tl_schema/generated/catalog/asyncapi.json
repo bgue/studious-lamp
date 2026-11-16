@@ -36371,7 +36371,7 @@
                 "detail": {
                   "feed_policy": "none",
                   "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
-                  "verified_on": "2026-12-07"
+                  "verified_on": "2026-12-07T09:00:00Z"
                 },
                 "links": [],
                 "origin": {
@@ -36743,7 +36743,6 @@
                     "template_hash",
                     "context_id",
                     "context_type",
-                    "heading",
                     "controller_role",
                     "expires_on",
                     "feed_policy"
@@ -84342,7 +84341,6 @@
                   "required": [
                     "record_id",
                     "format_version",
-                    "form_fields",
                     "field_count",
                     "version",
                     "feed_policy"
@@ -84606,7 +84604,6 @@
                   },
                   "required": [
                     "record_id",
-                    "changes",
                     "feed_policy"
                   ],
                   "title": "TemplateEditedPayload",
