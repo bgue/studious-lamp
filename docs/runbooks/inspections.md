@@ -126,7 +126,7 @@ Texts are copied from the handlers (`packages/tl-modules/quality/src/tl_mod_qual
 | `the time is before the day the inspection was planned`; `the time is in the future` | Record time is outside the planned day or after now | Record on or after the planned day |
 | `a cancelled inspection accepts no further change` | The inspection is Cancelled | Plan a new one |
 | `that record names a subject that itself names a subject; plan the inspection against the work itself` | The subject sits two hops from another record | Plan against the work record itself |
-| `must be one of hold, witness, review, surveillance` | Bad `--point` (exit 2) | Fix the option |
+| A refusal of the `--point` value (the allowed points are `hold`, `witness`, `review` and `surveillance`) | Bad `--point` | Fix the option |
 
 ## Readiness
 The check `inspections_planned` runs for each IWP (`tl awp readiness show <IWP-KEY> --project P123`). It is `n_a` when no inspection
