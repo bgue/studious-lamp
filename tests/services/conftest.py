@@ -6,7 +6,9 @@ from the account role does not count. One helper here, not a copy per test file.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from tl_core.auth import accounts
@@ -14,6 +16,10 @@ from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.queries import find_account
 from tl_core.modules import load_modules
 from tl_core.uow import UnitOfWork
+
+# helper modules beside the tests (ip_rules, test_module_conformance) import by bare name
+# under importlib mode, whatever file pytest collects first
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 PROJECTS = ("project:P123", "project:P1", "project:P2", "project:P999")
 
