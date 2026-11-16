@@ -390,6 +390,39 @@ AGENT_MAY_NOT = {
     "admin.agents.resume",
     "admin.agents.list",
     "qr.read",  # P2-QR-T06: the QR register, export and resolve reads are closed to agents
+    # P2-QR-T06 ruling 13: controller acts of the IP modules, closed to agents (they propose)
+    # forms: controller acts on templates and submissions
+    "control.command.AcceptFormSubmission",
+    "control.command.PublishFormTemplate",
+    "control.command.RetireFormTemplate",
+    "control.command.ReturnFormSubmission",
+    "control.command.VoidFormSubmission",
+    # forms intake: controller acts on intake codes and items
+    "control.command.IssueIntakeCode",
+    "control.command.RevokeIntakeCode",
+    "control.command.AcceptIntakeItem",
+    "control.command.RejectIntakeItem",
+    # permits: controller acts on permits
+    "control.command.ApprovePermit",
+    "control.command.RejectPermit",
+    "control.command.IssuePermit",
+    "control.command.ResumePermit",
+    "control.command.CancelPermit",
+    "control.command.ClosePermit",
+    # quality inspections and checklists: controller acts
+    "control.command.VerifyInspection",
+    "control.command.CancelInspection",
+    "control.command.PublishChecklist",
+    "control.command.ReviseChecklist",
+    "control.command.RetireChecklist",
+    # qr: revoking a scan code is the controller's decision
+    "control.command.RevokeScanCode",
+    # requisitions (P2-I4A): approval, rejection and work order scheduling and close
+    "control.command.ApproveRequisition",
+    "control.command.RejectRequisition",
+    "control.command.AssignWorkOrder",
+    "control.command.ScheduleWorkOrder",
+    "control.command.CloseWorkOrder",
     # P2-X2 T01: the command route actions of the S3 stop commands are closed to agents as well
     "admin.command.StopAgent",
     "admin.command.ResumeAgent",
