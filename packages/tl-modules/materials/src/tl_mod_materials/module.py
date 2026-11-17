@@ -105,6 +105,7 @@ def spec() -> ModuleSpec:
         read_routers=("tl_api.routes.materials:router",),
         tools=("tl_mcp.materials_tools:register_materials_tools",),
         cli_groups=("tl_cli.mat:app",),
+        reports=("tl_cli.report_mat:REPORTS",),
         company_roles=True,
         offline_drafts={STOCK_LOT: STOCK_LOT_DRAFTS},
     )

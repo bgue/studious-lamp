@@ -34,7 +34,7 @@ import importlib
 import logging
 import re
 import threading
-from collections.abc import Callable, Collection, Generator, Mapping, Sequence
+from collections.abc import Callable, Collection, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
@@ -52,6 +52,7 @@ _log = logging.getLogger("tl_core.modules")
 
 if TYPE_CHECKING:
     from tl_core.actions import ActionsHook
+    from tl_core.confidentiality import Viewer
     from tl_core.extypes.registry import UowFactory
     from tl_core.schema_provider import RegistrySource
 
@@ -187,7 +188,7 @@ class ModuleHookError(ModuleLoadError):
     """A hook reference of an installed module does not resolve (fixed text, no ref echoed)."""
 
 
-HookKind = Literal["commands", "read_routers", "tools", "cli_groups"]
+HookKind = Literal["commands", "read_routers", "tools", "cli_groups", "reports"]
 
 _REF = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*:[A-Za-z][A-Za-z0-9_]*")
 
@@ -215,6 +216,7 @@ _SURFACE_PREFIX: dict[str, str] = {
     "read_routers": "tl_api.routes.",
     "tools": "tl_mcp.",
     "cli_groups": "tl_cli.",
+    "reports": "tl_cli.",
 }
 
 
@@ -333,11 +335,15 @@ class ModuleSpec:
     read_routers: Sequence[str] = ()
     tools: Sequence[str] = ()
     cli_groups: Sequence[str] = ()
+    #: Each names a sequence of ``Report`` rows (``tl report <name>``; V3-P0). A module names its
+    #: own ``tl_mod_<name>`` package; an in-tree module may name ``tl_cli.`` for a report that needs
+    #: another module's views.
+    reports: Sequence[str] = ()
 
     def __post_init__(self) -> None:
         if self.commands is not None:
             _check_ref(self.name, "commands", self.commands)
-        for kind in ("read_routers", "tools", "cli_groups"):
+        for kind in ("read_routers", "tools", "cli_groups", "reports"):
             refs = getattr(self, kind)
             if isinstance(refs, str):
                 raise ModuleLoadError(f"module {self.name!r}: {kind} must be a sequence")
@@ -685,6 +691,42 @@ def resolve_hook(spec: ModuleSpec, kind: str) -> tuple[object, ...]:
         return tuple(_as_command(spec, row) for row in table)  # type: ignore[attr-defined]
     except Exception:
         raise _unresolved(spec, kind) from None
+
+
+@dataclass(frozen=True)
+class Report:
+    """One line-level report of a module (``tl report <name>``; V3-P0).
+
+    ``rows`` yields one mapping per record the ``viewer`` may read, keyed by ``columns`` (other keys
+    are never written, so an internal id stays out); a hidden record is simply not yielded. It runs
+    inside the viewer's read scope and pages through the module's own list view.
+    """
+
+    name: str  # kebab-case, unique across modules: ``rfis``, ``form-submissions``
+    title: str
+    columns: Sequence[str]
+    rows: Callable[[Connection, str, Viewer], Iterable[Mapping[str, Any]]]
+
+
+def module_reports() -> dict[str, Report]:
+    """Every module's reports by name, in module name order. A module whose ``reports`` hook does
+    not resolve is skipped with the fixed warning; a name declared twice raises ``ModuleLoadError``.
+    """
+    found: dict[str, Report] = {}
+    for spec in load_modules():
+        try:
+            tables = resolve_hook(spec, "reports")
+        except ModuleHookError as exc:
+            _log.warning("%s", exc)
+            continue
+        for table in tables:
+            for row in table:  # type: ignore[attr-defined]
+                if not isinstance(row, Report):
+                    continue
+                if row.name in found:
+                    raise ModuleLoadError(f"report {row.name!r} is declared twice")
+                found[row.name] = row
+    return found
 
 
 def core_command_names() -> frozenset[str]:

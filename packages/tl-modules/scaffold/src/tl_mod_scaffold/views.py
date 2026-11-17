@@ -157,16 +157,22 @@ def scaffold_list(
     overdue: bool = False,
     today: str | None = None,
     limit: int = 200,
+    offset: int = 0,
     viewer: confidentiality.Viewer = confidentiality.LOWEST,
 ) -> ScaffoldPage:
-    """Visible scaffolds of ``scope`` by key."""
+    """Visible scaffolds of ``scope`` by key, ``limit`` of them from ``offset`` (V3-P0)."""
     if state is not None and state not in _STATES:
         raise ValueError(MSG_STATE)
     if tag is not None and tag not in _TAGS:
         raise ValueError(MSG_TAG)
     if overdue and today is None:
         raise ValueError(MSG_OVERDUE)
-    params: dict[str, Any] = {"scope": scope, "no": False, "limit": _limit(limit)}
+    params: dict[str, Any] = {
+        "scope": scope,
+        "no": False,
+        "limit": _limit(limit),
+        "offset": max(int(offset), 0),
+    }
     conds = ["r.scope = :scope", "r.voided = :no"]
     if state is not None:
         conds.append(f"{_STATE} = :state")
@@ -183,7 +189,10 @@ def scaffold_list(
     where = " AND ".join(conds)
     total = conn.execute(text(f"SELECT COUNT(*) AS n {_FROM} WHERE {where}"), params).scalar_one()
     raws = conn.execute(
-        text(f"SELECT {_ROW_COLUMNS} {_FROM} WHERE {where} ORDER BY r.key, r.id LIMIT :limit"),
+        text(
+            f"SELECT {_ROW_COLUMNS} {_FROM} WHERE {where} "
+            "ORDER BY r.key, r.id LIMIT :limit OFFSET :offset"
+        ),
         params,
     ).mappings()
     return ScaffoldPage(rows=[_row(raw) for raw in raws], total=int(total))

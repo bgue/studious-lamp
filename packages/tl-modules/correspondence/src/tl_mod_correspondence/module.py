@@ -146,6 +146,7 @@ def spec() -> ModuleSpec:
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
         commands="tl_mod_correspondence.commands:API_COMMANDS",
+        reports=("tl_mod_correspondence.report_rows:REPORTS",),
         read_routers=("tl_api.routes.correspondence:router",),
         tools=("tl_mcp.correspondence_tools:register_correspondence_tools",),
         cli_groups=(

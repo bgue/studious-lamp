@@ -80,6 +80,7 @@ from tl_cli import (
     proposal,
     pset,
     record,
+    report,
     restore,
     rule,
     schema,
@@ -231,6 +232,7 @@ app.add_typer(backup.app, name="backup")
 app.add_typer(archive.app, name="archive")
 app.add_typer(ledger.app, name="ledger")
 app.command("restore")(restore.restore)
+app.command("report")(report.report)
 app.command("login")(login.login)
 app.command("logout")(login.logout)
 app.command("whoami")(login.whoami)

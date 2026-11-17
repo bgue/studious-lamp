@@ -146,5 +146,6 @@ def spec() -> ModuleSpec:
             "tl_mcp.awp_week_tools:register_week_tools",
         ),
         cli_groups=("tl_cli.awp:app",),
+        reports=("tl_cli.report_awp:REPORTS",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )
