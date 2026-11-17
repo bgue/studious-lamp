@@ -45,6 +45,13 @@ REQUISITION_NAMES = [
 
 # The scaffold module (P2-I4B) was added after the capture and is served from its hooks too.
 SCAFFOLD_NAMES = sorted(c.model.__name__ for c in SCAFFOLD_COMMANDS)
+FORMS_ROUTES = {
+    "GET /forms/for/{key}",
+    "GET /forms/submissions",
+    "GET /forms/submissions/{key}",
+    "GET /forms/templates",
+    "GET /forms/templates/{key}/versions/{version}",
+}
 SCAFFOLD_ROUTES = {
     "GET /projects/{project}/scaffolds",
     "GET /projects/{project}/scaffolds/{key}",
@@ -413,10 +420,11 @@ def test_the_route_set_is_the_old_set_plus_the_requisitions_command_routes(
         {f"POST /commands/{n}" for n in REQUISITION_NAMES}
         | {f"POST /commands/{n}" for n in SCAFFOLD_NAMES}
         | SCAFFOLD_ROUTES
+        | FORMS_ROUTES
     )
     assert len(route_lines(harness.app)) == len(old_lines()) + 10 + len(SCAFFOLD_NAMES) + len(
         SCAFFOLD_ROUTES
-    )
+    ) + len(FORMS_ROUTES)
 
 
 # --- 3: the requisitions commands are served ---

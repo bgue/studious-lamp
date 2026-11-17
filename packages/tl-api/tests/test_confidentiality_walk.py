@@ -220,6 +220,7 @@ def candidates(seed_data: Seed) -> dict[str, list[str]]:
         "account_id": all_ids[:1],
         "name": ["x", "cwp_status"],
         "key": ["x"],
+        "version": ["1", "9"],  # a template version (the forms read routes)
         "kind": ["x"],
         "type_ref": ["x"],
         "activity_id": ["x", *all_ids[:2]],
