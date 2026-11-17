@@ -4,7 +4,7 @@ S7c W1 T01 T02 T03 T13 T14 I02 I03 B1, and P2-IP PERF1.
 ## BOARD  unit wave state review commit note
 P1  1 disp f+sec - per-row hidden check; tests/perf budget
 P0  1 disp f+sec - tl report hook + forms/RFI/corr/docs + wrapped exports
-P2  1 disp f     - gate-changed, commit-check
+P2  1 mrg  f     83e7a512 gate-changed (2 heavy slots), commit-check; 1 CR round
 F1a 2 todo f     - generator, routes, tl form, demo 1-3 5 7 8; owns shared files
 P0b 2 todo l     - report registrations for the other modules (spec from P0)
 F1b 3 todo f     - TUI log + runner; clause 11
@@ -18,4 +18,5 @@ Q9 S6 public route: owner gate (out of the pilot)
 ## DEC
 D40 2026-11-17 owner Q7: privileged forms hidden from all but the author (CR1 behaviour kept; no clearance table); F1a walk proves it
 ## METRICS (for V3-PILOT.md)
-start 2026-11-17 wave 1 dispatched; handoffs 3; rulings 0; late surprises 0
+start 2026-11-17 wave 1 dispatched; handoffs 8 (3 dispatch, 4 resume, 1 re-review); rulings 4 (P1 lock wait, P2 Q1-Q3, P2 F8 rejected, P0 duplicate gate); late surprises 0
+lessons: one heavy lock serialised light runs (fixed in P2: 2 slots, dev/tests unlocked); P0 walk tests slow on the pre-P1 base
