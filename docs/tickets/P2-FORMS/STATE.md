@@ -7,7 +7,7 @@ P0  1 mrg  f+sec ad9ca63c tl report, 17 reports; 3 fix rounds (stale_links leak,
 P2  1 mrg  f     83e7a512 gate-changed (2 heavy slots), commit-check; 1 CR round
 F1a 2 mrg  f     ef38bed7 5 LO notes: walk has no full-viewer reader; F2 must open an MCP read action
 P0b 2 mrg  f     98084507 8 more reports; 2 review rounds; left out requisitions, activities, QR (later unit)
-P0c 2 disp f+s   - requisitions, activities, QR code reports
+P0c 2 mrg  f+s   3c1cd344 last 3 reports; both reviews P; N1 to wave review
 F1b 3 disp f     - forms log + runner screen; clause 11
 F1s 3 rev  f+s   8000f288 built; clause 6 PASS sq; full + security review running
 F2  4 todo f     - MCP, draft resume, walks; clause 4
@@ -16,6 +16,9 @@ F4  4 todo f+sec - intake signed-in; clause 10
 F5  5 todo l     - docs, runbook, tour, highlights
 ## BASE-RED (on p2/v3-forms, not caused by a unit)
 awp proposable exclusions fixed by F1a | wheel count 27 vs 21 (DEFERRED)
+tl-api: 5 tests red on fc02817a too (settings 34 vs 53 keys x3, permits error table, activity select 16 vs 15; F1a)
+## WAVE-REVIEW (for the DONE security review)
+N1 privileged Submission that is itself a subject: its own answer class not checked on that hop (P0c sec) | F1s bound.record hardening (scope, use_viewer) before F1b/F3 call it
 ## OPEN
 Q9 S6 public route: owner gate (out of the pilot)
 ## DEC
