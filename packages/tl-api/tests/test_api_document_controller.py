@@ -27,6 +27,7 @@ from tl_core.auth.password import prepare_password
 from tl_mod_awp.commands import AWP_COMMANDS
 from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS
+from tl_mod_requisitions.module import REQUISITIONS_COMMANDS
 from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS
 
@@ -116,10 +117,51 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
         "RetireLocation", "VoidReceipt", "AdjustStock", "ScrapStock", "PublishDerivedMto",
     }  # fmt: skip
     # the quality module (P2-PUNCH): verify, reopen and void of a punch item
-    quality = {"VerifyPunchItem", "ReopenPunchItem", "VoidPunchItem"}
+    # and the inspections (P2-INSP): checklist publish, revise and retire; verify, cancel
+    quality = {
+        "VerifyPunchItem", "ReopenPunchItem", "VoidPunchItem", "PublishChecklist",
+        "ReviseChecklist", "RetireChecklist", "VerifyInspection", "CancelInspection",
+    }  # fmt: skip
+    # forms (P2-FORMS), qr (P2-QR) and permits (P2-PTW): the controller's decisions
+    forms = {
+        "PublishFormTemplate", "RetireFormTemplate", "AcceptFormSubmission",
+        "ReturnFormSubmission", "VoidFormSubmission", "IssueIntakeCode", "RevokeIntakeCode",
+        "AcceptIntakeItem", "RejectIntakeItem",
+    }  # fmt: skip
+    qr = {"RevokeScanCode"}
+    permits = {
+        "ApprovePermit", "RejectPermit", "IssuePermit", "ResumePermit", "ClosePermit",
+        "CancelPermit", "VerifyIsolation",
+    }  # fmt: skip
+    # the scaffold module (P2-I4B S1): tagging a scaffold green (scaffold.tag.green)
+    scaffold = {"TagScaffoldGreen"}
+    # P2-I4A: approve/reject a requisition, assign/schedule/close a work order
+    requisitions = {
+        c.model.__name__ for c in REQUISITIONS_COMMANDS if normalise_word(c.access) == "controller"
+    }
+    assert requisitions == {
+        "ApproveRequisition",
+        "RejectRequisition",
+        "AssignWorkOrder",
+        "ScheduleWorkOrder",
+        "CloseWorkOrder",
+    }
     assert controller_actions() == {
         f"control.command.{n}"
-        for n in CONTROLLING | scheduling | correspondence | registry | awp | materials | quality
+        for n in (
+            CONTROLLING
+            | scheduling
+            | correspondence
+            | registry
+            | awp
+            | materials
+            | quality
+            | requisitions
+            | scaffold
+            | forms
+            | qr
+            | permits
+        )
     }
 
 

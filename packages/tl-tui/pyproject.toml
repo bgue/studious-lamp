@@ -22,6 +22,7 @@ dependencies = [
   "tl-mod-qr",
   "tl-mod-forms",
   "tl-mod-permits",
+  "tl-mod-scaffold",
   "httpx2",
   "pypdfium2",
   "rich-pixels==3.0.1",

@@ -71,7 +71,7 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {"core.ActivityPost": "full", 
 | `forms.IntakeItem` | none | — | A received item is reviewed on the authority (P2-FORMS, ADR-0032) |
 | `forms.IntakeBody` (table `forms_intake_body`, no record type) | none (operational) | — | The received text: no event produces it, a rebuild never clears it (P2-FORMS, ADR-0032) |
 | `quality.Checklist` | none | — | A checklist is written and published centrally (P2-INSP) |
-| `quality.Inspection` | draft_only | — | An inspection is planned offline; schedule, record, verify and cancel are central (P2-INSP) |
+| `quality.Inspection` | draft_only | `RecordInspectionResult` | The result is recorded on site as a draft (module-designs/inspections.md section 3); plan, schedule, verify and cancel are central (P2-INSP) |
 | `permits.Permit` | none | — | A permit is an act on the authority, like a scaffold tag (P2-PTW) |
 | `permits.Isolation` | none | — | Applying, verifying and removing an isolation are acts on the authority (P2-PTW) |
 | `permits.GasTest` | none | — | A reading is recorded online against its permit (P2-PTW) |
@@ -86,6 +86,8 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {"core.ActivityPost": "full", 
 | `requisitions.GeneralRequisition` | draft_only | `RaiseRequisition` | As labour: raised anywhere, approved on the authority (P2-I4A S1, as built) |
 | `requisitions.ScaffoldRequest` | draft_only | `RaiseRequisition` | As labour: raised anywhere, approved on the authority (P2-I4A S1, as built) |
 | `requisitions.WorkOrder` | none | — | Online only: opened by an approval and moved (schedule, assign, start, complete, close) on the authority (P2-I4A S1, as built) |
+| `scaffold.Scaffold` | none | — | A register entry and a tag are acts on the authority, as a work order; inspections and tags are not drafted offline (P2-I4B S1) |
+| `scaffold.ScaffoldInspection` | none | — | An inspection is recorded with the tag on the authority; no offline drafts (P2-I4B S1) |
 
 | Core stream (not a record) | Class | Why |
 |---|---|---|

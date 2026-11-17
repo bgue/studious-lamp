@@ -347,6 +347,8 @@ def _mcp_values(hidden: Any) -> dict[str, list[Any]]:
             "P123-PUN-0001",  # get_punch_item (P2-PUNCH)
             "x",
         ],
+        "permit_key": [*hidden.numbers.values(), "P123-PTW-0001", "x"],  # list_gas_tests (P2-PTW)
+        "limit": [10],  # list_gas_tests takes it with no default (P2-PTW)
         "week": ["2026-W45", "2099-W01", "x"],  # get_weekly_plan (a week, YYYY-Www)
     }
 
@@ -755,7 +757,8 @@ def _page_shift(a: str, b: str, cut: int) -> bool:
     if ia is None or ib is None or not (0 <= len(ia) - len(ib) <= cut) or ia[: len(ib)] != ib:
         return False
     la, lb = da.pop("labels", {}), db.pop("labels", {})
-    da.pop("next_before", None), db.pop("next_before", None)
+    da.pop("next_before", None)
+    db.pop("next_before", None)
     return da == db and all(la[k] == lb[k] for k in la.keys() & lb.keys())
 
 

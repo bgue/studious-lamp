@@ -26,6 +26,7 @@ from tl_api.routes import constraints as constraint_routes
 from tl_api.routes import insp as insp_routes
 from tl_api.routes import punch as punch_routes
 from tl_api.routes import requisitions as requisition_routes
+from tl_api.routes import scaffold as scaffold_routes
 from tl_api.routes.awp import CheckBody, CwpDetailView, ReadinessBody, TimelineRow, _note
 from tl_api.routes.awp_progress import IwpHash, IwpProgress, ProgressItem, RollupBody
 from tl_api.routes.constraints import (
@@ -240,6 +241,8 @@ from tl_mod_quality import views as punch_views
 from tl_mod_quality.module import QUALITY_COMMANDS
 from tl_mod_requisitions import views as requisition_views
 from tl_mod_requisitions.api import RequisitionRow
+from tl_mod_scaffold import MODULE as SCAFFOLD_MODULE
+from tl_mod_scaffold import views as scaffold_views
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.handlers.activity import LinkActivity, handle_link_activity
@@ -1923,6 +1926,92 @@ class EmbeddedClient:
             if detail is None:
                 raise RecordNotFoundError(insp_routes.MSG_CHECKLIST_NOT_FOUND)
             return detail
+
+    # --- the scaffold module: the register's reads (P2-I4B-T09b2) -------------------------------
+    #
+    # The same calls the routes make (``tl_api.routes.scaffold``), under the signed-in person's
+    # viewer (``_uow`` sets it), after the same ``scaffold.view`` check. A missing or hidden
+    # scaffold is one ``RecordNotFoundError``, with the route's text. ``today`` is the clock's day.
+
+    def _require_scaffold_view(self, uow: UnitOfWork, project: str) -> None:
+        require_word(
+            uow.conn(),
+            holder_for_actor(uow.conn(), self.actor),
+            scope=f"project:{project}",
+            module=SCAFFOLD_MODULE,
+            word=normalise_word(scaffold_routes.VIEW_WORD),
+            what=scaffold_routes.VIEW_WORD,
+        )
+
+    def list_scaffolds(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        tag: str | None = None,
+        overdue: bool = False,
+        limit: int = 200,
+    ) -> scaffold_views.ScaffoldPage:
+        with self._uow(True) as uow:
+            self._require_scaffold_view(uow, project)
+            return scaffold_views.scaffold_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                tag=tag,
+                overdue=overdue,
+                today=date.today().isoformat(),
+                limit=limit,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def get_scaffold(self, project: str, key: str) -> scaffold_views.ScaffoldDetail:
+        with self._uow(True) as uow:
+            self._require_scaffold_view(uow, project)
+            detail = scaffold_views.scaffold_detail(
+                uow.conn(), f"project:{project}", key, viewer=confidentiality.current_viewer()
+            )
+            if detail is None:
+                raise RecordNotFoundError(scaffold_routes.MSG_NOT_FOUND)
+            return detail
+
+    def list_scaffolds_due(
+        self, project: str, *, limit: int = 200
+    ) -> list[scaffold_views.ScaffoldRow]:
+        with self._uow(True) as uow:
+            self._require_scaffold_view(uow, project)
+            return scaffold_views.due_list(
+                uow.conn(),
+                f"project:{project}",
+                date.today().isoformat(),
+                limit=limit,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def export_scaffolds(
+        self,
+        project: str,
+        *,
+        fmt: str = "csv",
+        state: str | None = None,
+        tag: str | None = None,
+        overdue: bool = False,
+    ) -> str:
+        if fmt not in scaffold_views.EXPORT_FORMATS:
+            raise ValueError(scaffold_views.MSG_FORMAT)
+        with self._uow(True) as uow:
+            self._require_scaffold_view(uow, project)
+            page = scaffold_views.scaffold_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                tag=tag,
+                overdue=overdue,
+                today=date.today().isoformat(),
+                limit=scaffold_views.MAX_LIMIT,
+                viewer=confidentiality.current_viewer(),
+            )
+        return scaffold_views.export_rows(page.rows, fmt)
 
     # --- permits: permits, isolations and gas tests (P2-PTW-T10) -----------------------------
     #

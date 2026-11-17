@@ -67,6 +67,8 @@ OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
     "requisitions.MaterialRequisition": "draft_only",
     "requisitions.ScaffoldRequest": "draft_only",
     "requisitions.WorkOrder": "none",
+    "scaffold.Scaffold": "none",
+    "scaffold.ScaffoldInspection": "none",
     "schedule.ActivityRef": "none",
     "schedule.Schedule": "none",
     "schedule.ScheduleSnapshot": "none",

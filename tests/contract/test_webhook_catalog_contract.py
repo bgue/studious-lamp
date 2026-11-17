@@ -136,7 +136,9 @@ def test_delivered_facts_match_the_ledger(world: World) -> None:
         assert body["tlstreamversion"] == row["stream_version"]
         assert body["tlactor"] == row["actor"]
         assert event_type_of(body) == row["event_type"]
-        assert body["data"]["detail"] == json.loads(row["payload"])
+        omitted = catalog.webhook_omit(row["event_type"])
+        expected = {k: v for k, v in json.loads(row["payload"]).items() if k not in omitted}
+        assert body["data"]["detail"] == expected
         assert body["subject"] == body["data"]["origin"]["id"]
         assert body["data"]["origin"]["uri"].startswith(body["source"])
 

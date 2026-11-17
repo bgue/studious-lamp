@@ -53,6 +53,7 @@ tl-mod-forms = { workspace = true }
 tl-mod-permits = { workspace = true }
 tl-mod-awp = { workspace = true }
 tl-mod-requisitions = { workspace = true }
+tl-mod-scaffold = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -96,6 +97,7 @@ extraPaths = [
   "packages/tl-modules/qr/tests",
   "packages/tl-modules/forms/tests",
   "packages/tl-modules/permits/tests",
+  "packages/tl-modules/scaffold/tests",
   "packages/tl-modules/schedule/tests",
   "packages/tl-modules/schemareg/tests",
   "packages/tl-modules/legacy/tests",

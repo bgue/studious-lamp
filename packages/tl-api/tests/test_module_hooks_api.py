@@ -16,16 +16,18 @@ from typing import Any
 
 import pytest
 import tl_api.commands as commands_module
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from harness import Harness
 from test_api_requisitions import PROJECT, Rig, load_world, rig  # noqa: F401
 from tl_api.app import create_app
+from tl_api.auth import guard
 from tl_api.tokens import TokenStore, add_token
 from tl_core import intent
 from tl_core import modules as tl_modules
 from tl_core.modules import ModuleSpec, use_modules
 from tl_core.services.commands import Command
 from tl_mod_requisitions.module import REQUISITIONS_COMMANDS
+from tl_mod_scaffold.module import SCAFFOLD_COMMANDS
 
 ORDER_FILE = Path(__file__).parent / "expected" / "route_order.txt"
 REQUISITION_NAMES = [
@@ -40,6 +42,15 @@ REQUISITION_NAMES = [
     "CompleteWorkOrder",
     "CloseWorkOrder",
 ]
+
+# The scaffold module (P2-I4B) was added after the capture and is served from its hooks too.
+SCAFFOLD_NAMES = sorted(c.model.__name__ for c in SCAFFOLD_COMMANDS)
+SCAFFOLD_ROUTES = {
+    "GET /projects/{project}/scaffolds",
+    "GET /projects/{project}/scaffolds/{key}",
+    "GET /projects/{project}/scaffold-due",
+    "GET /projects/{project}/scaffold-export",
+}
 
 # Baseline of ``tl_api.commands.COMMANDS`` before the hook table: sorted
 # ``(name, access, module, needs_holds, takes_roles)``.
@@ -379,12 +390,17 @@ def test_the_command_rows_are_the_old_rows_plus_the_requisitions_commands() -> N
     )
     added = [row for row in new if row not in OLD_COMMANDS]
     assert [r for r in OLD_COMMANDS if r not in new] == []
-    assert sorted(r[0] for r in added) == sorted(REQUISITION_NAMES)
-    assert all(r[2] == "requisitions" for r in added)
-    assert {(r[0], r[1]) for r in added} == {
+    requisitions = [r for r in added if r[2] == "requisitions"]
+    scaffold = [r for r in added if r[2] == "scaffold"]
+    assert len(requisitions) + len(scaffold) == len(added)
+    assert sorted(r[0] for r in requisitions) == sorted(REQUISITION_NAMES)
+    assert {(r[0], r[1]) for r in requisitions} == {
         (c.model.__name__, c.access) for c in REQUISITIONS_COMMANDS
     }
-    assert len(new) == len(OLD_COMMANDS) + 10
+    assert {(r[0], r[1]) for r in scaffold} == {
+        (c.model.__name__, c.access) for c in SCAFFOLD_COMMANDS
+    }
+    assert len(new) == len(OLD_COMMANDS) + 10 + len(SCAFFOLD_COMMANDS)
 
 
 def test_the_route_set_is_the_old_set_plus_the_requisitions_command_routes(
@@ -393,8 +409,14 @@ def test_the_route_set_is_the_old_set_plus_the_requisitions_command_routes(
     new = set(route_lines(harness.app))
     old = set(old_lines())
     assert old <= new
-    assert new - old == {f"POST /commands/{n}" for n in REQUISITION_NAMES}
-    assert len(route_lines(harness.app)) == len(old_lines()) + 10
+    assert new - old == (
+        {f"POST /commands/{n}" for n in REQUISITION_NAMES}
+        | {f"POST /commands/{n}" for n in SCAFFOLD_NAMES}
+        | SCAFFOLD_ROUTES
+    )
+    assert len(route_lines(harness.app)) == len(old_lines()) + 10 + len(SCAFFOLD_NAMES) + len(
+        SCAFFOLD_ROUTES
+    )
 
 
 # --- 3: the requisitions commands are served ---
@@ -491,6 +513,7 @@ def reimport() -> Iterator[Any]:
     """Re-import ``tl_api.commands`` inside a block and put the real table back afterwards."""
     bodies = set(commands_module.COMMAND_BODIES)
     registered = set(intent._REGISTERED)  # noqa: SLF001
+    saved = dict(vars(commands_module))  # the objects other modules hold (COMMANDS, COMMAND_BODIES)
 
     def run() -> Any:
         return importlib.reload(commands_module)
@@ -502,6 +525,8 @@ def reimport() -> Iterator[Any]:
         for name in set(commands_module.COMMAND_BODIES) - bodies:
             commands_module.COMMAND_BODIES.pop(name)
         intent._REGISTERED.intersection_update(registered)  # noqa: SLF001
+        # back to the original objects, not the reloaded ones
+        commands_module.__dict__.update(saved)
 
 
 @pytest.fixture
@@ -516,7 +541,7 @@ def fake_packages() -> Iterator[None]:
     router = APIRouter()
 
     @router.get("/x4fake/ping", name="x4fake_ping")
-    def ping() -> dict[str, str]:
+    def ping(actor: str = Depends(guard("x4fake.ping"))) -> dict[str, str]:
         return {"ok": "yes"}
 
     fake.ROUTER = router  # type: ignore[attr-defined]
@@ -578,9 +603,9 @@ def test_module_commands_is_resolved_once_per_import_not_per_request(
     calls: list[int] = []
     real = tl_modules.module_commands
 
-    def counting() -> Any:
+    def counting(*reserved: Any) -> Any:
         calls.append(1)
-        return real()
+        return real(*reserved)
 
     monkeypatch.setattr(tl_modules, "module_commands", counting)
     reimport()

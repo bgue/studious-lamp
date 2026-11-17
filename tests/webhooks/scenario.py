@@ -4,11 +4,14 @@ and parity tests)."""
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from tl_adapters.queue import job_queue_for
 from tl_core.auth import accounts
 from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.queries import find_account
+from tl_core.jobs import JobRunner
 from tl_core.services.agent_stop import (
     ResumeAgent,
     StopAgent,
@@ -29,6 +32,12 @@ from tl_core.webhooks.subscriptions import (
     rotate_secret,
     update_subscription,
 )
+from tl_mod_requisitions.commands import ApproveRequisition, RaiseRequisition
+from tl_mod_requisitions.module import REQUISITIONS_COMMANDS
+from tl_mod_scaffold import commands as sc
+from tl_mod_scaffold.inspections_due import InspectionsDueKind
+from tl_mod_scaffold.inspections_due import request as request_inspections_due
+from tl_mod_scaffold.module import SCAFFOLD_COMMANDS
 from tl_schema import catalog
 from world import SCOPE, World
 
@@ -360,6 +369,72 @@ MODULE_STREAMS = (
             "WorkOrder.Closed",
         ),
     ),
+    # permits (P2-PTW): the permit, its isolations and gas tests
+    (
+        "permits.Permit",
+        "Permit.Requested",
+        (
+            "Permit.Approved",
+            "Permit.Rejected",
+            "Permit.Issued",
+            "Permit.Revalidated",
+            "Permit.Suspended",
+            "Permit.Resumed",
+            "Permit.HandedBack",
+            "Permit.Closed",
+            "Permit.Cancelled",
+            "Permit.Lapsed",
+            "Permit.IsolationLinked",
+            "Permit.IsolationUnlinked",
+        ),
+    ),
+    (
+        "permits.Isolation",
+        "Isolation.Applied",
+        ("Isolation.Verified", "Isolation.Removed"),
+    ),
+    ("permits.GasTest", "GasTest.Recorded", ()),
+    # quality (P2-INSP): checklists and inspections
+    (
+        "quality.Checklist",
+        "Checklist.Created",
+        ("Checklist.Edited", "Checklist.Published", "Checklist.Retired"),
+    ),
+    (
+        "quality.Inspection",
+        "Inspection.Planned",
+        (
+            "Inspection.Scheduled",
+            "Inspection.ResultRecorded",
+            "Inspection.Verified",
+            "Inspection.Cancelled",
+        ),
+    ),
+    # qr (P2-QR): scan codes
+    ("qr.ScanCode", "ScanCode.Issued", ("ScanCode.Revoked",)),
+    # forms (P2-FORMS): templates, submissions, intake codes and intake items
+    (
+        "forms.Template",
+        "Template.Created",
+        ("Template.Edited", "Template.Published", "Template.Retired"),
+    ),
+    (
+        "forms.Submission",
+        "Submission.DraftSaved",
+        (
+            "Submission.DraftDiscarded",
+            "Submission.Submitted",
+            "Submission.Accepted",
+            "Submission.Returned",
+            "Submission.Voided",
+        ),
+    ),
+    ("forms.IntakeCode", "IntakeCode.Issued", ("IntakeCode.Revoked",)),
+    (
+        "forms.IntakeItem",
+        "IntakeItem.Received",
+        ("IntakeItem.Accepted", "IntakeItem.Rejected", "IntakeItem.Purged"),
+    ),
 )
 
 
@@ -507,6 +582,46 @@ def stop_and_resume_an_agent(world: World) -> None:
         )
 
 
+def run_a_scaffold_life(world: World) -> None:
+    """Every scaffold event type, through the real commands (P2-I4B).
+
+    An approved scaffold request is registered, designed, erected, tagged green, released, inspected
+    (conditional), sent to Modify and back, flagged by the inspections-due job, dismantled and
+    removed. The commands run as their handlers do, one unit of work each."""
+    handlers = {c.model.__name__: c.handler for c in (*SCAFFOLD_COMMANDS, *REQUISITIONS_COMMANDS)}
+
+    def call(model: Any, who: str = "alice", **fields: Any) -> Any:
+        cmd = model(actor=f"user:{who}", source="test", scope=SCOPE, **fields)
+        with world.factory() as uow:
+            return handlers[model.__name__](uow, cmd)
+
+    requisition = {
+        "kind": "scaffold", "subject": "Scaffold at unit 4", "purpose": "Access to the valve",
+        "elevation": "+12.0", "gridline": "C-4", "load_class": "Light", "duration_days": 14,
+    }  # fmt: skip
+    raised = call(RaiseRequisition, requisition=requisition)
+    with world.factory() as uow:
+        version = uow.ledger.stream_version(raised.stream_id)
+    call(ApproveRequisition, "bob", requisition=raised.stream_id, expected_version=version)
+    made = call(sc.RegisterScaffold, request_id=raised.stream_id, title="Scaffold A")
+    scaffold = str(made.stream_id)
+    call(sc.DesignScaffold, scaffold=scaffold)
+    call(sc.ErectScaffold, scaffold=scaffold)
+    call(sc.TagScaffoldGreen, scaffold=scaffold)
+    call(sc.ReleaseScaffold, scaffold=scaffold)
+    call(sc.InspectScaffold, scaffold=scaffold, result="conditional")
+    call(sc.ModifyScaffold, scaffold=scaffold, reason="add a lift")
+    call(sc.TagScaffoldGreen, scaffold=scaffold)
+    call(sc.ReleaseScaffold, scaffold=scaffold)
+    with world.factory() as uow:
+        request_inspections_due(uow, "P1", (datetime.now(UTC) + timedelta(days=8)).date())
+    with world.factory() as uow:
+        queue = job_queue_for(uow.conn())
+    JobRunner(world.factory, queue, [InspectionsDueKind()], worker_id="scenario").run_until_idle()
+    call(sc.DismantleScaffold, scaffold=scaffold, reason="Done")
+    call(sc.RemoveScaffold, scaffold=scaffold)
+
+
 def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
     """Subscribe in all three modes, produce every catalog event type, deliver everything.
 
@@ -596,6 +711,7 @@ def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
         )
     append_integration_events(world)  # P1-I7 WS-A
     stop_and_resume_an_agent(world)  # P2-X2 S3
+    run_a_scaffold_life(world)  # P2-I4B
     sid = modes["delta"].subscription_id
     with world.factory() as uow:
         update_subscription(

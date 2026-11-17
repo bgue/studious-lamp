@@ -110,7 +110,7 @@ def gastest_record(
             note=note,
         )
 
-    result = _execute(db, build)
+    result = _execute(db, who, build)
     with service_errors(), open_uow(db, readonly=True) as uow:
         viewer = cf.viewer_for_actor(uow.conn(), who)
         tests = gas_tests_for(uow.conn(), permit_id, viewer=viewer)

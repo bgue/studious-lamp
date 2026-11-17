@@ -39,6 +39,7 @@ def test_every_event_class_is_in_the_catalog_with_a_stable_name(events: list[Any
 #: String literals shaped like an event type that are not catalog events, each with its reason.
 NOT_EVENTS = {
     "Test.Bumped": "event type of the test-only counter projector (projection/testing.py)",
+    "Submission.Draft": "stream-type prefix tested with startswith in feed/cards.py",
     "Internal.Redacted": "placeholder type of a redacted account event in the lake (tl_lake.sync)",
 }
 EVENT_LITERAL = re.compile(r"[A-Z]\w*\.[A-Z]\w*")
@@ -112,6 +113,20 @@ def test_the_envelope_schema_pins_type_and_rejects_other_events(events: list[Any
     broken = json.loads(json.dumps(created.sample_envelope))
     broken["data"]["detail"]["title"] = 7
     assert not validator(created.envelope_schema).is_valid(broken)
+
+
+def test_webhook_omitted_slots_are_not_required_in_the_envelope_but_stay_in_the_payload(
+    events: list[Any],
+) -> None:
+    omitting = [e for e in events if e.webhook_omit]
+    assert any(set(e.webhook_omit) & set(e.payload_schema.get("required", [])) for e in omitting)
+    for e in omitting:
+        detail = e.envelope_schema["properties"]["data"]["properties"]["detail"]
+        envelope_required = set(detail.get("required", []))
+        payload_required = set(e.payload_schema.get("required", []))
+        assert not envelope_required & set(e.webhook_omit), e.event_type
+        assert envelope_required == payload_required - set(e.webhook_omit), e.event_type
+        assert set(e.webhook_omit) <= set(detail["properties"]), e.event_type
 
 
 def test_payloads_are_open_and_any_json_is_really_any(events: list[Any]) -> None:

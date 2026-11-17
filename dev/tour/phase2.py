@@ -6,9 +6,9 @@
 Same method as `wave1.py` (see `tourkit.py`): a fresh SQLite ledger in a temporary directory, the
 real TUI driven headless, the frozen clock, and the leak check on every plain screenshot. The
 project is built once by the demo project generator (`seed_demo_project` from `wave1`); no
-network, no Postgres. It writes sixteen SVGs. Every actor is written ``user:<name>``: a bare name
+network, no Postgres. It writes nineteen SVGs. Every actor is written ``user:<name>``: a bare name
 resolves to no account, so a screen that checks a read word (constraints, requisitions, work
-orders, punch) refuses it:
+orders, punch, scaffolds, the toolcrib) refuses it:
 
     01-iwps          the IWP register                          user:lhartmann
     02-constraints   the constraints                           user:gwhitfield (viewer, all modules)
@@ -22,10 +22,13 @@ orders, punch) refuses it:
     10-punch         the punch list                            user:hsato
     11-schedule      the schedules                            user:lhartmann
     12-packages      the packages                             user:lhartmann
-    13-inspections   the inspection log                       user:hsato
-    14-inspection    one Done inspection, with failed questions user:hsato (P200-INS-0009)
-    15-permits       the permit register                      user:ipetrov
-    16-permit        one Active permit, with its gas tests    user:ipetrov (P200-PTW-0001)
+    13-scaffolds     the scaffold register                     user:lhartmann
+    14-scaffold-record  one scaffold with its inspections      user:lhartmann
+    15-toolcrib      the toolcrib TC1 at the crib     user:treyes
+    16-inspections   the inspection log                       user:hsato
+    17-inspection    one Done inspection, with failed questions user:hsato (P200-INS-0009)
+    18-permits       the permit register                      user:ipetrov
+    19-permit        one Active permit, with its gas tests    user:ipetrov (P200-PTW-0001)
 """
 
 from __future__ import annotations
@@ -54,6 +57,9 @@ DEFAULT_OUT = REPO / "docs/reports/tour/phase-2"
 TODAY = datetime(2026, 11, 6, 9, 0, 0, tzinfo=UTC)  # the project calendar's "today"
 AWP = "lhartmann"  # the project engineer: awp (IWPs, readiness, weekly cycle), schedules, packages
 IWP = "P200-IWP-CIV-0001"  # an IWP number from the 01-iwps shot
+STORES = "treyes"  # the materials coordinator: requisitions, work orders, the toolcrib
+SCAFFOLD = "P200-SCF-0001"  # the one scaffold of the demo project (scaffold section, T11a)
+CRIB = "TC1"  # the toolcrib of P200
 INSPECTION = "P200-INS-0009"  # a Done inspection with a failed question (the generator is fixed)
 PERMIT = "P200-PTW-0001"  # an Active permit with three gas tests (the generator is fixed)
 
@@ -62,7 +68,7 @@ async def _open(pilot: Pilot[Any], app: Any, make: Callable[[Any], Any], what: s
     """Wait for the shell, push the screen on the app's client and wait for its rows."""
     await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
     app.push_screen(make(app.client))
-    await tk.until(pilot, lambda: len(app.screen.rows) > 0, what)
+    await tk.until(pilot, lambda: len(app.screen.rows) > 0, what, timeout=60.0)
     await tk.settle(pilot, 3)
 
 
@@ -113,6 +119,46 @@ def record(
     tk.run_tui(ws, app, run_it)
 
 
+def scaffold_record(ws: Workspace) -> None:
+    """14: one scaffold opened on its record (the register's Enter does the same push)."""
+    from tl_tui.main import build_app
+    from tl_tui.widgets.scaffold_register import ScaffoldScreen
+
+    app = build_app(ws.db, PROJECT, live=False, actor=f"user:{AWP}")
+
+    async def run_it(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        app.push_screen(ScaffoldScreen(app.client, PROJECT, SCAFFOLD))
+        await tk.until(pilot, lambda: "Inspections" in tk.screen_text(app), "the scaffold record")
+        tk.shot_tui(
+            ws,
+            app,
+            "14-scaffold-record",
+            "One scaffold of P200 with its inspections",
+            SCAFFOLD,
+            "Inspections",
+        )
+
+    tk.run_tui(ws, app, run_it)
+
+
+def toolcrib(ws: Workspace) -> None:
+    """15: the toolcrib screen (a modal, so no ``rows``) at TC1, before any issue or return."""
+    from tl_tui.main import build_app
+    from tl_tui.widgets.toolcrib_screen import ToolcribScreen
+
+    app = build_app(ws.db, PROJECT, live=False, actor=f"user:{STORES}")
+
+    async def run_it(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        app.push_screen(ToolcribScreen(app.client, PROJECT, f"user:{STORES}", CRIB))
+        await tk.until(pilot, lambda: len(app.screen.query("#tc-line")) > 0, "the toolcrib line")
+        # before any issue or return: no done text, so no lot id on the screen
+        tk.shot_tui(ws, app, "15-toolcrib", f"The toolcrib {CRIB} of P200", CRIB)
+
+    tk.run_tui(ws, app, run_it)
+
+
 def shots(ws: Workspace) -> None:
     from tl_tui.widgets.constraint_screen import ConstraintScreen
     from tl_tui.widgets.inspection_log import InspectionLogScreen, InspectionScreen
@@ -122,6 +168,7 @@ def shots(ws: Workspace) -> None:
     from tl_tui.widgets.punch_log import PunchLogScreen
     from tl_tui.widgets.readiness_screen import ReadinessScreen
     from tl_tui.widgets.requisition_register import RequisitionLogScreen
+    from tl_tui.widgets.scaffold_register import ScaffoldLogScreen
     from tl_tui.widgets.schedule_screen import ScheduleScreen
     from tl_tui.widgets.weekly_screen import (
         CommitmentsScreen,
@@ -178,7 +225,7 @@ def shots(ws: Workspace) -> None:
         AWP,
         lambda c: ReleaseScreen(c, PROJECT),
         "the release",
-        "P200-IWP-ISL-0003",
+        "P200-IWP-ISL-0001",
         "signoffs 0 of 2",
     )
     scenario(
@@ -253,7 +300,19 @@ def shots(ws: Workspace) -> None:
     )
     scenario(
         ws,
-        "13-inspections",
+        "13-scaffolds",
+        "The scaffold register of P200: the scaffolds in their states",
+        f"user:{AWP}",
+        lambda c: ScaffoldLogScreen(c, PROJECT),
+        "the scaffolds",
+        SCAFFOLD,
+        "Designed",
+    )
+    scaffold_record(ws)
+    toolcrib(ws)
+    scenario(
+        ws,
+        "16-inspections",
         "The inspection log of P200",
         "user:hsato",
         lambda c: InspectionLogScreen(c, PROJECT),
@@ -263,7 +322,7 @@ def shots(ws: Workspace) -> None:
     )
     record(
         ws,
-        "14-inspection",
+        "17-inspection",
         "One inspection of P200: a Done inspection with failed questions",
         "user:hsato",
         lambda c: InspectionScreen(c, PROJECT, INSPECTION),
@@ -273,7 +332,7 @@ def shots(ws: Workspace) -> None:
     )
     scenario(
         ws,
-        "15-permits",
+        "18-permits",
         "The permit register of P200",
         "user:ipetrov",
         lambda c: PermitLogScreen(c, PROJECT),
@@ -283,7 +342,7 @@ def shots(ws: Workspace) -> None:
     )
     record(
         ws,
-        "16-permit",
+        "19-permit",
         "One permit of P200: an Active permit with its gas tests",
         "user:ipetrov",
         lambda c: PermitScreen(c, PROJECT, PERMIT),

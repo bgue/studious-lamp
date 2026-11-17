@@ -178,9 +178,11 @@ def sites(tmp_path: Path) -> dict[str, tuple[str, ...]]:
 # `require_controller(db)` at every controlling site that runs a module handler.
 REQUIRE_COMMAND = {
     "awp_write.py": 1,
+    "checklist_write.py": 1,  # P2-INSP
     "comm.py": 5, "corr.py": 11, "corr_clock.py": 4, "corr_registry.py": 11, "cost.py": 1,
     "derive_publish.py": 3, "derive_read.py": 1, "derive_run.py": 3, "derive_schema.py": 2,
     "doc.py": 6, "doc_link.py": 2, "doc_rendition.py": 3, "doc_rev.py": 4,
+    "insp_write.py": 1,  # P2-INSP
     "intent_flags.py": 1,  # P2-INT-T02 run_with_intent
     "mat_write.py": 7,
     "punch_write.py": 1,  # P2-PUNCH

@@ -132,8 +132,22 @@ FORMS = {
 }
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
+#: The ten words of the scaffold module (P2-I4B S1): the green tag is the one controller word.
+SCAFFOLD = {
+    "scaffold.view": "read",
+    "scaffold.register": "user",
+    "scaffold.design": "user",
+    "scaffold.erect": "user",
+    "scaffold.inspect": "user",
+    "scaffold.tag.green": "controller",
+    "scaffold.release": "user",
+    "scaffold.modify": "user",
+    "scaffold.dismantle": "user",
+    "scaffold.remove": "user",
+}
 
-def test_the_shipped_table_loads_86_words() -> None:
+
+def test_the_shipped_table_loads_96_words() -> None:
     words = load_access_words()
     expected = (
         len(AWP)
@@ -146,8 +160,9 @@ def test_the_shipped_table_loads_86_words() -> None:
         + len(QR)
         + len(PERMITS)
         + len(FORMS)
+        + len(SCAFFOLD)
     )
-    assert len(words) == 86 == expected
+    assert len(words) == 96 == expected
     assert "awp.constraint.edit" not in words
 
 
@@ -164,6 +179,7 @@ def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> 
         **QR,
         **PERMITS,
         **FORMS,
+        **SCAFFOLD,
     }.items():
         assert words.get(word) == table, word
 

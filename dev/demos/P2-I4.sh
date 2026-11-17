@@ -15,6 +15,16 @@
 #   4  one state over API, TUI palette and MCP (driver: dev/demos/p2_i4_demo.py); an agent's
 #      propose_requisition waits for uma, then uma accepts it. (No refusal check: no account on this
 #      ledger lacks requisitions.view, decision D-r3h.)
+#   5  scaffold for the IWP (P2-I4B-T10a; driver: dev/demos/p2_i4b_demo.py, mode scaffold): uma raises
+#      a scaffold request for the IWP, sue approves it; the scaffold is registered, designed, erected
+#      and tagged green (sue); the IWP's scaffold_tagged check is ok; a failed inspection turns the tag
+#      red, the scaffold goes to Modify and the check is blocked; release is refused meanwhile;
+#   6  scaffold inspections due and dismantle: the job scaffold.inspections_due flags the overdue
+#      scaffold once (a second run writes nothing); dismantle is refused while the IWP that requires
+#      the scaffold is Issued, and allowed after tl awp iwp cancel (decision D17: Cancelled is "closes");
+#   7  toolcrib screen (P2-I4B-T10b; driver: dev/demos/p2_i4b_demo.py, mode toolcrib): uma issues one
+#      elbow from TC1 to Ana Ruiz and takes it back, one line each, keys F2 and Ctrl+R; on hand 5 -> 4
+#      -> 5 (sue defines TC1 in the demo world, which loads none, and uma receives 5 EA into it)
 # Deferred and not claimed here: stock fulfilment, FIFO lots, the shortage constraint, the labour
 # forecast, reports, thread dispatch and web pages.
 #
@@ -225,6 +235,33 @@ run_backend() {
   out="$(as uma tl req ls --project P123 --kind labor --limit 100)"; echo "$out"
   expect "P123-REQ-LAB-$(printf '%04d' $((labour + 1)))  labor  Requested  normal  -  user:uma" "$out"
   clause 4 "API, palette screens (170x44) and MCP agree with tl req show; an agent's proposal waits for uma, who accepts it"
+
+  driver_b() { # driver_b MODE [ARG...]: the scaffold checks of clauses 5 and 6 (their output is shown)
+    uv run python dev/demos/p2_i4b_demo.py "$@" 2>"$workdir/driver.err" \
+      || { grep -v 'UV_NATIVE_TLS' "$workdir/driver.err" >&2; fail "an exit clause was not met: $*"; }
+  }
+  step "[$backend] clause 5: a scaffold for the IWP, tagged green, the IWP's check ok; a failed inspection blocks it"
+  out="$(as ada tl admin roles grant sue --project P123 --module scaffold --role superuser --reason demo)"; echo "$out"
+  expect "granted superuser on scaffold for project:P123 to sue" "$out"
+  out="$(as uma tl req raise-scaffold --project P123 --subject "Scaffold level 1 east" --purpose "Access to the pipe rack" --days 14 --for "$IWP")"; echo "$out"
+  scaf_key="$(printf '%s\n' "$out" | awk '/^raised /{print $2}')"
+  [ -n "$scaf_key" ] || fail "raise-scaffold printed no raised key"
+  out="$(as sue tl req approve "$scaf_key" --project P123)"; echo "$out"
+  expect "approve $scaf_key  version" "$out"
+  driver_b scaffold "$scaf_key" "$IWP"
+  clause 5 "scaffold registered from $scaf_key, Erecting, tagged green, scaffold_tagged ok; a fail is red and blocked"
+
+  step "[$backend] clause 6: the inspections-due job; dismantle refused while the IWP is Issued, allowed once Cancelled"
+  out="$(as ada tl awp iwp cancel "$IWP" --reason "demo: work package closed" --project P123)"; echo "$out"
+  expect "cancel $IWP  version" "$out"
+  driver_b scaffold-after
+  clause 6 "the job flags the overdue scaffold once; dismantle refused while the IWP is Issued; allowed after it is cancelled"
+
+  step "[$backend] clause 7: the toolcrib screen issues a tool to a person and takes it back, one line each"
+  out="$(as ada tl admin roles grant sue --project P123 --module materials --role superuser --reason demo)"; echo "$out"
+  expect "granted superuser on materials for project:P123 to sue" "$out"
+  driver_b toolcrib
+  clause 7 "F2 issues one elbow from TC1 to Ana Ruiz and Ctrl+R takes it back; on hand 5 -> 4 -> 5 (keyboard only, sue defines TC1, uma receives 5 EA into it)"
 
   drop_pg
   echo "[$backend] clauses 1-4 passed"

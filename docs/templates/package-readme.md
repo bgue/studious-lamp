@@ -24,6 +24,7 @@ See `AGENTS.md` in this directory.
 
 ## Module standard
 - Every event payload class names its world-date field with `tl:valid_time` (`at` for a moment, `from`/`to` for a span), or the class is listed with a reason in `tests/tools/valid_time_baseline.toml`; deadlines, forecasts and expiry dates are never tagged.
+- A module README names its hooks (`commands`, `read_routers`, `tools`, `cli_groups`) and the command names it declares, which are unique across modules; see `docs/runbooks/new-module.md`.
 
 ## Status
 Introduced in <increment>. Last interface change: <increment> (<ADR if any>).
