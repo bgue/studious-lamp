@@ -3,7 +3,7 @@ Earlier rounds (v2 board, decisions D1-D39, SEC, OPEN): `STATE-v2.md`. Merged be
 S7c W1 T01 T02 T03 T13 T14 I02 I03 B1, and P2-IP PERF1.
 ## BOARD  unit wave state review commit note
 P1  1 disp f+sec - per-row hidden check; tests/perf budget
-P0  1 disp f+sec - tl report hook + forms/RFI/corr/docs + wrapped exports
+P0  1 rev  f+sec 8464bfc8 tl report, 17 reports; scaffold.view ruling; reviews running
 P2  1 mrg  f     83e7a512 gate-changed (2 heavy slots), commit-check; 1 CR round
 F1a 2 todo f     - generator, routes, tl form, demo 1-3 5 7 8; owns shared files
 P0b 2 todo l     - report registrations for the other modules (spec from P0)
@@ -13,6 +13,8 @@ F2  4 todo f     - MCP, draft resume, walks; clause 4
 F3  4 todo f     - web fill page + cards; clause 9
 F4  4 todo f+sec - intake signed-in; clause 10
 F5  5 todo l     - docs, runbook, tour, highlights
+## BASE-RED (on p2/v3-forms, not caused by a unit)
+hidden_sql world lacks scaffold rows (P1 fixes) | awp proposable exclusions stale (F1a fixes) | wheel count 27 vs 21 (DEFERRED)
 ## OPEN
 Q9 S6 public route: owner gate (out of the pilot)
 ## DEC

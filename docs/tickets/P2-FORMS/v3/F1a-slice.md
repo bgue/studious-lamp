@@ -21,7 +21,9 @@ confidentiality rows (CR1), the views (`tl_mod_forms/views.py`, T03), the Survey
    (`tl_tui/client.py`) and the embedded client (`embedded.py`), stubs raising `NotImplementedError` where a later
    unit fills them (runner screen, MCP, intake); the forms hook rows; the `MCP_ACTIONS` lines later units need,
    left closed. Later units F1b, F2, F3, F4 only fill these in.
-5. **`tl report forms`** registration if V3-P0 left it out (P0 covers form submissions).
+5. **`tl report forms`** registration if V3-P0 left it out (P0 covers form submissions). Also make
+   `packages/tl-modules/awp/tests/test_proposable_exclusions.py` green: it is red on the base with a stale exclusion
+   that names form commands; fix the exclusion list, never the test's rule.
 6. **Walk**: the five-reader walk over every route and CLI read this unit adds (`tests/confidentiality/` pattern,
    `twin_channels.py`); hidden == missing byte comparison; a draft visible only to its author; a submission of a privileged
    template visible only to its author, even to an admin or a restricted-level controller (owner Q7, 2026-11-17).
