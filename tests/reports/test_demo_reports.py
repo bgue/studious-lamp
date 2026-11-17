@@ -25,8 +25,12 @@ from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
 from tl_core.modules import module_reports
 from tl_core.report_out import render
+from tl_core.util import utcnow
 from tl_mod_awp import iwp_reports
+from tl_mod_awp import iwp_views as awp_iwp_views
+from tl_mod_awp import report_rows as awp_rows
 from tl_mod_awp import reports as awp_reports
+from tl_mod_awp import views as awp_cwp_views
 from tl_mod_correspondence import reports_technical
 from tl_mod_correspondence import views as corr_views
 from tl_mod_correspondence.handlers.confidentiality import (
@@ -35,11 +39,22 @@ from tl_mod_correspondence.handlers.confidentiality import (
 )
 from tl_mod_correspondence.testing import frozen_today
 from tl_mod_documents import reports as doc_reports
+from tl_mod_engineering import registry as eng_registry
+from tl_mod_engineering import report_rows as eng_rows
+from tl_mod_permits import iso_views
+from tl_mod_permits import report_rows as permit_rows
+from tl_mod_permits import views as permit_views
+from tl_mod_quality import insp_views
+from tl_mod_quality import report_rows as quality_rows
+from tl_mod_quality import views as quality_views
+from tl_mod_requisitions import report_rows as req_rows
+from tl_mod_requisitions import views as req_views
 from tl_mod_scaffold import views as scaffold_views
 
 ROOT = Path(__file__).resolve().parents[2]
 SECTIONS = (
-    "core,engineering,awp,constraints,requisitions,scaffold,materials,correspondence,documents"
+    "core,engineering,awp,constraints,requisitions,scaffold,materials,correspondence,documents,"
+    "quality,permits"
 )
 SCOPE = "project:P200"
 LOW = cf.Viewer(actor="user:ada")  # level 0, unnamed; ada holds the module view words
@@ -70,6 +85,19 @@ HEADERS = {
     "submitted_on,reviewed_by,reviewed_on",
     "form-templates": "key,title,version,state,intake,purpose,answer_class,bound_record_type,"
     "field_count,published_on,retired_on",
+    "tags": "tag,class,state,title,area",
+    "cwps": "number,title,state,discipline,cwa,planned_start,planned_finish,budget_hours,allocated",
+    "iwps": "number,title,state,discipline,planned_start,planned_finish,foreman,estimated_hours,"
+    "cwp_number,scope_count",
+    "punch": "key,subject,state,category,area,system,due_on,assignee,raised_by,source_key",
+    "inspections": "key,title,subject_key,for_key,state,point,area,planned_on,scheduled_for,"
+    "inspector,result,done_on,punch_count",
+    "permits": "key,subject,permit_type,state,area,holder,issued_at,valid_until,"
+    "revalidation_count,closed_by,for_key",
+    "isolations": "key,point_text,energy,method,lock_number,tag_number,state,applied_by,"
+    "applied_at,verified_by,verified_at,depends",
+    "work-orders": "key,work_kind,state,assigned_to,planned_start,planned_finish,actual_start,"
+    "actual_finish,hours_planned,hours_actual",
 }
 
 
@@ -99,10 +127,43 @@ def rows(body: str) -> list[list[str]]:
     return list(csv.reader(io.StringIO(body)))[1:]
 
 
+def _all_pages(read: object, page: int = 500) -> int:
+    """Every row of a list read that clamps its limit: paged by offset until a short page."""
+    total, offset = 0, 0
+    while True:
+        got = len(read(page, offset))  # type: ignore[operator]
+        total += got
+        offset += got
+        if got < page:
+            return total
+
+
 def list_view_count(db: Path, name: str, viewer: cf.Viewer) -> int | None:
     """The row count the module's own view gives this viewer; None where a view has no count."""
     with open_uow(str(db), readonly=True) as uow, cf.use_viewer(viewer):
         conn = uow.conn()
+        if name == "tags":
+            return len(eng_registry.list_tags(conn, SCOPE, limit=1_000_000))
+        if name == "cwps":
+            return len(awp_cwp_views.cwp_list(conn, SCOPE))
+        if name == "iwps":
+            return _all_pages(lambda n, o: awp_iwp_views.iwp_list(conn, SCOPE, limit=n, offset=o))
+        if name == "punch":
+            return quality_views.punch_list(conn, SCOPE, limit=500, viewer=viewer).total
+        if name == "inspections":
+            return insp_views.inspection_list(conn, SCOPE, limit=500, viewer=viewer).total
+        if name == "permits":
+            return permit_views.permit_list(
+                conn, SCOPE, now=utcnow(), limit=500, viewer=viewer
+            ).total
+        if name == "isolations":
+            return iso_views.isolation_list(conn, SCOPE, limit=500, viewer=viewer).total
+        if name == "work-orders":
+            return _all_pages(
+                lambda n, o: req_views.work_order_list(
+                    conn, SCOPE, limit=n, offset=o, viewer=viewer
+                )
+            )
         if name == "rfis":
             return reports_technical.rfi_log(conn, SCOPE, limit=1_000_000).total
         if name == "correspondence":
@@ -317,3 +378,41 @@ def test_scaffold_list_offset_pages_are_the_list(ledger: Path) -> None:
         assert keys == [r.key for r in whole.rows]
         past = scaffold_views.scaffold_list(conn, SCOPE, offset=whole.total + 5, viewer=FULL)
         assert past.rows == [] and past.total == whole.total
+
+
+# --- V3-P0b: the registered list reports ---------------------------------------------------------
+
+#: The module that holds each paged report's ``_PAGE`` (the page size the monkeypatch makes small).
+PAGED = {
+    "tags": eng_rows,
+    "iwps": awp_rows,
+    "punch": quality_rows,
+    "inspections": quality_rows,
+    "permits": permit_rows,
+    "isolations": permit_rows,
+    "work-orders": req_rows,
+}
+
+
+@pytest.mark.parametrize("name", sorted(PAGED))
+def test_the_report_pages_the_same_at_every_page_size(
+    ledger: Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """A page of one row and a page of two give the same bytes as the report's own page size, for
+    the controller and the low viewer (the offset walk neither drops nor repeats a row)."""
+    whole = {v: out(ledger, name, v) for v in (LOW, FULL)}
+    for size in (1, 2):
+        monkeypatch.setattr(PAGED[name], "_PAGE", size)
+        for viewer in (LOW, FULL):
+            assert out(ledger, name, viewer) == whole[viewer], (name, size, viewer.level)
+
+
+@pytest.mark.parametrize("name", ["punch", "inspections", "permits", "isolations"])
+def test_a_hidden_row_is_missing_and_nothing_else_moves(ledger: Path, name: str) -> None:
+    """Hidden is missing, byte for byte: the low viewer's lines are the controller's lines in the
+    same order, minus whatever the viewer may not read. No gap, no mark, no count."""
+    full, low = lines_of(out(ledger, name, FULL)), lines_of(out(ledger, name, LOW))
+    assert full[0] == low[0]  # the pinned header
+    remaining = iter(full)
+    assert all(line in remaining for line in low)  # low is an ordered part of full
+    assert len(low) <= len(full)

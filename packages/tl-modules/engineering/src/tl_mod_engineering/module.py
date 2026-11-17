@@ -66,5 +66,6 @@ def spec() -> ModuleSpec:
         read_routers=("tl_api.routes.engineering:router",),
         tools=("tl_mcp.engineering_tools:register_engineering_tools",),
         cli_groups=("tl_cli.tag:app",),
+        reports=("tl_mod_engineering.report_rows:REPORTS",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )

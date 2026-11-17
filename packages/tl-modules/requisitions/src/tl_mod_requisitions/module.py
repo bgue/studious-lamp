@@ -133,6 +133,7 @@ def spec() -> ModuleSpec:
         command_words={c.model.__name__: c.access for c in REQUISITIONS_COMMANDS},
         commands="tl_mod_requisitions.module:REQUISITIONS_COMMANDS",
         read_routers=("tl_api.routes.requisitions:router",),
+        reports=("tl_mod_requisitions.report_rows:REPORTS",),
         tools=("tl_mcp.requisition_tools:register_requisition_tools",),
         cli_groups=(
             "tl_cli.req:app",

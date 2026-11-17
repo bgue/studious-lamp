@@ -103,7 +103,12 @@ def _base_params(scope: str) -> dict[str, Any]:
 
 
 def _iwp_rows(
-    conn: Connection, scope: str, where: str, params: dict[str, Any], limit: int
+    conn: Connection,
+    scope: str,
+    where: str,
+    params: dict[str, Any],
+    limit: int,
+    offset: int = 0,
 ) -> list[RowMapping]:
     """The live IWPs of ``scope`` the viewer may read, one statement, by number. ``where`` is a
     condition written here, never user input. The hidden-record test is in the WHERE, before the
@@ -124,7 +129,7 @@ def _iwp_rows(
         f"LEFT JOIN cur_core_record cw ON cw.id = i.cwp_id AND cw.type = :cwp_type "
         f"AND {visible_cw} "
         f"WHERE r.scope = :scope AND r.type = :type AND r.voided = :voided AND {visible_r}"
-        f"{where} ORDER BY r.key, r.id LIMIT :limit"
+        f"{where} ORDER BY r.key, r.id LIMIT :limit OFFSET :offset"
     )
     bound = {
         **_base_params(scope),
@@ -133,6 +138,7 @@ def _iwp_rows(
         **extra_t,
         **extra_cw,
         "limit": limit,
+        "offset": offset,
     }
     return list(conn.execute(text(sql), bound).mappings())
 
@@ -161,10 +167,11 @@ def iwp_list(
     discipline: str | None = None,
     foreman: str | None = None,
     limit: int = 200,
+    offset: int = 0,
 ) -> list[IwpRow]:
     """The IWPs of ``scope`` by number, void ones and hidden ones left out. ``state`` compares the
     workflow state (Draft is the default), ``discipline`` the discipline, ``foreman`` the foreman.
-    ``limit`` is clamped to 1..500."""
+    ``limit`` is clamped to 1..500; ``offset`` (default 0) pages past the first ``limit`` rows."""
     where = ""
     params: dict[str, Any] = {}
     if state is not None:
@@ -176,7 +183,10 @@ def iwp_list(
     if foreman is not None:
         where += " AND i.foreman = :foreman"
         params["foreman"] = foreman
-    return [_iwp_row(raw) for raw in _iwp_rows(conn, scope, where, params, _clamp(limit))]
+    return [
+        _iwp_row(raw)
+        for raw in _iwp_rows(conn, scope, where, params, _clamp(limit), max(0, int(offset)))
+    ]
 
 
 def iwp_detail(conn: Connection, scope: str, number: str) -> IwpDetail | None:
