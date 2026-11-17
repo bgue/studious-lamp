@@ -1,7 +1,8 @@
-"""P2-IP-PERF1: the faster ``hidden_sql`` answers exactly what the old statement answered.
+"""P2-IP-PERF1, V3-P1: the faster ``hidden_sql`` answers exactly what the old statement answered.
 
 The old builder (one part per confidential source, each joined to every ``SUBJECT_LINKS`` table
-twice on a ``COALESCE`` chain) is copied below as the reference (``old_hidden_sql``). The world is
+twice on a ``COALESCE`` chain) is copied below as the reference (``old_hidden_sql``): it is
+``tl_core.confidentiality`` as of commit 316c5a02, before PERF1 and V3-P1 changed it. The world is
 written straight into the current-state tables so that every source, every child, both hops, a
 dangling or missing subject, a chain deeper than two hops and the author-only draft rule are all in
 play at once; the same ids must come back for each kind of viewer, as a whole set and one record at
@@ -242,6 +243,8 @@ TABLES = {
     PERMIT: "cur_permits_permit",
     "permits.Isolation": "cur_permits_isolation",
     "permits.GasTest": "cur_permits_gas_test",
+    "scaffold.Scaffold": "cur_scaffold_scaffold",
+    "scaffold.ScaffoldInspection": "cur_scaffold_scaffold_inspection",
     "correspondence.CorrespondenceThread": "cur_correspondence_correspondence_thread",
     "correspondence.ResponseClock": "cur_correspondence_response_clock",
     "documents.Revision": "cur_documents_revision",
@@ -321,6 +324,14 @@ def world_rows() -> list[Row]:
     add("in_res", "quality.Inspection", subject_id="c_res")
     add("in_pm", "quality.Inspection", subject_id="pm_res")
     add("in_int", "quality.Inspection", subject_id="c_int")
+    # scaffolds (one hop to a requisition's record, two hops through the request) and inspections
+    add("sf_res", "scaffold.Scaffold", for_record_id="c_res")
+    add("sf_int", "scaffold.Scaffold", for_record_id="c_int")
+    add("sf_req", "scaffold.Scaffold", for_record_id="scf_res")
+    add("sf_none", "scaffold.Scaffold")
+    add("si_res", "scaffold.ScaffoldInspection", scaffold_id="sf_res")
+    add("si_int", "scaffold.ScaffoldInspection", scaffold_id="sf_int")
+    add("si_req", "scaffold.ScaffoldInspection", scaffold_id="sf_req")
     # forms: classes, drafts, authors, subjects, intake
     done = "2026-11-01"
     add("f_int", SUB, answer_class="internal", author="user:ann", submitted_on=done)
@@ -445,7 +456,7 @@ def old_ids(conn: Connection, viewer: Viewer, **kw: Any) -> set[str]:
 
 
 def test_the_world_has_every_source_and_both_hops() -> None:
-    assert {s.table for s in confidential_sources()} >= {
+    assert {s.table for s in confidential_sources()} == {
         "cur_correspondence_correspondence",
         "cur_documents_document",
         "cur_forms_submission",
@@ -504,7 +515,7 @@ def test_one_record_at_a_time_is_the_old_answer(
             sql = build(viewer, only="hr.id = l.id")
             assert sql is not None
             assert ids_of(conn, each.format(sql), viewer) == whole
-        for rid in ids[::7]:
+        for rid in ids:
             only = "hr.id = :_cf_id"
             old = ids_of(conn, old_hidden_sql(viewer, only=only), viewer, _cf_id=rid)
             new = ids_of(conn, cf.hidden_sql(viewer, only=only), viewer, _cf_id=rid)
@@ -538,6 +549,25 @@ def test_the_row_filters_keep_the_same_records(world: tuple[DbTarget, list[str]]
         }
         assert kept == visible
         assert set(cf.hidden_among(conn, ids, viewer)) == old
+
+
+@pytest.mark.parametrize("alias", ["k", "rr", "hr", "q00", "q01", "q10", "q115", "s", "d", "c"])
+@pytest.mark.parametrize("who", sorted(VIEWERS))
+def test_an_outer_alias_named_like_an_inner_one_hides_the_same_set(
+    world: tuple[DbTarget, list[str]], who: str, alias: str
+) -> None:
+    """The chain's own aliases never capture a caller's: ``not_hidden_each`` over rows aliased
+    ``k``, ``rr``, ``q00`` ... keeps the records it keeps over ``r``."""
+    target, ids = world
+    viewer = VIEWERS[who]
+    with open_uow(target, readonly=True) as uow:
+        conn = uow.conn()
+        visible = set(ids) - old_ids(conn, viewer)
+        clause, params = cf.not_hidden_each(f"{alias}.id", viewer)
+        rows = conn.execute(
+            text(f"SELECT {alias}.id FROM cur_core_record {alias} WHERE {clause}"), params
+        )
+        assert {str(x[0]) for x in rows} == visible
 
 
 def test_a_system_viewer_hides_nothing_and_so_does_the_old_one(
