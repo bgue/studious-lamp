@@ -22,6 +22,7 @@ from fakes_correspondence import FakeCorrespondenceSupport
 from fakes_derivation import FakeDerivationSupport
 from fakes_documents import FakeDocumentSupport
 from fakes_feed import FakeFeedSupport
+from fakes_forms import FakeFormsSupport
 from fakes_insp import FakeInspSupport
 from fakes_integration import FakeIntegrationSupport
 from fakes_iwp import FakeIwpSupport
@@ -250,6 +251,7 @@ class FakeClient(
     FakePunchSupport,
     FakeScaffoldSupport,
     FakeWeekSupport,
+    FakeFormsSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -292,6 +294,7 @@ class FakeClient(
         self._init_punch()
         self._init_scaffold()
         self._init_week()
+        self._init_forms()
 
     # --- seeding -----------------------------------------------------------------------------
 

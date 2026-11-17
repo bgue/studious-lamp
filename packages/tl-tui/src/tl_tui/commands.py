@@ -65,6 +65,7 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     ),
     AppCommand("inspections", "Inspections: by state and point", "", "inspections"),
     AppCommand("permits", "Permits to work: by state, type and area", "", "permits"),
+    AppCommand("forms", "Forms: submissions and templates, and filling a form", "", "forms"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
     AppCommand("admin", "Accounts and agent tokens (admins)", "F10", "admin"),
     AppCommand("review", "Review queue: accept or reject proposed values", "Ctrl+R", "review"),
