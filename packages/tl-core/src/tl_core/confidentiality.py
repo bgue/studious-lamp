@@ -140,6 +140,11 @@ def _allowed(source: ConfidentialSource, viewer: Viewer) -> str:
     return clause
 
 
+def _only(only: str | None) -> str:
+    """The extra condition that limits the statement to the records asked about."""
+    return f" AND {only}" if only else ""
+
+
 # A part also answers for the records that name a subject (ADR-0024 constraints; requisitions,
 # their work orders (P2-I4A F1), punch items (P2-PUNCH) and scaffolds with their inspections
 # (P2-I4B)): such a record is hidden when its subject is, class by join, no copy. ``k`` is the
@@ -390,7 +395,7 @@ def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str 
         ]
         return chain.prefix + " UNION ALL ".join(selects)
     alternatives = " OR ".join(f"({cond})" for cond, _ in parts)
-    return f"SELECT hr.id FROM {chain.source} WHERE {only} AND ({alternatives})"
+    return f"SELECT hr.id FROM {chain.source} WHERE ({alternatives}){_only(only)}"
 
 
 def params_for(sql: str, viewer: Viewer | None = None) -> dict[str, Any]:
