@@ -1,0 +1,9 @@
+# V3-P0b report: `tl report` for eight more modules (written by the orchestrator from the unit's returns)
+
+- What: `tags`, `cwps`, `iwps`, `punch`, `inspections`, `permits`, `isolations`, `work-orders` reports through the `reports` hook (commits 0f7be9ff, 18bef8b5, 5d8e6cb5). Each reads the module's own list view as the viewer, paged by a new keyword-only `offset` (default 0) on `iwp_list`, `punch_list`, `inspection_list`, `isolation_list`, `work_order_list`; existing callers unchanged.
+- View words: punch and inspections `quality.view`, permits and isolations `permits.view`, work orders `requisitions.view`, the same `require_word` call and text as the list routes; tags, CWPs and IWPs use `guard()` only, like their routes.
+- Tests (`tests/reports/test_demo_reports.py`): pinned headers; count = list view; JSONL = CSV; page boundaries at sizes 1 and 2 for the seven paged reports; refusal without the view word (no header); for the five types hidden through `SUBJECT_LINKS`, a record pointed at a restricted RFI is absent for the low viewer, present for the controller, and low bytes = the unedited ledger's low bytes minus that line; tags, CWPs, IWPs cannot be hidden: low bytes = controller bytes.
+- Deviations: tag columns are `tag,class,state,title,area` (`TagRow` has no description, system or end date); demo `SECTIONS` for the report tests adds quality and permits.
+- Left out, for a later unit: requisitions (merges four kinds; clamped view), activities (which schedule snapshot), QR codes (needs a new read), constraints (already `awp-constraint-log`).
+- Gate: `just check` 0; `just gate tests/reports tests/confidentiality/test_reports_v3.py` PASS, 112 passed; earlier wider run 1442 passed, 1 failed (awp proposable exclusions, red on the base).
+- Review: full, two rounds (hidden-row test made byte-exact and non-vacuous; refusal tests added): P. Orchestrator fixed the trailer of 0f7be9ff before merge.
