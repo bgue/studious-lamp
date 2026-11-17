@@ -147,13 +147,13 @@ def _only(only: str | None) -> str:
 
 # A part also answers for the records that name a subject (ADR-0024 constraints; requisitions,
 # their work orders (P2-I4A F1), punch items (P2-PUNCH) and scaffolds with their inspections
-# (P2-I4B)): such a record is hidden when its subject is, class by join, no copy. ``k`` is the
+# (P2-I4B)): such a record is hidden when its subject is, class by join, no copy. ``_cf_k`` is the
 # constraint row (NULL for any other record). Each ``SUBJECT_LINKS`` row is a
 # table with one row per record of a type and the column naming that record's subject. The subject
 # is followed ``_HOPS`` times (constraint -> work order -> requisition -> work package), each hop
 # one flat LEFT JOIN per table on its primary key (nesting subqueries overflows SQLite's parser
 # stack). A record with no subject, or whose subject is not a record, is its own subject (a null
-# subject falls back to the record's own class). ``rr`` is the record that governs.
+# subject falls back to the record's own class). ``_cf_rr`` is the record that governs.
 SUBJECT_LINKS: Final = (
     ("requisitions.LaborRequisition", "cur_requisitions_labor_requisition", "id", "for_record_id"),
     (
@@ -220,8 +220,9 @@ _TEMPLATE_CLASS: Final = "answer_class"
 @dataclass(frozen=True)
 class _Chain:
     """How a part reads the record whose class governs each record. ``source`` is the FROM item
-    whose rows are the records under test (alias ``hr``); ``subj`` is the id of the governing
-    record, ``rid`` and ``rtype`` that record's id and type (NULL when it is no record). ``prefix``
+    whose rows are the records under test (alias ``hr``; the other aliases of the chain are
+    ``_cf_``-prefixed, so an outer alias of the same name is never captured); ``subj`` is the id of
+    the governing record, ``rid`` and ``rtype`` that record's id and type (NULL when it is no record). ``prefix``
     is the WITH clause the source needs, if any."""
 
     source: str
@@ -237,17 +238,19 @@ def _chain_sql() -> tuple[str, str]:
     is unique and sizes the result right), and the id of the record that governs it. Only the
     tables of installed modules are named."""
     links = [link for link in SUBJECT_LINKS if is_module_record_type(link[0])]
-    joins = " LEFT JOIN cur_core_constraint k ON k.id = hr.id AND hr.type = 'core.Constraint'"
+    joins = (
+        " LEFT JOIN cur_core_constraint _cf_k ON _cf_k.id = hr.id AND hr.type = 'core.Constraint'"
+    )
     found: list[str] = []  # the subject columns reached so far, the latest hop first
     for hop in range(_HOPS if links else 0):
-        current = f"COALESCE({', '.join([*found, 'k.subject_id', 'hr.id'])})"
+        current = f"COALESCE({', '.join([*found, '_cf_k.subject_id', 'hr.id'])})"
         hopped: list[str] = []
         for number, (_, table, id_column, subject_column) in enumerate(links):
-            alias = f"q{hop}{number}"
+            alias = f"_cf_q{hop}{number}"
             joins += f" LEFT JOIN {table} {alias} ON {alias}.{id_column} = {current}"
             hopped.append(f"{alias}.{subject_column}")
         found = [*hopped, *found]
-    return joins, f"COALESCE({', '.join([*found, 'k.subject_id', 'hr.id'])})"
+    return joins, f"COALESCE({', '.join([*found, '_cf_k.subject_id', 'hr.id'])})"
 
 
 def _subject_chain(shared: bool) -> _Chain:
@@ -255,11 +258,11 @@ def _subject_chain(shared: bool) -> _Chain:
     table, computed once, instead of its own copy of the chain. Otherwise (``only`` names the
     records asked about) the chain is inline and the database follows it for those records."""
     joins, final = _chain_sql()
-    rr = f" LEFT JOIN cur_core_record rr ON rr.id = {final}"
+    rr = f" LEFT JOIN cur_core_record _cf_rr ON _cf_rr.id = {final}"
     if not shared:
-        return _Chain(f"cur_core_record hr{joins}{rr}", final, "rr.id", "rr.type")
+        return _Chain(f"cur_core_record hr{joins}{rr}", final, "_cf_rr.id", "_cf_rr.type")
     table = (
-        f"_cf_chain AS (SELECT hr.id AS id, {final} AS subj, rr.id AS rid, rr.type AS rtype "
+        f"_cf_chain AS (SELECT hr.id AS id, {final} AS subj, _cf_rr.id AS rid, _cf_rr.type AS rtype "
         f"FROM cur_core_record hr{joins}{rr})"
     )
     return _Chain("_cf_chain hr", "hr.subj", "hr.rid", "hr.rtype", f"WITH {table} ")
