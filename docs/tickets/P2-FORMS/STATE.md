@@ -17,6 +17,7 @@ F5  5 todo l     - docs, runbook, tour, highlights
 hidden_sql world lacks scaffold rows (P1 fixes) | awp proposable exclusions stale (F1a fixes) | wheel count 27 vs 21 (DEFERRED)
 ## OPEN
 Q9 S6 public route: owner gate (out of the pilot)
+Q10 record keys come from one sequence per project, so a hidden record leaves a gap in every list read and report (P0 sec F2; pre-existing, platform-wide): accept as a documented limit, or a rule? needs owner
 ## DEC
 D40 2026-11-17 owner Q7: privileged forms hidden from all but the author (CR1 behaviour kept; no clearance table); F1a walk proves it
 ## METRICS (for V3-PILOT.md)

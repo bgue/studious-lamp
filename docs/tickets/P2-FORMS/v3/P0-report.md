@@ -4,7 +4,7 @@ Process: `docs/build-spec/process-v3.md` section 2 (rule 6 is this unit).
 
 ## Goal
 `tl report <module> --project <P> [--format csv|jsonl] [--out <file>]` writes one row per record of the module,
-for the signed-in viewer: hidden records are left out exactly like missing ones (no count, no gap, no hint).
+for the signed-in viewer: hidden records are left out exactly like missing ones (no count, no total, no hint; record keys show the same numbering gaps as the list reads, owner Q10).
 Default format CSV to stdout; header row first; dates ISO; empty values empty (CSV) or null (JSONL). `tl report`
 with no module lists the available modules, one per line.
 
