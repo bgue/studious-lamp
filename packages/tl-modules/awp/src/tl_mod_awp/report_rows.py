@@ -4,6 +4,10 @@ Each row is the list read's own row (``views.cwp_list``, ``iwp_views.iwp_list``)
 viewer, so a hidden or voided record is not a row. The CWP list has no limit and is read once; the
 IWP list is paged with its ``offset`` (its ``limit`` is clamped to 500). Neither list has a view
 word, so there is no refusal to copy. No record id is a column: the number names the row.
+
+``cwp_rows`` and ``iwp_rows`` read as the ambient viewer set by
+``tl_core.confidentiality.use_viewer`` (``tl report`` sets it); the ``viewer`` argument is the one
+``render`` passes, unused here.
 """
 
 from __future__ import annotations

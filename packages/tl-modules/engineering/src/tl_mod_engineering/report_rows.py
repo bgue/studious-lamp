@@ -18,6 +18,8 @@ from tl_mod_engineering import registry
 
 #: The page size the report reads the list with (a monkeypatched value in the tests).
 _PAGE: Final = 500
+# TagRow has no description, system or ended_on field and the list read (registry.list_tags) does
+# not select them, so the columns are the ones the row carries: title stands for the description.
 TAG_COLUMNS: Final = ("tag", "class", "state", "title", "area")
 
 

@@ -416,3 +416,32 @@ def test_a_hidden_row_is_missing_and_nothing_else_moves(ledger: Path, name: str)
     remaining = iter(full)
     assert all(line in remaining for line in low)  # low is an ordered part of full
     assert len(low) <= len(full)
+
+
+# --- V3-P0b review: the view word is checked before any header -----------------------------------
+
+#: The reports whose list read takes a view word (checked by their rows function).
+VIEW_WORD_REPORTS = {
+    "punch": "quality.view",
+    "inspections": "quality.view",
+    "permits": "permits.view",
+    "isolations": "permits.view",
+    "work-orders": "requisitions.view",
+}
+
+
+@pytest.mark.parametrize("name", sorted(VIEW_WORD_REPORTS))
+def test_a_viewer_without_the_view_word_gets_the_refusal_and_no_header(
+    ledger: Path, name: str
+) -> None:
+    """An actor that holds no module words is refused with the list read's own text, and the
+    report writes nothing (not even the header), in CSV and in JSON lines."""
+    from tl_core.auth.errors import ForbiddenError
+
+    word = VIEW_WORD_REPORTS[name]
+    # An agent with no account: the dev-ledger rule (a user: actor with no account holds the user
+    # role, with the table word read) does not reach it, so it holds no module word.
+    stranger = cf.Viewer(actor="agent:nobody-holds-words")
+    for fmt in ("csv", "jsonl"):
+        with pytest.raises(ForbiddenError, match=f"^{word} needs the "):
+            out(ledger, name, stranger, fmt)
