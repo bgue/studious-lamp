@@ -1,0 +1,13 @@
+# V3-P0c report: requisitions, activities, QR code reports (trimmed to 15 lines by the orchestrator)
+- What (e8d92e68): `tl report requisitions|activities|qr-codes` via the `reports` hook. `requisition_list` gains keyword-only `offset` (default 0; each kind reads `offset + limit`, merged order sliced); callers unchanged.
+- Requisitions: `key,kind,subject,state,requester,priority,need_by,approved_by`; no id; view word `requisitions.view`.
+- Activities: rows of each schedule's current snapshot (none adds nothing); `schedule,snapshot,activity_id,name,state,planned_*,actual_*,total_float_hr`; planned = target dates. Schedule list read has no module word (guard only), so neither has the report.
+- QR: one select with `not_hidden("c.target_id")` before order and paging, scoped; view word `qr.view`; no code, hash, id or URL piece in any column.
+- Tests (`tests/reports/test_demo_reports.py`): headers pinned; counts = list read; JSONL = CSV; page sizes 1 and 2; refusal without the view word, no header; hidden-subject byte tests for requisitions and QR (non-vacuous).
+- Perf: QR, requisition, activity reports under 1 s as treyes and mokafor on the full ledger (2,000 QR codes added to the private copy; the generator issues none).
+- Deviations: QR tests write `cur_qr_scan_code` rows directly; `just gate-changed` stopped after 30 min on the lock, gate run by hand on slot 2.
+- Mutation: sentinel killed; QR `not_hidden` -> `1 = 1`, QR view word removed, offset slice -> `[:take]` all killed; 0 survivors.
+- Gate: `just check` 0; `just gate tests/reports tests/perf` + requisitions, qr, schedule tests: PASS, 440 passed.
+- Review: full P (4 LO: shared perf test, O(n^2/page) paging covered by budget, report length (fixed here), trailer as required).
+- Security: P, S1-S6 refuted; LO: QR byte test points codes straight at an RFI (no two-hop or Submission target case); requisitions hidden test exercises one kind.
+- Framework note for the wave review (N1): a privileged Submission that is itself a subject of another record is governed by its own subject chain; its answer class is not checked on that hop.

@@ -141,14 +141,17 @@ def requisition_list(
     requester: str | None = None,
     for_record: str | None = None,
     limit: int = 200,
+    offset: int = 0,
     viewer: confidentiality.Viewer = confidentiality.LOWEST,
 ) -> list[RequisitionRow]:
     """The requisitions of ``scope`` (all kinds, or one ``kind``), by key, that match the filters.
-    ``for_record`` is a record id (the record the requisition serves). Hidden ones are left out."""
+    ``for_record`` is a record id (the record the requisition serves). Hidden ones are left out.
+    ``offset`` (default 0, keyword) pages past the first ``offset`` rows of the merged order."""
     if kind is not None and kind not in KINDS:
         raise ValueError(MSG_UNKNOWN_KIND)
     wanted = tuple(KINDS.values()) if kind is None else (KINDS[kind],)
     take = _clamp(limit)
+    skip = max(0, int(offset))
     visible, extra = confidentiality.not_hidden_each("r.id", viewer)
     found: list[RequisitionRow] = []
     for record_type in wanted:
@@ -157,7 +160,7 @@ def requisition_list(
             "scope": scope,
             "no": False,
             "requested": ST_REQUESTED,
-            "limit": take,
+            "limit": take + skip,
             **extra,
         }
         if state is not None:
@@ -175,7 +178,7 @@ def requisition_list(
             f"WHERE {' AND '.join(conditions)} ORDER BY r.key, r.id LIMIT :limit"
         )
         found.extend(_requisition(record_type, row) for row in conn.execute(statement, params))
-    return sorted(found, key=lambda r: (r.key, r.id))[:take]
+    return sorted(found, key=lambda r: (r.key, r.id))[skip : skip + take]
 
 
 def requisition_detail(

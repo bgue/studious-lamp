@@ -44,17 +44,21 @@ from tl_mod_engineering import report_rows as eng_rows
 from tl_mod_permits import iso_views
 from tl_mod_permits import report_rows as permit_rows
 from tl_mod_permits import views as permit_views
+from tl_mod_qr import report_rows as qr_rows
 from tl_mod_quality import insp_views
 from tl_mod_quality import report_rows as quality_rows
 from tl_mod_quality import views as quality_views
 from tl_mod_requisitions import report_rows as req_rows
 from tl_mod_requisitions import views as req_views
 from tl_mod_scaffold import views as scaffold_views
+from tl_mod_schedule import registry as sched_registry
+from tl_mod_schedule import report_rows as sched_rows
+from tl_mod_schedule import views as sched_views
 
 ROOT = Path(__file__).resolve().parents[2]
 SECTIONS = (
     "core,engineering,awp,constraints,requisitions,scaffold,materials,correspondence,documents,"
-    "quality,permits"
+    "quality,permits,schedule"
 )
 SCOPE = "project:P200"
 LOW = cf.Viewer(actor="user:ada")  # level 0, unnamed; ada holds the module view words
@@ -96,6 +100,10 @@ HEADERS = {
     "revalidation_count,closed_by,for_key",
     "isolations": "key,point_text,energy,method,lock_number,tag_number,state,applied_by,"
     "applied_at,verified_by,verified_at,depends",
+    "requisitions": "key,kind,subject,state,requester,priority,need_by,approved_by",
+    "activities": "schedule,snapshot,activity_id,name,state,planned_start,planned_finish,"
+    "actual_start,actual_finish,total_float_hr",
+    "qr-codes": "label_text,size,state,subject_key,issued_by,issued_at,expires_on,revoked_at",
     "work-orders": "key,work_kind,state,assigned_to,planned_start,planned_finish,actual_start,"
     "actual_finish,hours_planned,hours_actual",
 }
@@ -163,6 +171,18 @@ def list_view_count(db: Path, name: str, viewer: cf.Viewer) -> int | None:
                 lambda n, o: req_views.work_order_list(
                     conn, SCOPE, limit=n, offset=o, viewer=viewer
                 )
+            )
+        if name == "requisitions":
+            return _all_pages(
+                lambda n, o: req_views.requisition_list(
+                    conn, SCOPE, limit=n, offset=o, viewer=viewer
+                )
+            )
+        if name == "activities":
+            return sum(
+                sched_views.activity_page(conn, SCOPE, s.code, limit=1).total
+                for s in sched_registry.list_schedules(conn, SCOPE)
+                if s.current_snapshot_id is not None
             )
         if name == "rfis":
             return reports_technical.rfi_log(conn, SCOPE, limit=1_000_000).total
@@ -391,6 +411,8 @@ PAGED = {
     "permits": permit_rows,
     "isolations": permit_rows,
     "work-orders": req_rows,
+    "requisitions": req_rows,
+    "activities": sched_rows,
 }
 
 
@@ -427,6 +449,8 @@ VIEW_WORD_REPORTS = {
     "permits": "permits.view",
     "isolations": "permits.view",
     "work-orders": "requisitions.view",
+    "requisitions": "requisitions.view",
+    "qr-codes": "qr.view",
 }
 
 
@@ -510,6 +534,22 @@ def point_subject_at(copy: Path, name: str, subject_id: str) -> str:
                     (subject_id, requisition),
                 )
             return str(key)
+        if name == "requisitions":
+            first = min(
+                (
+                    (str(r[0]), str(r[1]), t)
+                    for t in REQUISITION_TABLES
+                    for r in conn.exec_driver_sql(
+                        f"SELECT r.key, t.id FROM {t} t JOIN cur_core_record r ON r.id = t.id "
+                        "WHERE r.scope = ? ORDER BY r.key LIMIT 1",
+                        (SCOPE,),
+                    )
+                ),
+            )  # the first key over the four kinds
+            conn.exec_driver_sql(
+                f"UPDATE {first[2]} SET for_record_id = ? WHERE id = ?", (subject_id, first[1])
+            )
+            return first[0]
         table, column = SUBJECT_COLUMN[name]
         key, record = conn.exec_driver_sql(
             f"SELECT r.key, t.id FROM {table} t JOIN cur_core_record r ON r.id = t.id "
@@ -520,7 +560,9 @@ def point_subject_at(copy: Path, name: str, subject_id: str) -> str:
         return str(key)
 
 
-@pytest.mark.parametrize("name", ["punch", "inspections", "permits", "isolations", "work-orders"])
+@pytest.mark.parametrize(
+    "name", ["punch", "inspections", "permits", "isolations", "work-orders", "requisitions"]
+)
 def test_a_record_hidden_through_its_subject_is_missing_for_the_low_viewer(
     ledger: Path, tmp_path: Path, name: str
 ) -> None:
@@ -553,3 +595,178 @@ def test_a_report_with_no_subject_link_is_the_same_for_both_viewers(
     """Tags, CWPs and IWPs are not in ``SUBJECT_LINKS`` and carry no class of their own, so no
     viewer loses a row: the low viewer's bytes are the controller's (as scaffolds are)."""
     assert out(ledger, name, LOW) == out(ledger, name, FULL)
+
+
+# --- V3-P0c: requisitions, activities, QR codes --------------------------------------------------
+
+
+def test_requisition_list_offset_pages_are_the_list(ledger: Path) -> None:
+    """Pages of two by ``offset`` over the merged kinds are the whole list, in order; an offset
+    past the end is empty; the default offset is 0 (existing callers see no change)."""
+    with open_uow(str(ledger), readonly=True) as uow:
+        conn = uow.conn()
+        whole = req_views.requisition_list(conn, SCOPE, limit=500, viewer=FULL)
+        assert len({r.kind for r in whole}) > 1  # the merge of kinds is what the offset must cut
+        keys: list[str] = []
+        for offset in range(0, len(whole) + 2, 2):
+            part = req_views.requisition_list(conn, SCOPE, limit=2, offset=offset, viewer=FULL)
+            assert len(part) <= 2
+            keys.extend(r.key for r in part)
+        assert keys == [r.key for r in whole]
+        assert req_views.requisition_list(conn, SCOPE, offset=len(whole) + 5, viewer=FULL) == []
+        assert req_views.requisition_list(conn, SCOPE, limit=3, viewer=FULL) == whole[:3]
+
+
+def test_the_requisition_report_has_every_kind(ledger: Path) -> None:
+    body = rows(out(ledger, "requisitions", FULL))
+    assert len(body) > 4
+    assert {r[1] for r in body} >= {"general", "labor", "material"}
+    assert len({r[0] for r in body}) == len(body)  # no key twice (the merge)
+
+
+def test_the_activity_report_is_the_current_snapshot_of_each_schedule(ledger: Path) -> None:
+    body = rows(out(ledger, "activities", FULL))
+    assert body
+    with open_uow(str(ledger), readonly=True) as uow:
+        conn = uow.conn()
+        want = {
+            s.code: sched_registry.get_snapshot(conn, s.current_snapshot_id).number  # type: ignore[union-attr, arg-type]
+            for s in sched_registry.list_schedules(conn, SCOPE)
+            if s.current_snapshot_id is not None
+        }
+    assert {r[0]: int(r[1]) for r in body} == want
+    assert out(ledger, "activities", LOW) == out(ledger, "activities", FULL)
+
+
+def test_a_schedule_without_a_current_snapshot_adds_no_rows(
+    ledger: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = sched_registry.list_schedules
+
+    def none_current(conn: object, scope: str) -> list[object]:
+        import dataclasses
+
+        return [dataclasses.replace(s, current_snapshot_id=None) for s in real(conn, scope)]  # type: ignore[arg-type]
+
+    monkeypatch.setattr(sched_registry, "list_schedules", none_current)
+    assert out(ledger, "activities", FULL).splitlines() == [HEADERS["activities"]]
+
+
+CODE_COLUMNS = (
+    "id, scope, code_hash, target_id, target_type, label_text, size, issued_by, issued_at, "
+    "expires_on, revoked_at, last_seq"
+)
+
+
+def add_code(
+    conn: object, target: str, label: str | None, issued_at: str, *, tag: str,
+    expires_on: str | None = None, revoked_at: str | None = None,
+) -> tuple[str, str]:  # fmt: skip
+    """A scan code row written straight into the copy's current-state table (the module's
+    issue path needs a card provider and settings that a report test does not). Returns the
+    row's id and hash, so a test can look for them in the output."""
+    code_id, code_hash = f"01TESTQRCODE{tag:0>14}", f"{tag:0>2}" * 32
+    conn.exec_driver_sql(  # type: ignore[attr-defined]
+        f"INSERT INTO cur_qr_scan_code ({CODE_COLUMNS}) VALUES (?, ?, ?, ?, 'x.Y', ?, 'tag', "
+        "'user:uma', ?, ?, ?, 1)",
+        (code_id, SCOPE, code_hash, target, label, issued_at, expires_on, revoked_at),
+    )
+    return code_id, code_hash
+
+
+@pytest.fixture(scope="module")
+def qr_ledger(
+    ledger: Path, tmp_path_factory: pytest.TempPathFactory
+) -> tuple[Path, dict[str, str]]:
+    """A copy of the ledger with scan codes: two on punch items, three on the first RFI (live,
+    expired, revoked), the labels of two sharing one issue time. Returns the path and what the
+    tests look for (the RFI key, the ids and hashes that must never appear)."""
+    copy = tmp_path_factory.mktemp("qr") / "copy.db"
+    shutil.copy(ledger, copy)
+    with open_uow(str(copy), readonly=True) as uow:
+        punch = [
+            tuple(r)
+            for r in uow.conn().exec_driver_sql(
+                "SELECT t.id, r.key FROM cur_quality_punch_item t JOIN cur_core_record r "
+                "ON r.id = t.id WHERE r.scope = ? ORDER BY r.key LIMIT 2",
+                (SCOPE,),
+            )
+        ]
+        rfi = tuple(
+            uow.conn()
+            .exec_driver_sql(
+                "SELECT t.id, r.key FROM cur_correspondence_technical_item t "
+                "JOIN cur_core_record r ON r.id = t.id WHERE r.scope = ? ORDER BY r.key LIMIT 1",
+                (SCOPE,),
+            )
+            .one()
+        )
+    secret: list[str] = []
+    with open_uow(str(copy)) as uow:
+        conn = uow.conn()
+        for tag, target, label, at, extra in (
+            ("1", punch[0][0], "Pump", "2026-10-01T08:00:00", {}),
+            ("2", punch[1][0], "Valve B", "2026-10-02T08:00:00", {}),
+            ("3", punch[1][0], "Valve A", "2026-10-02T08:00:00", {}),
+            ("4", rfi[0], "Letter", "2026-10-03T08:00:00", {}),
+            ("5", rfi[0], None, "2026-10-04T08:00:00", {"expires_on": "2020-01-01"}),
+            ("6", rfi[0], "Old", "2026-10-05T08:00:00", {"revoked_at": "2026-10-06T08:00:00"}),
+        ):
+            secret.extend(add_code(conn, target, label, at, tag=tag, **extra))
+    return copy, {"rfi": str(rfi[1]), "punch": str(punch[0][1]), "secret": "\n".join(secret)}
+
+
+def test_the_qr_report_rows_order_state_and_no_secret(
+    qr_ledger: tuple[Path, dict[str, str]],
+) -> None:
+    copy, known = qr_ledger
+    body = out(copy, "qr-codes", FULL)
+    got = rows(body)
+    assert [(r[0], r[2]) for r in got] == [
+        ("Pump", "live"), ("Valve A", "live"), ("Valve B", "live"), ("Letter", "live"),
+        ("", "expired"), ("Old", "revoked"),
+    ]  # fmt: skip  # issue time, then label; the expired and revoked states are worked out
+    assert got[0][3] == known["punch"]
+    assert got[0][4:] == ["user:uma", "2026-10-01T08:00:00", "", ""]
+    for secret in known["secret"].splitlines():  # no register id, no hash, in either format
+        assert secret not in body
+        assert secret not in out(copy, "qr-codes", FULL, "jsonl")
+    assert "http" not in body.lower()
+
+
+def test_the_qr_report_jsonl_equals_csv(qr_ledger: tuple[Path, dict[str, str]]) -> None:
+    copy, _ = qr_ledger
+    csv_rows = rows(out(copy, "qr-codes", FULL))
+    lines = [json.loads(x) for x in out(copy, "qr-codes", FULL, "jsonl").splitlines()]
+    assert [["" if v is None else str(v) for v in line.values()] for line in lines] == csv_rows
+
+
+def test_the_qr_report_pages_the_same_at_every_page_size(
+    qr_ledger: tuple[Path, dict[str, str]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    copy, _ = qr_ledger
+    whole = {v: out(copy, "qr-codes", v) for v in (LOW, FULL)}
+    for size in (1, 2):
+        monkeypatch.setattr(qr_rows, "_PAGE", size)
+        for viewer in (LOW, FULL):
+            assert out(copy, "qr-codes", viewer) == whole[viewer], (size, viewer.level)
+
+
+def test_a_code_of_a_restricted_record_is_missing_for_the_low_viewer(
+    qr_ledger: tuple[Path, dict[str, str]], tmp_path: Path
+) -> None:
+    """The codes of an RFI that becomes restricted: the controller still has their lines; the low
+    viewer's text is the unedited ledger's low text minus exactly those lines, byte for byte."""
+    ledger_copy, known = qr_ledger
+    copy = tmp_path / "copy.db"
+    shutil.copy(ledger_copy, copy)
+    base_low = lines_of(out(ledger_copy, "qr-codes", LOW))
+    base_full = lines_of(out(ledger_copy, "qr-codes", FULL))
+    mark = f",{known['rfi']},"
+    assert sum(mark in line for line in base_low) == 3  # visible before: not vacuous
+    restrict_first_rfi(copy)
+    low, full = lines_of(out(copy, "qr-codes", LOW)), lines_of(out(copy, "qr-codes", FULL))
+    assert full == base_full  # the controller loses nothing
+    assert low == [line for line in base_low if mark not in line]
+    assert known["rfi"] not in "".join(low)
+    assert len(low) == len(base_low) - 3
