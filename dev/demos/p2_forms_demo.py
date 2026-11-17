@@ -278,7 +278,7 @@ def clause11(template: str) -> None:
         app = TlApp(client, scope=f"project:{PROJECT}", actor=actor)
         async with app.run_test(size=(170, 44)) as pilot:
             await settle(pilot)
-            app.action_forms()
+            app.push_screen(FormsLogScreen(client, PROJECT))  # the palette's `forms` opens this
             await settle(pilot)
             log = app.screen
             check(isinstance(log, FormsLogScreen), "the forms log did not open")
