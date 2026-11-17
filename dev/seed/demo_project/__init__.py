@@ -13,6 +13,7 @@ from dev.seed.demo_project import (  # noqa: F401  (each module registers its se
     correspondence,
     documents,
     engineering,
+    forms,
     materials,
     permits,
     progress,

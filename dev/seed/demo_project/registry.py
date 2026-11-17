@@ -28,6 +28,7 @@ ORDER = (
     "scaffold",
     "weekly",
     "progress",
+    "forms",
 )
 
 Build = Callable[[World, random.Random], None]

@@ -16,7 +16,7 @@ from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, BinaryIO, Literal
+from typing import Any, BinaryIO, Literal, cast
 
 from sqlalchemy import text
 from tl_api.auth import AGENT_MUST_PROPOSE
@@ -90,6 +90,7 @@ from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo, list_files
 from tl_core.files.service import CompleteUpload, FileResult, FileService, RegisterUpload
 from tl_core.files.types import ObjectStore
+from tl_core.forms.types import FormBinding
 from tl_core.insights.activity import record_activity
 from tl_core.insights.checks import record_checks, record_facts
 from tl_core.insights.types import ActivityPage, CheckFinding
@@ -227,6 +228,12 @@ from tl_mod_engineering import registry as engineering_registry
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.names import COMPANY as ENGINEERING_COMPANY
 from tl_mod_engineering.views import TagView, tag_view, tag_views
+from tl_mod_forms import MODULE as FORMS_MODULE
+from tl_mod_forms import read as forms_read
+from tl_mod_forms import routes as forms_routes
+from tl_mod_forms import views as forms_views
+from tl_mod_forms.module import FORMS_COMMANDS
+from tl_mod_forms.names import VIEW as FORMS_VIEW
 from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
 from tl_mod_materials.commands import MATERIALS_COMMANDS
@@ -2130,6 +2137,124 @@ class EmbeddedClient:
         """Run a permit command by name (a model of ``tl_mod_permits.module.COMMANDS``, as the
         person)."""
         return self._module_command(name, cmd, PERMIT_COMMANDS, "permit")
+
+    # --- forms: templates, submissions and intake (V3-F1a) -----------------------------------
+    #
+    # The same calls the routes make (``tl_mod_forms.routes``), under the signed-in person's
+    # viewer (``_uow`` sets it), after the same ``forms.view`` check (the company for templates,
+    # the project for the rest). A missing or hidden record is one ``RecordNotFoundError``, with
+    # the route's text.
+
+    def _require_forms_view(self, uow: UnitOfWork, scope: str) -> None:
+        require_word(
+            uow.conn(),
+            holder_for_actor(uow.conn(), self.actor),
+            scope=scope,
+            module=FORMS_MODULE,
+            word=normalise_word(FORMS_VIEW),
+            what=FORMS_VIEW,
+        )
+
+    def list_form_templates(
+        self,
+        *,
+        state: str | None = None,
+        intake: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> forms_views.Page[forms_views.TemplateRow]:
+        with self._uow(True) as uow:
+            self._require_forms_view(uow, forms_routes.COMPANY)
+            return forms_views.template_list(
+                uow.conn(),
+                state=state,
+                intake=intake,
+                limit=limit,
+                offset=offset,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def get_form_template(self, key: str, version: int, *, projection: str | None = None) -> Any:
+        if projection not in (None, *forms_read.PROJECTIONS):
+            raise ValueError("projection must be jsonschema or surveyjs")
+        with self._uow(True) as uow:
+            self._require_forms_view(uow, forms_routes.COMPANY)
+            made = forms_read.version_body(
+                uow.conn(),
+                key,
+                version,
+                cast("forms_read.Projection | None", projection),
+                confidentiality.current_viewer(),
+            )
+        if made is None:
+            raise RecordNotFoundError(forms_routes.MSG_TEMPLATE)
+        return made[1]
+
+    def get_form_for(self, project: str, key: str) -> FormBinding:
+        with self._uow(True) as uow:
+            self._require_forms_view(uow, f"project:{project}")
+            found = queries.get_record(uow, f"project:{project}", key)
+            binding = (
+                None
+                if found is None
+                else forms_views.form_for(
+                    uow.conn(),
+                    str(found["id"]),
+                    now=utcnow(),
+                    viewer=confidentiality.current_viewer(),
+                )
+            )
+        if binding is None:
+            raise RecordNotFoundError(forms_routes.MSG_FORM)
+        return binding
+
+    def list_form_submissions(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        template: str | None = None,
+        subject: str | None = None,
+        author: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> forms_views.Page[forms_views.SubmissionRow]:
+        with self._uow(True) as uow:
+            self._require_forms_view(uow, f"project:{project}")
+            return forms_views.submission_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                template_id=template,
+                subject_id=subject,
+                author=author,
+                limit=limit,
+                offset=offset,
+                viewer=confidentiality.current_viewer(),
+            )
+
+    def get_form_submission(self, project: str, key: str) -> forms_views.SubmissionDetail:
+        with self._uow(True) as uow:
+            self._require_forms_view(uow, f"project:{project}")
+            detail = forms_views.submission_detail(
+                uow.conn(),
+                f"project:{project}",
+                key,
+                viewer=confidentiality.current_viewer(),
+            )
+        if detail is None:
+            raise RecordNotFoundError(forms_routes.MSG_SUBMISSION)
+        return detail
+
+    def form_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a forms command by name (a model of ``FORMS_COMMANDS``, as the person)."""
+        return self._module_command(name, cmd, FORMS_COMMANDS, "forms")
+
+    def list_intake_items(self, project: str, *, state: str | None = None, limit: int = 100) -> Any:
+        raise NotImplementedError("the intake queue is built in V3-F4")
+
+    def get_intake_item(self, project: str, item_id: str) -> Any:
+        raise NotImplementedError("the intake queue is built in V3-F4")
 
     # --- the awp module (P2-I1 T03b): the reads the API routes serve, under the viewer's filter --
 

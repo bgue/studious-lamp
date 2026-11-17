@@ -65,6 +65,8 @@ VIEWS: dict[str, Call] = {
     "materials_stock": lambda c: c.list_materials_stock(PROJECT),
     "materials_items": lambda c: c.list_materials_items(project=PROJECT),
     "weekly_plans": lambda c: c.list_weekly_plans(PROJECT),
+    "form_templates": lambda c: c.list_form_templates(),
+    "form_submissions": lambda c: c.list_form_submissions(PROJECT),
 }
 
 

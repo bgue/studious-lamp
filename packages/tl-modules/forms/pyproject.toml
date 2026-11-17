@@ -8,6 +8,8 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  "fastapi",
+  "typer",
 ]
 
 [project.entry-points."throughline.modules"]
