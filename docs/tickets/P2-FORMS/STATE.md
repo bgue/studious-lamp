@@ -10,8 +10,6 @@ P0b 2 mrg  f     98084507 8 more reports; 2 review rounds; left out requisitions
 P0c 2 disp f+s   - requisitions, activities, QR code reports
 F1b 3 disp f     - forms log + runner screen; clause 11
 F1s 3 disp f+s   - quality and permits form sources; clause 6
-F1b 3 todo f     - TUI log + runner; clause 11
-F1s 3 todo f+sec - form sources quality+permits; clause 6
 F2  4 todo f     - MCP, draft resume, walks; clause 4
 F3  4 todo f     - web fill page + cards; clause 9
 F4  4 todo f+sec - intake signed-in; clause 10
