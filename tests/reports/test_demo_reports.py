@@ -196,3 +196,124 @@ def test_a_restricted_rfi_is_missing_for_the_low_viewer(ledger: Path, tmp_path: 
     assert after_low == [r for r in before_low if r[0] != row[1]]
     assert len(after_low) == len(before_low) - 1
     assert row[1] not in out(copy, "rfis", LOW)
+
+
+# --- review follow-ups (V3-P0) ------------------------------------------------------------------
+
+
+def lines_of(body: str) -> list[str]:
+    return body.splitlines(keepends=True)
+
+
+def test_hidden_is_missing_byte_for_byte_for_documents(ledger: Path) -> None:
+    """The low viewer's text is the controller's text with the restricted document's line gone:
+    same header, same other lines, nothing marks the place (key numbering is not claimed)."""
+    full, low = lines_of(out(ledger, "documents", FULL)), lines_of(out(ledger, "documents", LOW))
+    gone = [line for line in full if line not in low]
+    assert len(gone) == 1
+    assert [line for line in full if line != gone[0]] == low
+
+
+def test_hidden_is_missing_byte_for_byte_for_rfis(ledger: Path, tmp_path: Path) -> None:
+    copy = tmp_path / "copy.db"
+    shutil.copy(ledger, copy)
+    before = lines_of(out(copy, "rfis", LOW))
+    with open_uow(str(copy), readonly=True) as uow:
+        row = (
+            uow.conn()
+            .exec_driver_sql(
+                "SELECT t.id, r.key FROM cur_correspondence_technical_item t "
+                "JOIN cur_core_record r ON r.id = t.id WHERE r.scope = ? ORDER BY r.key LIMIT 1",
+                (SCOPE,),
+            )
+            .one()
+        )
+    cmd = SetCorrespondenceConfidentiality(
+        actor="user:dora", source="test", scope=SCOPE, stream_id=row[0], to_class="restricted",
+        grant=[], reason="test",
+    )  # fmt: skip
+    with cf.system_view(), frozen_today("2026-10-19"), open_uow(str(copy)) as uow:
+        handle_set_confidentiality(uow, cmd)
+    after = lines_of(out(copy, "rfis", LOW))
+    assert after == [line for line in before if not line.startswith(row[1] + ",")]
+    assert len(after) == len(before) - 1
+
+
+def test_scaffolds_have_no_class_of_their_own(ledger: Path) -> None:
+    """A scaffold is not a confidential record type: the low viewer gets the controller's bytes."""
+    assert out(ledger, "scaffolds", LOW) == out(ledger, "scaffolds", FULL)
+
+
+def test_a_hidden_linker_does_not_shift_stale_links(ledger: Path, tmp_path: Path) -> None:
+    """``stale_links`` counts only links from records the viewer may read (a restricted record
+    that links to a document leaves the low viewer's count where it was)."""
+    copy = tmp_path / "copy.db"
+    shutil.copy(ledger, copy)
+    before = out(copy, "documents", LOW)
+    full_rows, low_rows = rows(out(copy, "documents", FULL)), rows(before)
+    hidden_number = next(r[0] for r in full_rows if r not in low_rows)
+    shown_number = low_rows[0][0]
+    with open_uow(str(copy)) as uow:
+        conn = uow.conn()
+        ids = {
+            str(r.key): str(r.id)
+            for r in conn.exec_driver_sql(
+                "SELECT id, key FROM cur_core_record WHERE key IN (?, ?)",
+                (hidden_number, shown_number),
+            )
+        }
+        cols = [r[1] for r in conn.exec_driver_sql("PRAGMA table_info(cur_links)")]
+        seed = dict(conn.exec_driver_sql("SELECT * FROM cur_links LIMIT 1").one()._mapping)
+        seed.update(
+            link_id="01TESTLINKSTALE0000000000A", from_id=ids[hidden_number],
+            to_id=ids[shown_number], status="stale", scope=SCOPE,
+        )  # fmt: skip
+        conn.exec_driver_sql(
+            f"INSERT INTO cur_links ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+            tuple(seed[c] for c in cols),
+        )
+    assert out(copy, "documents", LOW) == before  # the low viewer's lines did not move
+    shown = next(r for r in rows(out(copy, "documents", FULL)) if r[0] == shown_number)
+    assert int(shown[10]) == int(next(r for r in low_rows if r[0] == shown_number)[10]) + 1
+
+
+@pytest.mark.parametrize("page", [1, 2, 3, 7, 8])
+def test_scaffold_report_pages_without_a_drop_or_a_repeat(
+    monkeypatch: pytest.MonkeyPatch, page: int
+) -> None:
+    """The demo project has one scaffold, so the loop is run over seven made-up rows behind the
+    same ``scaffold_list`` signature (the clamp ``MAX_LIMIT`` is the page size)."""
+    from types import SimpleNamespace
+
+    from tl_mod_scaffold import report_rows
+
+    keys = [f"SCF-{n:04d}" for n in range(7)]
+
+    def fake(conn: object, scope: str, *, limit: int, offset: int = 0, viewer: object = None):  # type: ignore[no-untyped-def]
+        size = max(1, min(limit, scaffold_views.MAX_LIMIT))
+        part = [
+            SimpleNamespace(**{**dict.fromkeys(scaffold_views.EXPORT_COLUMNS), "key": k})
+            for k in keys[offset : offset + size]
+        ]
+        return SimpleNamespace(rows=part, total=len(keys))
+
+    monkeypatch.setattr(scaffold_views, "MAX_LIMIT", page)
+    monkeypatch.setattr(scaffold_views, "scaffold_list", fake)
+    monkeypatch.setattr(report_rows, "require_word", lambda *a, **k: None)
+    monkeypatch.setattr(report_rows, "holder_for_actor", lambda *a, **k: None)
+    got = [r["key"] for r in report_rows.scaffold_rows(None, SCOPE, FULL)]  # type: ignore[arg-type]
+    assert got == keys
+
+
+def test_scaffold_list_offset_pages_are_the_list(ledger: Path) -> None:
+    with open_uow(str(ledger), readonly=True) as uow:
+        conn = uow.conn()
+        whole = scaffold_views.scaffold_list(conn, SCOPE, limit=500, viewer=FULL)
+        keys: list[str] = []
+        for offset in range(0, whole.total + 2, 2):
+            part = scaffold_views.scaffold_list(conn, SCOPE, limit=2, offset=offset, viewer=FULL)
+            assert part.total == whole.total
+            keys.extend(r.key for r in part.rows)
+        assert keys == [r.key for r in whole.rows]
+        past = scaffold_views.scaffold_list(conn, SCOPE, offset=whole.total + 5, viewer=FULL)
+        assert past.rows == [] and past.total == whole.total

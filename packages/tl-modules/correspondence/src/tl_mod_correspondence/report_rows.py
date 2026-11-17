@@ -3,8 +3,9 @@ correspondence register.
 
 Both read through the module's own views (``reports_technical.rfi_log``, ``views.register``), which
 read as the ambient viewer (``tl_core.report_out`` sets it), so an item the viewer may not read is
-not a row. The register pages by 500; the RFI log has no offset, so it is read in one call with a
-bound far above any project's count. No internal id is a column; the number names the item.
+not a row. Neither read has a usable offset (the register pages by re-reading from the top), so
+each is read in one call with a bound far above any project's count. No internal id is a column;
+the number names the item.
 """
 
 from __future__ import annotations
@@ -18,8 +19,7 @@ from tl_core.modules import Report
 
 from tl_mod_correspondence import reports_technical, views
 
-_PAGE: Final = 500
-_RFI_BOUND: Final = 1_000_000
+_BOUND: Final = 1_000_000  # one read of each log: paging by offset can repeat or drop rows
 RFI_COLUMNS: Final = (
     "number", "subtype", "state", "discipline", "raised_on", "issued_on", "required_by",
     "answered_on", "response_days", "on_time", "overdue", "days_overdue",
@@ -35,7 +35,7 @@ REGISTER_COLUMNS: Final = (
 def rfi_rows(
     conn: Connection, scope: str, viewer: confidentiality.Viewer
 ) -> Iterator[Mapping[str, Any]]:
-    log = reports_technical.rfi_log(conn, scope, limit=_RFI_BOUND)
+    log = reports_technical.rfi_log(conn, scope, limit=_BOUND)
     for line in log.lines:
         row = line.model_dump()
         row["class"] = row.pop("confidentiality")
@@ -45,26 +45,20 @@ def rfi_rows(
 def register_rows(
     conn: Connection, scope: str, viewer: confidentiality.Viewer
 ) -> Iterator[Mapping[str, Any]]:
-    offset = 0
-    while True:
-        page = views.register(conn, scope, limit=_PAGE, offset=offset)
-        for line in page:
-            yield {
-                "number": line.number,
-                "kind": line.kind,
-                "state": line.state,
-                "direction": line.direction,
-                "domain": line.domain,
-                "subtype": line.subtype,
-                "date": line.on,
-                "counterparty": line.counterparty,
-                "response_due": line.response_due,
-                "class": line.confidentiality,
-                "subject": line.subject,
-            }
-        offset += len(page)
-        if len(page) < _PAGE:
-            return
+    for line in views.register(conn, scope, limit=_BOUND):
+        yield {
+            "number": line.number,
+            "kind": line.kind,
+            "state": line.state,
+            "direction": line.direction,
+            "domain": line.domain,
+            "subtype": line.subtype,
+            "date": line.on,
+            "counterparty": line.counterparty,
+            "response_due": line.response_due,
+            "class": line.confidentiality,
+            "subject": line.subject,
+        }
 
 
 REPORTS: Final = (

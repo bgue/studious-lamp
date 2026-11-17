@@ -52,17 +52,20 @@ def report(
     if fmt not in FORMATS:
         fail(f"format must be one of {', '.join(FORMATS)}")
     db: DbTarget = ctx.obj
-    handle: TextIO = out.open("w", encoding="utf-8", newline="") if out is not None else sys.stdout
+    handle: TextIO | None = sys.stdout if out is None else None
     rows = 0
     try:
         with service_errors(), open_uow(db, readonly=True) as uow:
             for line in render(
                 chosen, uow.conn(), f"project:{project}", confidentiality.current_viewer(), fmt
             ):
+                if handle is None:  # the file is opened after the first line: a refusal leaves
+                    assert out is not None  # an existing file as it was
+                    handle = out.open("w", encoding="utf-8", newline="")
                 handle.write(line)
                 rows += 1
     finally:
-        if out is not None:
+        if out is not None and handle is not None:
             handle.close()
     if out is not None:
         typer.echo(f"wrote {rows - (1 if fmt == 'csv' else 0)} rows to {out}")

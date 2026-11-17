@@ -32,11 +32,14 @@ form intake codes and items (`tl_mod_forms.intake_views.code_list`, `item_list`;
 checklists (`insp_views.checklist_list`).
 
 ## Notes for the builder
-- Several views take `limit` only or clamp it (500); give them an `offset` the way V3-P0 did for `scaffold_list`
+- Several views take `limit` only or clamp it; of the views V3-P0 used only `scaffold_list` clamps (500), and
+  `correspondence.views.register` pages by re-reading from the top (so V3-P0 reads it once with a large bound).
+  Give the others an `offset` the way V3-P0 did for `scaffold_list`
   (a default-0 keyword, `OFFSET :offset`), never a read of "everything" through a bound that the clamp cuts.
 - Datetime columns render ISO through `tl_core.report_out.plain`; leave them as `datetime`.
-- Check the module's view word (for example `scaffold.view`): `tl report` filters by confidentiality class only, like
-  the other `tl ... report` commands. See the open question in the V3-P0 report before adding more modules.
+- Check the module's view word where its list read has one (for example `scaffold.view`, through the same
+  `require_word`, so a viewer without it gets the list read's refusal and no header). See "Follow-up: view words"
+  in the V3-P0 report. A module without a view word on its list read needs nothing.
 
 ## Gate
 `just check` on changed files; `just gate tests/reports tests/confidentiality packages/tl-core/tests packages/tl-cli/tests`

@@ -86,3 +86,4 @@ def test_a_bad_format_and_the_cell_rule() -> None:
     with pytest.raises(ValueError, match="csv, jsonl"):
         list(render(Report("r", "R", ("a",), _rows), None, "s", confidentiality.LOWEST, "xml"))  # type: ignore[arg-type]
     assert csv_cell("@x") == "'@x" and csv_cell("-1") == "'-1" and csv_cell(None) == ""
+    assert csv_cell(-5) == "-5" and csv_cell(Decimal("-1.5")) == "-1.5"  # numbers are not text

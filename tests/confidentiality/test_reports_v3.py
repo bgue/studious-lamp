@@ -46,7 +46,10 @@ REGISTER_HEADER = (
 def build(db: DbTarget, *, secret: bool) -> World:
     """People, one open template with two submissions and a draft; with ``secret`` also a
     restricted template with a restricted submission and a restricted letter, made last so the
-    numbers of everything else are the same with and without them."""
+    numbers of everything else are the same with and without them (the hidden records are made
+    LAST on purpose: keys come in order, so the two ledgers' other keys line up byte for byte).
+    Also a privileged-template submission (author ``rob``; the admins and the controller are
+    refused it, D40), a submission about a hidden subject, and another author's draft (``bea``)."""
     create_schema(db)
     world = World(db)
     world.people()
@@ -57,7 +60,10 @@ def build(db: DbTarget, *, secret: bool) -> World:
     if secret:
         restricted = world.template(answer_class="restricted")
         world.submit("dora", restricted)
-        world.hidden_record()
+        subject = world.hidden_record()
+        world.submit("rob", world.template(answer_class="privileged"))
+        world.submit("dora", open_tpl, subject_id=subject)
+        world.save("bea", open_tpl)
     return world
 
 
@@ -120,10 +126,24 @@ def test_a_restricted_record_is_a_row_for_a_controller_and_none_for_a_low_viewer
 
 @pytest.mark.parametrize("name", ["form-submissions", "correspondence"])
 @pytest.mark.parametrize("fmt", ["csv", "jsonl"])
-@pytest.mark.parametrize("who", ["vera", "uma", "rob"])
+@pytest.mark.parametrize("who", ["vera", "uma"])
 def test_hidden_is_missing(pair: tuple[World, World], name: str, fmt: str, who: str) -> None:
     with_secret, without = pair
     assert text_of(with_secret, name, who, fmt) == text_of(without, name, who, fmt)
+
+
+def test_a_privileged_form_is_its_authors_and_nobody_elses(pair: tuple[World, World]) -> None:
+    """D40: neither an admin nor the document controller reads a privileged submission; its
+    author does."""
+    with_secret, without = pair
+    keys = lambda who: {r["key"] for r in table(text_of(with_secret, "form-submissions", who))}  # noqa: E731
+    base = {r["key"] for r in table(text_of(without, "form-submissions", "rob"))}
+    extra = keys("rob") - base
+    assert len(extra) == 1  # the privileged one: rob's alone
+    assert not extra & keys("ada") and not extra & keys("dora") and not extra & keys("vera")
+    assert len(keys("dora")) > len(keys("vera"))
+    # the subject-hidden submission and bea's draft are in no one's text but their reader's own:
+    # test_hidden_is_missing compares vera and uma byte for byte (rob wrote the privileged one).
 
 
 def test_a_template_is_company_wide_and_not_confidential(pair: tuple[World, World]) -> None:
@@ -132,7 +152,7 @@ def test_a_template_is_company_wide_and_not_confidential(pair: tuple[World, Worl
     world = pair[0]
     low = text_of(world, "form-templates", "vera")
     assert low == text_of(world, "form-templates", "dora")
-    assert len(table(low)) == 2
+    assert len(table(low)) == 3  # open, restricted and privileged
 
 
 def test_the_controller_sees_more_than_the_low_viewer(pair: tuple[World, World]) -> None:
@@ -224,3 +244,51 @@ def test_scaffolds_without_the_view_word_is_refused_like_the_list_read(
             out.extend(render(module_reports()["scaffolds"], uow.conn(), SCOPE, nobody))
     assert str(got.value) == str(expected.value)
     assert out == []  # not even the header line
+
+
+def test_forms_page_boundaries_drop_and_repeat_nothing(
+    pair: tuple[World, World], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_mod_forms import report_rows
+
+    world = pair[0]
+    for who in ("dora", "vera"):
+        whole = {n: text_of(world, n, who) for n in ("form-submissions", "form-templates")}
+        for page in (1, 2):
+            monkeypatch.setattr(report_rows, "_PAGE", page)
+            for name, body in whole.items():
+                assert text_of(world, name, who) == body, (name, who, page)
+
+
+def test_the_register_is_one_read(
+    pair: tuple[World, World], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Paging by offset can repeat or drop rows, so the correspondence report reads once."""
+    from tl_mod_correspondence import report_rows, views
+
+    world = pair[0]
+    calls: list[int] = []
+    real = views.register
+
+    def spy(*args: object, **kwargs: object) -> object:
+        calls.append(int(kwargs["limit"]))  # type: ignore[call-overload]
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(views, "register", spy)
+    body = text_of(world, "correspondence", "dora")
+    assert calls == [report_rows._BOUND] and report_rows._BOUND >= 1_000_000
+    seen = viewer(world, "dora")
+    with open_uow(world.db, readonly=True) as uow, cf.use_viewer(seen):
+        listed = real(uow.conn(), SCOPE, limit=1_000_000)
+    assert len(table(body)) == len(listed) == len({r["number"] for r in table(body)})
+
+
+def test_a_refused_report_leaves_an_existing_out_file_alone(tmp_path: Path) -> None:
+    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "prod"}
+    assert run(env, "init").exit_code == 0  # type: ignore[attr-defined]
+    out = tmp_path / "keep.csv"
+    out.write_text("precious\n")
+    with mock.patch.dict(os.environ, env):
+        refused = run(env, "report", "scaffolds", "--project", "P1", "--out", str(out))
+    assert refused.exit_code == 1  # type: ignore[attr-defined]
+    assert out.read_text() == "precious\n"

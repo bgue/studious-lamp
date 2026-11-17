@@ -40,13 +40,16 @@ def plain(value: Any) -> Any:
 
 
 def csv_cell(value: Any) -> str:
+    was_text = isinstance(value, str)
     value = plain(value)
     if value is None:
         return ""
     if isinstance(value, bool):
         return "true" if value else "false"
     text = str(value)
-    return "'" + text if text.startswith(_FORMULA_STARTS) else text
+    if was_text and text.startswith(_FORMULA_STARTS):
+        return "'" + text  # only text is somebody else's: a number stays -5
+    return text
 
 
 def _line(cells: list[str]) -> str:
