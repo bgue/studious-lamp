@@ -21,11 +21,17 @@ Modes (first argument):
 * ``clause7 KEY``: KEY is a submission only its author may read: every other reader gets, on the
   detail route, the bytes a missing key gets, and no list holds it.
 * ``clause8 DRAFT AUTHOR``: the draft DRAFT is invisible to every reader but AUTHOR.
+* ``clause6-pick``: prints the key of a Scheduled inspection whose form hsato may fill (the API
+  offers it, available), and ``clause6-answers KEY DEST``: writes an answers file for it that
+  answers every question the way that passes (clause 6 fills it through ``tl form record``).
+* ``clause6 KEY``: the inspection KEY is Done with the result accept, recorded by hsato, and its
+  form is closed (``already_recorded``); the forms module holds no submission for it.
 * ``budget``: every forms list read is under one second (median of five) as treyes and mokafor.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import statistics
@@ -38,10 +44,13 @@ import httpx2
 import yaml
 from tl_adapters.backend import open_backend
 from tl_adapters.db import as_target
+from tl_core import confidentiality as cf
 from tl_core.auth import sessions
 from tl_core.forms import runner
 from tl_core.forms.jsonschema import to_json_schema
 from tl_core.forms.surveyjs import surveyjs_unsupported, to_surveyjs
+from tl_core.forms.types import FormBinding
+from tl_mod_forms import bound
 
 ROOT = Path(__file__).resolve().parents[2]
 PASSWORD = "p200-demo-pass"  # demo data only (dev/seed/demo_project/core.py)
@@ -293,6 +302,65 @@ def clause8(draft: str, author: str) -> None:
     world.close()
 
 
+def clause6_pick() -> None:
+    world = World()
+    rows = world.get("hsato", "/quality/inspections", project=PROJECT, state="Scheduled")
+    check(rows.status_code == 200, f"the inspection list answered {rows.status_code}")
+    for row in rows.json()["rows"]:
+        offer = world.get("hsato", f"/forms/for/{row['key']}", project=PROJECT)
+        if offer.status_code == 200 and offer.json()["available"]:
+            world.close()
+            print(row["key"])
+            return
+    miss("no Scheduled inspection offers a form to hsato")
+
+
+def passing_answer(field: dict[str, Any]) -> Any:
+    if field["kind"] == "number":
+        low, high = field.get("min"), field.get("max")
+        return (low + high) / 2 if low is not None and high is not None else (low or high or 1)
+    if field["kind"] == "yes_no_na":
+        return "yes"
+    if field["kind"] == "choice":
+        return field["choices"][0]
+    return f"{field['id']} checked"
+
+
+def clause6_answers(key: str, dest: str) -> None:
+    world = World()
+    offer = world.get("hsato", f"/forms/for/{key}", project=PROJECT)
+    check(offer.status_code == 200, f"/forms/for/{key} answered {offer.status_code}")
+    body = offer.json()
+    check(body["available"] and body["command"] == "RecordInspectionResult", "the form is open")
+    check(body["answers_arg"] == "answers", "the answers go in `answers`")
+    with world.backend(True) as uow:
+        viewer = cf.viewer_for_actor(uow.conn(), "user:hsato")
+        fields = bound.fields_of(uow.conn(), FormBinding.model_validate(body), viewer)
+    check(bool(fields), "the checklist has questions")
+    answers = {f["id"]: passing_answer(f) for f in fields if f.get("required")}
+    Path(dest).write_text(json.dumps(answers), encoding="utf-8")
+    ok(f"{key}: {len(answers)} of {len(fields)} questions answered (the required ones)")
+    world.close()
+
+
+def clause6(key: str) -> None:
+    world = World()
+    got = world.get("mokafor", f"/quality/inspections/{key}", project=PROJECT)
+    check(got.status_code == 200, f"the inspection read answered {got.status_code}")
+    row = got.json()
+    check(row["row"]["state"] == "Done", f"the inspection is {row['row']['state']}, not Done")
+    check(row["row"]["result"] == "accept", "the recorded result is accept")
+    check(row["recorded_by"] == "user:hsato", "hsato recorded it")
+    check(len(row["answers"]) > 0, "the answers are on the inspection")
+    ok(f"{key} is Done: result accept, {len(row['answers'])} answers, recorded by hsato")
+    after = world.get("hsato", f"/forms/for/{key}", project=PROJECT)
+    check(after.status_code == 200 and after.json()["reason"] == "already_recorded", "form closed")
+    subs = keys_of(world, "mokafor", subject=row["row"]["id"])
+    check(not subs, "the forms module holds no submission for it")
+    ok("its form is closed and forms holds no submission: the typed command made the record")
+    world.close()
+
+
 def budget() -> None:
     world = World()
     slowest = 0.0
@@ -324,6 +392,9 @@ def main() -> None:
         "clause2": clause2,
         "clause3": clause3,
         "clause5": clause5,
+        "clause6-pick": clause6_pick,
+        "clause6-answers": clause6_answers,
+        "clause6": clause6,
         "clause7": clause7,
         "clause8": clause8,
         "budget": budget,

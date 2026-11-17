@@ -11,10 +11,12 @@
 #   3  a user fills a template through the runner model (one field at a time) and submits it;
 #   5  a controller other than the submitter accepts it; the submitter's own review is refused with the
 #      exact text; a second controller accepts a controller's own form;
+#   6  an inspection's result is filled through its form binding (CLI: `tl form for`, `tl form record`);
+#      the inspection then reads Done with the result, and its form is closed (V3-F1s);
 #   7  a submission only its author may read answers as a missing one on every forms read (CLI and
 #      API), byte for byte, for five readers;
 #   8  a draft is invisible to every reader but its author (CLI and API).
-# Clauses 4 and 6 (draft resume, the inspection form) belong to later units and are not run here.
+# Clause 4 (draft resume) belongs to a later unit and is not run here.
 #
 # The ledger is the whole demo project P200 (its `forms` section included). On SQLite it is the full
 # ledger tests/perf caches under .gate/demo-full (built once, about four minutes, then copied); on
@@ -70,6 +72,21 @@ refuse() { # refuse TEXT cmd...: the command must fail and say TEXT
   echo "$out"; expect "$text" "$out"
 }
 last_word() { awk '{print $NF}' <<<"$1"; }
+
+clause6_run() { # clause 6 (V3-F1s): self-contained; needs $PROJECT, $workdir, the sessions and the API
+  local insp out began=$SECONDS
+  step "[$backend] clause 6: an inspection result is filled through its form binding (CLI)"
+  insp="$(driver clause6-pick)"; echo "$insp"
+  out="$(as hsato tl form for "$insp" --project "$PROJECT")"; echo "$out"
+  expect "command RecordInspectionResult  answers go in answers" "$out"
+  driver clause6-answers "$insp" "$workdir/insp-answers.json"
+  out="$(as hsato tl form record "$insp" --project "$PROJECT" --answers-file "$workdir/insp-answers.json")"; echo "$out"
+  expect "recorded RecordInspectionResult on $insp" "$out"
+  out="$(as hsato tl insp show "$insp" --project "$PROJECT")"; echo "$out"
+  expect "Done" "$out"
+  driver clause6 "$insp"
+  clause 6 "$insp: result recorded through its form binding by the inspection's own command; read back as Done" "$((SECONDS - began))"
+}
 
 run_backend() {
   local backend="$1" port url out began tpl draft key own hsato_draft h m who
@@ -156,6 +173,8 @@ run_backend() {
   driver clause5 "$key" "$own"
   clause 5 "$key accepted by ipetrov (not its author); ipetrov's own review of $own refused with the exact text; mokafor accepted it" "$((SECONDS - began))"
 
+  clause6_run
+
   step "[$backend] clause 7: a hidden submission answers as a missing one on every forms read"
   began=$SECONDS
   for who in mokafor ipetrov treyes cbrooks pnair; do
@@ -195,7 +214,7 @@ run_backend() {
 
   stop_server
   drop_pg
-  echo "[$backend] clauses 1, 2, 3, 5, 7, 8 passed"
+  echo "[$backend] clauses 1, 2, 3, 5, 6, 7, 8 passed"
 }
 
 for backend in ${TL_DEMO_BACKENDS:-sqlite postgres}; do

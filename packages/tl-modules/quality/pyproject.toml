@@ -21,6 +21,9 @@ inspections_planned = "tl_mod_quality.checks:inspections_planned"
 [project.entry-points."throughline.scan_cards"]
 quality_inspection = "tl_mod_quality.scan_card:provider"
 
+[project.entry-points."throughline.form_sources"]
+quality_inspection = "tl_mod_quality.form_source:source"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
