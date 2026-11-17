@@ -6,7 +6,7 @@ P1  1 mrg  f+sec fc02817a per-row check 86.7 s -> 0.28 s; budget gate; pg differ
 P0  1 mrg  f+sec ad9ca63c tl report, 17 reports; 3 fix rounds (stale_links leak, empty --out)
 P2  1 mrg  f     83e7a512 gate-changed (2 heavy slots), commit-check; 1 CR round
 F1a 2 disp f     - generator, routes, tl form, demo 1-3 5 7 8; owns shared files
-P0b 2 disp f     - report registrations, other modules (cheapest tier, full review per spec)
+P0b 2 mrg  f     98084507 8 more reports; 2 review rounds; left out requisitions, activities, QR (later unit)
 F1b 3 todo f     - TUI log + runner; clause 11
 F1s 3 todo f+sec - form sources quality+permits; clause 6
 F2  4 todo f     - MCP, draft resume, walks; clause 4
