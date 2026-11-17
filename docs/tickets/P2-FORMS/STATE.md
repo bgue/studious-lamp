@@ -9,7 +9,7 @@ F1a 2 mrg  f     ef38bed7 5 LO notes: walk has no full-viewer reader; F2 must op
 P0b 2 mrg  f     98084507 8 more reports; 2 review rounds; left out requisitions, activities, QR (later unit)
 P0c 2 disp f+s   - requisitions, activities, QR code reports
 F1b 3 disp f     - forms log + runner screen; clause 11
-F1s 3 disp f+s   - quality and permits form sources; clause 6
+F1s 3 rev  f+s   8000f288 built; clause 6 PASS sq; full + security review running
 F2  4 todo f     - MCP, draft resume, walks; clause 4
 F3  4 todo f     - web fill page + cards; clause 9
 F4  4 todo f+sec - intake signed-in; clause 10
