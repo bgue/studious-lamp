@@ -163,7 +163,7 @@ def test_the_check_is_pushed_into_the_statement(world: CorrWorld, sent: Statemen
         parts = cf.hidden_sql(USER, only="hr.id = :_cf_id")
         whole = cf.hidden_sql(USER)
         assert parts is not None and whole is not None
-        assert parts.count("hr.id = :_cf_id") == parts.count(" UNION ALL ") + 1
+        assert parts.count("hr.id = :_cf_id") == parts.count("SELECT hr.id FROM")  # one per part
         assert "_cf_id" not in whole
         sent.sql.clear()
         cf.is_hidden(conn, first, USER)
