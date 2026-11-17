@@ -6,7 +6,7 @@
 Same method as `wave1.py` (see `tourkit.py`): a fresh SQLite ledger in a temporary directory, the
 real TUI driven headless, the frozen clock, and the leak check on every plain screenshot. The
 project is built once by the demo project generator (`seed_demo_project` from `wave1`); no
-network, no Postgres. It writes fifteen SVGs. Every actor is written ``user:<name>``: a bare name
+network, no Postgres. It writes nineteen SVGs. Every actor is written ``user:<name>``: a bare name
 resolves to no account, so a screen that checks a read word (constraints, requisitions, work
 orders, punch, scaffolds, the toolcrib) refuses it:
 
@@ -25,6 +25,10 @@ orders, punch, scaffolds, the toolcrib) refuses it:
     13-scaffolds     the scaffold register                     user:lhartmann
     14-scaffold-record  one scaffold with its inspections      user:lhartmann
     15-toolcrib      the toolcrib TC1 at the crib     user:treyes
+    16-inspections   the inspection log                       user:hsato
+    17-inspection    one Done inspection, with failed questions user:hsato (P200-INS-0009)
+    18-permits       the permit register                      user:ipetrov
+    19-permit        one Active permit, with its gas tests    user:ipetrov (P200-PTW-0001)
 """
 
 from __future__ import annotations
@@ -56,6 +60,8 @@ IWP = "P200-IWP-CIV-0001"  # an IWP number from the 01-iwps shot
 STORES = "treyes"  # the materials coordinator: requisitions, work orders, the toolcrib
 SCAFFOLD = "P200-SCF-0001"  # the one scaffold of the demo project (scaffold section, T11a)
 CRIB = "TC1"  # the toolcrib of P200
+INSPECTION = "P200-INS-0009"  # a Done inspection with a failed question (the generator is fixed)
+PERMIT = "P200-PTW-0001"  # an Active permit with three gas tests (the generator is fixed)
 
 
 async def _open(pilot: Pilot[Any], app: Any, make: Callable[[Any], Any], what: str) -> None:
@@ -84,6 +90,31 @@ def scenario(
     async def run_it(pilot: Pilot[Any]) -> None:
         await _open(pilot, app, make, what)
         tk.shot_tui(ws, app, name, title, *needles, technical=technical)
+
+    tk.run_tui(ws, app, run_it)
+
+
+def record(
+    ws: Workspace,
+    name: str,
+    title: str,
+    actor: str,
+    make: Callable[[Any], Any],
+    what: str,
+    *needles: str,
+) -> None:
+    """One record screen of the tour (a modal with no rows): push it on the app's client and save
+    the shot once ``needles`` show. The record's key is pinned, as the log's keys are fixed."""
+    from tl_tui.main import build_app
+
+    app = build_app(ws.db, PROJECT, live=False, actor=actor)
+
+    async def run_it(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        app.push_screen(make(app.client))
+        await tk.until(pilot, lambda: all(n in tk.screen_text(app) for n in needles), what)
+        await tk.settle(pilot, 3)
+        tk.shot_tui(ws, app, name, title, *needles)
 
     tk.run_tui(ws, app, run_it)
 
@@ -130,8 +161,10 @@ def toolcrib(ws: Workspace) -> None:
 
 def shots(ws: Workspace) -> None:
     from tl_tui.widgets.constraint_screen import ConstraintScreen
+    from tl_tui.widgets.inspection_log import InspectionLogScreen, InspectionScreen
     from tl_tui.widgets.iwp_register import IwpRegisterScreen
     from tl_tui.widgets.package_log import PackageLogScreen
+    from tl_tui.widgets.permit_log import PermitLogScreen, PermitScreen
     from tl_tui.widgets.punch_log import PunchLogScreen
     from tl_tui.widgets.readiness_screen import ReadinessScreen
     from tl_tui.widgets.requisition_register import RequisitionLogScreen
@@ -277,6 +310,46 @@ def shots(ws: Workspace) -> None:
     )
     scaffold_record(ws)
     toolcrib(ws)
+    scenario(
+        ws,
+        "16-inspections",
+        "The inspection log of P200",
+        "user:hsato",
+        lambda c: InspectionLogScreen(c, PROJECT),
+        "the inspections",
+        "P200-INS-0009",
+        "Scaffold handover, substation roof",
+    )
+    record(
+        ws,
+        "17-inspection",
+        "One inspection of P200: a Done inspection with failed questions",
+        "user:hsato",
+        lambda c: InspectionScreen(c, PROJECT, INSPECTION),
+        "the inspection",
+        INSPECTION,
+        "to be fixed and shown again",
+    )
+    scenario(
+        ws,
+        "18-permits",
+        "The permit register of P200",
+        "user:ipetrov",
+        lambda c: PermitLogScreen(c, PROJECT),
+        "the permits",
+        PERMIT,
+        "Hot work",
+    )
+    record(
+        ws,
+        "19-permit",
+        "One permit of P200: an Active permit with its gas tests",
+        "user:ipetrov",
+        lambda c: PermitScreen(c, PROJECT, PERMIT),
+        "the permit",
+        PERMIT,
+        "Gas tests",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
