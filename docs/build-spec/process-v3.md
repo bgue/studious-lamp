@@ -62,20 +62,21 @@ re-declare itself on every surface.
 ## 3. Pilot units
 
 Platform units first (they serve every module), then forms. Base `p2/v3-forms` (cut from `p2/ip-int`, with
-PERF1 merged; the IP release goes to trunk from this branch). Demo clauses keep the forms README numbering:
-1–6 the slice and agents, 7 hidden looks missing on every forms read, 8 a draft is invisible, 9 web fill,
-10 intake (signed-in).
+PERF1 merged; the IP release goes to trunk from this branch). Demo clauses keep the forms README numbering: 1 publish a template,
+2 fill and submit from the CLI, 3 fill through the runner model, 4 draft resume, 5 a controller accepts and the
+submitter is refused, 6 an inspection filled through its form binding, 7 hidden looks missing on every forms read,
+8 a draft is invisible; added here: 9 web fill, 10 intake (signed-in), 11 the TUI log and runner screen.
 
 | Wave | Unit | What | Tier | Review | Sec rows |
 |---|---|---|---|---|---|
 | 1 | P1 speed | Per-row hidden-record check made index-friendly, building on PERF1 (same rows for every viewer: differential test); `tests/perf/test_budget.py` on a cached full demo ledger | builder | full + security | hidden == missing; author exemption; two-hop chain |
 | 1 | P0 report | `tl report <module>` + `reports` module hook (core interface: APPROVALS); forms, RFIs, correspondence, documents, and the existing awp/materials/scaffold exports wrapped | builder | full + security | export carries record text: hidden records absent, low-viewer output identical to a ledger without them |
 | 1 | P2 tools | `just gate-changed` (with a lock for its heavy parts) and `dev/commit-check.sh` | cheapest | full (it chooses which tests run) | — |
-| 2 | F1a slice | Forms generator section (T09), read routes (T04), `tl form` CLI (T05), forms report registration, every forms/intake client method and hook row (owns `tl_tui/client.py`, `embedded.py`, forms hooks, `MCP_ACTIONS` for the pilot), five-reader walk for its routes; demo clauses 1–3, 7, 8 | builder | full | walk proves 7 and 8 |
+| 2 | F1a slice | Forms generator section (T09), read routes (T04), `tl form` CLI (T05), forms report registration, every forms/intake client method and hook row (owns `tl_tui/client.py`, `embedded.py`, forms hooks, `MCP_ACTIONS` for the pilot), five-reader walk for its routes; demo clauses 1–3, 5, 7, 8 | builder | full | walk proves 7 and 8 |
 | 2 | P0b reports | `tl report` registrations for the remaining modules (tags, IWPs, CWPs, constraints, activities, requisitions, work orders, punch, inspections, permits, isolations, QR codes) | cheapest | lite | same test pattern as P0 |
-| 3 | F1b TUI | Forms log and runner screen (T07) with its walk; demo clause 4 | builder | full | walk |
-| 3 | F1s sources | Form sources for quality and permits (S3s): an inspection or a permit check filled through a form binding | builder | full + security | two modules; access words |
-| 4 | F2 agents | MCP tools (T06), draft resume (T08), walks for both (T10); demo clauses 5–6 | builder | full | walk |
+| 3 | F1b TUI | Forms log and runner screen (T07) with its walk; demo clause 11 | builder | full | walk |
+| 3 | F1s sources | Form sources for quality and permits (S3s): an inspection or a permit check filled through a form binding; demo clause 6 | builder | full + security | two modules; access words |
+| 4 | F2 agents | MCP tools (T06), draft resume (T08), walks for both (T10); demo clause 4 and the MCP leg of 7 | builder | full | walk |
 | 4 | F3 web | Web fill page (W2) and cards (B2–B4), walk for `/web/forms`; demo clause 9 | builder | full | walk |
 | 4 | F4 intake | `tl intake` code issue/revoke, signed-in routes, ls/show/accept/reject/purge, TUI log (I01, I03r, I04, I05); demo clause 10, signed-in only | builder | full + security | no code hash, body or salt in any read |
 | 5 | F5 done | Docs, runbook, tour shots, highlights page | cheapest | lite | — |
