@@ -5,7 +5,7 @@ S7c W1 T01 T02 T03 T13 T14 I02 I03 B1, and P2-IP PERF1.
 P1  1 mrg  f+sec fc02817a per-row check 86.7 s -> 0.28 s; budget gate; pg differential P
 P0  1 mrg  f+sec ad9ca63c tl report, 17 reports; 3 fix rounds (stale_links leak, empty --out)
 P2  1 mrg  f     83e7a512 gate-changed (2 heavy slots), commit-check; 1 CR round
-F1a 2 mrg  f     MERGE 5 LO notes: walk has no full-viewer reader; F2 must open an MCP read action
+F1a 2 mrg  f     cbf83b1a 5 LO notes: walk has no full-viewer reader; F2 must open an MCP read action
 P0b 2 mrg  f     98084507 8 more reports; 2 review rounds; left out requisitions, activities, QR (later unit)
 P0c 2 disp f+s   - requisitions, activities, QR code reports
 F1b 3 todo f     - TUI log + runner; clause 11
