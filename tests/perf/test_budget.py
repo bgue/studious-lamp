@@ -173,3 +173,48 @@ def test_every_list_view_is_under_a_second(ledger: Path, pytestconfig: pytest.Co
     (ROOT / ".gate").mkdir(exist_ok=True)
     (ROOT / ".gate" / "perf-top5.txt").write_text(report + "\n")
     assert not slow, "over the 1 s budget twice:\n" + "\n".join(slow) + "\n" + report
+
+
+def test_the_report_selects_are_under_a_second(ledger: Path) -> None:
+    """V3-P0c: the QR code report (one select with ``not_hidden`` on the code's subject), and the
+    requisition and activity reports, as the lowest viewer and as a full viewer. The generator
+    issues no scan codes, so 2,000 rows are written into this private copy first, over the
+    project's records, so the select has something to filter."""
+    from tl_adapters.db import open_uow
+    from tl_core import confidentiality as cf
+    from tl_core.modules import module_reports
+    from tl_core.report_out import render
+
+    scope = f"project:{PROJECT}"
+    with open_uow(str(ledger)) as uow:
+        conn = uow.conn()
+        targets = [
+            str(r[0])
+            for r in conn.exec_driver_sql(
+                "SELECT id FROM cur_core_record WHERE scope = ? ORDER BY id LIMIT 200", (scope,)
+            )
+        ]
+        for n in range(2000):
+            conn.exec_driver_sql(
+                "INSERT INTO cur_qr_scan_code (id, scope, code_hash, target_id, target_type, "
+                "label_text, size, issued_by, issued_at, last_seq) "
+                "VALUES (?, ?, ?, ?, 'x.Y', ?, 'tag', 'user:uma', ?, 1)",
+                (
+                    f"01PERFQRCODE{n:014d}", scope, f"{n:064x}", targets[n % len(targets)],
+                    f"Label {n}", f"2026-10-01T08:{n % 60:02d}:00",
+                ),
+            )  # fmt: skip
+    slow: list[str] = []
+    for who in (LOW, FULL):
+        viewer = cf.Viewer(actor=who, level=0 if who == LOW else 1, account=who)
+        for name in ("qr-codes", "requisitions", "activities"):
+            report = module_reports()[name]
+            took: list[float] = []
+            for _ in range(REPEATS):
+                start = time.perf_counter()
+                with open_uow(str(ledger), readonly=True) as uow:
+                    "".join(render(report, uow.conn(), scope, viewer, "csv"))
+                took.append(time.perf_counter() - start)
+            if statistics.median(took) > BUDGET_SECONDS:
+                slow.append(f"{name} as {who}: {statistics.median(took):.2f} s")
+    assert not slow, "over the 1 s budget:\n" + "\n".join(slow)

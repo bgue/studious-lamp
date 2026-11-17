@@ -60,4 +60,5 @@ def spec() -> ModuleSpec:
         read_routers=("tl_mod_qr.routes:router",),
         tools=("tl_mod_qr.tools:register_tools",),
         cli_groups=("tl_mod_qr.cli:qr_app",),
+        reports=("tl_mod_qr.report_rows:REPORTS",),
     )

@@ -73,5 +73,6 @@ def spec() -> ModuleSpec:
             "tl_mcp.schedule_read_tools:register_schedule_read_tools",
         ),
         cli_groups=("tl_cli.xer:app",),
+        reports=("tl_mod_schedule.report_rows:REPORTS",),
         offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )
