@@ -8,6 +8,8 @@ P2  1 mrg  f     83e7a512 gate-changed (2 heavy slots), commit-check; 1 CR round
 F1a 2 mrg  f     ef38bed7 5 LO notes: walk has no full-viewer reader; F2 must open an MCP read action
 P0b 2 mrg  f     98084507 8 more reports; 2 review rounds; left out requisitions, activities, QR (later unit)
 P0c 2 disp f+s   - requisitions, activities, QR code reports
+F1b 3 disp f     - forms log + runner screen; clause 11
+F1s 3 disp f+s   - quality and permits form sources; clause 6
 F1b 3 todo f     - TUI log + runner; clause 11
 F1s 3 todo f+sec - form sources quality+permits; clause 6
 F2  4 todo f     - MCP, draft resume, walks; clause 4
