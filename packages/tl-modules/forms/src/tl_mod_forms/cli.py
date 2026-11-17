@@ -4,7 +4,9 @@ The hook ref ``tl_mod_forms.cli:form_app`` names the group ``form``. Verbs: ``ls
 submissions with ``--submissions``), ``show`` (a template version, as JSON Schema or SurveyJS on
 request, or one submission), ``publish`` (a template file: draft, then publish), ``fill`` (save a
 draft), ``drafts`` (the signed-in person's own), ``submit`` (a draft or a template with answers) and
-``review`` (accept, return or void a submission).
+``review`` (accept, return or void a submission); ``for`` and ``record`` (V3-F1s: the form a record
+such as an inspection or a permit offers, and the answers sent through that record's own typed
+command).
 
 Reads use the signed-in viewer (``session_viewer``) after the ``forms.view`` word; writes run the
 command as the actor, read through the actor's own viewer, as ``tl qr`` does. A hidden submission,
@@ -17,6 +19,7 @@ Answers are given as ``--answer q1=yes`` (typed by the template's question: a nu
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -43,9 +46,10 @@ from tl_core.auth.module_roles import holder_for_actor, normalise_word, require_
 from tl_core.confidentiality import Viewer
 from tl_core.forms.jsonschema import to_json_schema
 from tl_core.forms.surveyjs import surveyjs_unsupported, to_surveyjs
+from tl_core.forms.types import FormBinding
 from tl_core.services.commands import Command
 
-from tl_mod_forms import MODULE, views
+from tl_mod_forms import MODULE, bound, views
 from tl_mod_forms.commands import (
     AcceptFormSubmission,
     DraftFormTemplate,
@@ -600,3 +604,103 @@ def form_review(
             require_command(uow, cmd)
             handler(uow, cmd)
     typer.echo(f"{action}ed {found.row.key or found.row.id}")
+
+
+# --- a record's own form (V3-F1s) -------------------------------------------------------------
+
+MSG_NO_FORM = "no form for"
+
+
+def _record_id(conn: Connection, scope: str, key: str, viewer: Viewer) -> str | None:
+    visible, extra = cf.not_hidden_each("r.id", viewer)
+    row = conn.execute(
+        text(
+            "SELECT r.id FROM cur_core_record r WHERE r.scope = :scope AND r.key = :key "
+            f"AND r.voided = :no AND {visible}"
+        ),
+        {"scope": scope, "key": key, "no": False, **extra},
+    ).first()
+    return None if row is None else str(row.id)
+
+
+@form_app.command("for")
+def form_for(
+    ctx: typer.Context,
+    key: Annotated[str, typer.Argument(help="The key of an inspection or a permit.")],
+    project: Project,
+    actor: Actor = DEV_ACTOR,
+) -> None:
+    """Show the form a record offers: its template and the typed command that takes the answers.
+    A record that is hidden, absent or has no form prints the same `error: no form for <key>`."""
+    scope = scope_of(project)
+    now = datetime.now(UTC)
+
+    def one(conn: Connection, viewer: Viewer) -> tuple[FormBinding, list[dict[str, Any]]] | None:
+        record_id = _record_id(conn, scope, key, viewer)
+        if record_id is None:
+            return None
+        found = bound.binding_of(conn, record_id, now=now, viewer=viewer)
+        return None if found is None else (found, bound.fields_of(conn, found, viewer))
+
+    got = _read(ctx.obj, actor, scope, one)
+    if got is None:
+        fail(f"{MSG_NO_FORM} {key}")
+    binding, fields = got
+    typer.echo(f"{key}  {binding.record_type}  {'available' if binding.available else 'closed'}")
+    if not binding.available:
+        typer.echo(f"reason {binding.reason}")
+        return
+    ref = binding.template
+    assert ref is not None
+    typer.echo(
+        f"template {ref.source_type} v{ref.version} format {ref.fmt} {ref.content_hash[:12]}"
+    )
+    typer.echo(f"command {binding.command}  answers go in {binding.answers_arg}")
+    for f in fields:
+        need = "required" if f.get("required") else "optional"
+        typer.echo(f"{f['id']}  {f['kind']}  {need}  {cell(f.get('text'), 70)}")
+
+
+@form_app.command("record")
+def form_record(
+    ctx: typer.Context,
+    key: Annotated[str, typer.Argument(help="The key of an inspection or a permit.")],
+    project: Project,
+    answer: Annotated[list[str] | None, ANSWER] = None,
+    answers_file: Annotated[Path | None, ANSWERS_FILE] = None,
+    actor: Actor = DEV_ACTOR,
+) -> None:
+    """Fill a record's form and send it through the record's own typed command, in one unit of
+    work: an inspection's result, a permit's precaution ticks. The command's own access word
+    decides, and its own rules apply; a refusal writes nothing."""
+    who = acting(ctx.obj, actor)
+    scope = scope_of(project)
+    now = datetime.now(UTC)
+    with service_errors(), open_uow(ctx.obj) as uow:
+        conn = uow.conn()
+        viewer = cf.viewer_for_actor(conn, who)
+        with cf.use_viewer(viewer):
+            record_id = _record_id(conn, scope, key, viewer)
+            found = (
+                None
+                if record_id is None
+                else bound.binding_of(conn, record_id, now=now, viewer=viewer)
+            )
+            if record_id is None or found is None:
+                fail(f"{MSG_NO_FORM} {key}")
+            fields = bound.fields_of(conn, found, viewer)
+            given = _parse_answers(fields, answer or [], answers_file)
+            try:
+                result = bound.record(
+                    uow,
+                    record_id=record_id,
+                    answers=list(given.values()),
+                    actor=who,
+                    scope=scope,
+                    source=SOURCE,
+                    now=now,
+                    viewer=viewer,
+                )
+            except ForbiddenError as exc:
+                fail(f"forbidden: {exc}")
+    typer.echo(f"recorded {found.command} on {result.key or key}")

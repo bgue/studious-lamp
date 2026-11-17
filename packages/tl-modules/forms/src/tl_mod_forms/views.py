@@ -19,6 +19,7 @@ from typing import Any, Final
 
 from sqlalchemy import Connection, Row, text
 from tl_core import confidentiality
+from tl_core.auth.module_roles import holder_for_actor, holds_word, normalise_word
 from tl_core.forms.registry import load_form_sources
 from tl_core.forms.types import FormBinding
 
@@ -324,6 +325,22 @@ def submission_detail(
     )
 
 
+def _view_word_held(conn: Connection, actor: str, word: str, scope: str) -> bool:
+    """Whether ``actor`` holds the source's ``view_word`` in ``scope`` (fail closed)."""
+    if not actor:
+        return False
+    try:
+        return holds_word(
+            conn,
+            holder_for_actor(conn, actor),
+            scope=scope,
+            module=word.partition(".")[0],
+            word=normalise_word(word),
+        )
+    except Exception:
+        return False
+
+
 def form_for(
     conn: Connection,
     record_id: str,
@@ -337,7 +354,7 @@ def form_for(
     visible, extra = confidentiality.not_hidden_each("r.id", viewer)
     row = conn.execute(
         text(
-            "SELECT r.type AS record_type FROM cur_core_record r "
+            "SELECT r.type AS record_type, r.scope AS scope FROM cur_core_record r "
             f"WHERE r.id = :id AND r.voided = :no AND {visible} LIMIT 1"
         ),
         {"id": record_id, "no": False, **extra},
@@ -345,7 +362,7 @@ def form_for(
     if row is None:
         return None
     source = load_form_sources().get(str(row.record_type))
-    if source is None:
+    if source is None or not _view_word_held(conn, viewer.actor, source.view_word, str(row.scope)):
         return None
     return source.binding(conn, record_id, viewer, now)
 
