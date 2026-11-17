@@ -81,6 +81,7 @@ All three live in the module's own package, `tl_mod_<name>`, and are named by a 
 ## Reads and confidentiality
 - A route or tool that returns record text reads through the viewer's class filter (`tl_core.confidentiality`, ADR-0016). The module declares each source as a `ConfidentialSource` in `ModuleSpec.confidential` (`tl_core/modules.py`); the record-type scaffold does not.
 - A hidden record answers exactly as a missing one: same status, same text, same count.
+- Known limit: keys come from one sequence per project, so hidden records leave gaps in key numbering (ADR-0016, Known limits). Do not try to hide the gaps per module.
 - Worked example: `tests/ext_demo/` (see `tests/ext_demo/README.md`). It is a test fixture and is never installed. Its tests are `tests/services/test_ext_demo_conformance.py`, `packages/tl-api/tests/test_ext_demo_api.py` and `packages/tl-mcp/tests/test_ext_demo_mcp.py`.
 
 ## Errors

@@ -18,9 +18,9 @@ F5  5 todo l     - docs, runbook, tour, highlights
 awp proposable exclusions fixed by F1a | wheel count 27 vs 21 (DEFERRED)
 ## OPEN
 Q9 S6 public route: owner gate (out of the pilot)
-Q10 record keys come from one sequence per project, so a hidden record leaves a gap in every list read and report (P0 sec F2; pre-existing, platform-wide): accept as a documented limit, or a rule? needs owner
 ## DEC
 D40 2026-11-17 owner Q7: privileged forms hidden from all but the author (CR1 behaviour kept; no clearance table); F1a walk proves it
+D41 2026-11-17 owner Q10: key gaps from hidden records allowed, documented as a limit (ADR-0016 Known limits); per-project option later (DEFERRED)
 ## METRICS (for V3-PILOT.md)
 start 2026-11-17 wave 1 dispatched; handoffs 19 (5 dispatch, 9 resume, 5 reviews+rechecks beyond the first); rulings 7 (+P0 view word, P0 Q10 to owner, P1 alias rename); late surprises 0; wave 1 wall clock ~6 h (gate queueing ~2 h, disk full once)
 lessons: one heavy lock serialised light runs (fixed in P2: 2 slots, dev/tests unlocked); P0 walk tests slow on the pre-P1 base
