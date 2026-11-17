@@ -26,12 +26,13 @@ fi
 
 words='claude|opus|sonnet|haiku|fable|gpt'
 
-# scan <sha7> <where>: reads text on stdin, prints one line per model-name word found.
+# scan <sha7> <where>: reads text on stdin, prints one line per model-name word found. A token with no
+# spaces that contains a slash (a path or a URL, such as a box path or a link to a session) is not text: it is blanked first.
 scan() {
   local sha="$1" where="$2" word
   while IFS= read -r word; do
     printf '%s %s %s\n' "$sha" "$where" "$(printf '%s' "$word" | tr '[:upper:]' '[:lower:]')"
-  done < <(grep -ioEw "$words" || true)
+  done < <(sed -E 's#[^[:space:]]*/[^[:space:]]*# #g' | grep -ioEw "$words" || true)
   return 0
 }
 

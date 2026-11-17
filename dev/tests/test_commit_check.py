@@ -84,6 +84,13 @@ CASES = [
         id="clean",
     ),
     pytest.param(
+        "V3-P2: add the gate\n\nSee /tmp/claude-0/run.log and https://claude.ai/code/session_1.",
+        {"dev/x.sh": "x\n"},
+        0,
+        "",
+        id="path-and-url-tokens-clean",
+    ),
+    pytest.param(
         f"V3-P2: add the gate\n\nDrafted with Opus.\n\n{TRAILERS}",
         {"dev/x.sh": "x\n"},
         1,

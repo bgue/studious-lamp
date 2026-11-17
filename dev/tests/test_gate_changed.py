@@ -32,6 +32,7 @@ BASE_FILES = {
     "tests/confidentiality/test_paths_equal_old.py": "def test_paths() -> None:\n    pass\n",
     "tests/confidentiality/test_core.py": "def test_other() -> None:\n    pass\n",
     "docs/README.md": "base\n",
+    "dev/tests/test_x.py": "def test_x() -> None:\n    pass\n",
 }
 WALK = [
     "tests/confidentiality/test_hidden_sql_equal_old.py",
@@ -95,13 +96,26 @@ def _dry_run(repo: Path, *args: str) -> list[str]:
     return result.stdout.splitlines()
 
 
-def _plan(base: str, changed: str, ruff: str, pyright: str, tests: str, pg: str) -> list[str]:
+HEAVY = "heavy (slots tl-heavy.lock, tl-heavy.2.lock)"
+DEVTESTS_SKIP = "plan devtests: skip (no dev/ change)"
+
+
+def _plan(
+    base: str,
+    changed: str,
+    ruff: str,
+    pyright: str,
+    tests: str,
+    pg: str,
+    devtests: str = DEVTESTS_SKIP,
+) -> list[str]:
     return [
         f"gate-changed: base {base[:7]} (given)",
         changed,
         ruff,
         pyright,
         f"plan commit: dev/commit-check.sh {base[:7]}",
+        devtests,
         tests,
         pg,
         "plan perf: skip (no tests/perf)",
@@ -118,8 +132,7 @@ def test_module_file_plan(tmp_path: Path) -> None:
         "changed: 1 files, 1 .py",
         f"plan ruff: ruff check, ruff format --check {src}",
         f"plan pyright: {src}",
-        "plan tests: flock /tmp/claude-0/tl-gate.lock bash dev/gate.sh "
-        "packages/tl-modules/awp/tests " + " ".join(WALK),
+        f"plan tests: {HEAVY} bash dev/gate.sh packages/tl-modules/awp/tests " + " ".join(WALK),
         "plan gate-pg: skip (no adapter, confidentiality or projector path)",
     )
 
@@ -133,10 +146,8 @@ def test_core_confidentiality_plan(tmp_path: Path) -> None:
         "changed: 1 files, 1 .py",
         f"plan ruff: ruff check, ruff format --check {src}",
         f"plan pyright: {src}",
-        "plan tests: flock /tmp/claude-0/tl-gate.lock bash dev/gate.sh "
-        "packages/tl-core/tests " + " ".join(WALK),
-        "plan gate-pg: flock /tmp/claude-0/tl-gate.lock "
-        "bash dev/gate.sh --postgres tests/confidentiality",
+        f"plan tests: {HEAVY} bash dev/gate.sh packages/tl-core/tests " + " ".join(WALK),
+        f"plan gate-pg: {HEAVY} bash dev/gate.sh --postgres tests/confidentiality",
     )
 
 
@@ -148,8 +159,22 @@ def test_docs_only_plan(tmp_path: Path) -> None:
         "changed: 1 files, 0 .py",
         "plan ruff: skip (no changed .py files)",
         "plan pyright: skip (no changed .py files)",
-        "plan tests: flock /tmp/claude-0/tl-gate.lock bash dev/gate.sh " + " ".join(WALK),
+        f"plan tests: {HEAVY} bash dev/gate.sh " + " ".join(WALK),
         "plan gate-pg: skip (no adapter, confidentiality or projector path)",
+    )
+
+
+def test_dev_change_plan_runs_dev_tests_unlocked(tmp_path: Path) -> None:
+    repo, base = _fixture(tmp_path, {"dev/notes.md": "changed\n"})
+    lines = _dry_run(repo, base)
+    assert lines == _plan(
+        base,
+        "changed: 1 files, 0 .py",
+        "plan ruff: skip (no changed .py files)",
+        "plan pyright: skip (no changed .py files)",
+        f"plan tests: {HEAVY} bash dev/gate.sh " + " ".join(WALK),
+        "plan gate-pg: skip (no adapter, confidentiality or projector path)",
+        "plan devtests: bash dev/gate.sh dev/tests (light, no heavy slot)",
     )
 
 

@@ -4,6 +4,7 @@
 #   ruff      ruff check and ruff format --check on the changed .py files
 #   pyright   pyright on the changed .py files
 #   commit    dev/commit-check.sh <base> (model names outside trailers, and in docs/reports)
+#   devtests  bash dev/gate.sh dev/tests, when any file under dev/ changed (light: no heavy lock)
 #   tests     bash dev/gate.sh <paths>: the tests dir of each touched package (packages/<p>/tests,
 #             packages/tl-modules/<m>/tests), each touched tests/<x> dir, and the confidentiality walk set
 #             (the tests that use twin_channels, tests/confidentiality/test_*walk*.py, test_hidden_sql_equal_old.py,
@@ -11,7 +12,8 @@
 #   gate-pg   bash dev/gate.sh --postgres tests/confidentiality, only when the diff touches packages/tl-adapters/,
 #             packages/tl-core/src/tl_core/confidentiality.py or a projectors/ path
 #   perf      bash dev/gate.sh tests/perf, when tests/perf exists
-# The test steps take flock /tmp/claude-0/tl-gate.lock, so two worktrees never run a heavy step at once.
+# The heavy steps (tests, gate-pg, perf) take one of two heavy slots: /tmp/claude-0/tl-heavy.lock, else
+# /tmp/claude-0/tl-heavy.2.lock; when both are busy they wait on the first.
 #
 # Usage: dev/gate-changed.sh [--dry-run] [BASE]
 #   BASE        a ref or sha (default: git merge-base HEAD p2/v3-forms, else origin/claude/wizardly-allen-m2v96s)
@@ -63,9 +65,13 @@ mapfile -t files < <({ git diff --name-only --no-renames "$base_sha"; git ls-fil
 py=()
 dirs=()
 pg=0
+dev_changed=0
 for f in "${files[@]}"; do
   case "$f" in
     *.py) if [ -f "$f" ]; then py+=("$f"); fi ;;
+  esac
+  case "$f" in
+    dev/*) dev_changed=1 ;;
   esac
   if [[ "$f" == packages/tl-modules/* ]]; then
     rest="${f#packages/tl-modules/}"
@@ -86,6 +92,11 @@ for f in "${files[@]}"; do
     packages/tl-adapters/*|packages/tl-core/src/tl_core/confidentiality.py|*projectors/*) pg=1 ;;
   esac
 done
+
+devtests=0
+if [ "$dev_changed" -eq 1 ] && [ -d dev/tests ]; then
+  devtests=1
+fi
 
 # The confidentiality walk set: every test file that uses twin_channels, plus the named files.
 walk=()
@@ -118,7 +129,7 @@ done
 mapfile -t test_paths < <({ printf '%s\n' "${dirs[@]}"; printf '%s\n' "${targets[@]}"; } \
   | sed '/^$/d' | sort -u)
 
-lock=/tmp/claude-0/tl-gate.lock
+heavy_note="heavy (slots tl-heavy.lock, tl-heavy.2.lock)"
 ruff_do() { uv run ruff check "$@" && uv run ruff format --check "$@"; }
 
 if [ "$dry" -eq 1 ]; then
@@ -132,18 +143,23 @@ if [ "$dry" -eq 1 ]; then
     echo "plan pyright: skip (no changed .py files)"
   fi
   echo "plan commit: dev/commit-check.sh $base_short"
+  if [ "$devtests" -eq 1 ]; then
+    echo "plan devtests: bash dev/gate.sh dev/tests (light, no heavy slot)"
+  else
+    echo "plan devtests: skip (no dev/ change)"
+  fi
   if [ ${#test_paths[@]} -gt 0 ]; then
-    echo "plan tests: flock $lock bash dev/gate.sh ${test_paths[*]}"
+    echo "plan tests: $heavy_note bash dev/gate.sh ${test_paths[*]}"
   else
     echo "plan tests: skip (no test paths)"
   fi
   if [ "$pg" -eq 1 ]; then
-    echo "plan gate-pg: flock $lock bash dev/gate.sh --postgres tests/confidentiality"
+    echo "plan gate-pg: $heavy_note bash dev/gate.sh --postgres tests/confidentiality"
   else
     echo "plan gate-pg: skip (no adapter, confidentiality or projector path)"
   fi
   if [ -d tests/perf ]; then
-    echo "plan perf: flock $lock bash dev/gate.sh tests/perf"
+    echo "plan perf: $heavy_note bash dev/gate.sh tests/perf"
   else
     echo "plan perf: skip (no tests/perf)"
   fi
@@ -151,7 +167,7 @@ if [ "$dry" -eq 1 ]; then
   exit 0
 fi
 
-mkdir -p .gate "$(dirname "$lock")"
+mkdir -p .gate /tmp/claude-0
 
 # step_fail <step> <detail>: prints the step line, the first failing test lines, and gate: FAIL; exits 1.
 step_fail() {
@@ -161,6 +177,21 @@ step_fail() {
   fi
   echo "gate: FAIL"
   exit 1
+}
+
+# run_heavy <command...>: runs the command in the first free heavy slot (exit 75 from flock -n means busy).
+run_heavy() {
+  local rc=0
+  flock -n -E 75 /tmp/claude-0/tl-heavy.lock "$@" || rc=$?
+  if [ "$rc" -ne 75 ]; then
+    return "$rc"
+  fi
+  rc=0
+  flock -n -E 75 /tmp/claude-0/tl-heavy.2.lock "$@" || rc=$?
+  if [ "$rc" -ne 75 ]; then
+    return "$rc"
+  fi
+  flock /tmp/claude-0/tl-heavy.lock "$@"
 }
 
 if [ ${#py[@]} -gt 0 ]; then
@@ -186,29 +217,42 @@ else
   step_fail commit "(model names above)"
 fi
 
-run_gate() { # <step> <gate.sh arguments...>
-  local name="$1"; shift
-  if flock "$lock" bash dev/gate.sh "$@" >".gate/changed-$name.log" 2>&1; then
+# run_gate <step> <heavy> <gate.sh arguments...>: heavy steps take a heavy slot, light ones run at once.
+run_gate() {
+  local name="$1" heavy="$2"; shift 2
+  local rc=0
+  if [ "$heavy" -eq 1 ]; then
+    run_heavy bash dev/gate.sh "$@" >".gate/changed-$name.log" 2>&1 || rc=$?
+  else
+    bash dev/gate.sh "$@" >".gate/changed-$name.log" 2>&1 || rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
     echo "$name: PASS $(grep -E '^part ' ".gate/changed-$name.log" | tail -n 1 | cut -c1-120 || true)"
   else
-    step_fail "$name" "exit $? (see .gate/changed-$name.log)"
+    step_fail "$name" "exit $rc (see .gate/changed-$name.log)"
   fi
 }
 
+if [ "$devtests" -eq 1 ]; then
+  run_gate devtests 0 dev/tests
+else
+  echo "devtests: SKIP no dev/ change"
+fi
+
 if [ ${#test_paths[@]} -gt 0 ]; then
-  run_gate tests "${test_paths[@]}"
+  run_gate tests 1 "${test_paths[@]}"
 else
   echo "tests: SKIP no test paths"
 fi
 
 if [ "$pg" -eq 1 ]; then
-  run_gate gate-pg --postgres tests/confidentiality
+  run_gate gate-pg 1 --postgres tests/confidentiality
 else
   echo "gate-pg: SKIP no adapter, confidentiality or projector path"
 fi
 
 if [ -d tests/perf ]; then
-  run_gate perf tests/perf
+  run_gate perf 1 tests/perf
 else
   echo "perf: SKIP no tests/perf"
 fi
