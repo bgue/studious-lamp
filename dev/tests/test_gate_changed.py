@@ -33,6 +33,8 @@ BASE_FILES = {
     "tests/confidentiality/test_core.py": "def test_other() -> None:\n    pass\n",
     "docs/README.md": "base\n",
     "dev/tests/test_x.py": "def test_x() -> None:\n    pass\n",
+    "tests/conftest.py": "import pytest\n",
+    "justfile": "gate:\n    true\n",
 }
 WALK = [
     "tests/confidentiality/test_hidden_sql_equal_old.py",
@@ -210,3 +212,124 @@ def test_unknown_option_is_a_usage_error(tmp_path: Path) -> None:
         text=True,
     )
     assert result.returncode == 2
+
+
+def test_top_level_tests_file_runs_all_of_tests(tmp_path: Path) -> None:
+    repo, base = _fixture(tmp_path, {"tests/conftest.py": "import pytest  # changed\n"})
+    lines = _dry_run(repo, base)
+    assert lines == _plan(
+        base,
+        "changed: 1 files, 1 .py",
+        "plan ruff: ruff check, ruff format --check tests/conftest.py",
+        "plan pyright: tests/conftest.py",
+        f"plan tests: {HEAVY} bash dev/gate.sh tests",
+        "plan gate-pg: skip (no adapter, confidentiality or projector path)",
+    )
+
+
+def test_justfile_change_warns_and_runs_nothing_extra(tmp_path: Path) -> None:
+    repo, base = _fixture(tmp_path, {"justfile": "gate:\n    echo changed\n"})
+    lines = _dry_run(repo, base)
+    assert lines[0] == "warn: justfile maps to no tests"
+    assert lines[1:] == [
+        f"gate-changed: base {base[:7]} (given)",
+        "changed: 1 files, 0 .py",
+        "plan ruff: skip (no changed .py files)",
+        "plan pyright: skip (no changed .py files)",
+        f"plan commit: dev/commit-check.sh {base[:7]}",
+        "plan devtests: skip (no dev/ change)",
+        f"plan tests: {HEAVY} bash dev/gate.sh " + " ".join(WALK),
+        "plan gate-pg: skip (no adapter, confidentiality or projector path)",
+        "plan perf: skip (no tests/perf)",
+        "gate: DRY-RUN",
+    ]
+
+
+# Stubs for the real run: uv answers ruff and pyright with an exit code from the environment,
+# and the fixture's dev/gate.sh answers with STUB_GATE_RC. Nothing heavy runs; the locks are
+# in tmp_path.
+UV_STUB = """#!/usr/bin/env bash
+case " $* " in
+  *" ruff "*) exit "${STUB_RUFF_RC:-0}" ;;
+  *" pyright "*) exit "${STUB_PYRIGHT_RC:-0}" ;;
+esac
+exit 0
+"""
+GATE_STUB = """#!/usr/bin/env bash
+echo "part 1: exit ${STUB_GATE_RC:-0}, stub run"
+exit "${STUB_GATE_RC:-0}"
+"""
+
+
+def _real_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    for name in ("gate-changed.sh", "commit-check.sh"):
+        target = repo / "dev" / name
+        target.parent.mkdir(exist_ok=True)
+        target.write_text((REPO / "dev" / name).read_text(encoding="utf-8"), encoding="utf-8")
+    (repo / "dev" / "gate.sh").write_text(GATE_STUB, encoding="utf-8")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "uv").write_text(UV_STUB, encoding="utf-8")
+    (bin_dir / "uv").chmod(0o755)
+    _write(repo, {"packages/tl-core/tests/test_core.py": "def test_core() -> None:\n    pass\n"})
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "V3-P2: base")
+    base = _git(repo, "rev-parse", "HEAD")
+    _write(repo, {"packages/tl-core/src/tl_core/x.py": "VALUE = 2\n"})
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "V3-P2: change")
+    env = {
+        **ENV,
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "TL_HEAVY_LOCK_DIR": str(tmp_path / "locks"),
+    }
+    return repo, {"base": base, **env}
+
+
+def _real_run(
+    repo: Path, env: dict[str, str], base: str, **stubs: str
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", "dev/gate-changed.sh", base],
+        cwd=repo,
+        env={**env, **stubs},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_real_run_all_green(tmp_path: Path) -> None:
+    repo, env = _real_fixture(tmp_path)
+    base = env.pop("base")
+    result = _real_run(repo, env, base)
+    lines = result.stdout.splitlines()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ruff: PASS 1 files" in lines
+    assert "pyright: PASS 1 files" in lines
+    assert "tests: PASS part 1: exit 0, stub run" in lines
+    assert lines[-1] == "gate: PASS"
+
+
+def test_real_run_stops_at_first_red(tmp_path: Path) -> None:
+    repo, env = _real_fixture(tmp_path)
+    base = env.pop("base")
+    result = _real_run(repo, env, base, STUB_RUFF_RC="1")
+    lines = result.stdout.splitlines()
+    assert result.returncode == 1
+    assert any(line.startswith("ruff: FAIL") for line in lines)
+    assert not any(line.startswith(("pyright:", "tests:")) for line in lines)
+    assert lines[-1] == "gate: FAIL"
+
+
+def test_real_run_test_step_red_is_last_gate_fail(tmp_path: Path) -> None:
+    repo, env = _real_fixture(tmp_path)
+    base = env.pop("base")
+    result = _real_run(repo, env, base, STUB_GATE_RC="1")
+    lines = result.stdout.splitlines()
+    assert result.returncode == 1
+    assert any(line.startswith("tests: FAIL exit 1") for line in lines)
+    assert lines[-1] == "gate: FAIL"

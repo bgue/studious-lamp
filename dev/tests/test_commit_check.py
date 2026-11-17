@@ -111,6 +111,36 @@ CASES = [
         "{sha} report sonnet\n",
         id="report-line-hit",
     ),
+    pytest.param(
+        "V3-P2: add the gate\n\nPick opus/sonnet for the draft.",
+        {"dev/x.sh": "x\n"},
+        1,
+        "{sha} body opus\n{sha} body sonnet\n",
+        id="slash-pair-hit",
+    ),
+    pytest.param(
+        "V3-P2: add the gate\n\nsee/Opus is the reviewer.",
+        {"dev/x.sh": "x\n"},
+        1,
+        "{sha} body opus\n",
+        id="slash-word-hit",
+    ),
+    pytest.param(
+        "V3-P2: add the gate\n\nCo-Authored-By: Claude Opus 5.5 <noreply@example.invalid>\n\n"
+        "Plain closing text.",
+        {"dev/x.sh": "x\n"},
+        1,
+        "{sha} body claude\n{sha} body opus\n",
+        id="trailer-mid-body-hit",
+    ),
+    pytest.param(
+        "V3-P2: add the gate\n\nPlain.\n\nCo-Authored-By: Example <noreply@example.invalid>\n"
+        "Claude-Session: abc123",
+        {"dev/x.sh": "x\n"},
+        1,
+        "{sha} body claude\n",
+        id="session-trailer-without-url-hit",
+    ),
 ]
 
 

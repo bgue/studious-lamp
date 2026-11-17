@@ -26,13 +26,51 @@ fi
 
 words='claude|opus|sonnet|haiku|fable|gpt'
 
-# scan <sha7> <where>: reads text on stdin, prints one line per model-name word found. A token with no
-# spaces that contains a slash (a path or a URL, such as a box path or a link to a session) is not text: it is blanked first.
+# path_pieces: on stdin, splits each token that holds a slash and keeps only the pieces that are not path or
+# URL parts. A piece is a path or URL part when it is empty, a scheme (https:), holds a dot (claude.ai,
+# a file name) or a hyphen and digit (claude-0). So /tmp/claude-0/x and https://claude.ai/code/x are clean,
+# while opus/sonnet and see/Opus still hit.
+path_pieces() {
+  awk '{
+    out = ""
+    for (i = 1; i <= NF; i++) {
+      t = $i
+      if (index(t, "/") == 0) { out = out " " t; continue }
+      n = split(t, p, "/")
+      for (j = 1; j <= n; j++) {
+        q = p[j]
+        if (q == "" || q ~ /:$/ || index(q, ".") > 0 || q ~ /-[0-9]/) continue
+        out = out " " q
+      }
+    }
+    print out
+  }'
+}
+
+# exempt_trailers: on stdin (a message body), drops the trailer lines that may name the agent: a Co-Authored-By
+# line, or a Claude-Session line followed by a URL. Only lines in the final contiguous trailer block are exempt;
+# a trailer-looking line mid-body is checked.
+exempt_trailers() {
+  awk '
+    { line[NR] = $0 }
+    END {
+      n = NR
+      while (n > 0 && line[n] == "") n--
+      s = n + 1
+      while (s > 1 && line[s - 1] ~ /^[A-Za-z][A-Za-z-]*: /) s--
+      for (i = 1; i <= NR; i++) {
+        if (i >= s && (line[i] ~ /^Co-Authored-By: / || line[i] ~ /^Claude-Session: https?:\/\//)) continue
+        print line[i]
+      }
+    }'
+}
+
+# scan <sha7> <where>: reads text on stdin, prints one line per model-name word found.
 scan() {
   local sha="$1" where="$2" word
   while IFS= read -r word; do
     printf '%s %s %s\n' "$sha" "$where" "$(printf '%s' "$word" | tr '[:upper:]' '[:lower:]')"
-  done < <(sed -E 's#[^[:space:]]*/[^[:space:]]*# #g' | grep -ioEw "$words" || true)
+  done < <(path_pieces | grep -ioEw "$words" || true)
   return 0
 }
 
@@ -41,8 +79,7 @@ all_hits() {
   for sha in $(git rev-list --reverse "$base..HEAD"); do
     s7="$(git rev-parse --short=7 "$sha")"
     git log -1 --format=%s "$sha" | scan "$s7" subject
-    git log -1 --format=%B "$sha" | tail -n +2 \
-      | awk '!/^(Co-Authored-By|Claude-Session):/' | scan "$s7" body
+    git log -1 --format=%B "$sha" | tail -n +2 | exempt_trailers | scan "$s7" body
     git show --format= --unified=0 --no-color "$sha" -- docs/reports \
       | awk '/^\+\+\+/ { next } /^\+/ { print substr($0, 2) }' | scan "$s7" report
   done

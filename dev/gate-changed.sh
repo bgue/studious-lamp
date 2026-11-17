@@ -12,13 +12,16 @@
 #   gate-pg   bash dev/gate.sh --postgres tests/confidentiality, only when the diff touches packages/tl-adapters/,
 #             packages/tl-core/src/tl_core/confidentiality.py or a projectors/ path
 #   perf      bash dev/gate.sh tests/perf, when tests/perf exists
-# The heavy steps (tests, gate-pg, perf) take one of two heavy slots: /tmp/claude-0/tl-heavy.lock, else
-# /tmp/claude-0/tl-heavy.2.lock; when both are busy they wait on the first.
+# The heavy steps (tests, gate-pg, perf) take one of two heavy slots: tl-heavy.lock, else tl-heavy.2.lock, in
+# TL_HEAVY_LOCK_DIR (default /tmp/claude-0); when both are busy they wait on the first. A slot is held on an fd
+# that the command does not inherit.
 #
 # Usage: dev/gate-changed.sh [--dry-run] [BASE]
 #   BASE        a ref or sha (default: git merge-base HEAD p2/v3-forms, else origin/claude/wizardly-allen-m2v96s)
 #   --dry-run   print the plan (steps and paths) and run nothing
-# Changed files: committed and uncommitted changes against BASE, plus untracked files that are not ignored.
+# Changed files: committed and uncommitted changes since the merge-base of BASE and HEAD, plus untracked files
+# that are not ignored. A changed top-level tests/<file> (conftest, helpers) runs all of tests/; a changed
+# justfile, pyproject.toml, uv.lock or dev/gate.sh is reported as mapping to no tests.
 # Last line: gate: PASS, gate: FAIL, or gate: DRY-RUN. Exit 0 only on PASS.
 set -euo pipefail
 
@@ -58,12 +61,14 @@ if ! base_sha="$(git rev-parse --verify -q "$base^{commit}")"; then
 fi
 base_short="$(git rev-parse --short=7 "$base_sha")"
 
-# Changed files (sorted, unique), existing or deleted.
-mapfile -t files < <({ git diff --name-only --no-renames "$base_sha"; git ls-files --others --exclude-standard; } \
+# Changed files since the merge-base (sorted, unique), existing or deleted.
+fork="$(git merge-base "$base_sha" HEAD)"
+mapfile -t files < <({ git diff --name-only --no-renames "$fork"; git ls-files --others --exclude-standard; } \
   | sed '/^$/d' | sort -u)
 
 py=()
 dirs=()
+warns=()
 pg=0
 dev_changed=0
 for f in "${files[@]}"; do
@@ -71,8 +76,16 @@ for f in "${files[@]}"; do
     *.py) if [ -f "$f" ]; then py+=("$f"); fi ;;
   esac
   case "$f" in
+    justfile|pyproject.toml|uv.lock|dev/gate.sh) warns+=("warn: $f maps to no tests") ;;
+  esac
+  case "$f" in
     dev/*) dev_changed=1 ;;
   esac
+  if [[ "$f" == tests/* && "$f" != tests/*/* ]]; then
+    d="tests"
+    if [ -d "$d" ]; then dirs+=("$d"); fi
+    continue
+  fi
   if [[ "$f" == packages/tl-modules/* ]]; then
     rest="${f#packages/tl-modules/}"
     d="packages/tl-modules/${rest%%/*}/tests"
@@ -91,6 +104,10 @@ for f in "${files[@]}"; do
   case "$f" in
     packages/tl-adapters/*|packages/tl-core/src/tl_core/confidentiality.py|*projectors/*) pg=1 ;;
   esac
+done
+
+for w in ${warns[@]+"${warns[@]}"}; do
+  echo "$w"
 done
 
 devtests=0
@@ -130,6 +147,7 @@ mapfile -t test_paths < <({ printf '%s\n' "${dirs[@]}"; printf '%s\n' "${targets
   | sed '/^$/d' | sort -u)
 
 heavy_note="heavy (slots tl-heavy.lock, tl-heavy.2.lock)"
+heavy_dir="${TL_HEAVY_LOCK_DIR:-/tmp/claude-0}"
 ruff_do() { uv run ruff check "$@" && uv run ruff format --check "$@"; }
 
 if [ "$dry" -eq 1 ]; then
@@ -167,7 +185,7 @@ if [ "$dry" -eq 1 ]; then
   exit 0
 fi
 
-mkdir -p .gate /tmp/claude-0
+mkdir -p .gate "$heavy_dir"
 
 # step_fail <step> <detail>: prints the step line, the first failing test lines, and gate: FAIL; exits 1.
 step_fail() {
@@ -179,19 +197,23 @@ step_fail() {
   exit 1
 }
 
-# run_heavy <command...>: runs the command in the first free heavy slot (exit 75 from flock -n means busy).
+# run_heavy <command...>: runs the command in the first free heavy slot. Each slot is an fd lock held by this
+# shell; the command runs with that fd closed (9>&-), so it cannot keep the slot or misread a busy slot.
 run_heavy() {
-  local rc=0
-  flock -n -E 75 /tmp/claude-0/tl-heavy.lock "$@" || rc=$?
-  if [ "$rc" -ne 75 ]; then
-    return "$rc"
-  fi
-  rc=0
-  flock -n -E 75 /tmp/claude-0/tl-heavy.2.lock "$@" || rc=$?
-  if [ "$rc" -ne 75 ]; then
-    return "$rc"
-  fi
-  flock /tmp/claude-0/tl-heavy.lock "$@"
+  local slot rc=0
+  for slot in tl-heavy.lock tl-heavy.2.lock; do
+    exec 9>"$heavy_dir/$slot"
+    if flock -n 9; then
+      "$@" 9>&- || rc=$?
+      exec 9>&-
+      return "$rc"
+    fi
+  done
+  exec 9>"$heavy_dir/tl-heavy.lock"
+  flock 9
+  "$@" 9>&- || rc=$?
+  exec 9>&-
+  return "$rc"
 }
 
 if [ ${#py[@]} -gt 0 ]; then
