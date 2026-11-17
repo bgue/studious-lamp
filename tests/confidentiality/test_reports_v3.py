@@ -292,3 +292,50 @@ def test_a_refused_report_leaves_an_existing_out_file_alone(tmp_path: Path) -> N
         refused = run(env, "report", "scaffolds", "--project", "P1", "--out", str(out))
     assert refused.exit_code == 1  # type: ignore[attr-defined]
     assert out.read_text() == "precious\n"
+
+
+def test_an_empty_jsonl_report_empties_an_older_out_file(tmp_path: Path) -> None:
+    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "prod"}
+    assert run(env, "init").exit_code == 0  # type: ignore[attr-defined]
+    out = tmp_path / "old.jsonl"
+    out.write_text('{"number": "someone else"}\n')
+    with mock.patch.dict(os.environ, env):
+        done = run(env, "report", "rfis", "--project", "P1", "--format", "jsonl", "--out", str(out))
+    assert done.exit_code == 0  # type: ignore[attr-defined]
+    assert out.read_text() == ""
+
+
+def test_a_negative_quantity_is_not_quoted() -> None:
+    from decimal import Decimal
+
+    from tl_cli.report_mat import _number
+    from tl_core.report_out import csv_cell
+
+    assert csv_cell(_number("-5")) == "-5" and csv_cell(_number("-1.50")) == "-1.50"
+    assert _number("007") == "007" and _number("A-1") == "A-1"  # text stays text
+    assert _number("-5") == Decimal(-5)
+
+
+def test_d40_two_ledgers_that_differ_only_by_the_privileged_and_the_draft(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    """ada and dora read the same bytes with and without the privileged one and bea's draft."""
+
+    def make(extra: bool) -> World:
+        db = new_db()
+        create_schema(db)
+        world = World(db)
+        world.people()
+        tpl = world.template()
+        world.submit("uma", tpl)
+        if extra:  # made last, so every other key is the same in both ledgers
+            world.submit("rob", world.template(answer_class="privileged"))
+            world.save("bea", tpl)
+        return world
+
+    with_extra, without = make(True), make(False)
+    for who in ("ada", "dora"):
+        for fmt in ("csv", "jsonl"):
+            got = text_of(with_extra, "form-submissions", who, fmt)
+            assert got == text_of(without, "form-submissions", who, fmt), (who, fmt)
+    assert "privileged" in text_of(with_extra, "form-submissions", "rob")  # its author reads it

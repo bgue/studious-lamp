@@ -9,7 +9,9 @@ are its text cells. A view that hit its row bound (``truncated``) is cut the sam
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator, Mapping
+from decimal import Decimal
 from typing import Any, Final
 
 from sqlalchemy import Connection
@@ -27,6 +29,16 @@ _TITLES: Final = {
 }
 
 
+_NUMBER = re.compile(r"-?[0-9]+(\.[0-9]+)?")
+
+
+def _number(value: Any) -> Any:
+    """A cell that is a plain number and prints back exactly the same (so ``007`` stays text)."""
+    if isinstance(value, str) and _NUMBER.fullmatch(value) and str(Decimal(value)) == value:
+        return Decimal(value)
+    return value
+
+
 def _make(name: str) -> Report:
     columns = _COLUMNS[name]
 
@@ -36,7 +48,8 @@ def _make(name: str) -> Report:
         codes = {c.id: c.code for c in cost_views.cost_codes(conn, scope)}
         built = build_report(conn, scope, name, cost_codes=codes)
         for cells in built.rows:
-            yield dict(zip(columns, cells, strict=True))
+            # a plain number goes out as a number (-3 is not a formula, so no leading quote)
+            yield {c: _number(v) for c, v in zip(columns, cells, strict=True)}
 
     return Report(f"materials-{name.replace('_', '-')}", _TITLES[name], columns, rows)
 

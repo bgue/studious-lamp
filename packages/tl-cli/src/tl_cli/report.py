@@ -64,6 +64,8 @@ def report(
                     handle = out.open("w", encoding="utf-8", newline="")
                 handle.write(line)
                 rows += 1
+        if out is not None and handle is None:  # no line at all (JSONL, no visible row): the
+            out.open("w", encoding="utf-8").close()  # file is this report: empty, not an older one
     finally:
         if out is not None and handle is not None:
             handle.close()
