@@ -179,6 +179,7 @@ def spec() -> ModuleSpec:
             "tl_mcp.insp_tools:register_insp_tools",
         ),
         cli_groups=("tl_cli.punch:app", "tl_cli.insp:app", "tl_cli.checklist:app"),
+        reports=("tl_mod_quality.report_rows:REPORTS",),
         # a walkdown raises items offline; each is numbered when it syncs (offline classes)
         offline_drafts={
             PUNCH_ITEM: frozenset({"RaisePunchItem"}),

@@ -234,9 +234,11 @@ def isolation_list(
     state: str | None = None,
     energy: str | None = None,
     limit: int = 100,
+    offset: int = 0,
     viewer: confidentiality.Viewer = confidentiality.LOWEST,
 ) -> IsolationPage:
-    """Isolations of ``scope`` by key; ``total`` counts the rows the filters and viewer leave."""
+    """Isolations of ``scope`` by key; ``total`` counts the rows the filters and viewer leave.
+    ``offset`` (default 0) pages past the first ``limit`` rows."""
     visible, hidden_params = _isolation_visibility(viewer)
     conds = ["i.scope = :scope", "r.voided = :no", visible]
     params: dict[str, Any] = {"scope": scope, "no": False, **hidden_params}
@@ -249,9 +251,13 @@ def isolation_list(
     where = " AND ".join(conds)
     total = conn.execute(text(f"SELECT COUNT(*) AS n {_FROM} WHERE {where}"), params).scalar_one()
     params["limit"] = max(1, min(int(limit), MAX_LIMIT))
+    params["offset"] = max(0, int(offset))
     raws = list(
         conn.execute(
-            text(f"SELECT {_ROW_COLUMNS} {_FROM} WHERE {where} ORDER BY r.key, r.id LIMIT :limit"),
+            text(
+                f"SELECT {_ROW_COLUMNS} {_FROM} WHERE {where} ORDER BY r.key, r.id "
+                "LIMIT :limit OFFSET :offset"
+            ),
             params,
         ).mappings()
     )

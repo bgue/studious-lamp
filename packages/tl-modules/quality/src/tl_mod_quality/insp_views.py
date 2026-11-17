@@ -274,9 +274,11 @@ def inspection_list(
     subject_key: str | None = None,
     for_key: str | None = None,
     limit: int = 200,
+    offset: int = 0,
     viewer: confidentiality.Viewer = confidentiality.LOWEST,
 ) -> InspectionPage:
-    """Visible inspections of ``scope`` by key; ``total`` counts the matches before ``limit``."""
+    """Visible inspections of ``scope`` by key; ``total`` counts the matches before ``limit``.
+    ``offset`` (default 0) pages past the first ``limit`` matches."""
     if state is not None and state not in INSPECTION_STATES:
         raise ValueError(MSG_STATE)
     if point is not None and point not in POINTS:
@@ -288,6 +290,7 @@ def inspection_list(
             "scope": scope,
             "no": False,
             "limit": max(1, min(int(limit), MAX_LIMIT)),
+            "offset": max(0, int(offset)),
         }
     )
     conds = ["r.scope = :scope", "r.voided = :no"]
@@ -315,7 +318,10 @@ def inspection_list(
     where = " AND ".join(conds)
     total = conn.execute(text(f"SELECT COUNT(*) AS n {source} WHERE {where}"), params).scalar_one()
     raws = conn.execute(
-        text(f"SELECT {_ROW_COLUMNS} {source} WHERE {where} ORDER BY r.key, r.id LIMIT :limit"),
+        text(
+            f"SELECT {_ROW_COLUMNS} {source} WHERE {where} ORDER BY r.key, r.id "
+            "LIMIT :limit OFFSET :offset"
+        ),
         params,
     ).mappings()
     return InspectionPage(rows=[_row(raw) for raw in raws], total=int(total))

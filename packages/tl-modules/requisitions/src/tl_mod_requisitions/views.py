@@ -222,10 +222,12 @@ def work_order_list(
     state: str | None = None,
     assigned_to: str | None = None,
     limit: int = 200,
+    offset: int = 0,
     viewer: confidentiality.Viewer = confidentiality.LOWEST,
 ) -> list[WorkOrderRow]:
     """The work orders of ``scope``, by key, that match the filters. A work order of a hidden
-    requisition is left out, as is a hidden work order."""
+    requisition is left out, as is a hidden work order. ``offset`` (default 0) pages past the
+    first ``limit`` rows."""
     take = _clamp(limit)
     visible, extra = confidentiality.not_hidden_each("r.id", viewer)
     hidden_requisition, extra_requisition = confidentiality.not_hidden_each(
@@ -237,6 +239,7 @@ def work_order_list(
         "no": False,
         "open": ST_OPEN,
         "limit": take,
+        "offset": max(0, int(offset)),
         **extra,
         **extra_requisition,
     }
@@ -249,7 +252,7 @@ def work_order_list(
     statement = text(
         f"SELECT {_WORK_ORDER_COLUMNS} FROM {WORK_ORDER_TABLE} w "
         "JOIN cur_core_record r ON r.id = w.id "
-        f"WHERE {' AND '.join(conditions)} ORDER BY r.key, r.id LIMIT :limit"
+        f"WHERE {' AND '.join(conditions)} ORDER BY r.key, r.id LIMIT :limit OFFSET :offset"
     )
     return [_work_order(row) for row in conn.execute(statement, params)]
 

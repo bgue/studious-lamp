@@ -123,6 +123,7 @@ def spec() -> ModuleSpec:
         command_words={c.model.__name__: c.access for c in COMMANDS},
         commands="tl_mod_permits.module:COMMANDS",
         read_routers=("tl_mod_permits.routes:router",),
+        reports=("tl_mod_permits.report_rows:REPORTS",),
         tools=("tl_mod_permits.tools:register_tools",),
         cli_groups=(
             "tl_mod_permits.cli:permit_app",
