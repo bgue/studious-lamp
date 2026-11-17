@@ -106,4 +106,5 @@ def spec() -> ModuleSpec:
         command_words={c.model.__name__: c.access for c in SCAFFOLD_COMMANDS},
         commands="tl_mod_scaffold.module:SCAFFOLD_COMMANDS",
         read_routers=("tl_api.routes.scaffold:router",),
+        reports=("tl_mod_scaffold.report_rows:REPORTS",),
     )

@@ -144,6 +144,8 @@ def document_register(
     if state is not None:
         where.append("COALESCE(d.status, 'Draft') = :state")
         params["state"] = state
+    linker_visible, linker_params = confidentiality.not_hidden("l.from_id")
+    params.update(linker_params)
     sql = (
         "SELECT d.key AS key, d.title AS title, d.doc_type AS doc_type, "
         "d.discipline AS discipline, d.status AS status, "
@@ -155,8 +157,8 @@ def document_register(
         "AND COALESCE(r.status, 'Draft') <> 'Void') AS revisions, "
         f"(SELECT MAX(r.code) FROM {REVISION_VIEW} r WHERE r.document_id = d.id "
         "AND COALESCE(r.status, 'Draft') IN ('Draft', 'In Review')) AS open_code, "
-        "(SELECT COUNT(*) FROM cur_links l WHERE l.to_id = d.id AND l.status = 'stale') "
-        "AS stale_links "
+        "(SELECT COUNT(*) FROM cur_links l WHERE l.to_id = d.id AND l.status = 'stale' "
+        f"AND {linker_visible}) AS stale_links "
         f"FROM {DOCUMENT_VIEW} d WHERE {' AND '.join(where)} ORDER BY d.key LIMIT :limit"
     )
     return [

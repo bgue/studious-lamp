@@ -1,0 +1,341 @@
+"""`tl report` rows for the in-process world modules (V3-P0): form submissions and templates and the
+correspondence register. Header pinned, row count equal to the module's list view for the same
+viewer, a restricted record present for a controller and absent for a low viewer, the low viewer's
+output byte-identical to a ledger where that record never existed (hidden == missing), JSONL equal
+to the CSV rows, and the command itself (list, CSV to a file, errors, no id column).
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+import json
+import os
+import sys
+from collections.abc import Callable
+from pathlib import Path
+from unittest import mock
+
+import pytest
+from tl_adapters.db import DbTarget, create_schema, open_uow
+from tl_core import confidentiality as cf
+from tl_core.modules import module_reports
+from tl_core.report_out import render
+from tl_mod_forms import views as forms_views
+
+_ROOT = Path(__file__).resolve().parents[2] / "packages"
+for _tests in ("tl-modules/forms/tests", "tl-api/tests"):
+    if str(_ROOT / _tests) not in sys.path:
+        sys.path.insert(0, str(_ROOT / _tests))
+
+from forms_world import SCOPE, World  # noqa: E402
+
+SUBMISSION_HEADER = (
+    "key,state,template,template_version,subject,answer_class,author,submitted_on,reviewed_by,"
+    "reviewed_on\n"
+)
+TEMPLATE_HEADER = (
+    "key,title,version,state,intake,purpose,answer_class,bound_record_type,field_count,"
+    "published_on,retired_on\n"
+)
+REGISTER_HEADER = (
+    "number,kind,state,direction,domain,subtype,date,counterparty,response_due,class,subject\n"
+)
+
+
+def build(db: DbTarget, *, secret: bool) -> World:
+    """People, one open template with two submissions and a draft; with ``secret`` also a
+    restricted template with a restricted submission and a restricted letter, made last so the
+    numbers of everything else are the same with and without them (the hidden records are made
+    LAST on purpose: keys come in order, so the two ledgers' other keys line up byte for byte).
+    Also a privileged-template submission (author ``rob``; the admins and the controller are
+    refused it, D40), a submission about a hidden subject, and another author's draft (``bea``)."""
+    create_schema(db)
+    world = World(db)
+    world.people()
+    open_tpl = world.template()
+    world.submit("uma", open_tpl)
+    world.submit("rob", open_tpl)
+    world.save("uma", open_tpl)  # a draft: its author's alone
+    if secret:
+        restricted = world.template(answer_class="restricted")
+        world.submit("dora", restricted)
+        subject = world.hidden_record()
+        world.submit("rob", world.template(answer_class="privileged"))
+        world.submit("dora", open_tpl, subject_id=subject)
+        world.save("bea", open_tpl)
+    return world
+
+
+@pytest.fixture
+def pair(new_db: Callable[[], DbTarget]) -> tuple[World, World]:
+    return build(new_db(), secret=True), build(new_db(), secret=False)
+
+
+def viewer(world: World, who: str) -> cf.Viewer:
+    with open_uow(world.db, readonly=True) as uow:
+        return cf.viewer_for_actor(uow.conn(), f"user:{who}")
+
+
+def text_of(world: World, name: str, who: str, fmt: str = "csv") -> str:
+    seen = viewer(world, who)
+    with open_uow(world.db, readonly=True) as uow:
+        return "".join(render(module_reports()[name], uow.conn(), SCOPE, seen, fmt))
+
+
+def table(body: str) -> list[dict[str, str]]:
+    return list(csv.DictReader(io.StringIO(body)))
+
+
+def test_the_headers_are_pinned(pair: tuple[World, World]) -> None:
+    world = pair[0]
+    assert text_of(world, "form-submissions", "dora").startswith(SUBMISSION_HEADER)
+    assert text_of(world, "form-templates", "dora").startswith(TEMPLATE_HEADER)
+    assert text_of(world, "correspondence", "dora").startswith(REGISTER_HEADER)
+    assert text_of(world, "form-submissions", "vera").splitlines(True)[0] == SUBMISSION_HEADER
+
+
+@pytest.mark.parametrize("who", ["dora", "vera", "uma"])
+def test_row_counts_equal_the_list_views(pair: tuple[World, World], who: str) -> None:
+    world = pair[0]
+    seen = viewer(world, who)
+    with open_uow(world.db, readonly=True) as uow, cf.use_viewer(seen):
+        subs = forms_views.submission_list(uow.conn(), SCOPE, viewer=seen).total
+        tpls = forms_views.template_list(uow.conn(), viewer=seen).total
+    assert len(table(text_of(world, "form-submissions", who))) == subs
+    assert len(table(text_of(world, "form-templates", who))) == tpls
+
+
+def test_a_draft_is_its_authors_row_alone(pair: tuple[World, World]) -> None:
+    world = pair[0]
+    states = lambda who: [r["state"] for r in table(text_of(world, "form-submissions", who))]  # noqa: E731
+    assert states("uma").count("Draft") == 1
+    assert "Draft" not in states("rob")
+    assert "Draft" not in states("dora")
+
+
+def test_a_restricted_record_is_a_row_for_a_controller_and_none_for_a_low_viewer(
+    pair: tuple[World, World],
+) -> None:
+    world = pair[0]
+    assert "restricted" in text_of(world, "form-submissions", "dora")
+    assert "restricted" not in text_of(world, "form-submissions", "vera")
+    assert "Secret" in text_of(world, "correspondence", "dora")
+    assert "Secret" not in text_of(world, "correspondence", "vera")
+
+
+@pytest.mark.parametrize("name", ["form-submissions", "correspondence"])
+@pytest.mark.parametrize("fmt", ["csv", "jsonl"])
+@pytest.mark.parametrize("who", ["vera", "uma"])
+def test_hidden_is_missing(pair: tuple[World, World], name: str, fmt: str, who: str) -> None:
+    with_secret, without = pair
+    assert text_of(with_secret, name, who, fmt) == text_of(without, name, who, fmt)
+
+
+def test_a_privileged_form_is_its_authors_and_nobody_elses(pair: tuple[World, World]) -> None:
+    """D40: neither an admin nor the document controller reads a privileged submission; its
+    author does."""
+    with_secret, without = pair
+    keys = lambda who: {r["key"] for r in table(text_of(with_secret, "form-submissions", who))}  # noqa: E731
+    base = {r["key"] for r in table(text_of(without, "form-submissions", "rob"))}
+    extra = keys("rob") - base
+    assert len(extra) == 1  # the privileged one: rob's alone
+    assert not extra & keys("ada") and not extra & keys("dora") and not extra & keys("vera")
+    assert len(keys("dora")) > len(keys("vera"))
+    # the subject-hidden submission and bea's draft are in no one's text but their reader's own:
+    # test_hidden_is_missing compares vera and uma byte for byte (rob wrote the privileged one).
+
+
+def test_a_template_is_company_wide_and_not_confidential(pair: tuple[World, World]) -> None:
+    """A template's answer class governs its submissions, not the template: every viewer lists
+    both templates, with the same rows (no hidden-equals-missing run is needed)."""
+    world = pair[0]
+    low = text_of(world, "form-templates", "vera")
+    assert low == text_of(world, "form-templates", "dora")
+    assert len(table(low)) == 3  # open, restricted and privileged
+
+
+def test_the_controller_sees_more_than_the_low_viewer(pair: tuple[World, World]) -> None:
+    world = pair[0]
+    for name in ("form-submissions", "correspondence"):
+        assert len(table(text_of(world, name, "dora"))) > len(table(text_of(world, name, "vera")))
+
+
+@pytest.mark.parametrize("name", ["form-submissions", "form-templates", "correspondence"])
+def test_jsonl_lines_match_the_csv_rows(pair: tuple[World, World], name: str) -> None:
+    world = pair[0]
+    rows = table(text_of(world, name, "dora"))
+    lines = [json.loads(x) for x in text_of(world, name, "dora", "jsonl").splitlines()]
+    assert len(lines) == len(rows) > 0
+    for line, row in zip(lines, rows, strict=True):
+        assert list(line) == list(row)
+        for column, value in row.items():
+            raw = line[column]
+            assert (value == "") == (raw is None)
+            if raw is not None:
+                assert value == str(raw)
+
+
+def test_no_internal_id_is_a_column(pair: tuple[World, World]) -> None:
+    for report in module_reports().values():
+        assert not [c for c in report.columns if c == "id" or c.endswith("_id")], report.name
+
+
+# --- the command ----------------------------------------------------------------------------
+
+
+def run(env: dict[str, str], *args: str) -> object:
+    from tl_cli.main import app
+    from typer.testing import CliRunner
+
+    return CliRunner().invoke(app, list(args), env=env)
+
+
+def test_the_command_lists_writes_and_refuses(tmp_path: Path) -> None:
+    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "prod"}
+    assert run(env, "init").exit_code == 0  # type: ignore[attr-defined]
+    with mock.patch.dict(os.environ, env):
+        listed = run(env, "report")
+        assert listed.exit_code == 0  # type: ignore[attr-defined]
+        names = [line.split("  ")[0] for line in listed.output.splitlines()]  # type: ignore[attr-defined]
+        assert names == list(module_reports())
+        assert {"rfis", "correspondence", "documents", "form-submissions", "form-templates"} <= set(
+            names
+        )
+        assert run(env, "report", "nope", "--project", "P1").exit_code == 1  # type: ignore[attr-defined]
+        assert run(env, "report", "rfis").exit_code == 1  # type: ignore[attr-defined]
+        assert (
+            run(env, "report", "rfis", "--project", "P1", "--format", "xml").exit_code == 1  # type: ignore[attr-defined]
+        )
+        out = tmp_path / "rfis.csv"
+        done = run(env, "report", "rfis", "--project", "P1", "--out", str(out))
+        assert done.exit_code == 0  # type: ignore[attr-defined]
+        assert out.read_text().splitlines()[0].startswith("number,subtype,state")
+        assert "wrote 0 rows" in done.output  # type: ignore[attr-defined]
+
+
+# --- a module's view word ---------------------------------------------------------------------
+
+
+def test_scaffolds_without_the_view_word_is_refused_like_the_list_read(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    """scaffold.view gates the list read (API route, TUI); the report takes the same check."""
+    from tl_core.auth.errors import ForbiddenError
+    from tl_core.auth.module_roles import holder_for_actor, normalise_word, require_word
+    from tl_mod_scaffold import MODULE
+    from tl_mod_scaffold.names import VIEW
+
+    db = new_db()
+    create_schema(db)
+    nobody = cf.Viewer(actor="agent:nobody")  # an agent with no account holds no word
+    with open_uow(db, readonly=True) as uow:
+        with pytest.raises(ForbiddenError) as expected:
+            require_word(
+                uow.conn(),
+                holder_for_actor(uow.conn(), nobody.actor),
+                scope=SCOPE,
+                module=MODULE,
+                word=normalise_word(VIEW),
+                what=VIEW,
+            )
+        out: list[str] = []
+        with pytest.raises(ForbiddenError) as got:
+            out.extend(render(module_reports()["scaffolds"], uow.conn(), SCOPE, nobody))
+    assert str(got.value) == str(expected.value)
+    assert out == []  # not even the header line
+
+
+def test_forms_page_boundaries_drop_and_repeat_nothing(
+    pair: tuple[World, World], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_mod_forms import report_rows
+
+    world = pair[0]
+    for who in ("dora", "vera"):
+        whole = {n: text_of(world, n, who) for n in ("form-submissions", "form-templates")}
+        for page in (1, 2):
+            monkeypatch.setattr(report_rows, "_PAGE", page)
+            for name, body in whole.items():
+                assert text_of(world, name, who) == body, (name, who, page)
+
+
+def test_the_register_is_one_read(
+    pair: tuple[World, World], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Paging by offset can repeat or drop rows, so the correspondence report reads once."""
+    from tl_mod_correspondence import report_rows, views
+
+    world = pair[0]
+    calls: list[int] = []
+    real = views.register
+
+    def spy(*args: object, **kwargs: object) -> object:
+        calls.append(int(kwargs["limit"]))  # type: ignore[call-overload]
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(views, "register", spy)
+    body = text_of(world, "correspondence", "dora")
+    assert calls == [report_rows._BOUND] and report_rows._BOUND >= 1_000_000
+    seen = viewer(world, "dora")
+    with open_uow(world.db, readonly=True) as uow, cf.use_viewer(seen):
+        listed = real(uow.conn(), SCOPE, limit=1_000_000)
+    assert len(table(body)) == len(listed) == len({r["number"] for r in table(body)})
+
+
+def test_a_refused_report_leaves_an_existing_out_file_alone(tmp_path: Path) -> None:
+    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "prod"}
+    assert run(env, "init").exit_code == 0  # type: ignore[attr-defined]
+    out = tmp_path / "keep.csv"
+    out.write_text("precious\n")
+    with mock.patch.dict(os.environ, env):
+        refused = run(env, "report", "scaffolds", "--project", "P1", "--out", str(out))
+    assert refused.exit_code == 1  # type: ignore[attr-defined]
+    assert out.read_text() == "precious\n"
+
+
+def test_an_empty_jsonl_report_empties_an_older_out_file(tmp_path: Path) -> None:
+    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "prod"}
+    assert run(env, "init").exit_code == 0  # type: ignore[attr-defined]
+    out = tmp_path / "old.jsonl"
+    out.write_text('{"number": "someone else"}\n')
+    with mock.patch.dict(os.environ, env):
+        done = run(env, "report", "rfis", "--project", "P1", "--format", "jsonl", "--out", str(out))
+    assert done.exit_code == 0  # type: ignore[attr-defined]
+    assert out.read_text() == ""
+
+
+def test_a_negative_quantity_is_not_quoted() -> None:
+    from decimal import Decimal
+
+    from tl_cli.report_mat import _number
+    from tl_core.report_out import csv_cell
+
+    assert csv_cell(_number("-5")) == "-5" and csv_cell(_number("-1.50")) == "-1.50"
+    assert _number("007") == "007" and _number("A-1") == "A-1"  # text stays text
+    assert _number("-5") == Decimal(-5)
+
+
+def test_d40_two_ledgers_that_differ_only_by_the_privileged_and_the_draft(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    """ada and dora read the same bytes with and without the privileged one and bea's draft."""
+
+    def make(extra: bool) -> World:
+        db = new_db()
+        create_schema(db)
+        world = World(db)
+        world.people()
+        tpl = world.template()
+        world.submit("uma", tpl)
+        if extra:  # made last, so every other key is the same in both ledgers
+            world.submit("rob", world.template(answer_class="privileged"))
+            world.save("bea", tpl)
+        return world
+
+    with_extra, without = make(True), make(False)
+    for who in ("ada", "dora"):
+        for fmt in ("csv", "jsonl"):
+            got = text_of(with_extra, "form-submissions", who, fmt)
+            assert got == text_of(without, "form-submissions", who, fmt), (who, fmt)
+    assert "privileged" in text_of(with_extra, "form-submissions", "rob")  # its author reads it

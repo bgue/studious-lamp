@@ -4,8 +4,9 @@ The entry point ``throughline.modules`` / ``forms`` names ``spec``. This slice h
 types, their projectors and the fifteen commands (P2-FORMS S3 and S7c: eleven for templates,
 submissions and review, four for intake).
 ``forms.Submission`` is ``draft_only``: a form is filled and saved offline (``SaveFormDraft``,
-``SubmitForm``); template, review and void commands are central. The module declares no
-hook field. Its one ``confidential`` source classes a submission by its ``answer_class``
+``SubmitForm``); template, review and void commands are central. Its one hook is
+``reports`` (``tl report``). Its one ``confidential`` source classes a submission by its
+``answer_class``
 (``confidential.py``); the subject rows and the author-only draft rule are in
 ``tl_core.confidentiality``.
 """
@@ -153,6 +154,7 @@ def spec() -> ModuleSpec:
         generic_guards={(SUBMISSION, c): submitted_or_later for c in FORMS_GENERIC_COMMANDS},
         proposable=PROPOSABLE,
         commands="tl_mod_forms.module:FORMS_COMMANDS",
+        reports=("tl_mod_forms.report_rows:REPORTS",),
         confidential=CONFIDENTIAL,
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in FORMS_COMMANDS},

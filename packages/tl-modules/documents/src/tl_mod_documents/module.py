@@ -169,6 +169,7 @@ def spec() -> ModuleSpec:
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
         commands="tl_mod_documents.commands:API_COMMANDS",
+        reports=("tl_mod_documents.report_rows:REPORTS",),
         read_routers=(
             "tl_api.routes.documents:router",
             "tl_api.routes.derivation:router",
