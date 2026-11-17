@@ -190,6 +190,12 @@ run_backend() {
   driver clause8 "$hsato_draft" hsato
   clause 8 "hsato's draft is a missing id for five other readers (CLI show and list, API); hsato reads it" "$((SECONDS - began))"
 
+  step "[$backend] clause 11: the terminal app: open the forms log, fill a template through the runner screen"
+  began=$SECONDS
+  out="$(driver clause11 "$tpl")"; echo "$out"
+  expect "submitted P200-FRM-" "$out"
+  clause 11 "the forms log opened in the terminal app; $tpl filled through the runner screen and sent; the new number is in the log" "$((SECONDS - began))"
+
   step "[$backend] the forms list reads are under one second"
   driver budget
 

@@ -759,6 +759,7 @@ class TlApp(App[None]):
         from tl_tui.widgets.constraint_screen import ConstraintScreen
         from tl_tui.widgets.cwa_register import CwaRegisterScreen
         from tl_tui.widgets.cwp_register import CwpRegisterScreen
+        from tl_tui.widgets.forms_log import FormsLogScreen
         from tl_tui.widgets.inspection_log import InspectionLogScreen
         from tl_tui.widgets.iwp_register import IwpRegisterScreen
         from tl_tui.widgets.package_log import PackageLogScreen
@@ -788,6 +789,7 @@ class TlApp(App[None]):
             "scaffolds": ScaffoldLogScreen,
             "inspections": InspectionLogScreen,
             "permits": PermitLogScreen,
+            "forms": FormsLogScreen,
             "week": LookAheadScreen,
             "requisitions": RequisitionLogScreen,
             "work-orders": WorkOrderBacklogScreen,
@@ -850,6 +852,11 @@ class TlApp(App[None]):
     def action_permits(self) -> None:
         """The permits to work of this project: by state, type and area (palette only)."""
         self._push_awp("permits")
+
+    def action_forms(self) -> None:
+        """The forms of this project: submissions and templates, and filling a template
+        (palette only)."""
+        self._push_awp("forms")
 
     def action_week(self) -> None:
         """The weekly cycle of this project: look-ahead, constraints, release (palette only)."""

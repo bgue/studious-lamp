@@ -21,6 +21,10 @@ Modes (first argument):
 * ``clause7 KEY``: KEY is a submission only its author may read: every other reader gets, on the
   detail route, the bytes a missing key gets, and no list holds it.
 * ``clause8 DRAFT AUTHOR``: the draft DRAFT is invisible to every reader but AUTHOR.
+* ``clause11 TEMPLATE``: the terminal app (headless Textual pilot, as ``p2_i4b_demo`` drives the
+  toolcrib screen): open the forms log of the project as pnair, show the templates, fill TEMPLATE
+  through the runner screen one question at a time, review, send; the new number is in the log and
+  the stored answers are the ones the screen collected. Prints the wall time and ``submitted KEY``.
 * ``budget``: every forms list read is under one second (median of five) as treyes and mokafor.
 """
 
@@ -236,6 +240,104 @@ def clause3(template: str) -> None:
     world.close()
 
 
+def line_for(step: runner.Step) -> str:
+    """What a person types on the runner's line for ``step``; empty skips an optional question."""
+    if not step.required:
+        return ""
+    if step.kind == "choice":
+        return "1"
+    if step.kind == "multi":
+        return "1,2"
+    return str(value_for(step))
+
+
+def clause11(template: str) -> None:
+    """The forms log and the runner screen of the terminal app, on the full demo ledger."""
+    import asyncio
+
+    from textual.widgets import Input, Static
+    from tl_tui.app import TlApp
+    from tl_tui.embedded import EmbeddedClient
+    from tl_tui.form_runner_text import parse_answer
+    from tl_tui.widgets.forms_log import FormRunnerScreen, FormsLogScreen
+
+    began = time.monotonic()
+    world = World()
+    actor = "user:pnair"
+    client = EmbeddedClient(world.backend, actor=actor)
+    before = {r.key for r in client.list_form_submissions(PROJECT, limit=500).rows if r.key}
+    found: dict[str, Any] = {}
+
+    async def settle(pilot: Any) -> None:
+        await pilot.pause()
+        await pilot.app.workers.wait_for_complete()
+        await pilot.pause()
+        await pilot.pause()
+
+    async def scenario() -> None:
+        app = TlApp(client, scope=f"project:{PROJECT}", actor=actor)
+        async with app.run_test(size=(170, 44)) as pilot:
+            await settle(pilot)
+            app.action_forms()
+            await settle(pilot)
+            log = app.screen
+            check(isinstance(log, FormsLogScreen), "the forms log did not open")
+            assert isinstance(log, FormsLogScreen)
+            found["opened"] = len(log.shown)
+            await pilot.press("2")
+            await settle(pilot)
+            row = next((r for r in log.shown if getattr(r, "key", None) == template), None)
+            check(row is not None, f"{template} is not in the templates view")
+            log.open_row(row)  # type: ignore[arg-type]
+            await settle(pilot)
+            screen = app.screen
+            check(isinstance(screen, FormRunnerScreen), "the runner screen did not open")
+            assert isinstance(screen, FormRunnerScreen)
+            check(screen.ready and screen.state is not None, "the runner did not load the template")
+            typed: dict[str, Any] = {}
+            for _ in range(2 * len(screen.fields)):
+                assert screen.state is not None
+                step = runner.step(screen.state, screen.fields)
+                if step is None:
+                    break
+                line = line_for(step)
+                if line:
+                    typed[step.id] = parse_answer(step, line)
+                screen.query_one("#fr-input", Input).value = line
+                await pilot.press("enter")
+                await settle(pilot)
+                status = str(screen.query_one("#fr-status", Static).content)
+                check(not status.startswith("!"), f"the runner refused {step.id}: {status}")
+            assert screen.state is not None
+            check(screen.state.phase == "review", "the runner did not reach the review page")
+            found["typed"] = typed
+            found["walked"] = len(typed)
+            await pilot.press("enter")  # the review page: send
+            await settle(pilot)
+            check(app.screen is log, "the runner did not close after the send")
+            found["numbers"] = {getattr(r, "key", None) for r in log.shown}
+            found["status"] = str(log.query_one("#log-status", Static).content)
+
+    asyncio.run(scenario())
+    new = sorted(k for k in found["numbers"] if k and k not in before)
+    check(len(new) == 1, f"the log shows {len(new)} new numbers, want 1")
+    key = str(new[0])
+    check(key.startswith(f"{PROJECT}-FRM-"), f"{key} is not a form number")
+    check(found["status"].startswith(f"Submitted {key}"), f"status line: {found['status']!r}")
+    ok(f"the log of {found['opened']} submissions opened; {template} walked in the runner screen")
+    stored = client.get_form_submission(PROJECT, key)
+    got = {str(a["q"]): a["value"] for a in stored.answers}
+    check(stored.row.state == "Submitted", f"{key} is {stored.row.state}")
+    check(got == found["typed"], f"stored answers {got} differ from the typed {found['typed']}")
+    ok(f"{key} is Submitted by {stored.row.author} with the {found['walked']} answers typed")
+    again = client.list_form_submissions(PROJECT, limit=500)
+    check(key in {r.key for r in again.rows}, f"{key} is not in the log read again")
+    ok(f"{key} is in the log read again")
+    print(f"submitted {key}")
+    print(f"clause 11 wall {time.monotonic() - began:.1f} s")
+    world.close()
+
+
 def state_of(world: World, who: str, key: str) -> str:
     got = world.get(who, f"/forms/submissions/{key}", project=PROJECT)
     check(got.status_code == 200, f"{who} could not read {key}")
@@ -326,6 +428,7 @@ def main() -> None:
         "clause5": clause5,
         "clause7": clause7,
         "clause8": clause8,
+        "clause11": clause11,
         "budget": budget,
     }
     if mode not in table:
