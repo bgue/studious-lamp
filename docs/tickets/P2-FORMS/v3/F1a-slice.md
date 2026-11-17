@@ -23,7 +23,8 @@ confidentiality rows (CR1), the views (`tl_mod_forms/views.py`, T03), the Survey
    left closed. Later units F1b, F2, F3, F4 only fill these in.
 5. **`tl report forms`** registration if V3-P0 left it out (P0 covers form submissions).
 6. **Walk**: the five-reader walk over every route and CLI read this unit adds (`tests/confidentiality/` pattern,
-   `twin_channels.py`); hidden == missing byte comparison; a draft visible only to its author.
+   `twin_channels.py`); hidden == missing byte comparison; a draft visible only to its author; a submission of a privileged
+   template visible only to its author, even to an admin or a restricted-level controller (owner Q7, 2026-11-17).
 7. **Demo** `dev/demos/P2-FORMS.sh` + `dev/demos/p2_forms_demo.py` (pattern: `P2-PTW.sh` / `p2_ptw_demo.py`),
    on the full demo project built by the generator, SQLite then Postgres (`TL_DEMO_BACKENDS`). Clauses:
    1 publish a template (CLI) and read it back as JSON Schema and SurveyJS (API); 2 fill and submit from the CLI,

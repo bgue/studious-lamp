@@ -14,7 +14,8 @@ F3  4 todo f     - web fill page + cards; clause 9
 F4  4 todo f+sec - intake signed-in; clause 10
 F5  5 todo l     - docs, runbook, tour, highlights
 ## OPEN
-Q7 forms clearance class: owner (pilot keeps CR1 rule)
 Q9 S6 public route: owner gate (out of the pilot)
+## DEC
+D40 2026-11-17 owner Q7: privileged forms hidden from all but the author (CR1 behaviour kept; no clearance table); F1a walk proves it
 ## METRICS (for V3-PILOT.md)
 start 2026-11-17 wave 1 dispatched; handoffs 3; rulings 0; late surprises 0
