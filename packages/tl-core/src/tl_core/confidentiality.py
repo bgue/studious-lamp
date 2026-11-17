@@ -140,11 +140,6 @@ def _allowed(source: ConfidentialSource, viewer: Viewer) -> str:
     return clause
 
 
-def _only(only: str | None) -> str:
-    """The extra condition that limits a part to the records asked about (``hr.id = :_cf_id``)."""
-    return f" AND {only}" if only else ""
-
-
 # A part also answers for the records that name a subject (ADR-0024 constraints; requisitions,
 # their work orders (P2-I4A F1), punch items (P2-PUNCH) and scaffolds with their inspections
 # (P2-I4B)): such a record is hidden when its subject is, class by join, no copy. ``k`` is the
@@ -277,30 +272,29 @@ def _own_draft(viewer: Viewer) -> str:
     return f"hr.id IN (SELECT d.id FROM {_DRAFT_TABLE} d WHERE d.author = :{ACTOR_PARAM})"
 
 
-def _source_hidden(
-    source: ConfidentialSource, viewer: Viewer, chain: _Chain, only: str | None = None
-) -> str:
+# A part is the condition that makes ``hr`` hidden, and whether it reads the subject chain. Where a
+# part names the governing record it uses ``chain.rid``: every part tests the governing record's
+# type first, so ``rid`` is then the subject itself, and the text stays short.
+_Part = tuple[str, bool]
+
+
+def _source_hidden(source: ConfidentialSource, viewer: Viewer, chain: _Chain) -> _Part:
     exempt = (
         f" AND NOT (hr.id = {chain.rid} AND {_own_draft(viewer)})"
         if source.record_types & OWN_CLASS_TYPES
         else ""
     )
     return (
-        f"SELECT hr.id FROM {chain.source} "
-        f"WHERE {_of_types(chain, source.record_types)}"
-        f"{_only(only)}{exempt} "
-        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = {chain.subj} "
-        f"AND ({_allowed(source, viewer)}))"
+        f"{_of_types(chain, source.record_types)}{exempt} "
+        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = {chain.rid} "
+        f"AND ({_allowed(source, viewer)}))",
+        True,
     )
 
 
 def _child_hidden(
-    source: ConfidentialSource,
-    child: ChildSource,
-    viewer: Viewer,
-    chain: _Chain,
-    only: str | None = None,
-) -> str:
+    source: ConfidentialSource, child: ChildSource, viewer: Viewer, chain: _Chain
+) -> _Part:
     """The children whose root is not readable. A flat join to the root: nesting one subquery
     inside another per level overflows SQLite's parser stack."""
     if child.hop is None:
@@ -310,28 +304,27 @@ def _child_hidden(
         via = f" JOIN {table} hop ON hop.{key} = ch.{child.root_column}"
         root_key = f"hop.{root}"
     return (
-        f"SELECT hr.id FROM {chain.source} "
-        f"WHERE {_of_types(chain, child.record_types)}"
-        f"{_only(only)} "
+        f"{_of_types(chain, child.record_types)} "
         f"AND NOT EXISTS (SELECT 1 FROM {child.table} ch{via} "
         f"JOIN {source.table} s ON s.{source.id_column} = {root_key} "
-        f"WHERE ch.{child.id_column} = {chain.subj} AND ({_allowed(source, viewer)}))"
+        f"WHERE ch.{child.id_column} = {chain.rid} AND ({_allowed(source, viewer)}))",
+        True,
     )
 
 
-def _own_hidden(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> str:
+def _own_hidden(source: ConfidentialSource, viewer: Viewer) -> _Part:
     """The records of ``OWN_CLASS_TYPES`` whose own row is not readable (no subject, no join); a
     draft is its author's whatever its class."""
     types = source.record_types & OWN_CLASS_TYPES
     return (
-        f"SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ({_types(types)})"
-        f"{_only(only)} AND NOT {_own_draft(viewer)} "
+        f"hr.type IN ({_types(types)}) AND NOT {_own_draft(viewer)} "
         f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = hr.id "
-        f"AND ({_allowed(source, viewer)}))"
+        f"AND ({_allowed(source, viewer)}))",
+        False,
     )
 
 
-def _draft_parts(viewer: Viewer, chain: _Chain, only: str | None = None) -> list[str]:
+def _draft_parts(viewer: Viewer, chain: _Chain) -> list[_Part]:
     """The drafts the viewer is not the author of: the draft itself, and a record whose governing
     subject is such a draft. Nothing when the forms module is not installed."""
     if not is_module_record_type(DRAFT_TYPE):
@@ -340,28 +333,25 @@ def _draft_parts(viewer: Viewer, chain: _Chain, only: str | None = None) -> list
     # author is nobody's too
     other = f"(d.author IS NULL OR d.author <> :{ACTOR_PARAM})" if viewer.account else "1 = 1"
     own = (
-        f"SELECT hr.id FROM cur_core_record hr JOIN {_DRAFT_TABLE} d ON d.id = hr.id "
-        f"WHERE hr.type = '{DRAFT_TYPE}'{_only(only)} AND d.submitted_on IS NULL "
-        f"AND {other}"
+        f"hr.type = '{DRAFT_TYPE}' AND EXISTS (SELECT 1 FROM {_DRAFT_TABLE} d "
+        f"WHERE d.id = hr.id AND d.submitted_on IS NULL AND {other})"
     )
     governed = (
-        f"SELECT hr.id FROM {chain.source} JOIN {_DRAFT_TABLE} d ON d.id = {chain.subj} "
-        f"WHERE hr.id <> {chain.subj} AND {chain.rtype} = '{DRAFT_TYPE}'{_only(only)} "
-        f"AND d.submitted_on IS NULL AND {other}"
+        f"hr.id <> {chain.rid} AND {chain.rtype} = '{DRAFT_TYPE}' "
+        f"AND EXISTS (SELECT 1 FROM {_DRAFT_TABLE} d "
+        f"WHERE d.id = {chain.rid} AND d.submitted_on IS NULL AND {other})"
     )
-    return [own, governed]
+    return [(own, False), (governed, True)]
 
 
-def _source_parts(
-    source: ConfidentialSource, viewer: Viewer, chain: _Chain, only: str | None = None
-) -> list[str]:
+def _source_parts(source: ConfidentialSource, viewer: Viewer, chain: _Chain) -> list[_Part]:
     """The root's hidden records, then each child's, then the records of an own-class type whose
     own row is not readable."""
-    parts = [_source_hidden(source, viewer, chain, only)] + [
-        _child_hidden(source, child, viewer, chain, only) for child in source.children
+    parts = [_source_hidden(source, viewer, chain)] + [
+        _child_hidden(source, child, viewer, chain) for child in source.children
     ]
     if source.record_types & OWN_CLASS_TYPES:
-        parts.append(_own_hidden(source, viewer, only))
+        parts.append(_own_hidden(source, viewer))
     return parts
 
 
@@ -378,16 +368,29 @@ def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str 
 
     Without ``only`` the text starts with one ``WITH _cf_chain AS (...)`` that every part reads,
     so the subject chain of the ledger is computed once, not once for each part (P2-IP-PERF1).
+    With ``only`` the text is one ``SELECT`` over the records asked about: the subject chain is
+    joined once (a lookup by primary key at each hop) and the parts are the alternatives of one
+    ``WHERE``, each led by a test of type, so a record is read once, not once for each part
+    (V3-P1).
     """
     who = viewer if viewer is not None else current_viewer()
     if who.system:
         return None
     chain = _subject_chain(shared=only is None)
-    parts: list[str] = []
+    parts: list[_Part] = []
     for source in confidential_sources():
-        parts.extend(_source_parts(source, who, chain, only))
-    parts.extend(_draft_parts(who, chain, only))
-    return chain.prefix + " UNION ALL ".join(parts) if parts else None
+        parts.extend(_source_parts(source, who, chain))
+    parts.extend(_draft_parts(who, chain))
+    if not parts:
+        return None
+    if only is None:
+        selects = [
+            f"SELECT hr.id FROM {chain.source if uses else 'cur_core_record hr'} WHERE {cond}"
+            for cond, uses in parts
+        ]
+        return chain.prefix + " UNION ALL ".join(selects)
+    alternatives = " OR ".join(f"({cond})" for cond, _ in parts)
+    return f"SELECT hr.id FROM {chain.source} WHERE {only} AND ({alternatives})"
 
 
 def params_for(sql: str, viewer: Viewer | None = None) -> dict[str, Any]:

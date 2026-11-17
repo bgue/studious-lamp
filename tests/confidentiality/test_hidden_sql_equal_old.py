@@ -242,6 +242,8 @@ TABLES = {
     PERMIT: "cur_permits_permit",
     "permits.Isolation": "cur_permits_isolation",
     "permits.GasTest": "cur_permits_gas_test",
+    "scaffold.Scaffold": "cur_scaffold_scaffold",
+    "scaffold.ScaffoldInspection": "cur_scaffold_scaffold_inspection",
     "correspondence.CorrespondenceThread": "cur_correspondence_correspondence_thread",
     "correspondence.ResponseClock": "cur_correspondence_response_clock",
     "documents.Revision": "cur_documents_revision",
@@ -321,6 +323,14 @@ def world_rows() -> list[Row]:
     add("in_res", "quality.Inspection", subject_id="c_res")
     add("in_pm", "quality.Inspection", subject_id="pm_res")
     add("in_int", "quality.Inspection", subject_id="c_int")
+    # scaffolds (one hop to a requisition's record, two hops through the request) and inspections
+    add("sf_res", "scaffold.Scaffold", for_record_id="c_res")
+    add("sf_int", "scaffold.Scaffold", for_record_id="c_int")
+    add("sf_req", "scaffold.Scaffold", for_record_id="scf_res")
+    add("sf_none", "scaffold.Scaffold")
+    add("si_res", "scaffold.ScaffoldInspection", scaffold_id="sf_res")
+    add("si_int", "scaffold.ScaffoldInspection", scaffold_id="sf_int")
+    add("si_req", "scaffold.ScaffoldInspection", scaffold_id="sf_req")
     # forms: classes, drafts, authors, subjects, intake
     done = "2026-11-01"
     add("f_int", SUB, answer_class="internal", author="user:ann", submitted_on=done)

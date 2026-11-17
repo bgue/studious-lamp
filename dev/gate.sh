@@ -47,7 +47,8 @@ if [ ${#paths[@]} -gt 0 ]; then
   targets=("${paths[@]}")
   parts=1
 else
-  mapfile -t targets < <(ls -d packages/*/tests packages/tl-modules/*/tests tests/*/ 2>/dev/null | sed 's:/*$::')
+  # tests/perf builds a four-minute ledger: it runs when named (`just gate tests/perf`), not here
+  mapfile -t targets < <(ls -d packages/*/tests packages/tl-modules/*/tests tests/*/ 2>/dev/null | sed 's:/*$::' | grep -v '^tests/perf$')
   if [ ${#targets[@]} -eq 0 ]; then
     echo "gate: no test directories found" >&2
     exit 2
