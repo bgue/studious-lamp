@@ -58,6 +58,10 @@ gate *args:
 gate-pg *args:
     bash dev/gate.sh --postgres {{args}}
 
+# Fast gate for the changed files: ruff, pyright, commit check, the touched tests (dev/gate-changed.sh; `--dry-run` prints the plan)
+gate-changed *args:
+    bash dev/gate-changed.sh {{args}}
+
 # Synthetic project into the dev ledger, written through the API by the simulator (xs, s or m)
 seed scale="xs" *args:
     bash dev/seed/seed.sh {{scale}} {{args}}
