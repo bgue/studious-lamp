@@ -221,9 +221,9 @@ _TEMPLATE_CLASS: Final = "answer_class"
 class _Chain:
     """How a part reads the record whose class governs each record. ``source`` is the FROM item
     whose rows are the records under test (alias ``hr``; the other aliases of the chain are
-    ``_cf_``-prefixed, so an outer alias of the same name is never captured); ``subj`` is the id of
-    the governing record, ``rid`` and ``rtype`` that record's id and type (NULL when it is no record). ``prefix``
-    is the WITH clause the source needs, if any."""
+    ``_cf_``-prefixed, so an outer alias of the same name is never captured); ``subj`` is the id
+    of the governing record, ``rid`` and ``rtype`` that record's id and type (NULL when it is no
+    record). ``prefix`` is the WITH clause the source needs, if any."""
 
     source: str
     subj: str
@@ -262,7 +262,8 @@ def _subject_chain(shared: bool) -> _Chain:
     if not shared:
         return _Chain(f"cur_core_record hr{joins}{rr}", final, "_cf_rr.id", "_cf_rr.type")
     table = (
-        f"_cf_chain AS (SELECT hr.id AS id, {final} AS subj, _cf_rr.id AS rid, _cf_rr.type AS rtype "
+        f"_cf_chain AS (SELECT hr.id AS id, {final} AS subj, _cf_rr.id AS rid, "
+        f"_cf_rr.type AS rtype "
         f"FROM cur_core_record hr{joins}{rr})"
     )
     return _Chain("_cf_chain hr", "hr.subj", "hr.rid", "hr.rtype", f"WITH {table} ")
