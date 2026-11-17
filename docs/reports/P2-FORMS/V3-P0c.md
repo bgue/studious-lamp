@@ -24,4 +24,4 @@
   lock and was stopped; the gate below was run by hand on the second lock.
 - Mutation: sentinel (drop `approved_by` column) killed; QR `not_hidden` -> `1 = 1` killed; QR `require_word`
   removed killed; offset slice `[skip:skip+take]` -> `[:take]` killed. 0 survivors.
-- Gate: see the commit's `.gate/summary.txt` line in the return.
+- Gate: `just check` 0; `just gate tests/reports tests/perf` plus requisitions, qr and schedule module tests: PASS, 440 passed.
