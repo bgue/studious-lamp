@@ -390,6 +390,7 @@ AGENT_MAY_NOT = {
     "admin.agents.resume",
     "admin.agents.list",
     "qr.read",  # P2-QR-T06: the QR register, export and resolve reads are closed to agents
+    "forms.read",  # V3-F1a: the forms template and submission reads are closed to agents
     # P2-QR-T06 ruling 13: controller acts of the IP modules, closed to agents (they propose)
     # forms: controller acts on templates and submissions
     "control.command.AcceptFormSubmission",

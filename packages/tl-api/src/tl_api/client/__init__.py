@@ -22,6 +22,7 @@ from tl_api.client.engineering import EngineeringApi
 from tl_api.client.events import EventsApi
 from tl_api.client.feed import FeedApi
 from tl_api.client.files import FilesApi
+from tl_api.client.forms import FormsApi
 from tl_api.client.insights import InsightsApi
 from tl_api.client.integration import IntegrationApi
 from tl_api.client.iwp import IwpApi
@@ -62,6 +63,7 @@ class ApiClient(
     QualityApi,
     ScaffoldApi,
     PermitsApi,
+    FormsApi,
     SchemaRegistryApi,
     AuthApi,
     AdminApi,

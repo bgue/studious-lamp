@@ -30,6 +30,7 @@ from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSum
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo
 from tl_core.files.service import FileResult
+from tl_core.forms.types import FormBinding
 from tl_core.insights.types import ActivityPage, CheckFinding
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
@@ -93,6 +94,7 @@ from tl_mod_documents.derivation.validation import ValidationReport
 from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
+from tl_mod_forms import views as forms_views
 from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
 from tl_mod_permits import iso_views as permit_iso_views
@@ -1196,6 +1198,66 @@ class ClientInterface(Protocol):
     def permit_command(self, name: str, cmd: Command) -> CommandResult:
         """Run a permit command by name (a model of ``tl_mod_permits.module.COMMANDS``, as the
         person)."""
+        ...
+
+    # --- forms: templates, submissions and intake (V3-F1a) -----------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. The reads answer the module's
+    # views under the signed-in person's clearance and need ``forms.view`` (on the company for
+    # templates, on the project for the rest); a missing or hidden template, submission or form
+    # raises ``RecordNotFoundError`` with one text, and a draft is its author's alone.
+    # ``form_command(name, cmd)`` takes a model of ``tl_mod_forms.module.FORMS_COMMANDS``, else
+    # ``ForbiddenError``. The intake methods and the runner are built by later units and raise
+    # ``NotImplementedError`` until then.
+
+    def list_form_templates(
+        self,
+        *,
+        state: str | None = None,
+        intake: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> forms_views.Page[forms_views.TemplateRow]:
+        """The templates the person may read, by title and version; ``total`` counts them."""
+        ...
+
+    def get_form_template(self, key: str, version: int, *, projection: str | None = None) -> Any:
+        """One template version: ``{row, fields, accepts_as}``, or with ``projection``
+        (``jsonschema`` or ``surveyjs``) that projection of its fields."""
+        ...
+
+    def get_form_for(self, project: str, key: str) -> FormBinding:
+        """The form a record offers; ``RecordNotFoundError`` when there is none."""
+        ...
+
+    def list_form_submissions(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        template: str | None = None,
+        subject: str | None = None,
+        author: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> forms_views.Page[forms_views.SubmissionRow]:
+        """A project's submissions, latest first; a draft is listed for its author alone."""
+        ...
+
+    def get_form_submission(self, project: str, key: str) -> forms_views.SubmissionDetail:
+        """One submission (by key, or a draft by id) with its answers."""
+        ...
+
+    def form_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a forms command by name (a model of ``FORMS_COMMANDS``), as the person."""
+        ...
+
+    def list_intake_items(self, project: str, *, state: str | None = None, limit: int = 100) -> Any:
+        """The intake queue (built in V3-F4; ``NotImplementedError`` until then)."""
+        ...
+
+    def get_intake_item(self, project: str, item_id: str) -> Any:
+        """One intake item (built in V3-F4; ``NotImplementedError`` until then)."""
         ...
 
     # --- the awp module: CWPs, CWAs, the WBS, the path, packages (P2-I1 T03b) ------------------

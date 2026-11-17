@@ -184,6 +184,7 @@ def template_list(
     *,
     state: str | None = None,
     intake: str | None = None,
+    key: str | None = None,
     limit: int = 100,
     offset: int = 0,
     viewer: confidentiality.Viewer = confidentiality.LOWEST,
@@ -203,6 +204,9 @@ def template_list(
     if intake is not None:
         conditions.append("v.intake = :intake")
         params["intake"] = intake
+    if key is not None:
+        conditions.append("v.key = :key")
+        params["key"] = key
     where = " AND ".join(conditions)
     rows = conn.execute(
         text(
