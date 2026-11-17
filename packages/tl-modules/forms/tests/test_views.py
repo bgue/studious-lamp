@@ -207,7 +207,13 @@ def test_form_for_returns_the_binding_of_the_source_of_the_type(
     monkeypatch.setattr(views, "load_form_sources", lambda *a, **k: {SUBMISSION: source})
     tpl = make_template(world, "Form")
     sent = submit_as(world, "uma", tpl)
-    binding = with_conn(world, lambda c: views.form_for(c, sent, now=NOW, viewer=LOWEST))
+    # the viewer must hold the source's view word: an account does, the anonymous lowest does not
+    assert with_conn(world, lambda c: views.form_for(c, sent, now=NOW, viewer=LOWEST)) is None
+    assert source.calls == []
+    binding = with_conn(
+        world,
+        lambda c: views.form_for(c, sent, now=NOW, viewer=cf.viewer_for_actor(c, "user:uma")),
+    )
     assert binding == FormBinding(record_type=SUBMISSION, key="K", available=False, reason="closed")
     assert source.calls == [sent]
 

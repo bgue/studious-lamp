@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Any, Protocol, cast
 
 from pydantic import ValidationError
-from sqlalchemy import Connection
+from sqlalchemy import Connection, text
 from tl_core.auth.module_roles import require_command_access
 from tl_core.confidentiality import Viewer, use_viewer
 from tl_core.forms.registry import load_form_sources
@@ -88,12 +88,11 @@ def record(
     """Send ``answers`` for the record ``record_id`` through its binding's typed command."""
     conn = uow.conn()
     binding = binding_of(conn, record_id, now=now, viewer=viewer)
-    if binding is None:
+    found_scope = conn.execute(
+        text("SELECT scope FROM cur_core_record WHERE id = :id"), {"id": record_id}
+    ).scalar_one_or_none()
+    if binding is None or found_scope != scope:  # hidden, absent, typeless or in another scope
         raise RecordNotFoundError(MSG_UNKNOWN)
-    if not binding.available or binding.command is None:
-        raise FormStateError(
-            f"{MSG_NOT_AVAILABLE} ({binding.reason})" if binding.reason else MSG_NOT_AVAILABLE
-        )
     produced = load_form_sources().get(binding.record_type)
     row = next((c for c in module_commands() if c.name == binding.command), None)
     if (
@@ -105,8 +104,12 @@ def record(
     ):
         raise FormRuleError(MSG_NO_SEND)
     sendable = cast(SendableSource, produced)
-    # the typed command's own word, before anything else about the answers
+    # the typed command's own word, before the state of the record and the answers
     require_command_access(conn, row.model.model_construct(actor=actor, source=source, scope=scope))
+    if not binding.available:
+        raise FormStateError(
+            f"{MSG_NOT_AVAILABLE} ({binding.reason})" if binding.reason else MSG_NOT_AVAILABLE
+        )
     fields = sendable.fields(conn, binding, viewer)
     found = sendable.problems(fields, answers)
     if found:
@@ -122,7 +125,8 @@ def record(
         command = row.model.model_validate(args)
     except ValidationError:
         raise FormRuleError(MSG_ARGS) from None
-    return row.handler(uow, command)
+    with use_viewer(viewer):
+        return row.handler(uow, command)
 
 
 __all__ = ["MSG_ARGS", "MSG_NOT_AVAILABLE", "MSG_NO_SEND", "binding_of", "fields_of", "record"]

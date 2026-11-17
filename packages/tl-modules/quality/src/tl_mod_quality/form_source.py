@@ -44,7 +44,9 @@ _CHECKLIST_TEMPLATE = (
 
 
 def _unavailable(record_id: str, reason: str) -> FormBinding:
-    return FormBinding(record_type=INSPECTION, key=record_id, available=False, reason=reason)
+    return FormBinding(
+        record_type=INSPECTION, key=record_id, available=False, reason=reason, command=COMMAND
+    )
 
 
 class InspectionFormSource:

@@ -61,7 +61,7 @@ def test_an_inspection_that_takes_no_form_now_says_why(
             insp.call("sue", "CancelInspection", inspection=item, reason="not needed")
     got = binding_for(insp, item)
     assert got is not None and got.available is False and got.reason == reason
-    assert got.command is None and got.template is None
+    assert got.command == "RecordInspectionResult" and got.template is None
 
 
 def test_a_hidden_inspection_missing_id_and_other_type_answer_none(insp: InspWorld) -> None:

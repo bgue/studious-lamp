@@ -325,7 +325,7 @@ def test_a_record_that_takes_no_form_now_says_so_with_a_fixed_word(rig: Rig) -> 
         got = rig.get("uma", f"/forms/for/{key}", project=PROJECT)
         assert got.status_code == 200
         assert got.json()["available"] is False and got.json()["reason"] == reason
-        assert got.json()["command"] is None and got.json()["template"] is None
+        assert got.json()["template"] is None
 
 
 @pytest.mark.parametrize("who", HIDDEN_FROM)
@@ -506,3 +506,54 @@ def test_a_permit_filled_without_the_issue_word_is_refused_by_the_permit_command
     assert own_code == 1 and own_out.strip() == expected
     assert rig.events() == before
     assert rig.state(rig.ids["permit_refused"], "Requested") == "Approved"
+
+
+# --- hardening after the security review ------------------------------------------------------
+
+
+@pytest.mark.parametrize("record", ["insp_open", "permit_open"])
+def test_a_reader_without_the_module_view_word_gets_the_miss(rig: Rig, record: str) -> None:
+    """A person always derives the view word from an account role, so the reader is an account
+    that holds nothing (an actor with no account; a `user:` one would get the dev-ledger rule): ``views.form_for`` answers None as for a missing record."""
+    from datetime import UTC, datetime
+
+    from tl_mod_forms import views
+
+    now = datetime.now(UTC)
+    ghost = cf.Viewer(actor="agent:ghost", level=1, account="agent:ghost")
+    with open_uow(rig.world.db, readonly=True) as uow:
+        conn = uow.conn()
+        mine = cf.viewer_for_actor(conn, "user:uma")
+        assert views.form_for(conn, rig.ids[record], now=now, viewer=mine) is not None
+        assert views.form_for(conn, rig.ids[record], now=now, viewer=ghost) is None
+        assert views.form_for(conn, "01J000000000000000000000", now=now, viewer=ghost) is None
+
+
+def test_the_typed_refusal_comes_before_the_state_of_the_record(rig: Rig, tmp_path: Path) -> None:
+    code, _ = _record(rig, "uma", tmp_path, rig.keys["insp_done"], "q1=yes")
+    assert code == 0
+    before = rig.events()
+    code, out = _record(rig, "vic", tmp_path, rig.keys["insp_done"], "q1=yes")
+    assert code == 1 and out.strip() == FORBIDDEN_RECORD  # not "takes no form now"
+    assert rig.events() == before
+
+
+def test_record_refuses_a_record_of_another_scope_as_a_missing_one(rig: Rig) -> None:
+    from datetime import UTC, datetime
+
+    from tl_core.services.errors import RecordNotFoundError
+    from tl_mod_forms import bound
+
+    with open_uow(rig.world.db) as uow:
+        viewer = cf.viewer_for_actor(uow.conn(), "user:uma")
+        with pytest.raises(RecordNotFoundError, match="no record with that id"):
+            bound.record(
+                uow,
+                record_id=rig.ids["insp_short"],
+                answers=[],
+                actor="user:uma",
+                scope="project:P999",
+                source="test",
+                now=datetime.now(UTC),
+                viewer=viewer,
+            )

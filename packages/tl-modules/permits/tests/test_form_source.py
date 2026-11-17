@@ -52,7 +52,7 @@ def test_a_permit_that_is_not_approved_takes_no_form(world: World) -> None:
     for permit in (requested, active):
         got = binding_for(world, permit)
         assert got is not None and got.available is False and got.reason == "not_approved"
-        assert got.command is None and got.template is None
+        assert got.command == "IssuePermit" and got.template is None
 
 
 def test_a_hidden_permit_missing_id_and_other_type_answer_none(world: World) -> None:

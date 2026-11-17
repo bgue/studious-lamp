@@ -88,13 +88,21 @@ class PermitFormSource:
             return None
         if str(row["state"]) != APPROVED:
             return FormBinding(
-                record_type=PERMIT, key=record_id, available=False, reason=REASON_NOT_APPROVED
+                record_type=PERMIT,
+                key=record_id,
+                available=False,
+                reason=REASON_NOT_APPROVED,
+                command=COMMAND,
             )
         permit_type = str(row["permit_type"])
         questions = questions_of(permit_type)
         if not questions:
             return FormBinding(
-                record_type=PERMIT, key=record_id, available=False, reason=REASON_NOT_APPROVED
+                record_type=PERMIT,
+                key=record_id,
+                available=False,
+                reason=REASON_NOT_APPROVED,
+                command=COMMAND,
             )
         return FormBinding(
             record_type=PERMIT,
