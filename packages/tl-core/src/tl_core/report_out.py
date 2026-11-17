@@ -14,6 +14,7 @@ import json
 from collections.abc import Iterator
 from datetime import date, datetime
 from decimal import Decimal
+from itertools import chain
 from typing import Any
 
 from sqlalchemy import Connection
@@ -65,10 +66,13 @@ def render(
     if fmt not in FORMATS:
         raise ValueError(f"format must be one of {', '.join(FORMATS)}")
     columns = list(report.columns)
-    if fmt == "csv":
-        yield _line(columns)
     with confidentiality.use_viewer(viewer):
-        for row in report.rows(conn, scope, viewer):
+        # Start the rows first: a refusal (a module's view word) comes before any header line.
+        rows = iter(report.rows(conn, scope, viewer))
+        first = next(rows, None)
+        if fmt == "csv":
+            yield _line(columns)
+        for row in chain([] if first is None else [first], rows):
             if fmt == "csv":
                 yield _line([csv_cell(row.get(c)) for c in columns])
             else:

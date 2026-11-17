@@ -192,3 +192,35 @@ def test_the_command_lists_writes_and_refuses(tmp_path: Path) -> None:
         assert done.exit_code == 0  # type: ignore[attr-defined]
         assert out.read_text().splitlines()[0].startswith("number,subtype,state")
         assert "wrote 0 rows" in done.output  # type: ignore[attr-defined]
+
+
+# --- a module's view word ---------------------------------------------------------------------
+
+
+def test_scaffolds_without_the_view_word_is_refused_like_the_list_read(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    """scaffold.view gates the list read (API route, TUI); the report takes the same check."""
+    from tl_core.auth.errors import ForbiddenError
+    from tl_core.auth.module_roles import holder_for_actor, normalise_word, require_word
+    from tl_mod_scaffold import MODULE
+    from tl_mod_scaffold.names import VIEW
+
+    db = new_db()
+    create_schema(db)
+    nobody = cf.Viewer(actor="agent:nobody")  # an agent with no account holds no word
+    with open_uow(db, readonly=True) as uow:
+        with pytest.raises(ForbiddenError) as expected:
+            require_word(
+                uow.conn(),
+                holder_for_actor(uow.conn(), nobody.actor),
+                scope=SCOPE,
+                module=MODULE,
+                word=normalise_word(VIEW),
+                what=VIEW,
+            )
+        out: list[str] = []
+        with pytest.raises(ForbiddenError) as got:
+            out.extend(render(module_reports()["scaffolds"], uow.conn(), SCOPE, nobody))
+    assert str(got.value) == str(expected.value)
+    assert out == []  # not even the header line

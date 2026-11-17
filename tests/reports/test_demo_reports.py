@@ -42,7 +42,7 @@ SECTIONS = (
     "core,engineering,awp,constraints,requisitions,scaffold,materials,correspondence,documents"
 )
 SCOPE = "project:P200"
-LOW = cf.LOWEST
+LOW = cf.Viewer(actor="user:ada")  # level 0, unnamed; ada holds the module view words
 FULL = cf.Viewer(actor="user:ada", level=1, account="user:ada")
 
 HEADERS = {
