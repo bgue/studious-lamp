@@ -8,7 +8,7 @@ P2  1 mrg  f     83e7a512 gate-changed (2 heavy slots), commit-check; 1 CR round
 F1a 2 mrg  f     ef38bed7 5 LO notes: walk has no full-viewer reader; F2 must open an MCP read action
 P0b 2 mrg  f     98084507 8 more reports; 2 review rounds; left out requisitions, activities, QR (later unit)
 P0c 2 mrg  f+s   3c1cd344 last 3 reports; both reviews P; N1 to wave review
-F1b 3 disp f     - forms log + runner screen; clause 11
+F1b 3 mrg  f     d9c89b3d log, record, runner screens; clause 11 PASS; 3 LO
 F1s 3 rev  f+s   8000f288 built; clause 6 PASS sq; full + security review running
 F2  4 todo f     - MCP, draft resume, walks; clause 4
 F3  4 todo f     - web fill page + cards; clause 9
