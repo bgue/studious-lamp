@@ -5,23 +5,14 @@ command line (``just gate tests/perf``, ``pytest tests/perf``) or ``TL_PERF=1`` 
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
+import sys
 from pathlib import Path
 
 import pytest
 
-HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-
-def perf_requested(args: Sequence[str], env: dict[str, str] | os._Environ[str]) -> bool:
-    """True when ``TL_PERF=1`` or an argument names a path inside ``tests/perf``."""
-    if env.get("TL_PERF") == "1":
-        return True
-    for arg in args:
-        path = Path(arg.split("::", 1)[0]).resolve()
-        if path == HERE or HERE in path.parents:
-            return True
-    return False
+from perf_gate import perf_requested  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

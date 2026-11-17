@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from conftest import HERE, perf_requested  # pyright: ignore[reportMissingImports]
+from perf_gate import HERE, perf_requested  # pyright: ignore[reportMissingImports]
 
 
 def test_perf_runs_only_when_asked() -> None:
