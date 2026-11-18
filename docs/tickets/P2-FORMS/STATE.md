@@ -14,13 +14,13 @@ F2  4 mrg  f     41f19967 MCP tools (5 mcp.* actions, forms.read kept closed), r
 F3  4 mrg  f+s   687193ed web fill page, cards; clause 9; both P, LO fixes 62ed003b; owner signed off
 F4  4 mrg  f+s   f5c5d146 intake signed-in; clause 10; both P; 3 LO fixed bc9550fe; phone shown to reviewer ok (ADR-0032 d7)
 FX  4 mrg  l     6530ebb7 forms, permits, qr rows in tl_api.errors; review F1 (sent id echo) fixed 54c18051
-FN1 5 disp f+s   - wave sec F1 MD (N1): refuse a Submission as subject/context; F2, F3 LO folded in
+FN1 5 mrg  f+s   054b34bb wave sec F1 (N1): Submission never a subject (forms, intake, permits, quality, constraints)
 F5  5 mrg  l     b50ce7a4 runbook, README, tour 2 shots 20-22,24, highlights 19-20; 2 gaps DEFERRED
 ## BASE-RED (on p2/v3-forms, not caused by a unit)
 awp proposable exclusions fixed by F1a | wheel count 27 vs 21 (DEFERRED)
 activities report `activity_id` column broke test_no_internal_id_is_a_column (P0c); renamed `activity` c4da8d5a
 tl-api: 4 tests red on fc02817a too (settings 34 vs 53 keys x3, activity select 16 vs 15); permits error table fixed by FX
-## WAVE-REVIEW (for the DONE security review)
+## WAVE-REVIEW done 2026-11-18: F1 MD (N1) fixed by FN1; F2 LO moot; F3 LO fixed; bound.record, reports, seams P
 N1 privileged Submission that is itself a subject: its own answer class not checked on that hop (P0c sec) | F1s bound.record hardening (scope, use_viewer) before F1b/F3 call it
 ## OPEN
 S1 MD base: intake code_hash in IntakeCode.Issued readable on /events, record history, webhooks (F4 sec F1); must be redacted before S6 opens (schema+core, APPROVALS); DEFERRED S6 row
