@@ -17,9 +17,15 @@ Modes (first argument):
 * ``clause3 TEMPLATE``: fill TEMPLATE through the runner model (``tl_core.forms.runner``), one
   field at a time, and submit the confirmed answers over the API as pnair; the stored answers are
   the ones the runner confirmed. Prints the new key.
+* ``clause4 KEY DRAFT``: KEY is the Submitted form that DRAFT (saved twice, the second time by
+  ``tl form fill --resume``) became: it has a number only now, and its answers hold the ones of the
+  first save and of the resume.
 * ``clause5 KEY OWN``: KEY is Accepted by the controller; OWN is Accepted by a second controller.
 * ``clause7 KEY``: KEY is a submission only its author may read: every other reader gets, on the
   detail route, the bytes a missing key gets, and no list holds it.
+* ``clause7-mcp KEY``: the MCP tools (in-process server, no model) as an agent and as three people:
+  ``get_form_submission`` for KEY (a hidden submission), for a draft id and for a missing key
+  answer with the same bytes; ``list_form_submissions`` leaves KEY out.
 * ``clause8 DRAFT AUTHOR``: the draft DRAFT is invisible to every reader but AUTHOR.
 * ``clause11 TEMPLATE``: the terminal app (headless Textual pilot, as ``p2_i4b_demo`` drives the
   toolcrib screen): open the forms log of the project as pnair, show the templates, fill TEMPLATE
@@ -35,6 +41,7 @@ Modes (first argument):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import shutil
@@ -46,6 +53,7 @@ from typing import Any, NoReturn
 
 import httpx2
 import yaml
+from mcp.server.mcpserver.exceptions import ToolError
 from tl_adapters.backend import open_backend
 from tl_adapters.db import as_target
 from tl_core import confidentiality as cf
@@ -54,6 +62,7 @@ from tl_core.forms import runner
 from tl_core.forms.jsonschema import to_json_schema
 from tl_core.forms.surveyjs import surveyjs_unsupported, to_surveyjs
 from tl_core.forms.types import FormBinding
+from tl_mcp.server import build_server
 from tl_mod_forms import bound
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -386,6 +395,51 @@ def clause7(key: str) -> None:
     world.close()
 
 
+def clause4(key: str, draft: str) -> None:
+    world = World()
+    got = world.get("cbrooks", f"/forms/submissions/{key}", project=PROJECT).json()
+    check(
+        got["row"]["id"] == draft and got["row"]["state"] == "Submitted", "the draft was submitted"
+    )
+    check(
+        (got["row"]["draft_saves"] or 0) >= 2, "the draft was saved twice before it was submitted"
+    )
+    answers = {a["q"]: a["value"] for a in got["answers"]}
+    check(answers.get("topic") == "Resumed talk", "the answer of the first save is kept")
+    check(answers.get("led_by") == "Callum", "the answer added on resume is kept")
+    ok(f"{draft}: saved, resumed, submitted as {key}; the number came at submit")
+    world.close()
+
+
+def call_tool(server: Any, tool: str, **arguments: Any) -> tuple[bool, str]:
+    """``(ok, bytes)`` of one in-process MCP tool call: the structured result or the refusal."""
+    try:
+        result = asyncio.run(server.call_tool(tool, arguments))
+    except ToolError as exc:
+        return False, str(exc)
+    return True, json.dumps(result.structured_content, sort_keys=True)
+
+
+def clause7_mcp(key: str) -> None:
+    world = World()
+    check(
+        call_tool(build_server(world.backend, actor="agent:demo"), "list_form_templates")[0],
+        "the agent lists the templates",
+    )
+    for actor in ("agent:demo", "user:cbrooks", "user:ipetrov", "user:treyes"):
+        server = build_server(world.backend, actor=actor)
+        gone = call_tool(server, "get_form_submission", project=PROJECT, key=MISSING_KEY)
+        check(gone[0] is False, f"{actor}: a missing key is refused")
+        for ref in (key, MISSING_ID):
+            seen = call_tool(server, "get_form_submission", project=PROJECT, key=ref)
+            check(seen == gone, f"{actor}: {ref} differs from a missing key")
+        check(key not in gone[1], f"{actor}: the refusal echoes the key")
+        listed = call_tool(server, "list_form_submissions", project=PROJECT, limit=200)
+        check(listed[0] and key not in listed[1], f"{actor}: the list shows the hidden submission")
+        ok(f"{actor}: get_form_submission gives {len(gone[1])} equal bytes for {key} and a miss")
+    world.close()
+
+
 def clause8(draft: str, author: str) -> None:
     world = World()
     for who in READERS:
@@ -493,11 +547,13 @@ def main() -> None:
         "clause1": clause1,
         "clause2": clause2,
         "clause3": clause3,
+        "clause4": clause4,
         "clause5": clause5,
         "clause6-pick": clause6_pick,
         "clause6-answers": clause6_answers,
         "clause6": clause6,
         "clause7": clause7,
+        "clause7-mcp": clause7_mcp,
         "clause8": clause8,
         "clause11": clause11,
         "budget": budget,
