@@ -7,8 +7,30 @@ produces.
 
 P2-FORMS S2 holds the schema, the projectors and the names. P2-FORMS S3 holds eleven commands and the one seam that runs a
 module command inside the caller's unit of work (`tl_core.services.nested.run_nested_command`). P2-FORMS S7c adds the four
-intake commands (fifteen in all) and `tl_core/qr/codes.py`. Views, routes, the CLI, the tools and the intake endpoint come
-later.
+intake commands (fifteen in all) and `tl_core/qr/codes.py`.
+
+## What it does
+
+A template is company-wide and is published once (the questions are checked again at publish). A submission belongs to a
+project and takes its number when it is submitted; a draft is its author's alone until then. A reviewer accepts, returns
+(with a note) or voids a submission, and the person who filled it may not review it. A record that offers a form (an
+inspection or a permit) sends its answers through that record's own command, in one unit of work. An agent may only propose
+a submission. A controller issues a signed-in intake code, and the items sent through it wait until accepted or rejected.
+The steps for people are in the [forms runbook](../../../docs/runbooks/forms.md).
+
+## Surfaces
+
+| Surface | Where |
+|---|---|
+| CLI | `tl form` (`ls`, `show`, `publish`, `fill`, `submit`, `drafts`, `review`, `for`, `record`); `tl intake` (`code` with `issue`, `revoke` and `ls`; `ls`, `show`, `accept`, `reject`, `purge`); `tl report form-submissions` and `form-templates` |
+| Terminal | palette `forms` (the Forms log: submissions and templates, the submission screen, the runner); palette `intake` (the Intake log) |
+| Web | `/web/forms` (list), `/web/forms/t/<template id>` (fill, save a draft, submit), `/web/forms/for/<key>` (the form a record offers), `/web/forms/done/<key>` |
+| API (reads) | `/forms/templates`, `/forms/templates/{key}/versions/{version}`, `/forms/for/{key}`, `/forms/submissions`, `/forms/submissions/{key}`; signed-in `/forms/intake/codes`, `/forms/intake/items`, `/forms/intake/items/{item_id}` |
+| MCP | five tools: `list_form_templates`, `get_form`, `list_form_submissions`, `get_form_submission`, `propose_form_submission` |
+| Scan card | an inspection or a permit that offers a form: its "Open record" link goes to `/web/forms/for/<key>` |
+
+The runbook covers the day-to-day use, the access words and the known limits (key gaps from hidden records, the 64 KiB
+body cap on `/web/`, the public intake link not built, privileged forms visible to their author only).
 
 ## Who reads what (P2-FORMS CR1)
 
