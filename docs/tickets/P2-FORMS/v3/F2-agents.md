@@ -30,5 +30,6 @@ No edit of `confidentiality.py`, no schema change, no new event. `bound.record` 
 this unit. No paid model calls: tools are tested through the MCP test harness, never a model.
 
 ## Gate
+After creating the worktree run `uv sync --frozen --all-packages` (new entry points are only seen after a sync).
 `just gate-changed` (if it stops at the deferred `test_check_wheels` pin, run its later steps by hand and say so), then
 `TL_DEMO_BACKENDS=sqlite just demo P2-FORMS`. Report `docs/reports/P2-FORMS/V3-F2.md`, at most 15 lines. Prefix `V3-F2:`.
