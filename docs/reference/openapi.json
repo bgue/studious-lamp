@@ -18972,6 +18972,110 @@
         "title": "InstallScopeItemBody",
         "type": "object"
       },
+      "IntakeCodeRow": {
+        "description": "A code row under a name of its own: the route's schema is not another module's ``CodeRow``\n(the OpenAPI component names are the class names).",
+        "properties": {
+          "context_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Id"
+          },
+          "context_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Type"
+          },
+          "controller_role": {
+            "title": "Controller Role",
+            "type": "string"
+          },
+          "expires_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires On"
+          },
+          "heading": {
+            "title": "Heading",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issued_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued By"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "string"
+          },
+          "template_version": {
+            "title": "Template Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "template_id",
+          "template_version",
+          "context_id",
+          "context_type",
+          "heading",
+          "controller_role",
+          "expires_on",
+          "issued_by",
+          "revoked_by",
+          "pending"
+        ],
+        "title": "IntakeCodeRow",
+        "type": "object"
+      },
       "Intent": {
         "additionalProperties": false,
         "properties": {
@@ -20519,6 +20623,35 @@
         "title": "IssuedToken",
         "type": "object"
       },
+      "ItemDetail": {
+        "description": "An item as the queue shows it, and for a Pending one the sender's answers.",
+        "properties": {
+          "answers": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answers"
+          },
+          "row": {
+            "$ref": "#/components/schemas/ItemRow"
+          }
+        },
+        "required": [
+          "row",
+          "answers"
+        ],
+        "title": "ItemDetail",
+        "type": "object"
+      },
       "ItemProjectView": {
         "properties": {
           "available": {
@@ -20555,6 +20688,151 @@
           "uom"
         ],
         "title": "ItemProjectView",
+        "type": "object"
+      },
+      "ItemRow": {
+        "description": "An intake item as the queue shows it. The claim is the name and company the sender gave,\nonce the item is accepted; no phone number is ever read into a row.",
+        "properties": {
+          "accepted_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted As"
+          },
+          "accepted_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted By"
+          },
+          "accepted_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted On"
+          },
+          "body_bytes": {
+            "title": "Body Bytes",
+            "type": "integer"
+          },
+          "claim_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Company"
+          },
+          "claim_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Name"
+          },
+          "code_id": {
+            "title": "Code Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "purged_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purged At"
+          },
+          "received_at": {
+            "title": "Received At",
+            "type": "string"
+          },
+          "rejected_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected By"
+          },
+          "rejected_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected Reason"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "string"
+          },
+          "template_version": {
+            "title": "Template Version",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "code_id",
+          "template_id",
+          "template_version",
+          "received_at",
+          "body_bytes",
+          "accepted_as",
+          "accepted_by",
+          "accepted_on",
+          "claim_name",
+          "claim_company",
+          "rejected_reason",
+          "rejected_by",
+          "purged_at",
+          "version"
+        ],
+        "title": "ItemRow",
         "type": "object"
       },
       "ItemView": {
@@ -25374,6 +25652,48 @@
           "changelog"
         ],
         "title": "PackageSummary",
+        "type": "object"
+      },
+      "Page_IntakeCodeRow_": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/IntakeCodeRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total"
+        ],
+        "title": "Page",
+        "type": "object"
+      },
+      "Page_ItemRow_": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ItemRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total"
+        ],
+        "title": "Page",
         "type": "object"
       },
       "Page_SubmissionRow_": {
@@ -96420,6 +96740,398 @@
           }
         ],
         "summary": "Get Form For Record",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/forms/intake/codes": {
+      "get": {
+        "description": "The intake codes of a project, oldest issue first, each with its Pending count.",
+        "operationId": "list_intake_codes",
+        "parameters": [
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The code state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Active",
+                    "Revoked"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The code state.",
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_IntakeCodeRow_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Intake Codes",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/forms/intake/items": {
+      "get": {
+        "description": "The intake items of a project, oldest first. A hidden item is left out of rows and total.",
+        "operationId": "list_intake_items",
+        "parameters": [
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The item state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Pending",
+                    "Accepted",
+                    "Rejected"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The item state.",
+              "title": "State"
+            }
+          },
+          {
+            "description": "A code id.",
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 60,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A code id.",
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ItemRow_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Intake Items",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/forms/intake/items/{item_id}": {
+      "get": {
+        "description": "One intake item and, while it is Pending, the sender's answers.",
+        "operationId": "get_intake_item",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The project.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "The project.",
+              "maxLength": 120,
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Intake Item",
         "tags": [
           "forms"
         ]

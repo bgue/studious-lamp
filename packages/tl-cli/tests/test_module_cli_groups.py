@@ -70,6 +70,7 @@ OLD_GROUPS = [
     "gastest",
     "checklist",  # P2-INSP-T05 (tl checklist, the quality module's group by hook)
     "form",  # V3-F1a (tl form, the forms module's group by hook)
+    "intake",  # V3-F4 (tl intake, the forms module's second group by hook)
 ]
 
 OLD_SUBGROUPS = {

@@ -16,6 +16,7 @@ from tl_core.auth.errors import ForbiddenError
 from tl_core.forms import rules
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError, ServiceError
+from tl_mod_forms import intake_read, intake_views
 from tl_mod_forms import views as forms_views
 from tl_mod_forms.commands import SubmitForm
 from tl_mod_forms.routes import MSG_SUBMISSION, MSG_TEMPLATE
@@ -49,6 +50,7 @@ class FakeFormsSupport:
         self._form_templates: list[tuple[forms_views.TemplateRow, list[dict[str, Any]]]] = []
         self._form_submissions: dict[str, list[forms_views.SubmissionDetail]] = {}
         self.form_commands: list[Command] = []
+        self._intake_items: dict[str, list[intake_read.ItemDetail]] = {}
 
     def load_form_templates(
         self, templates: Sequence[tuple[forms_views.TemplateRow, list[dict[str, Any]]]]
@@ -110,11 +112,24 @@ class FakeFormsSupport:
     def get_form_for(self, project: str, key: str) -> Any:
         raise RecordNotFoundError("no form for this record")
 
+    def load_intake_items(self, project: str, details: Sequence[intake_read.ItemDetail]) -> None:
+        self._intake_items[project] = list(details)
+
     def list_intake_items(self, project: str, *, state: str | None = None, limit: int = 100) -> Any:
-        raise NotImplementedError("the intake queue is built in V3-F4")
+        rows = [
+            d.row
+            for d in self._intake_items.get(project, [])
+            if state is None or d.row.state == state
+        ]
+        rows.sort(key=lambda r: (r.received_at, r.id))
+        cut = rows[: max(1, min(int(limit), intake_views.MAX_LIMIT))]
+        return intake_views.Page(rows=cut, total=len(rows))
 
     def get_intake_item(self, project: str, item_id: str) -> Any:
-        raise NotImplementedError("the intake queue is built in V3-F4")
+        for d in self._intake_items.get(project, []):
+            if d.row.id == item_id:
+                return d
+        raise RecordNotFoundError(intake_read.MSG_ITEM)
 
     def form_command(self, name: str, cmd: Command) -> CommandResult:
         if name != "SubmitForm" or not isinstance(cmd, SubmitForm):
@@ -245,5 +260,53 @@ def seed_forms(client: Any) -> None:
                 [{"q": "tool", "value": "Drill"}, {"q": "ok", "value": "yes", "note": "serviced"}],
             ),
             submission(3, talk, "Draft", "user:kim", [{"q": "topic", "value": "Half done"}]),
+        ],
+    )
+
+
+def intake_item(
+    n: int,
+    state: str = "Pending",
+    answers: list[dict[str, Any]] | None = None,
+    **more: Any,
+) -> intake_read.ItemDetail:
+    """An intake item the fake gives back: ``id`` ends in the digits of ``n``."""
+    row = intake_views.ItemRow(
+        id=f"01J0000000000000000000{n:04d}",
+        state=state,
+        code_id="01J00000000000000000CODE01",
+        template_id="01J0000000000000000000TPL1",
+        template_version=1,
+        received_at=f"2026-11-1{n}T09:00:00Z",
+        body_bytes=120,
+        accepted_as=more.get("accepted_as"),
+        accepted_by=more.get("accepted_by"),
+        accepted_on=more.get("accepted_on"),
+        claim_name=more.get("claim_name"),
+        claim_company=more.get("claim_company"),
+        rejected_reason=more.get("rejected_reason"),
+        rejected_by=more.get("rejected_by"),
+        purged_at=more.get("purged_at"),
+        version=1,
+    )
+    return intake_read.ItemDetail(row=row, answers=answers)
+
+
+def seed_intake(client: Any) -> None:
+    """Three items: Pending (with answers), Accepted and Rejected."""
+    client.load_intake_items(
+        PROJECT,
+        [
+            intake_item(1, answers=[{"q": "topic", "value": "Need a ladder", "note": None}]),
+            intake_item(
+                2,
+                "Accepted",
+                accepted_as="SubmitForm",
+                accepted_by="user:ada",
+                accepted_on="2026-11-13",
+                claim_name="Sam Smith",
+                claim_company="Acme",
+            ),
+            intake_item(3, "Rejected", rejected_reason="spam", rejected_by="user:ada"),
         ],
     )

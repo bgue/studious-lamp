@@ -229,6 +229,8 @@ from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.names import COMPANY as ENGINEERING_COMPANY
 from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_mod_forms import MODULE as FORMS_MODULE
+from tl_mod_forms import intake_read as forms_intake_read
+from tl_mod_forms import intake_views as forms_intake_views
 from tl_mod_forms import read as forms_read
 from tl_mod_forms import routes as forms_routes
 from tl_mod_forms import views as forms_views
@@ -2251,10 +2253,25 @@ class EmbeddedClient:
         return self._module_command(name, cmd, FORMS_COMMANDS, "forms")
 
     def list_intake_items(self, project: str, *, state: str | None = None, limit: int = 100) -> Any:
-        raise NotImplementedError("the intake queue is built in V3-F4")
+        with self._uow(True) as uow:
+            forms_intake_read.require_review(uow.conn(), self.actor, f"project:{project}")
+            return forms_intake_views.item_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                limit=limit,
+                viewer=confidentiality.current_viewer(),
+            )
 
     def get_intake_item(self, project: str, item_id: str) -> Any:
-        raise NotImplementedError("the intake queue is built in V3-F4")
+        with self._uow(True) as uow:
+            forms_intake_read.require_review(uow.conn(), self.actor, f"project:{project}")
+            found = forms_intake_read.item_detail(
+                uow.conn(), f"project:{project}", item_id, confidentiality.current_viewer()
+            )
+        if found is None:
+            raise RecordNotFoundError(forms_intake_read.MSG_ITEM)
+        return found
 
     # --- the awp module (P2-I1 T03b): the reads the API routes serve, under the viewer's filter --
 
