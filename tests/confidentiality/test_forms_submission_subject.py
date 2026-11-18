@@ -28,6 +28,8 @@ for _tests in ("tl-modules/forms/tests", "tl-modules/qr/tests"):
 
 from forms_world import SCOPE, World, answer  # noqa: E402
 from qr_world import BASE  # noqa: E402
+from tl_core.constraints.commands import RaiseConstraint  # noqa: E402
+from tl_core.constraints.handlers import handle_raise_constraint  # noqa: E402
 from tl_mod_forms.module import FORMS_COMMANDS  # noqa: E402
 from tl_mod_permits.commands import RequestPermit  # noqa: E402
 from tl_mod_permits.handlers.isolation import handle_apply_isolation  # noqa: E402
@@ -173,3 +175,33 @@ def test_other_link_columns_refuse_a_submission(
     monkeypatch.setattr(service, "value_of", value_of)
     # the installed scan-card providers (awp, permits, quality) are the real ones: none for a form
     assert _refusal(scan(sub)).encode() == _refusal(scan(ghost)).encode() == UNKNOWN.encode()
+
+
+def test_constraint_refuses_a_submission_subject(world: World) -> None:
+    """A constraint's ``subject_id`` is a chain column: a submission is refused with the words an
+    absent subject gets, writing nothing; a plain record still takes one."""
+    w = world
+    x = w.record("awp.IWP", "OPEN-3")
+    privileged = w.template(answer_class="privileged")
+    s1 = str(
+        _as_system(
+            w, "dora", "SubmitForm", template_id=privileged, answers=[answer("topic", "SECRET")]
+        ).stream_id
+    )
+
+    def raise_on(record: str) -> Any:
+        cmd = RaiseConstraint(
+            actor="user:dora", source="test", scope=SCOPE, subject=record, phase="start",
+            severity="advisory", category="other", owner="user:dora", description="about it",
+        )  # fmt: skip
+        return lambda: _run_as_dora(w, handle_raise_constraint, cmd)
+
+    before = w.count()
+    refused = _refusal(raise_on(s1))
+    absent_id = new_ulid()
+    assert (
+        refused.replace(s1, "ID").encode()
+        == _refusal(raise_on(absent_id)).replace(absent_id, "ID").encode()
+    )
+    assert w.count() == before
+    assert raise_on(x)() is not None

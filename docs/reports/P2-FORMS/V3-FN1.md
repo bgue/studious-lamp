@@ -21,6 +21,13 @@ event or data change.
   `for_record_id` (copied from its request), gas test `permit_id` (a permit), intake item `code_id`, scaffold
   inspection `scaffold_id`. Core constraints, correspondence and materials write columns outside `SUBJECT_LINKS`.
 
+## Constraints (review re-check)
+`constraints/handlers.py` `_raise`: after `_visible`, a subject whose type is in `confidentiality.OWN_CLASS_TYPES`
+(forms.Submission; no forms import) raises `RecordNotFoundError("no record <id>")`, the absent subject's words, nothing
+written. Covers `RaiseConstraint` and module raises. `grep subject_id packages/tl-core/src`: no other core writer of a
+chain column (engine.py:292 only reads). Test added; mutant (check off) killed. Gate `tests/confidentiality` plus
+`tl-core/tests/constraints`: 439 passed, PASS.
+
 ## Tests
 `tests/confidentiality/test_forms_submission_subject.py` (3 tests, from the probe): S2 (privileged S1), S5 (a draft),
 a draft save, intake code over S1 and over a draft, each byte-equal to an absent id's text and nothing written; a plain
