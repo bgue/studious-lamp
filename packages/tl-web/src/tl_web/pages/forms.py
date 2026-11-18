@@ -48,7 +48,8 @@ Reader = Annotated[str, Depends(guard("forms.read"))]
 Project = Annotated[str | None, Query(max_length=64)]
 
 SOURCE = "web"
-MAX_ANSWERS_JSON = 200_000
+#: Under the app's /web body cap (``tl_api.auth.BODY_LIMITS``, 64 KiB), so it can be reached.
+MAX_ANSWERS_JSON = 60_000
 NOT_UNDERSTOOD = "the answers did not come through; reload the page and try again"
 SAVED = "Draft saved"
 #: A bound form's closed reasons, in words (the fixed words of the sources).
@@ -99,7 +100,7 @@ def _answers_of(raw: str) -> list[dict[str, Any]] | None:
         return None
     try:
         found = json.loads(raw) if raw.strip() else []
-    except ValueError:
+    except (ValueError, RecursionError):  # not JSON, or nested past the parser's depth
         return None
     if not isinstance(found, list):
         return None

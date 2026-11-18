@@ -267,6 +267,7 @@ def test_a_refusal_is_the_status_line_and_echoes_no_answer(forms_world: Any) -> 
         pytest.param('[["q"]]', id="nested"),
         pytest.param("[1]", id="number"),
         pytest.param("x" * 300_000, id="too-long"),
+        pytest.param("[" * 20_000, id="nested"),
     ],
 )
 def test_an_answers_block_that_is_not_a_list_of_answers_is_refused(

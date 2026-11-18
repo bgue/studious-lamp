@@ -166,6 +166,7 @@ class InspectionScanCard:
         if detail is None:
             return None
         project = str(found.scope).removeprefix("project:")
+        # a scope without the ``project:`` prefix (company) has no project page: no link
         opens = binding is not None and binding.available and str(found.scope) != project
         return _card(detail, now, _open_path(opens, project, detail.row.key))
 
