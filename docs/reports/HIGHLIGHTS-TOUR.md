@@ -118,7 +118,7 @@ The work pack is not a terminal screen: `tl awp iwp pack <number> --out <file>` 
 
 The forms log lists the submissions of the project by number, form, state, author and date, with the state first where a person decides by it. Key `2` shows the published templates; Enter on a submission opens it in full. Here the accepted pre-use check P200-FRM-0006 is the one to read. A privileged form (for example a near-miss report) is in the log only for its author. The steps for filling and reviewing are in the [forms runbook](../runbooks/forms.md).
 
-## 20 The runner, mid-fill
+## 20 Form runner
 
 ![The runner of a toolbox talk, mid-fill: two answers given, question 3 next](tour/highlights/20-form-runner.svg)
 

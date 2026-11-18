@@ -15,7 +15,7 @@ F3  4 mrg  f+s   687193ed web fill page, cards; clause 9; both P, LO fixes 62ed0
 F4  4 mrg  f+s   f5c5d146 intake signed-in; clause 10; both P; 3 LO fixed bc9550fe; phone shown to reviewer ok (ADR-0032 d7)
 FX  4 mrg  l     6530ebb7 forms, permits, qr rows in tl_api.errors; review F1 (sent id echo) fixed 54c18051
 FN1 5 disp f+s   - wave sec F1 MD (N1): refuse a Submission as subject/context; F2, F3 LO folded in
-F5  5 disp l     - docs, runbook, tour, highlights (v3/F5-done.md)
+F5  5 mrg  l     b50ce7a4 runbook, README, tour 2 shots 20-22,24, highlights 19-20; 2 gaps DEFERRED
 ## BASE-RED (on p2/v3-forms, not caused by a unit)
 awp proposable exclusions fixed by F1a | wheel count 27 vs 21 (DEFERRED)
 activities report `activity_id` column broke test_no_internal_id_is_a_column (P0c); renamed `activity` c4da8d5a
