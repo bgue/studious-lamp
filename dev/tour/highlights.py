@@ -6,7 +6,7 @@
 Same method as `phase1.py` (see `tourkit.py`): a fresh SQLite ledger in a temporary directory,
 the standards code lists loaded (so a discipline reads `Structural`, not `STR`), the real TUI
 driven headless, the frozen clock, and the leak check on every plain screenshot. It writes
-eighteen SVGs and one pack HTML file, and no transcripts:
+twenty SVGs and one pack HTML file, and no transcripts:
 
     01 RFI log, 170 columns (the panel beside the list)    10 the RFI's Insights (key 9)
     02 RFI log, 100 columns (the panel below the list)     11 the intent panel of an event
@@ -18,10 +18,12 @@ eighteen SVGs and one pack HTML file, and no transcripts:
     08 the document preview line                           17 week: the closed week and its PPC
     09 an RFI's Activity (key 4)                           18 the work pack (a CLI shot; the HTML
                                                               file is kept beside the SVGs)
+    19 the forms log (the submissions)                    20 the runner, mid-fill (a toolbox talk)
 
 01 to 08 are the same ledger and screens as before; 09 to 11 add an intent to an RFI's history;
 12 to 18 are the awp project P200 of the demo generator, with a published schedule, Issued IWPs
-and one week taken through its cycle (`dev/tour/wave1.py` builds the project the same way).
+and one week taken through its cycle (`dev/tour/wave1.py` builds the project the same way); 19 and
+20 are the forms of the same project.
 
 The text is `docs/reports/HIGHLIGHTS-TOUR.md`; its headings match the file names. The people and
 helpers are those of `phase1.py`.
@@ -724,8 +726,68 @@ def weekly_shots(ws: Workspace, landing: str, new: str, keys: list[str]) -> None
     )
 
 
+# --- the forms of P200: the form log and the runner (V3-F5) ---------------------------------
+
+FORM_FILLER = PIPING  # cbrooks: a foreman who fills forms (the generator's filler)
+FORM_TEMPLATE = "TPL-0001"  # the published toolbox talk
+
+
+def forms_shots(ws: Workspace) -> None:
+    """19 the forms log, submissions view; 20 the runner of the toolbox talk, mid-fill: two answers
+    given, question 3 showing. Nothing is sent: both shots are reads."""
+    from tl_tui.main import build_app as make
+    from tl_tui.widgets.forms_log import FormRunnerScreen, FormsLogScreen
+
+    app: Any = make(ws.db, AWP_PROJECT, live=False, actor=f"user:{FORM_FILLER}")
+
+    async def log(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        app.push_screen(FormsLogScreen(app.client, AWP_PROJECT))
+        await tk.until(pilot, lambda: "P200-FRM-0006" in tk.screen_text(app), "the form log")
+        tk.shot_tui(
+            ws,
+            app,
+            "19-forms-log",
+            "The forms log of P200: each form with its number and state (Enter opens one)",
+            "P200-FRM-0006",
+            "Accepted",
+        )
+
+    tk.run_tui(ws, app, log, size=(170, 44))
+
+    app: Any = make(ws.db, AWP_PROJECT, live=False, actor=f"user:{FORM_FILLER}")
+
+    async def runner(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        app.push_screen(FormsLogScreen(app.client, AWP_PROJECT))
+        await tk.until(pilot, lambda: len(app.screen.rows) > 0, "the form log")
+        await pilot.press("2")
+        await tk.until(pilot, lambda: FORM_TEMPLATE in tk.screen_text(app), "the templates")
+        table = app.screen.query_one("#log-table", DataTable)
+        table.move_cursor(row=p1.row_with(table, FORM_TEMPLATE))
+        await tk.settle(pilot, 3)
+        await pilot.press("f")
+        await tk.until(pilot, lambda: isinstance(app.screen, FormRunnerScreen), "the runner")
+        await tk.until(pilot, lambda: "Question 1 of" in tk.screen_text(app), "question 1")
+        for value in ("Working at height", "2026-11-06"):
+            app.screen.query_one("#fr-input", Input).value = value
+            await pilot.press("enter")
+            await tk.settle(pilot, 3)
+        await tk.until(pilot, lambda: "Question 3 of" in tk.screen_text(app), "question 3")
+        tk.shot_tui(
+            ws,
+            app,
+            "20-form-runner",
+            "The runner of a toolbox talk, mid-fill: two answers given, question 3 next",
+            "Question 3 of",
+            "Led by",
+        )
+
+    tk.run_tui(ws, app, runner, size=(150, 64))
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     parser.add_argument("--out", type=Path, default=REPO / "docs/reports/tour/highlights")
     args = parser.parse_args(argv)
     out = args.out if args.out.is_absolute() else Path.cwd() / args.out
@@ -750,6 +812,7 @@ def main(argv: list[str] | None = None) -> int:
         print("the weekly cycle of P200: the schedule, the packages, the week", flush=True)
         landing, new, keys = awp_world(awp)
         weekly_shots(awp, landing, new, keys)
+        forms_shots(awp)
     finally:
         awp.close()
     print(f"wrote {len(ws.written) + len(awp.written)} screenshots to {out}")

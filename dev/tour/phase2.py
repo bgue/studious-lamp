@@ -29,6 +29,13 @@ orders, punch, scaffolds, the toolcrib) refuses it:
     17-inspection    one Done inspection, with failed questions user:hsato (P200-INS-0009)
     18-permits       the permit register                      user:ipetrov
     19-permit        one Active permit, with its gas tests    user:ipetrov (P200-PTW-0001)
+    20-forms-log    the form submissions log                   user:cbrooks
+    21-form-submission  one accepted form, each answer in words  user:cbrooks (P200-FRM-0006)
+    22-form-runner  the runner, mid-fill (question 3 of 7)     user:cbrooks (toolbox talk)
+    23-intake-log   the Intake log (not made: no intake item exists yet, see the report)
+    24-report-form-submissions  tl report form-submissions, CLI  user:cbrooks
+
+The forms shots (20 to 22, 24) are P200's own generator section (`dev/seed/demo_project/forms.py`).
 """
 
 from __future__ import annotations
@@ -62,6 +69,9 @@ SCAFFOLD = "P200-SCF-0001"  # the one scaffold of the demo project (scaffold sec
 CRIB = "TC1"  # the toolcrib of P200
 INSPECTION = "P200-INS-0009"  # a Done inspection with a failed question (the generator is fixed)
 PERMIT = "P200-PTW-0001"  # an Active permit with three gas tests (the generator is fixed)
+FILLER = "cbrooks"  # a foreman who fills forms: the forms log, the runner, the report
+FORM_SUBMISSION = "P200-FRM-0006"  # an Accepted pre-use check (the generator's fixed position 5)
+TOOLBOX_TALK = "TPL-0001"  # the published toolbox talk template
 
 
 async def _open(pilot: Pilot[Any], app: Any, make: Callable[[Any], Any], what: str) -> None:
@@ -157,6 +167,98 @@ def toolcrib(ws: Workspace) -> None:
         tk.shot_tui(ws, app, "15-toolcrib", f"The toolcrib {CRIB} of P200", CRIB)
 
     tk.run_tui(ws, app, run_it)
+
+
+def forms_log(ws: Workspace) -> None:
+    """20: the form submissions log of P200 (the default view: submissions)."""
+    from tl_tui.widgets.forms_log import FormsLogScreen
+
+    scenario(
+        ws,
+        "20-forms-log",
+        "The form submissions of P200: each form with its number and state",
+        f"user:{FILLER}",
+        lambda c: FormsLogScreen(c, PROJECT),
+        "the form submissions",
+        FORM_SUBMISSION,
+        "Accepted",
+    )
+
+
+def form_submission(ws: Workspace) -> None:
+    """21: one accepted submission in full, each question in words with its answer."""
+    from tl_tui.widgets.forms_log import FormSubmissionScreen
+
+    record(
+        ws,
+        "21-form-submission",
+        "One form of P200: an accepted pre-use check, each question with its answer",
+        f"user:{FILLER}",
+        lambda c: FormSubmissionScreen(c, PROJECT, FORM_SUBMISSION),
+        "the form submission",
+        FORM_SUBMISSION,
+        "Accepted",
+    )
+
+
+def form_runner(ws: Workspace) -> None:
+    """22: the runner of the toolbox talk, opened from the templates view (key 2, then f), with
+    two answers given and question 3 of 7 showing. Nothing is sent: the shot is not a write."""
+    from textual.widgets import DataTable, Input
+    from tl_tui.main import build_app
+    from tl_tui.widgets.forms_log import FormRunnerScreen, FormsLogScreen
+
+    app: Any = build_app(ws.db, PROJECT, live=False, actor=f"user:{FILLER}")
+
+    async def run_it(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        app.push_screen(FormsLogScreen(app.client, PROJECT))
+        await tk.until(pilot, lambda: len(app.screen.rows) > 0, "the form submissions")
+        await pilot.press("2")
+        await tk.until(pilot, lambda: TOOLBOX_TALK in tk.screen_text(app), "the templates")
+        table = app.screen.query_one("#log-table", DataTable)
+        table.move_cursor(row=row_index(table, TOOLBOX_TALK))
+        await tk.settle(pilot, 3)
+        await pilot.press("f")
+        await tk.until(pilot, lambda: isinstance(app.screen, FormRunnerScreen), "the runner")
+        await tk.until(pilot, lambda: "Question 1 of" in tk.screen_text(app), "question 1")
+        for value in ("Working at height", "2026-11-06"):
+            field = app.screen.query_one("#fr-input", Input)
+            field.value = value
+            await pilot.press("enter")
+            await tk.settle(pilot, 3)
+        await tk.until(pilot, lambda: "Question 3 of" in tk.screen_text(app), "question 3")
+        tk.shot_tui(
+            ws,
+            app,
+            "22-form-runner",
+            "The runner of the toolbox talk, mid-fill: question 3 of 7, two answers given",
+            "Question 3 of 7",
+            "Led by",
+        )
+
+    tk.run_tui(ws, app, run_it)
+
+
+def row_index(table: Any, text: str) -> int:
+    """The index of the row of ``table`` that shows ``text`` in some cell."""
+    for index in range(table.row_count):
+        if any(text in str(cell) for cell in table.get_row_at(index)):
+            return index
+    raise tk.TourFailed(f"no row shows {text!r}")
+
+
+def report_cli(ws: Workspace) -> None:
+    """24: `tl report form-submissions` for the filler, as CSV on the screen."""
+    from dev.seed.demo_project.core import PASSWORD
+
+    ws.tl("login", FILLER, "--password-stdin", stdin=PASSWORD + "\n", who=FILLER)
+    out = ws.tl("report", "form-submissions", "--project", PROJECT, who=FILLER)
+    ws.shot_cli(
+        "24-report-form-submissions",
+        "tl report form-submissions: one row per submission the signed-in person may read",
+        [(f"tl report form-submissions --project {PROJECT}", out)],
+    )
 
 
 def shots(ws: Workspace) -> None:
@@ -350,6 +452,10 @@ def shots(ws: Workspace) -> None:
         PERMIT,
         "Gas tests",
     )
+    forms_log(ws)
+    form_submission(ws)
+    form_runner(ws)
+    report_cli(ws)
 
 
 def main(argv: list[str] | None = None) -> int:
