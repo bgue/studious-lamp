@@ -37,8 +37,11 @@ from tl_mod_cost import errors as cost
 from tl_mod_documents import errors as doc
 from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
+from tl_mod_forms import errors as forms
 from tl_mod_legacy import errors as legacy
 from tl_mod_materials import errors as mat
+from tl_mod_permits import errors as permits
+from tl_mod_qr import errors as qr
 from tl_mod_quality import errors as qual
 from tl_mod_requisitions import errors as req
 from tl_mod_scaffold import errors as scf
@@ -412,6 +415,28 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(scf.ScaffoldStateError, "scaffold_state", 409),
         s(scf.DismantleRefused, "scaffold_dismantle_refused", 409),
         s(scf.StaleVersionError, "scaffold_stale_version", 409),
+        # --- forms (P2-FORMS) ---
+        s(forms.FormsError, "forms_error", 422),
+        s(forms.FormsScopeError, "forms_scope", 422),
+        s(forms.FormTemplateError, "forms_template", 422),
+        s(forms.FormRuleError, "forms_rule", 422),
+        s(forms.FormStateError, "forms_state", 409),
+        s(forms.FormAnswersError, "forms_answers", 422),
+        s(forms.StaleVersionError, "forms_stale_version", 409),
+        # --- permits ---
+        s(permits.PermitScopeError, "permit_scope", 422),
+        s(permits.PermitStateError, "permit_state", 409),
+        s(permits.PermitRuleError, "permit_rule", 422),
+        s(permits.PermitBlockedError, "permit_blocked", 409),  # a failed issue guard
+        s(permits.IsolationStateError, "isolation_state", 409),
+        s(permits.IsolationRuleError, "isolation_rule", 422),
+        s(permits.IsolationInUseError, "isolation_in_use", 409),
+        s(permits.GasTestRuleError, "gas_test_rule", 422),
+        s(permits.StaleVersionError, "permit_stale_version", 409),
+        # --- qr ---
+        s(qr.QrScopeError, "qr_scope", 422),
+        s(qr.QrRuleError, "qr_rule", 422),
+        s(qr.QrStateError, "qr_state", 409),
     )
 
 
@@ -530,6 +555,8 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
             doc.InvalidDocumentSchemaError,
             doc.PublishRefusedError,
             doc.CompensationRefusedError,
+            forms.FormTemplateError,
+            forms.FormAnswersError,
         ),
     ):
         body.issues = list(exc.problems)
@@ -584,6 +611,8 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             doc.CompensationRefusedError,
         ):
             return spec.exc(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc in (forms.FormTemplateError, forms.FormAnswersError):
+            return spec.exc(tuple(str(i) for i in body.get("issues") or []))
         if spec.exc is thr.DispatchRefusedError:
             return thr.DispatchRefusedError(
                 message, [dict(i) for i in body.get("issues") or [] if isinstance(i, dict)]
