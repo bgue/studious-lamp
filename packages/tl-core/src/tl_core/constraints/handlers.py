@@ -436,6 +436,9 @@ def _raise(
     if by_module is None:
         require_edit(conn, ctx)
     subject = _visible(uow, subject_id, (ctx.scope,))
+    if str(subject.type) in confidentiality.OWN_CLASS_TYPES:
+        # the chain does not walk a form submission's own class on a hop (V3-FN1): never a subject
+        raise RecordNotFoundError(f"no record {subject_id!r}")
     if owner is None and source == SOURCE_MANUAL:
         raise ConstraintRuleError(MSG_OWNER_REQUIRED)
     if owner is not None:

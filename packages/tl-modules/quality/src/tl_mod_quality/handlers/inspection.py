@@ -28,6 +28,7 @@ from tl_mod_quality.errors import InspectionRuleError, InspectionStateError
 from tl_mod_quality.guards import MSG_CANCELLED
 from tl_mod_quality.handlers.checklist import as_list
 from tl_mod_quality.handlers.common import (
+    SUBMISSION,
     RecordRef,
     append,
     correlated,
@@ -193,7 +194,7 @@ def handle_plan_inspection(uow: UnitOfWork, cmd: PlanInspection) -> CommandResul
     ``no record with that id``, as every other read of the module does."""
     require_project(cmd)
     cmd = correlated(cmd)
-    subject = load_record(uow, cmd.scope, cmd.subject_id)
+    subject = load_record(uow, cmd.scope, cmd.subject_id, exclude=(SUBMISSION,))
     require_short_chain(uow, subject)
     iwp = subject if cmd.for_iwp_id is None else load_record(uow, cmd.scope, cmd.for_iwp_id)
     return _plan(

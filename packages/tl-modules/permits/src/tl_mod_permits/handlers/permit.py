@@ -30,6 +30,7 @@ from tl_mod_permits import MODULE, rules
 from tl_mod_permits.errors import PermitBlockedError, PermitRuleError, PermitStateError
 from tl_mod_permits.guards import NEEDS, as_time, issue_guards
 from tl_mod_permits.handlers.common import (
+    SUBMISSION,
     RecordRef,
     append,
     correlated,
@@ -233,7 +234,7 @@ def handle_request_permit(uow: UnitOfWork, cmd: RequestPermit) -> CommandResult:
     cmd = correlated(cmd)
     subject = None
     if cmd.for_record_id is not None:
-        subject = load_record(uow, cmd.scope, cmd.for_record_id).id
+        subject = load_record(uow, cmd.scope, cmd.for_record_id, exclude=(SUBMISSION,)).id
     made = create_module_record(
         uow,
         cmd,

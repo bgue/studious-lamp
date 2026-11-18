@@ -24,6 +24,8 @@ from tl_mod_permits.errors import PermitScopeError, StaleVersionError
 from tl_mod_permits.names import FEED_NONE
 
 MSG_UNKNOWN = "no record with that id"
+#: The record type no link column may name (V3-FN1; ``confidentiality.SUBJECT_LINKS``).
+SUBMISSION = "forms.Submission"
 MSG_STALE = "the record changed since it was read"
 _VERSION_SQL = text("SELECT version FROM cur_core_record WHERE id = :id")
 _STATUS_SQL = text("SELECT status FROM cur_core_record WHERE id = :id")
@@ -99,11 +101,16 @@ def silent(record_id: str, payload: dict[str, object]) -> dict[str, object]:
 
 
 def load_record(
-    uow: UnitOfWork, scope: str, record_id: str, record_types: Collection[str] | None = None
+    uow: UnitOfWork,
+    scope: str,
+    record_id: str,
+    record_types: Collection[str] | None = None,
+    exclude: Collection[str] = (),
 ) -> RecordRef:
     """The record ``record_id`` in ``scope`` (of one of ``record_types`` when given);
     ``RecordNotFoundError`` (one text) when it is hidden, absent, in another project, voided or of
-    another type."""
+    another type; ``exclude`` types answer the same words (a form submission is never a subject,
+    V3-FN1)."""
     conn = uow.conn()
     try:
         confidentiality.require_visible(conn, record_id)
@@ -115,6 +122,7 @@ def load_record(
         or row.scope != scope
         or bool(row.voided)
         or (record_types is not None and row.type not in record_types)
+        or row.type in exclude
     ):
         raise RecordNotFoundError(MSG_UNKNOWN)
     return RecordRef(

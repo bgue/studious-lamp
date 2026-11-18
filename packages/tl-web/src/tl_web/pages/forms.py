@@ -64,7 +64,8 @@ REASONS = {
 
 def _refused(request: Request, exc: FormsError) -> Response:
     """The module's refusal as the status line: its fixed text names question ids, never a value.
-    (The JSON error table has no row for these classes, so the page answers them itself.)"""
+    (The JSON error table has rows for these classes; the page still answers them itself, as the
+    status line, not as an error body.)"""
     clash = isinstance(exc, FormStateError | StaleVersionError)
     return status_fragment(request, str(exc), 409 if clash else 422)
 

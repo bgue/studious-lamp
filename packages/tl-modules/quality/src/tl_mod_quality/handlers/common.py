@@ -24,6 +24,8 @@ from tl_mod_quality.errors import PunchRuleError, QualityScopeError, StaleVersio
 from tl_mod_quality.names import FEED_NONE
 
 MSG_UNKNOWN = "no record with that id"
+#: The record type no link column may name (V3-FN1; ``confidentiality.SUBJECT_LINKS``).
+SUBMISSION = "forms.Submission"
 MSG_STALE = "the record changed since it was read"
 MSG_FUTURE = "the time is in the future"
 MSG_BEFORE_RAISED = "the time is before the day the punch item was raised"
@@ -98,11 +100,16 @@ def silent(payload: dict[str, object]) -> dict[str, object]:
 
 
 def load_record(
-    uow: UnitOfWork, scope: str, record_id: str, record_types: Collection[str] | None = None
+    uow: UnitOfWork,
+    scope: str,
+    record_id: str,
+    record_types: Collection[str] | None = None,
+    exclude: Collection[str] = (),
 ) -> RecordRef:
     """The record ``record_id`` in ``scope`` (of one of ``record_types`` when given);
     ``RecordNotFoundError`` (one text) when it is hidden, absent, in another project, voided or of
-    another type."""
+    another type; ``exclude`` types answer the same words (a form submission is never a subject,
+    V3-FN1)."""
     conn = uow.conn()
     try:
         confidentiality.require_visible(conn, record_id)
@@ -114,6 +121,7 @@ def load_record(
         or row.scope != scope
         or bool(row.voided)
         or (record_types is not None and row.type not in record_types)
+        or row.type in exclude
     ):
         raise RecordNotFoundError(MSG_UNKNOWN)
     return RecordRef(
