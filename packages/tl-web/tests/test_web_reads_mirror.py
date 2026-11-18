@@ -29,6 +29,9 @@ ABSENT = frozenset(
         "get_cwp",
         "get_iwp",
         "get_iwp_readiness",
+        "get_form_template_version",
+        "get_form_for_record",
+        "get_form_submission",
         "list_iwp_scope",
         "get_constraint",
         "get_wbs_node",
@@ -65,7 +68,7 @@ def as_json(value: Any) -> Any:
 
 
 def test_the_mirror_count_is_pinned(k: Any) -> None:
-    assert len(MIRRORS) == 48, (
+    assert len(MIRRORS) == 53, (
         "MIRRORS in tl_web/reads.py changed size: twin tickets raise this number in their own "
         "ticket (and add the read to this test's CASES)"
     )
@@ -90,7 +93,10 @@ def test_every_value_is_a_route_function_of_tl_api_routes(world: Any, k: Any) ->
     for method, operation in MIRRORS.items():
         route = by_operation.get(operation)
         assert route is not None, f"{method}: no route with operation_id {operation}"
-        assert route.endpoint.__module__.startswith("tl_api.routes."), (method, route.endpoint)
+        assert route.endpoint.__module__.startswith(("tl_api.routes.", "tl_mod_forms.routes")), (
+            method,
+            route.endpoint,
+        )
 
 
 # --- the reads equal the JSON routes ------------------------------------------------------------
@@ -179,6 +185,11 @@ def cases(w: Any) -> dict[str, tuple[tuple[Any, ...], dict[str, Any], dict[str, 
             {},
             {"project": P, "number": "P123-IWP-PIP-0001"},
         ),
+        "list_form_templates": ((), {}, {}),
+        "get_form_template_version": (("TPL-0001", 1), {}, {"key": "TPL-0001", "version": 1}),
+        "get_form_for_record": ((P, "P123-INS-0001"), {}, {"project": P, "key": "P123-INS-0001"}),
+        "list_form_submissions": ((P,), {}, {"project": P}),
+        "get_form_submission": ((P, "P123-FRM-0001"), {}, {"project": P, "key": "P123-FRM-0001"}),
     }
 
 

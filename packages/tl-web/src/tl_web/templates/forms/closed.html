@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ key }} - Throughline{% endblock %}
+{% block content %}
+<div class="tl-card tl-forms">
+<h1>{{ key }}</h1>
+{% if title %}<p>{{ title }}</p>
+{% endif %}<p role="status">This record takes no form now: {{ why }}.</p>
+</div>
+{% endblock %}

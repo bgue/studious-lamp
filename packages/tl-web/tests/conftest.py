@@ -33,7 +33,7 @@ import io
 import subprocess
 import sys
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -42,6 +42,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from tl_adapters.backend import open_backend
 from tl_adapters.db import DbTarget, create_schema
 from tl_adapters.objectstore.fs import FsObjectStore
@@ -474,3 +475,115 @@ def copies(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
     monkeypatch.setattr(tempfile, "TemporaryDirectory", spy)
     return made
+
+
+# --- forms (V3-F3): templates, an inspection with a pinned checklist, drafts -------------------
+
+PLANT = "</script><script>alert(1)</script><!-- \"q\" 's' & <img src=x onerror=alert(2)>"
+INSP_QUESTIONS: list[dict[str, Any]] = [
+    {
+        "id": "q1", "text": "Gauge fitted?", "kind": "yes_no_na", "required": True, "unit": None,
+        "min": None, "max": None, "choices": None, "fails_when": "no",
+    },
+    {
+        "id": "q2", "text": "Test pressure", "kind": "number", "required": False, "unit": "bar",
+        "min": 1, "max": 10, "choices": None, "fails_when": "out_of_range",
+    },
+]  # fmt: skip
+
+
+def form_field(
+    fid: str, kind: str = "text", *, required: bool = True, **more: Any
+) -> dict[str, Any]:
+    """One format 2 question with every key written out."""
+    base: dict[str, Any] = {
+        "id": fid, "text": f"Question {fid}", "kind": kind, "required": required, "unit": None,
+        "min": None, "max": None, "choices": None, "fails_when": None, "section": None,
+        "help": None, "visible_when": None,
+    }  # fmt: skip
+    base.update(more)
+    return base
+
+
+@dataclass
+class FormsWorld:
+    """A ``World`` with forms: ids by name, and ``run`` to act as a person through the commands."""
+
+    world: World
+    ids: dict[str, str]
+    keys: dict[str, str]
+    run: Callable[..., Any]
+
+
+def _forms_world(world: World) -> FormsWorld:
+    from tl_core.auth.module_roles import require_command_access
+    from tl_core.modules import module_commands
+
+    table = {c.name: c for c in module_commands()}
+
+    def run(who: str, name: str, scope: str = SCOPE, **fields: Any) -> Any:
+        row = table[name]
+        cmd = row.model(actor=f"user:{who}", source="test", scope=scope, **fields)
+        with world.backend(False) as uow:
+            conn = uow.conn()
+            require_command_access(conn, cmd)
+            with use_viewer(cf.viewer_for_actor(conn, cmd.actor)):
+                return row.handler(uow, cmd)
+
+    ids: dict[str, str] = {}
+    keys: dict[str, str] = {}
+
+    def template(name: str, title: str, fields: list[dict[str, Any]], publish: bool = True) -> None:
+        made = run("boss", "DraftFormTemplate", scope="company", title=title, fields=fields)
+        if publish:
+            run("boss", "PublishFormTemplate", scope="company", template_id=made.stream_id)
+        ids[name] = str(made.stream_id)
+
+    template(
+        "talk", "Toolbox talk",
+        [form_field("topic"), form_field("count", "number", required=False, min=0, max=100),
+         form_field("pic", "photo", required=False)],
+    )  # fmt: skip
+    template(
+        "plant", PLANT,
+        [form_field("topic", text=PLANT, help=PLANT),
+         form_field("pick", "choice", required=False, text=PLANT, choices=[PLANT, "b"])],
+    )  # fmt: skip
+    template("unpublished", "Not yet", [form_field("topic")], publish=False)
+    checklist = str(
+        run("bob", "CreateChecklist", title="Pre-check", questions=INSP_QUESTIONS).stream_id
+    )
+    run("boss", "PublishChecklist", checklist=checklist)
+    ids["checklist"] = checklist
+
+    def inspection(name: str, who: str, subject: str) -> None:
+        item = str(
+            run(who, "PlanInspection", subject_id=subject, title=f"Inspection {name}",
+                point="hold").stream_id
+        )  # fmt: skip
+        run(who, "ScheduleInspection", inspection=item, checklist=checklist,
+            scheduled_for="2026-12-01", inspector="M. Okafor")  # fmt: skip
+        ids[f"insp_{name}"] = item
+        with world.backend(True) as uow:
+            keys[f"insp_{name}"] = str(
+                uow.conn()
+                .execute(text("SELECT key FROM cur_core_record WHERE id = :i"), {"i": item})
+                .scalar_one()
+            )
+
+    inspection("open", "bob", world.ids["open"])
+    inspection("done", "bob", world.ids["open"])
+    inspection("hidden", "ctl", world.ids["privileged"])
+    return FormsWorld(world, ids, keys, run)
+
+
+@pytest.fixture
+def forms_world(fresh_world: World) -> FormsWorld:
+    """A world of its own with the forms above (tests that write)."""
+    return _forms_world(fresh_world)
+
+
+@pytest.fixture(scope="module")
+def forms_world_ro(world: World) -> FormsWorld:
+    """The module's read-only world with the same forms (tests that only read)."""
+    return _forms_world(world)

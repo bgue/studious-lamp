@@ -25,6 +25,7 @@ from tl_core.qr.types import (
 )
 
 from tl_mod_permits import guards, iso_views, views
+from tl_mod_permits.form_source import source as form_source
 from tl_mod_permits.names import (
     APPROVED,
     CANCELLED,
@@ -122,7 +123,18 @@ def _lines(detail: views.PermitDetail, gas: str, isolations: str | None) -> list
     ]
 
 
-def _card(detail: views.PermitDetail, now: datetime, gas: str, isolations: str | None) -> ScanCard:
+def _open_path(open_form: bool, project: str, key: str) -> str | None:
+    """The page that fills the permit's form, when the record has an open binding."""
+    return f"/web/forms/for/{key}?project={project}" if open_form else None
+
+
+def _card(
+    detail: views.PermitDetail,
+    now: datetime,
+    gas: str,
+    isolations: str | None,
+    open_path: str | None,
+) -> ScanCard:
     row = detail.row
     banner, tone = _banner(row, now)
     return ScanCard(
@@ -134,7 +146,7 @@ def _card(detail: views.PermitDetail, now: datetime, gas: str, isolations: str |
         as_of=now,
         valid_until=row.valid_until if row.state in _DATED_STATES else None,
         lines=_lines(detail, gas, isolations),
-        open_path=None,
+        open_path=open_path,
     )
 
 
@@ -164,7 +176,11 @@ class PermitScanCard:
                 return None
             gas = _gas_value(conn, record_id, viewer)
             isolations = _isolation_value(conn, record_id, str(found.scope), viewer)
-        return _card(detail, now, gas, isolations)
+            binding = form_source().binding(conn, record_id, viewer, now)
+        project = str(found.scope).removeprefix("project:")
+        # a scope without the ``project:`` prefix (company) has no project page: no link
+        opens = binding is not None and binding.available and str(found.scope) != project
+        return _card(detail, now, gas, isolations, _open_path(opens, project, detail.row.key))
 
 
 def provider() -> ScanCardProvider:

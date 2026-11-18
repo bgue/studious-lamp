@@ -26,11 +26,12 @@ from __future__ import annotations
 
 import contextvars
 import functools
+import json
 from collections.abc import Callable, Sequence
 from datetime import date
 from typing import TYPE_CHECKING, Any, get_type_hints
 
-from fastapi import Response
+from fastapi import Request, Response
 from tl_api.context import ApiContext
 from tl_api.errors import body_for
 from tl_api.routes import actions as actions_routes
@@ -47,6 +48,7 @@ from tl_api.routes import records as records_routes
 from tl_api.routes import reference as reference_routes
 from tl_api.routes import threads as threads_routes
 from tl_core.auth.types import Principal
+from tl_mod_forms import routes as forms_routes
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 if TYPE_CHECKING:  # annotations only: tl-web does not declare these packages as dependencies
@@ -109,6 +111,11 @@ MIRRORS: dict[str, str] = {
     "list_constraints": "list_constraints_api",
     "get_constraint": "get_constraint_api",
     "get_iwp_readiness": "get_iwp_readiness",
+    "list_form_templates": "list_form_templates",
+    "get_form_template_version": "get_form_template_version",
+    "get_form_for_record": "get_form_for_record",
+    "list_form_submissions": "list_form_submissions",
+    "get_form_submission": "get_form_submission",
 }
 
 
@@ -517,3 +524,69 @@ class WebReadClient:
 
     def get_iwp_readiness(self, project: str, number: str) -> Any:
         return self._call(awp_routes.get_iwp_readiness, project=project, number=number)
+
+    # --- forms (V3-F3): the routes of ``tl_mod_forms`` behind the web fill page -----------------
+
+    def _call_forms(self, route: Callable[..., Any], within: str | None, **params: Any) -> Any:
+        """A forms route: ``guard("forms.read")`` (closed to agents), then the route's own reader
+        (``forms.view`` on the company for templates, on ``within`` for the rest), in the request's
+        context. The routes name their reader as ``_actor``, which ``guard_action`` cannot see."""
+        principal = self._principal
+
+        def run() -> Any:
+            self._ctx.authorizer.authorize(principal, forms_routes.READ_ACTION, self._path)
+            self._ctx.authorize(principal.actor, forms_routes.READ_ACTION, self._path)
+            if within is None:
+                actor = forms_routes._template_reader(  # pyright: ignore[reportPrivateUsage]
+                    self._ctx, principal.actor, principal
+                )
+            else:
+                actor = forms_routes._project_reader(  # pyright: ignore[reportPrivateUsage]
+                    self._ctx, principal.actor, principal, within
+                )
+            return route(ctx=self._ctx, _actor=actor, **params)
+
+        return self._request_context.copy().run(run)
+
+    def list_form_templates(
+        self,
+        *,
+        state: str | None = None,
+        intake: str | None = None,
+        limit: int = 500,
+        offset: int = 0,
+    ) -> Any:
+        return self._call_forms(
+            forms_routes.list_form_templates,
+            None,
+            state=state,
+            intake=intake,
+            limit=limit,
+            offset=offset,
+        )
+
+    def get_form_template_version(
+        self, key: str, version: int, projection: str | None = None
+    ) -> Any:
+        """The JSON body of the route (the detail, or ``surveyjs`` or ``jsonschema``)."""
+        stub = Request({"type": "http", "headers": []})  # no ``If-None-Match``: never a 304
+        answer = self._call_forms(
+            forms_routes.get_form_template_version,
+            None,
+            key=key,
+            version=version,
+            request=stub,
+            projection=projection,
+        )
+        return json.loads(bytes(answer.body))
+
+    def get_form_for_record(self, project: str, key: str) -> Any:
+        return self._call_forms(forms_routes.get_form_for_record, project, key=key, project=project)
+
+    def list_form_submissions(self, project: str, **filters: Any) -> Any:
+        return self._call_forms(
+            forms_routes.list_form_submissions, project, project=project, **filters
+        )
+
+    def get_form_submission(self, project: str, key: str) -> Any:
+        return self._call_forms(forms_routes.get_form_submission, project, key=key, project=project)

@@ -36,6 +36,7 @@ PAGE_MODULES: tuple[str, ...] = (
     "tl_web.pages.constraints",
     "tl_web.pages.readiness",
     "tl_web.pages.scan",
+    "tl_web.pages.forms",
 )
 
 

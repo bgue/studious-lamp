@@ -213,3 +213,18 @@ def test_the_registry_finds_the_provider_for_quality_inspection() -> None:
     found = load_scan_cards([point])
     assert list(found) == [INSPECTION]
     assert isinstance(found[INSPECTION], InspectionScanCard)
+
+
+def test_the_card_opens_the_form_page_only_while_the_inspection_takes_a_form(
+    insp: InspWorld,
+) -> None:
+    planned = insp.plan(point="witness")
+    scheduled = insp.scheduled(point="witness")
+    done = insp.scheduled(point="witness")
+    insp.recorded(done, answers=answers())
+    opened = card_of(insp, scheduled)
+    assert opened is not None
+    assert opened.open_path == f"/web/forms/for/{opened.key}?project=P123"
+    for closed in (planned, done):
+        card = card_of(insp, closed)
+        assert card is not None and card.open_path is None

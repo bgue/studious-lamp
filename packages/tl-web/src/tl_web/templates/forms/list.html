@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Forms - Throughline{% endblock %}
+{% block content %}
+<div class="tl-card tl-forms">
+<h1>Forms</h1>
+{% if drafts %}<h2>Your drafts</h2>
+<ul class="tl-forms-list">
+{% for d in drafts %}<li><a href="/web/forms/t/{{ d.tid }}?project={{ project }}&amp;draft={{ d.id }}">{{ d.title }}</a> <span class="tl-forms-meta">saved {{ d.saves }} time{{ '' if d.saves == 1 else 's' }}</span></li>
+{% endfor %}</ul>
+{% endif %}<h2>Fill a form</h2>
+{% if templates %}<ul class="tl-forms-list">
+{% for t in templates %}<li><a href="/web/forms/t/{{ t.id }}?project={{ project }}">{{ t.title }}</a> <span class="tl-forms-meta">{{ t.key }}, version {{ t.version }}</span></li>
+{% endfor %}</ul>
+{% else %}<p>There are no forms to fill.</p>
+{% endif %}</div>
+{% endblock %}
