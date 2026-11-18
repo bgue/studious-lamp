@@ -31,5 +31,5 @@ D41 2026-11-17 owner Q10: key gaps from hidden records allowed, documented as a 
 D43 2026-11-18 owner signed off the web fill page (F3); merged 687193ed; APPROVALS line
 D42 2026-11-18 owner: F1s (form sources) accepted on its full + security reviews (APPROVALS line); the web fill page (F3) needs the owner's own sign-off before merge
 ## METRICS (for V3-PILOT.md)
-merged demo 2026-11-18 @6530ebb7: sq PASS 1-11 (c7 175 s, c8 106 s, c9 47 s, c10 81 s) | start 2026-11-17 wave 1 dispatched; handoffs 19 (5 dispatch, 9 resume, 5 reviews+rechecks beyond the first); rulings 7 (+P0 view word, P0 Q10 to owner, P1 alias rename); late surprises 0; wave 1 wall clock ~6 h (gate queueing ~2 h, disk full once)
+merged demo 2026-11-18 @6530ebb7: sq PASS 1-11 (c7 175 s, c8 106 s, c9 47 s, c10 81 s) | pg @a894b1d0 PASS 1-11, list reads median <= 0.137 s | start 2026-11-17 wave 1 dispatched; handoffs 19 (5 dispatch, 9 resume, 5 reviews+rechecks beyond the first); rulings 7 (+P0 view word, P0 Q10 to owner, P1 alias rename); late surprises 0; wave 1 wall clock ~6 h (gate queueing ~2 h, disk full once)
 lessons: one heavy lock serialised light runs (fixed in P2: 2 slots, dev/tests unlocked); P0 walk tests slow on the pre-P1 base
