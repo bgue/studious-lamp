@@ -358,3 +358,62 @@ def test_no_screen_shows_an_id_a_hash_or_a_key_in_plain_mode() -> None:
     for text in seen:
         assert find_technical(text) == []
         assert "TPL-ID" not in text and "SUB-" not in text  # the ids of the rows
+
+
+def test_a_draft_opens_in_the_runner_with_its_answers_and_sends_as_that_draft() -> None:
+    """Resume (V3-F2): Enter on a draft row opens the runner with the saved answer in the line;
+    the send names the draft and its version, and the draft becomes the numbered submission."""
+    seen: dict[str, Any] = {}
+
+    async def steps(pilot: Pilot[Any], app: TlApp) -> None:
+        app.action_forms()
+        await settle(pilot)
+        log = app.screen
+        assert isinstance(log, FormsLogScreen)
+        draft_row = next(r for r in log.shown if getattr(r, "state", "") == "Draft")
+        log.open_row(draft_row)
+        await settle(pilot)
+        screen = app.screen
+        assert isinstance(screen, FormRunnerScreen)
+        seen["head"] = static_of(screen, "#fr-head")
+        seen["value"] = screen.query_one("#fr-input", Input).value
+        await type_line(pilot, "Half done")
+        await type_line(pilot, "12")
+        await type_line(pilot, "yes")
+        await type_line(pilot, "")  # hazards are optional
+        await pilot.press("enter")  # send
+        await settle(pilot)
+        seen["after"] = app.screen is log
+        seen["numbers"] = numbers(log)
+
+    app, client = make_app()
+    run(app, steps)
+    assert "Question 1" in seen["head"] and seen["value"] == "Half done"
+    assert seen["after"] and "P123-FRM-0003" in seen["numbers"]
+    assert "(draft)" not in seen["numbers"]
+    (sent,) = client.form_commands
+    assert isinstance(sent, SubmitForm)
+    assert (sent.draft_id, sent.template_id, sent.expected_version) == ("SUB-3", None, 1)
+
+
+def test_a_draft_that_cannot_be_read_says_so_and_the_runner_stays_empty() -> None:
+    seen: dict[str, Any] = {}
+
+    async def steps(pilot: Pilot[Any], app: TlApp) -> None:
+        app.action_forms()
+        await settle(pilot)
+        log = app.screen
+        assert isinstance(log, FormsLogScreen)
+        draft_row = next(r for r in log.shown if getattr(r, "state", "") == "Draft")
+        client._form_submissions["P123"] = []  # gone: hidden, or another person's, or discarded
+        log.open_row(draft_row)
+        await settle(pilot)
+        screen = app.screen
+        assert isinstance(screen, FormRunnerScreen)
+        seen["status"] = static_of(screen, "#fr-status")
+        seen["input"] = screen.query_one("#fr-input", Input).display
+
+    app, client = make_app()
+    run(app, steps)
+    assert seen["status"].startswith("! ") and "no such submission" in seen["status"]
+    assert seen["input"] is False

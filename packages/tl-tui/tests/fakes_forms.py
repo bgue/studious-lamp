@@ -120,21 +120,35 @@ class FakeFormsSupport:
         if name != "SubmitForm" or not isinstance(cmd, SubmitForm):
             raise ForbiddenError(f"{name} is not a forms command in this fake")
         project = cmd.scope.removeprefix("project:")
-        found = next((r for r, _ in self._form_templates if r.id == cmd.template_id), None)
+        draft = None
+        template_id = cmd.template_id
+        if cmd.draft_id is not None:  # a draft being resumed: its template, its version
+            draft = next(
+                (d for d in self._form_submissions.get(project, []) if d.row.id == cmd.draft_id),
+                None,
+            )
+            if draft is None or draft.row.state != "Draft":
+                raise RecordNotFoundError(MSG_SUBMISSION)
+            if cmd.expected_version not in (None, draft.row.version):
+                raise ServiceError("the record changed since it was read")
+            template_id = draft.row.template_id
+        found = next((r for r, _ in self._form_templates if r.id == template_id), None)
         if found is None:
             raise RecordNotFoundError(MSG_TEMPLATE)
-        fields = next(f for r, f in self._form_templates if r.id == cmd.template_id)
+        fields = next(f for r, f in self._form_templates if r.id == template_id)
         problems = rules.validate_answers(fields, list(cmd.answers), fmt=found.format_version or 2)
         if problems:
             raise ServiceError("; ".join(problems))
         self.form_commands.append(cmd)
         held = self._form_submissions.setdefault(project, [])
+        if draft is not None:
+            held.remove(draft)  # the draft becomes the submission, with its id
         number = 1 + max(
             (int((d.row.key or "0").rsplit("-", 1)[-1]) for d in held if d.row.key), default=0
         )
         key = f"{project}-FRM-{number:04d}"
         row = forms_views.SubmissionRow(
-            id=f"SUB-{len(held) + 1}",
+            id=draft.row.id if draft is not None else f"SUB-{len(held) + 1}",
             key=key,
             state="Submitted",
             template_id=found.id,
