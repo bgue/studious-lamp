@@ -128,6 +128,26 @@ def test_an_own_draft_of_a_person_is_never_listed_or_read_by_an_agent(
         assert "no such submission" in refused(env, "get_form_submission", project=PROJECT, key=ref)
 
 
+def test_a_draft_stays_out_even_if_the_viewer_were_its_author(
+    env: McpHarness, world: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Belt and braces: the tools drop a Draft row themselves, whoever the viewer is."""
+    from tl_core import confidentiality
+    from tl_mod_forms import tools
+
+    template = world.template()
+    draft = world.save("uma", template)
+    world.submit("uma", template)
+    author = confidentiality.Viewer(actor="user:uma", level=0, account="uma")
+    monkeypatch.setattr(tools.confidentiality, "current_viewer", lambda: author)
+    page = env.structured("list_form_submissions", project=PROJECT)
+    assert [r["state"] for r in page["rows"]] == ["Submitted"]
+    assert page["total"] == 1
+    assert "no such submission" in refused(
+        env, "get_form_submission", project=PROJECT, key=str(draft.stream_id)
+    )
+
+
 def test_propose_files_a_pending_proposal_and_a_person_who_accepts_is_the_author(
     env: McpHarness, world: Any
 ) -> None:
