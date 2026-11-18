@@ -158,6 +158,7 @@ def spec() -> ModuleSpec:
         read_routers=("tl_mod_forms.routes:router",),
         cli_groups=("tl_mod_forms.cli:form_app",),
         reports=("tl_mod_forms.report_rows:REPORTS",),
+        tools=("tl_mod_forms.tools:register_tools",),
         confidential=CONFIDENTIAL,
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in FORMS_COMMANDS},

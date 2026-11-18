@@ -19,6 +19,7 @@ from tl_core.auth.provider import AGENT_ACTIONS, PasswordIdentityProvider, RoleA
 from tl_core.auth.sessions import UowFactory
 from tl_core.auth.tokens import token_kind
 from tl_core.auth.types import Authorizer, Principal
+from tl_mod_forms.tools import FORMS_MCP_ACTIONS
 from tl_mod_permits.tools import PERMIT_MCP_ACTIONS
 
 from tl_mcp.awp_week_tools import WEEK_MCP_ACTIONS
@@ -113,6 +114,7 @@ MCP_ACTIONS = (
     | PUNCH_MCP_ACTIONS
     | INSP_MCP_ACTIONS  # P2-INSP-T07: four reads and the planning proposal
     | PERMIT_MCP_ACTIONS
+    | FORMS_MCP_ACTIONS  # V3-F2: four reads and the submission proposal
     | WEEK_MCP_ACTIONS  # P2-I5-T11c: five weekly-plan reads
     | REQUISITION_MCP_ACTIONS
 )

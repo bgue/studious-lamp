@@ -117,6 +117,7 @@ READING = (
     | {"list_permits", "get_permit", "permit_board"}  # PTW-T08: permit reads
     | {"list_isolations", "list_gas_tests"}  # PTW-T08b: isolation and gas test reads
     | {"list_inspections", "get_inspection", "list_checklists", "get_checklist"}  # P2-INSP-T07
+    | {"list_form_templates", "get_form", "list_form_submissions", "get_form_submission"}  # V3-F2
 )
 TOOLS = (
     READING
@@ -138,6 +139,7 @@ TOOLS = (
     }  # T11c
     | {"propose_requisition"}  # T08b
     | {"propose_permit"}  # PTW-T08: permit proposal
+    | {"propose_form_submission"}  # V3-F2: form submission proposal
     | {"propose_inspection"}  # P2-INSP-T07: planning proposal
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )

@@ -10,6 +10,7 @@ dependencies = [
   "tl-adapters",
   "fastapi",
   "typer",
+  "mcp",
 ]
 
 [project.entry-points."throughline.modules"]
