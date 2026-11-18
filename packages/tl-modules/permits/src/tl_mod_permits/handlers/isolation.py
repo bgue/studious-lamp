@@ -24,6 +24,7 @@ from tl_mod_permits.errors import IsolationInUseError, IsolationRuleError, Isola
 from tl_mod_permits.guards import dependent_permits, linked_isolations
 from tl_mod_permits.handlers import common
 from tl_mod_permits.handlers.common import (
+    SUBMISSION,
     RecordRef,
     append,
     correlated,
@@ -115,7 +116,7 @@ def handle_apply_isolation(uow: UnitOfWork, cmd: ApplyIsolation) -> CommandResul
     at = common.now()
     point = None
     if cmd.point_record_id is not None:
-        point = load_record(uow, cmd.scope, cmd.point_record_id).id
+        point = load_record(uow, cmd.scope, cmd.point_record_id, exclude=(SUBMISSION,)).id
     made = create_module_record(
         uow, cmd, record_type=ISOLATION, title=cmd.point_text[:200], key=None
     )

@@ -230,5 +230,7 @@ def require_subject(uow: UnitOfWork, cmd: Command, subject_id: str | None) -> No
     except RecordNotFoundError:
         raise RecordNotFoundError(MSG_UNKNOWN) from None
     env = conn.execute(_ENVELOPE_SQL, {"id": subject_id}).first()
-    if env is None or env.scope != cmd.scope or bool(env.voided):
+    # a submission is never the subject of another record (V3-FN1): the confidentiality chain
+    # does not check its class on a hop, so it is refused in the words of an absent id
+    if env is None or env.scope != cmd.scope or bool(env.voided) or env.type == SUBMISSION:
         raise RecordNotFoundError(MSG_UNKNOWN)
