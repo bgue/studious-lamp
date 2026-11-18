@@ -19,6 +19,7 @@ Each mode prints ``ok <what>`` lines; a miss prints ``FAIL <what>`` and exits 1.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -89,7 +90,20 @@ def general_plan(key: str, dest: str) -> None:
     world.close()
 
 
+def base_address_file(dest: Path) -> None:
+    """A scratch copy of the platform settings with ``api.public_base_url`` set (the file shipped
+    is never changed; a scan code is issued only when the base address is set, as P2-QR's demo)."""
+    old = '  - key: api.public_base_url\n    type: string\n    default: ""\n'
+    shipped = (Path(__file__).resolve().parents[2] / "schema/settings/platform.yaml").read_text()
+    check(shipped.count(old) == 1, "the base-address entry is not where the demo expects it")
+    url = os.environ["TL_API_URL"]
+    dest.write_text(shipped.replace(old, old.replace('default: ""', f'default: "{url}"')), "utf-8")
+
+
 def inspection_plan(dest: str) -> None:
+    scratch = Path(dest).with_name("platform-web.yaml")
+    base_address_file(scratch)
+    os.environ["TL_SETTINGS_PLATFORM_FILE"] = str(scratch)
     world = World()
     rows = world.get("hsato", "/quality/inspections", project=PROJECT, state="Scheduled")
     check(rows.status_code == 200, f"the inspection list answered {rows.status_code}")
