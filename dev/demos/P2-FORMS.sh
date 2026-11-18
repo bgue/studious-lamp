@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Demo for P2-FORMS (general forms: publish, fill, submit, review): `just demo P2-FORMS`.
 #
-# The V3-F1a, F1s and F1b clauses of docs/tickets/P2-FORMS/README.md "Demo", each ending in a `PASS clause N: ...`
+# The V3-F1a, F1s, F1b, F2 and F3 clauses of docs/tickets/P2-FORMS/README.md "Demo", each ending in a `PASS clause N: ...`
 # line that is printed only after its check returned success (a command's exit code and output, or
 # a driver comparison in dev/demos/p2_forms_demo.py). Each clause prints its wall time; the forms
 # list reads of the API are timed in the `budget` check and fail the demo over one second.
@@ -9,19 +9,21 @@
 #      SurveyJS, both equal to the projection of its fields; the ETag answers 304;
 #   2  a user saves a draft and submits it (CLI): the number is allocated at submit, not at the save;
 #   3  a user fills a template through the runner model (one field at a time) and submits it;
+#   4  a user saves a draft, resumes it with `tl form fill TEMPLATE --resume`, and submits it: the number
+#      appears only at submit (V3-F2);
 #   5  a controller other than the submitter accepts it; the submitter's own review is refused with the
 #      exact text; a second controller accepts a controller's own form;
 #   6  an inspection's result is filled through its form binding (CLI: `tl form for`, `tl form record`);
 #      the inspection then reads Done with the result, and its form is closed (V3-F1s);
 #   7  a submission only its author may read answers as a missing one on every forms read (CLI and
-#      API), byte for byte, for five readers;
+#      API, and the MCP tools in V3-F2), byte for byte, for five readers;
 #   8  a draft is invisible to every reader but its author (CLI and API).
 #   9  in a browser (Playwright, Chromium, the web client's own CSP): cbrooks fills a general template and
 #      sends it; hsato opens a scan card, follows its link and fills an inspection; both read back through
 #      the API, answers equal to what was typed, source `web`; no CSP violation (V3-F3);
 #  11  the terminal app: the forms log opens, a template is filled through the runner screen and sent;
 #      the new number is in the log (V3-F1b).
-# Clause 4 (draft resume) belongs to a later unit and is not run here.
+# Clause 10 belongs to a later unit (V3-F4) and is not run here.
 #
 # The ledger is the whole demo project P200 (its `forms` section included). On SQLite it is the full
 # ledger tests/perf caches under .gate/demo-full (built once, about four minutes, then copied); on
@@ -77,6 +79,24 @@ refuse() { # refuse TEXT cmd...: the command must fail and say TEXT
   echo "$out"; expect "$text" "$out"
 }
 last_word() { awk '{print $NF}' <<<"$1"; }
+
+clause4_run() { # clause 4 (V3-F2): self-contained; needs $PROJECT, $tpl, the sessions
+  local out began=$SECONDS draft key
+  step "[$backend] clause 4: save a draft, resume it with --resume, submit it; the number comes at submit"
+  out="$(as cbrooks tl form fill "$tpl" --project "$PROJECT" --answer topic="Resumed talk" --answer talk_date=2026-11-06)"; echo "$out"
+  expect "saved " "$out"
+  draft="$(last_word "$out")"
+  out="$(as cbrooks tl form fill "$tpl" --resume --project "$PROJECT" --answer led_by=Callum)"; echo "$out"
+  [ "$(last_word "$out")" = "$draft" ] || fail "--resume saved another draft than $draft"
+  out="$(as cbrooks tl form show "$draft" --submission --project "$PROJECT")"; echo "$out"
+  expect "Draft" "$out"
+  out="$(as cbrooks tl form submit "$draft" --project "$PROJECT" --answer 'hazards_covered=Falls' \
+    --answer ppe_checked=yes --answer attendees=6)"; echo "$out"
+  expect "submitted P200-FRM-" "$out"
+  key="$(last_word "$out")"
+  driver clause4 "$key" "$draft"
+  clause 4 "$draft saved, resumed (--resume), submitted as $key; no number until submit" "$((SECONDS - began))"
+}
 
 clause6_run() { # clause 6 (V3-F1s): self-contained; needs $PROJECT, $workdir, the sessions and the API
   local insp out began=$SECONDS
@@ -202,6 +222,8 @@ run_backend() {
   driver clause5 "$key" "$own"
   clause 5 "$key accepted by ipetrov (not its author); ipetrov's own review of $own refused with the exact text; mokafor accepted it" "$((SECONDS - began))"
 
+  clause4_run
+
   clause6_run
   clause9_run
 
@@ -221,7 +243,8 @@ run_backend() {
     echo "$who: CLI show, review and list: the same as a missing key"
   done
   driver clause7 P200-FRM-0012
-  clause 7 "P200-FRM-0012 (a privileged form) is a missing key for mokafor, ipetrov, treyes, cbrooks and pnair on CLI show, review, list and the API, byte for byte" "$((SECONDS - began))"
+  driver clause7-mcp P200-FRM-0012
+  clause 7 "P200-FRM-0012 (a privileged form) is a missing key for mokafor, ipetrov, treyes, cbrooks and pnair on CLI show, review, list and the API, and for an agent and three people on the MCP tools, byte for byte" "$((SECONDS - began))"
 
   step "[$backend] clause 8: a draft is invisible to every reader but its author"
   began=$SECONDS
@@ -250,7 +273,7 @@ run_backend() {
 
   stop_server
   drop_pg
-  echo "[$backend] clauses 1, 2, 3, 5, 6, 7, 8, 9, 11 passed"
+  echo "[$backend] clauses 1, 2, 3, 4, 5, 6, 7, 8, 9, 11 passed"
 }
 
 for backend in ${TL_DEMO_BACKENDS:-sqlite postgres}; do

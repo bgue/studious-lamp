@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Final
 
 import typer
 import yaml
@@ -444,6 +444,37 @@ def _answers_for(
     return None, found.row.id, found.row.subject_id, found.row.version, list(merged.values())
 
 
+LATEST: Final = "-"  # `--resume` with no draft named
+MSG_NO_DRAFT = "no draft of"
+
+
+def _resume_ref(
+    conn: Connection, scope: str, who: str, template: str, named: str, viewer: Viewer
+) -> str:
+    """The id of the person's own draft of template ``template`` to continue: the one ``named``, or
+    the latest (the highest id) when ``named`` is ``LATEST``. A draft of another author, a draft of
+    another template and an unknown id are one miss, as for ``tl form show``."""
+    ids = {
+        r.id
+        for r in views.template_list(conn, key=template, limit=views.MAX_LIMIT, viewer=viewer).rows
+    }
+    if not ids:
+        fail(f"{MSG_NO_TEMPLATE} {template}")
+    if named != LATEST:
+        found = views.submission_detail(conn, scope, named, viewer=viewer)
+        mine = found is not None and found.row.state == DRAFT and found.row.author == who
+        if found is None or not mine or found.row.template_id not in ids:
+            fail(f"{MSG_NO_SUBMISSION} {named}")
+        return found.row.id
+    page = views.submission_list(
+        conn, scope, state=DRAFT, author=who, limit=views.MAX_LIMIT, viewer=viewer
+    )
+    drafts = sorted(r.id for r in page.rows if r.template_id in ids)
+    if not drafts:
+        fail(f"{MSG_NO_DRAFT} {template}")
+    return drafts[-1]
+
+
 def _fill(
     db: DbTarget,
     verb: str,
@@ -453,6 +484,7 @@ def _fill(
     file: Path | None,
     subject: str | None,
     actor: str,
+    resume: str | None = None,
 ) -> None:
     who = acting(db, actor)
     scope = scope_of(project)
@@ -460,6 +492,8 @@ def _fill(
         conn = uow.conn()
         viewer = cf.viewer_for_actor(conn, who)
         with cf.use_viewer(viewer):
+            if resume is not None:
+                target = _resume_ref(conn, scope, who, target, resume, viewer)
             template_id, draft_id, kept_subject, version, answers = _answers_for(
                 conn, scope, target, viewer, pairs, file
             )
@@ -492,16 +526,28 @@ def form_fill(
         str, typer.Argument(help="A published template key (TPL-0001) or a draft id.")
     ],
     project: Project,
+    draft: Annotated[
+        str | None, typer.Argument(help="With --resume: the draft id (default: your latest).")
+    ] = None,
     answer: Annotated[list[str] | None, ANSWER] = None,
     answers_file: Annotated[Path | None, ANSWERS_FILE] = None,
     subject: Annotated[
         str | None, typer.Option("--subject", help="The key of the record the form is about.")
     ] = None,
+    resume: Annotated[
+        bool,
+        typer.Option("--resume", help="TARGET is a template: continue your own draft of it."),
+    ] = False,
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Save a draft (answers may be incomplete). Prints `saved <draft id>`; give the id again to
-    continue it. The draft is yours alone until you submit it."""
-    _fill(ctx.obj, "fill", target, project, answer or [], answers_file, subject, actor)
+    continue it, or `TEMPLATE --resume [DRAFT]` (your latest draft of the template when none is
+    named). The draft is yours alone until you submit it; a draft saved as often as it may be
+    is refused in the words of the module."""
+    if draft is not None and not resume:
+        raise typer.BadParameter("a draft id is named only with --resume", param_hint="'DRAFT'")
+    named = (draft or LATEST) if resume else None
+    _fill(ctx.obj, "fill", target, project, answer or [], answers_file, subject, actor, named)
 
 
 @form_app.command("submit")

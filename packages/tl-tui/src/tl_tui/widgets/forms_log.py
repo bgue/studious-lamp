@@ -2,13 +2,14 @@
 
 ``FormsLogScreen`` is a ``LogScreen`` with two views: ``1`` the project's submissions (number, form,
 state, author, submitted) and ``2`` the published templates; Tab walks them. Enter on a submission
-opens ``FormSubmissionScreen`` (everything, each question in words with its answer); Enter or ``f``
-on a published template opens ``FormRunnerScreen``, which fills it one question at a time through
-``tl_core.forms.runner`` (Enter answers, Up goes back, an empty line skips an optional question,
-the review page and Enter send it). The send is ``SubmitForm`` through ``client.form_command`` as
-the person; what the server refuses is the status line, in the words ``tl form`` prints. A hidden or
-another person's draft submission is never in the rows, and its key opens the same "not found" a
-missing key does (the client reads under the viewer's filter).
+opens ``FormSubmissionScreen`` (everything, each question in words with its answer), except one of
+the person's own drafts, which opens the runner with the saved answers in place (resume); Enter
+or ``f`` on a published template opens ``FormRunnerScreen``, which fills it one question at a
+time through ``tl_core.forms.runner`` (Enter answers, Up goes back, an empty line skips an
+optional question, the review page and Enter send it). The send is ``SubmitForm`` through
+``client.form_command`` as the person; what the server refuses is the status line, in the words
+``tl form`` prints. A hidden or another person's draft submission is never in the rows, and its
+key opens the same "not found" a missing key does (the client reads under the viewer's filter).
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from tl_tui.layout import Adaptive, Page, Panel, render
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 
 PUBLISHED = "Published"
+DRAFT = "Draft"
 LIST_LIMIT = 500
 SENT = "Submitted "
 Row = SubmissionRow | TemplateRow
@@ -147,7 +149,9 @@ class FormsLogScreen(LogScreen[Row]):
         return f"{SENT}{self._sent} · {self._summary}" if self._sent else self._summary
 
     def open_row(self, row: Row) -> None:
-        if isinstance(row, SubmissionRow):
+        if isinstance(row, SubmissionRow) and row.state == DRAFT:
+            self._resume_draft(row)
+        elif isinstance(row, SubmissionRow):
             self.app.push_screen(FormSubmissionScreen(self.client, self.project, row.key or row.id))
         elif row.state == PUBLISHED:
             self._fill_form(row)
@@ -179,6 +183,16 @@ class FormsLogScreen(LogScreen[Row]):
 
     def _fill_form(self, row: TemplateRow) -> None:
         self.app.push_screen(FormRunnerScreen(self.client, self.project, row), self._filled)
+
+    def _resume_draft(self, row: SubmissionRow) -> None:
+        """Enter on one of the person's own drafts: the runner, with the saved answers in place."""
+        template = self.templates.get(row.template_id or "")
+        if template is None:
+            self.say("The form of this draft could not be read.", error=True)
+            return
+        self.app.push_screen(
+            FormRunnerScreen(self.client, self.project, template, draft=row), self._filled
+        )
 
     def _filled(self, number: str | None) -> None:
         """The runner closed: after a send, show the submissions with the new number in them."""
@@ -294,11 +308,18 @@ class FormRunnerScreen(ModalScreen[str | None]):
     FormRunnerScreen #fr-status { height: 1; }
     """
 
-    def __init__(self, client: ClientInterface, project: str, template: TemplateRow) -> None:
+    def __init__(
+        self,
+        client: ClientInterface,
+        project: str,
+        template: TemplateRow,
+        draft: SubmissionRow | None = None,
+    ) -> None:
         super().__init__()
         self.client = client
         self.project = project
         self.template = template
+        self.draft = draft  # a draft being resumed: its answers fill the steps, its id is sent
         self.fields: list[dict[str, Any]] = []
         self.state: runner.RunnerState | None = None
         self.ready = False
@@ -315,11 +336,19 @@ class FormRunnerScreen(ModalScreen[str | None]):
     def on_mount(self) -> None:
         self.run_worker(self._load(), group="runner", exclusive=True)
 
+    def _read(self) -> tuple[Any, list[dict[str, Any]]]:
+        """The template version the form was started with, and the draft's saved answers."""
+        version = (self.draft.template_version if self.draft else None) or self.template.version
+        body = self.client.get_form_template(self.template.key or "", version or 1)
+        if self.draft is None:
+            return body, []
+        found = self.client.get_form_submission(self.project, self.draft.key or self.draft.id)
+        self.draft = found.row  # the version read now is the one the send expects
+        return body, list(found.answers)
+
     async def _load(self) -> None:
         try:
-            body = await asyncio.to_thread(
-                self.client.get_form_template, self.template.key or "", self.template.version or 1
-            )
+            body, saved = await asyncio.to_thread(self._read)
         except CLIENT_ERRORS as exc:
             if self.is_attached:
                 self._status(describe_error(exc), error=True)
@@ -329,7 +358,7 @@ class FormRunnerScreen(ModalScreen[str | None]):
             return
         self.fields = list(body["fields"])
         fmt = int(body["row"].get("format_version") or 2)
-        self.state = runner.start(self.fields, fmt=fmt)
+        self.state = runner.start(self.fields, fmt=fmt, answers=saved)
         self.ready = True
         self._draw()
 
@@ -411,8 +440,10 @@ class FormRunnerScreen(ModalScreen[str | None]):
                 actor=str(getattr(self.app, "actor", "user:dev")),
                 source="tui",
                 scope=f"project:{self.project}",
-                template_id=self.template.id,
+                template_id=None if self.draft else self.template.id,
+                draft_id=self.draft.id if self.draft else None,
                 answers=answers,
+                expected_version=self.draft.version if self.draft else None,
             )
             made = self.client.form_command("SubmitForm", cmd)
         except CLIENT_ERRORS as exc:
