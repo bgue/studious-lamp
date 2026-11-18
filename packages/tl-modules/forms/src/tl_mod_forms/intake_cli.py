@@ -42,6 +42,7 @@ from tl_core.auth.errors import ForbiddenError
 from tl_core.confidentiality import Viewer
 from tl_core.qr.codes import code_hash, grouped, new_code
 from tl_core.services.commands import Command
+from tl_core.text import FORBIDDEN_TEXT
 
 from tl_mod_forms import intake, intake_read, intake_views, views
 from tl_mod_forms.commands import (
@@ -280,7 +281,9 @@ def item_show(
     if found.answers is not None:
         typer.echo("answers")
         for a in found.answers:
-            typer.echo(f"  {cell(a.get('q'), 30)}  {cell(a.get('value'), 200)}")
+            q = FORBIDDEN_TEXT.sub("", str(a.get("q")))
+            value = FORBIDDEN_TEXT.sub("", str(a.get("value")))
+            typer.echo(f"  {cell(q, 30)}  {cell(value, 200)}")
 
 
 @intake_app.command("accept")

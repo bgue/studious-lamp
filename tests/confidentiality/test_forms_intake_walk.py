@@ -242,6 +242,14 @@ def test_lists_filter_before_the_limit_and_by_state(rig: Rig) -> None:
     assert _ids(by_code) == {rig.items["none"], rig.items["rejected"]}
 
 
+def test_every_intake_route_answers_401_with_no_session(rig: Rig) -> None:
+    paths = [p for p in rig.h.app.openapi()["paths"] if p.startswith("/forms/intake/")]
+    assert len(paths) == 3
+    for path in paths:
+        real = path.replace("{item_id}", rig.items["open"])
+        assert rig.get(None, real, project=PROJECT).status_code == 401, path
+
+
 def test_no_route_is_public_and_no_agent_tool_names_intake() -> None:
     from tl_mod_forms import tools as forms_tools
 

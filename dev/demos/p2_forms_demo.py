@@ -41,12 +41,12 @@ Modes (first argument):
   ``Received`` event and a body row), the second received 45 days ago. Prints their ids.
 * ``clause10-args TEMPLATE_KEY DEST``: write the arguments file the controller accepts item A with
   (the command ``SubmitForm`` for that template, with every answer).
-* ``clause10 CODE ITEM_A ITEM_B TEMPLATE_KEY OUTFILE``: the signed-in reads give A as Accepted (as
-  SubmitForm) and B as Rejected and purged; the submission A proposed is read back with its
-  answers; a user without the intake word and a stranger are refused; the code (plain and grouped),
-  its hash, the salt and the stored body are in no read, in OUTFILE (the CLI outputs the shell
-  collected); the code (never its hash, which the event holds) is in no ledger row of the code and
-  the items.
+* ``clause10 ITEM_A ITEM_B TEMPLATE_KEY OUTFILE`` (the raw code on stdin): the signed-in reads give
+  A as Accepted (as SubmitForm) and B as Rejected and purged; the submission A proposed is read
+  back with its answers; a user without the intake word and a stranger are refused; the code
+  (plain and grouped), its hash, the salt and the stored body are in no read, in OUTFILE (the CLI
+  outputs the shell collected); the code (never its hash, which the event holds) is in no ledger
+  row of the code and the items.
 * ``budget``: every forms list read is under one second (median of five) as treyes and mokafor.
 """
 
@@ -637,7 +637,8 @@ def clause10_args(template_key: str, dest: str) -> None:
     world.close()
 
 
-def clause10(code: str, item_a: str, item_b: str, template_key: str, outfile: str) -> None:
+def clause10(item_a: str, item_b: str, template_key: str, outfile: str) -> None:
+    code = sys.stdin.read().strip()  # the raw code comes on stdin, never in argv
     plain = normalise_code(code)
     check(plain is not None, "the printed code is a code")
     assert plain is not None

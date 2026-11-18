@@ -219,3 +219,13 @@ def test_help_lists_the_group_and_its_verbs(cli: Cli) -> None:
     sub = CliRunner().invoke(app, ["intake", "code", "--help"], env=cli.env).stdout
     for word in ("issue", "revoke", "ls"):
         assert word in sub
+
+
+def test_show_strips_control_characters_from_the_senders_text(cli: Cli, world: World) -> None:
+    from forms_world import answer
+
+    body = json.dumps({"answers": [answer("topic\x1b[2J", "\x1b[31mred\x1b[0m ladder")]})
+    item = world.stage_item(world.stage_code(world.intake_template()), body)
+    shown = cli.run("intake", "show", item, "--project", PROJECT)
+    assert shown.exit_code == 0 and "\x1b" not in shown.stdout
+    assert "ladder" in shown.stdout

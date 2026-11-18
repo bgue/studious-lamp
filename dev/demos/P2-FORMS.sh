@@ -168,7 +168,7 @@ clause10_run() { # clause 10 (V3-F4): self-contained; needs $PROJECT, $workdir, 
   expect "SubmitForm" "$out"; expect "spam" "$out"
   out="$(as mokafor tl intake code ls --project "$PROJECT")"; echo "$out" | tee -a "$log"
   refuse "forbidden" as cbrooks tl intake ls --project "$PROJECT"
-  driver clause10 "$code" "$item_a" "$item_b" "$tpl" "$log"
+  driver clause10 "$item_a" "$item_b" "$tpl" "$log" <<<"$code"
   clause 10 "a code issued (printed once); $item_a accepted as the record it proposes and read back; $item_b rejected and purged; no secret in any read" "$((SECONDS - began))"
 }
 
