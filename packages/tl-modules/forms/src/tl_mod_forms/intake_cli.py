@@ -281,8 +281,10 @@ def item_show(
     if found.answers is not None:
         typer.echo("answers")
         for a in found.answers:
-            q = FORBIDDEN_TEXT.sub("", str(a.get("q")))
-            value = FORBIDDEN_TEXT.sub("", str(a.get("value")))
+            q, value = (
+                FORBIDDEN_TEXT.sub("", v) if isinstance(v, str) else v
+                for v in (a.get("q"), a.get("value"))
+            )
             typer.echo(f"  {cell(q, 30)}  {cell(value, 200)}")
 
 
