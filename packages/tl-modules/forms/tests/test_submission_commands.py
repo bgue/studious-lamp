@@ -212,6 +212,14 @@ def test_problems_name_field_ids_and_never_repeat_a_value_or_an_unknown_id(world
     assert marker not in msg and "count: must be a number" in msg and "no such question" in msg
 
 
+def test_a_sent_id_holding_the_separator_is_not_repeated(world: World) -> None:
+    tpl = world.template()
+    marker = "zq-secret-4411"
+    hostile = [answer(f"count: {marker}", "v"), {"q": "topic", "value": "x", f"k: {marker}": 1}]
+    msg = raises(FormAnswersError, world, "uma", "SaveFormDraft", template_id=tpl, answers=hostile)
+    assert marker not in msg and "an answer: no such question" in msg
+
+
 def test_save_and_submit_refuse_the_states_that_do_not_take_them(world: World) -> None:
     tpl = world.template()
     done = world.submit(template=tpl).stream_id

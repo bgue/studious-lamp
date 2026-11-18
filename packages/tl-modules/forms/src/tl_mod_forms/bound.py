@@ -54,7 +54,7 @@ class SendableSource(Protocol):
 
 def _safe(problem: str, ids: set[str]) -> str:
     """A rule's problem as ``<id>: <what>`` for a known question; never an answer value."""
-    head, _, rest = problem.partition(": ")
+    head, _, rest = problem.rpartition(": ")  # a sent id may hold ": "; the rule text has none
     return f"{head if head in ids else 'an answer'}: {rest}" if rest else "an answer: not valid"
 
 

@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 
 _TAKEN_SQL = text("SELECT 1 FROM cur_core_record WHERE scope = :scope AND key = :key")
 _FILLABLE_STATES = (DRAFT, RETURNED)
-_UNKNOWN_KEY = re.compile(r"^unknown key .* in answer$", re.DOTALL)
+_UNKNOWN_KEY = re.compile(r"unknown key .* in answer$", re.DOTALL)
 
 
 def _require_state(sub: Submission, command: str, *states: str) -> None:
@@ -93,8 +93,8 @@ def _require_fillable(template: Template, *, existing: bool) -> None:
 def _safe(problem: str, ids: set[str]) -> str:
     """A rule's problem text with what it names kept to field ids: a question id that is not the
     template's (an answer's own text) is not repeated."""
-    head, sep, rest = problem.partition(": ")
-    rest = _UNKNOWN_KEY.sub("unknown key in answer", rest)  # the name of a key is the sender's too
+    problem = _UNKNOWN_KEY.sub("unknown key in answer", problem)  # a key's name is the sender's too
+    head, sep, rest = problem.rpartition(": ")  # the rule's own text has no ": "; a sent id may
     if not sep:
         return problem
     return f"{head if head in ids or head in ('answer', 'answers') else 'an answer'}: {rest}"
