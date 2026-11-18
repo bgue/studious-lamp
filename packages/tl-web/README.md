@@ -48,6 +48,7 @@ Path `/web/p/{project}/<slug>`.
 - File viewer `files/{file_id}/view`; bytes at `/web/files/{file_id}/content?scope=`, page 1 at
   `/web/files/{file_id}/page1.png?scope=`.
 - `/web/sign-in` (GET and POST); `/web/sign-out` (POST).
+- Forms (V3-F3, below): `/web/forms` and the routes under it.
 
 ## Recipe: add a page
 1. The stub `pages/<slug>.py` is named in `PAGE_MODULES`; the page replaces its body.
@@ -57,6 +58,39 @@ Path `/web/p/{project}/<slug>`.
 4. Add a `MIRRORS` row in `reads.py` for each read the page needs. A read the client lacks is a stop, not a new query.
 5. Add a `WALK` marker in `packages/tl-web/tests/walk.py` and a `test_web_<slug>.py`, modelled on
    `test_web_document_log.py` (recipe: `docs/tickets/P2-WEB1/TWINS.md`).
+
+## Forms (`/web/forms`, V3-F3)
+A signed-in person fills a general form, or the form a record offers (an inspection or a permit, reached
+from its scan card), in a browser. Page `pages/forms.py`, templates `templates/forms/`, script `static/forms.js`
+(about 120 lines: reads the data block, builds `SurveyUI.Model`, sends answers with `fetch`; no `eval`, no
+`innerHTML`, no inline handler), style `static/forms.css`. The project is `?project=` (else `TL_PROJECT`).
+| Route | Does |
+|---|---|
+| `GET /web/forms` | published general templates (title, key, version) and the person's own drafts |
+| `GET /web/forms/t/{template_id}[?draft=]` | the fill page; `draft` pre-fills `answers_json` from the person's own draft |
+| `POST /web/forms/t/{template_id}/draft` | `SaveFormDraft` as the person; answers a status line and `X-Draft-Id` |
+| `POST /web/forms/t/{template_id}/submit` | `SubmitForm`; 303 to `GET /web/forms/done/{key}` (the key and nothing else) |
+| `GET /web/forms/for/{key}` | the fill page of the form a record offers (its binding); closed reasons shown in words |
+| `POST /web/forms/for/{key}/submit` | `tl_mod_forms.bound.record` (the call `tl form record` makes); 303 to the record page |
+- **D27 reads.** Through five `WebReadClient` rows (`list_form_templates`, `get_form_template_version`,
+  `get_form_for_record`, `list_form_submissions`, `get_form_submission`; `MIRRORS` 53) that call the forms
+  routes of `tl_mod_forms.routes` after `guard("forms.read")` and the route's own `forms.view` reader. The
+  one extra read is `bound.fields_of` (the questions of a binding), called by the page in the viewer.
+- **D28 writes.** A draft and a submit run `tl_api.commands.run_command` (stamped actor, project, source `web`);
+  a bound form runs `bound.record`, so the typed command's own word and rules apply and nothing is posted around
+  it. CSRF (`csrf.verify`) is a route dependency, before anything runs. A refusal is the status line `! <text>`;
+  the module's refusal classes have no row in the JSON error table, so the page answers them (422, 409).
+- **D29 the page** is the form chrome, `<div id="survey">`, three hidden fields (`csrf`, `draft_id`,
+  `answers_json`) and one `<script type="application/json" id="form-model">` block (`tojson`). Texts reach the
+  renderer as plain text; photo questions are named in a line ("these questions need the terminal").
+- **D30 CSP unchanged.** The page runs under the web client's own policy; `dev/tools/surveyjs_probe/page_probe.mjs`
+  (Playwright, Chromium) loads the real page and fails on a violation, a console error or a foreign request.
+- **D31 hidden = missing, drafts.** A hidden record, an absent key, a record with no form, a template the person
+  may not fill, and another author's draft id answer the one 404 page, byte for byte; an agent gets the closed
+  guard's answer (401, no web session). No answer value is put in a status line, a redirect or a log.
+- Format 1 answers (an inspection) carry `note: null`; the page sends it (`data-format="1"`).
+- `tl_web` may import `tl_core.forms.surveyjs` (the pure projection of questions into the model), as well as
+  `tl_core.auth` and `tl_core.confidentiality` (`test_web_imports.py`).
 
 ## Rules
 - **Hidden = missing (ADR-0016).** A hidden record, file or number answers the same 404 page as one that never

@@ -1,0 +1,8 @@
+/* The fill page of /web/forms (V3-F3): chrome around the SurveyJS renderer; no inline style. */
+.tl-fill { max-width: 46rem; }
+.tl-fill-meta { color: var(--text-muted, inherit); font-size: 13px; margin-top: 0; }
+.tl-fill-note { padding: 6px 10px; background: var(--surface-2); border-radius: var(--radius-sm); font-size: 13px; }
+.tl-fill-bad { color: var(--bad); background: var(--bad-weak); }
+.tl-forms-list { padding-left: 1.2rem; }
+.tl-forms-meta { color: var(--text-muted, inherit); font-size: 13px; margin-left: 8px; }
+.tl-forms-key { font-size: 1.4rem; font-weight: 600; }

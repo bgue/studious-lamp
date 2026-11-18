@@ -23,6 +23,7 @@ from tl_core.qr.types import (
     Tone,
 )
 
+from tl_mod_quality.form_source import source as form_source
 from tl_mod_quality.insp_views import InspectionDetail, inspection_detail
 from tl_mod_quality.names import (
     CANCELLED,
@@ -118,7 +119,12 @@ def _lines(detail: InspectionDetail) -> list[ScanLine]:
     ]
 
 
-def _card(detail: InspectionDetail, now: datetime) -> ScanCard:
+def _open_path(open_form: bool, project: str, key: str) -> str | None:
+    """The page that fills the inspection's form, when the record has an open binding."""
+    return f"/web/forms/for/{key}?project={project}" if open_form else None
+
+
+def _card(detail: InspectionDetail, now: datetime, open_path: str | None) -> ScanCard:
     banner, tone = _banner(detail)
     row = detail.row
     return ScanCard(
@@ -130,7 +136,7 @@ def _card(detail: InspectionDetail, now: datetime) -> ScanCard:
         as_of=now,
         valid_until=None,
         lines=_lines(detail),
-        open_path=None,
+        open_path=open_path,
     )
 
 
@@ -156,9 +162,12 @@ class InspectionScanCard:
             if found is None:
                 return None
             detail = inspection_detail(conn, str(found.scope), str(found.key), viewer=viewer)
+            binding = form_source().binding(conn, record_id, viewer, now)
         if detail is None:
             return None
-        return _card(detail, now)
+        project = str(found.scope).removeprefix("project:")
+        opens = binding is not None and binding.available and str(found.scope) != project
+        return _card(detail, now, _open_path(opens, project, detail.row.key))
 
 
 def provider() -> ScanCardProvider:

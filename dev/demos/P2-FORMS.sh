@@ -16,6 +16,9 @@
 #   7  a submission only its author may read answers as a missing one on every forms read (CLI and
 #      API), byte for byte, for five readers;
 #   8  a draft is invisible to every reader but its author (CLI and API).
+#   9  in a browser (Playwright, Chromium, the web client's own CSP): cbrooks fills a general template and
+#      sends it; hsato opens a scan card, follows its link and fills an inspection; both read back through
+#      the API, answers equal to what was typed, source `web`; no CSP violation (V3-F3);
 #  11  the terminal app: the forms log opens, a template is filled through the runner screen and sent;
 #      the new number is in the log (V3-F1b).
 # Clause 4 (draft resume) belongs to a later unit and is not run here.
@@ -88,6 +91,30 @@ clause6_run() { # clause 6 (V3-F1s): self-contained; needs $PROJECT, $workdir, t
   expect "Done" "$out"
   driver clause6 "$insp"
   clause 6 "$insp: result recorded through its form binding by the inspection's own command; read back as Done" "$((SECONDS - began))"
+}
+
+clause9_run() { # clause 9 (V3-F3): self-contained; needs $PROJECT, $workdir, $url, $tpl and the API
+  local began=$SECONDS out tok key code tid
+  wd() { quiet uv run python dev/demos/p2_forms_web_demo.py "$@" 2>"$workdir/driver.err" \
+    || { grep -v 'UV_NATIVE_TLS' "$workdir/driver.err" >&2; fail "a check was not met: $*"; }; }
+  step "[$backend] clause 9: a person fills a general form and an inspection in a browser"
+  wd general-plan "$tpl" "$workdir/web-general.json"
+  tid="$(wd template-id "$tpl")"; tok="$(wd token cbrooks)"
+  out="$(node dev/tools/surveyjs_probe/page_probe.mjs "$url" "$tok" "/web/forms/t/$tid?project=$PROJECT" \
+    "$(cat "$workdir/web-general.json")" "$workdir/clause9-general.png")" || { echo "$out"; fail "the browser leg of the general form failed"; }
+  echo "$out"
+  key="$(sed -n 's|^result .*/web/forms/done/\(P[0-9A-Za-z-]*\)?.*|\1|p' <<<"$out" | head -1)"
+  [ -n "$key" ] || fail "the browser did not land on a received page"
+  expect "Received $key" "$(sed -n 's/^result //p' <<<"$out")"
+  wd general-check "$key" "$workdir/web-general.json"
+  out="$(wd inspection-plan "$workdir/web-insp.json")"; echo "$out"
+  key="$(awk '{print $1}' <<<"$out")"; code="$(awk '{print $2}' <<<"$out")"; tok="$(wd token hsato)"
+  out="$(PAGE_PROBE_CLICK="Open record" node dev/tools/surveyjs_probe/page_probe.mjs "$url" "$tok" "/web/q/$code" \
+    "$(cat "$workdir/web-insp.json")" "$workdir/clause9-inspection.png")" || { echo "$out"; fail "the browser leg of the inspection failed"; }
+  echo "$out"
+  expect "followed the link to /web/forms/for/$key" "$out"
+  wd inspection-check "$key" "$workdir/web-insp.json"
+  clause 9 "cbrooks filled $tpl and hsato filled $key from its scan card, in a browser; both read back through the API; no CSP violation" "$((SECONDS - began))"
 }
 
 run_backend() {
@@ -176,6 +203,7 @@ run_backend() {
   clause 5 "$key accepted by ipetrov (not its author); ipetrov's own review of $own refused with the exact text; mokafor accepted it" "$((SECONDS - began))"
 
   clause6_run
+  clause9_run
 
   step "[$backend] clause 7: a hidden submission answers as a missing one on every forms read"
   began=$SECONDS
@@ -222,7 +250,7 @@ run_backend() {
 
   stop_server
   drop_pg
-  echo "[$backend] clauses 1, 2, 3, 5, 6, 7, 8, 11 passed"
+  echo "[$backend] clauses 1, 2, 3, 5, 6, 7, 8, 9, 11 passed"
 }
 
 for backend in ${TL_DEMO_BACKENDS:-sqlite postgres}; do

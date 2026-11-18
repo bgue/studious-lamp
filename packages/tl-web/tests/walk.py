@@ -316,6 +316,21 @@ NO_RECORD_TEXT: dict[tuple[str, str], str] = {
     (method, "/web/{rest:path}"): _CATCH_ALL
     for method in ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD")
 } | {
+    **{
+        (method, path): (
+            "the forms pages: a template id or a record key selects them; the five readers, the "
+            "one 404 and the closed agent answer are walked in "
+            "test_web_forms_confidentiality_walk.py and test_web_forms_write.py"
+        )
+        for method, path in (
+            ("GET", "/web/forms/t/{template_id}"),
+            ("POST", "/web/forms/t/{template_id}/draft"),
+            ("POST", "/web/forms/t/{template_id}/submit"),
+            ("GET", "/web/forms/for/{key}"),
+            ("POST", "/web/forms/for/{key}/submit"),
+            ("GET", "/web/forms/done/{key}"),
+        )
+    },
     ("GET", "/web/q/{code}"): (
         "the scan card: a code, not a record key, selects it; the five readers, the one miss and "
         "the sign-in bounce are walked in test_scan_page.py"

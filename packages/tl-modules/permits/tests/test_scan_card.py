@@ -335,3 +335,12 @@ def test_a_full_card_with_every_optional_line_stays_within_the_bound(cards: Worl
         "Revalidated",
     ]
     assert len(card.lines) <= MAX_LINES
+
+
+def test_the_card_opens_the_form_page_only_for_an_approved_permit(cards: World) -> None:
+    approved = card_of(cards, cards.approved())
+    assert approved is not None
+    assert approved.open_path == f"/web/forms/for/{approved.key}?project=P123"
+    for other in (cards.request(), cards.active()):
+        card = card_of(cards, other)
+        assert card is not None and card.open_path is None
