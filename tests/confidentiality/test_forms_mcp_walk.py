@@ -31,7 +31,10 @@ for _extra in (
         sys.path.insert(0, str(_extra))
 
 from forms_world import World, answer, two_fields  # noqa: E402
-from mcp_harness import McpHarness, grant_filing  # noqa: E402
+from mcp_harness import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+    McpHarness,
+    grant_filing,
+)
 from sqlalchemy import text  # noqa: E402
 from tl_adapters.db import open_uow  # noqa: E402
 from tl_mcp.server import build_server  # noqa: E402

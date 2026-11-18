@@ -133,13 +133,12 @@ def test_a_draft_stays_out_even_if_the_viewer_were_its_author(
 ) -> None:
     """Belt and braces: the tools drop a Draft row themselves, whoever the viewer is."""
     from tl_core import confidentiality
-    from tl_mod_forms import tools
 
     template = world.template()
     draft = world.save("uma", template)
     world.submit("uma", template)
     author = confidentiality.Viewer(actor="user:uma", level=0, account="uma")
-    monkeypatch.setattr(tools.confidentiality, "current_viewer", lambda: author)
+    monkeypatch.setattr(confidentiality, "current_viewer", lambda: author)
     page = env.structured("list_form_submissions", project=PROJECT)
     assert [r["state"] for r in page["rows"]] == ["Submitted"]
     assert page["total"] == 1

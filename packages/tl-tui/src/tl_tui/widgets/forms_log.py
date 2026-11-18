@@ -5,11 +5,11 @@ state, author, submitted) and ``2`` the published templates; Tab walks them. Ent
 opens ``FormSubmissionScreen`` (everything, each question in words with its answer), except one of
 the person's own drafts, which opens the runner with the saved answers in place (resume); Enter
 or ``f`` on a published template opens ``FormRunnerScreen``, which fills it one question at a
-time through ``tl_core.forms.runner`` (Enter answers, Up goes back, an empty line skips an optional question,
-the review page and Enter send it). The send is ``SubmitForm`` through ``client.form_command`` as
-the person; what the server refuses is the status line, in the words ``tl form`` prints. A hidden or
-another person's draft submission is never in the rows, and its key opens the same "not found" a
-missing key does (the client reads under the viewer's filter).
+time through ``tl_core.forms.runner`` (Enter answers, Up goes back, an empty line skips an
+optional question, the review page and Enter send it). The send is ``SubmitForm`` through
+``client.form_command`` as the person; what the server refuses is the status line, in the words
+``tl form`` prints. A hidden or another person's draft submission is never in the rows, and its
+key opens the same "not found" a missing key does (the client reads under the viewer's filter).
 """
 
 from __future__ import annotations
