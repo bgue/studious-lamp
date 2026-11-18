@@ -82,6 +82,7 @@ def test_issue_prints_the_code_once_and_stores_only_its_hash(cli: Cli, world: Wo
         )
         assert code not in everything and lines[1].removeprefix("code ") not in everything
         assert done.stderr.count(code) == 0
+        assert digest not in done.output  # the hash is no more shown than the code is kept
     assert printed_code(cli.issue(template).stdout) != code
 
 

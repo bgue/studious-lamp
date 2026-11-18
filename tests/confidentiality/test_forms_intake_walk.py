@@ -224,10 +224,12 @@ def test_an_agent_is_refused_on_every_route_before_any_lookup(rig: Rig) -> None:
         f"/forms/intake/items/{rig.items['open']}",
         f"/forms/intake/items/{FAKE_ULID}",
     )
-    seen = {rig.get("bot", p, project=PROJECT).content for p in routes[2:]}
-    assert len(seen) == 1
+    # refused like the other forms reads: the same status and bytes as ``forms.read`` gives
+    other = rig.get("bot", "/forms/submissions", project=PROJECT)
+    assert other.status_code == 403
     for path in routes:
-        assert rig.get("bot", path, project=PROJECT).status_code == 403
+        refused = rig.get("bot", path, project=PROJECT)
+        assert _same(refused, other)
         assert rig.get(None, path, project=PROJECT).status_code == 401
 
 

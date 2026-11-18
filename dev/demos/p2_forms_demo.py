@@ -714,9 +714,7 @@ def clause10(code: str, item_a: str, item_b: str, template_key: str, outfile: st
             check(secret not in blob, f"{name} holds a secret ({secret[:4]}...)")
     for secret in secrets[:2]:  # the code, plain and grouped: never stored (its hash is, by design)
         check(secret not in "\n".join(stored), f"the ledger rows hold a secret ({secret[:4]}...)")
-    ok(
-        "code, hash, salt and stored body are in no read or CLI output; the code is in no ledger row"
-    )
+    ok("code, hash, salt, body: in no read or CLI output; the code: in no ledger row")
     world.close()
 
 

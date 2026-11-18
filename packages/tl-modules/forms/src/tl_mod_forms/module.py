@@ -7,7 +7,8 @@ submissions and review, four for intake).
 ``SubmitForm``); template, review and void commands are central. Its one hook is
 ``reports`` (``tl report``), and, from V3-F1a, ``read_routers`` (``routes.py``) and ``cli_groups``
 (``cli.py``, ``tl form``; V3-F4: ``intake_routes.py`` and ``intake_cli.py``, ``tl intake``).
-Its one ``confidential`` source classes a submission by its ``answer_class`` (``confidential.py``); the subject rows and the author-only draft rule are in
+Its one ``confidential`` source classes a submission by its ``answer_class``
+(``confidential.py``); the subject rows and the author-only draft rule are in
 ``tl_core.confidentiality``.
 """
 
