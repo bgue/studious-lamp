@@ -514,7 +514,8 @@ def test_a_permit_filled_without_the_issue_word_is_refused_by_the_permit_command
 @pytest.mark.parametrize("record", ["insp_open", "permit_open"])
 def test_a_reader_without_the_module_view_word_gets_the_miss(rig: Rig, record: str) -> None:
     """A person always derives the view word from an account role, so the reader is an account
-    that holds nothing (an actor with no account; a `user:` one would get the dev-ledger rule): ``views.form_for`` answers None as for a missing record."""
+    that holds nothing (an actor with no account; a `user:` one would get the dev-ledger rule):
+    ``views.form_for`` answers None as for a missing record."""
     from datetime import UTC, datetime
 
     from tl_mod_forms import views
