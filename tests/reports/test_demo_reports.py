@@ -101,7 +101,7 @@ HEADERS = {
     "isolations": "key,point_text,energy,method,lock_number,tag_number,state,applied_by,"
     "applied_at,verified_by,verified_at,depends",
     "requisitions": "key,kind,subject,state,requester,priority,need_by,approved_by",
-    "activities": "schedule,snapshot,activity_id,name,state,planned_start,planned_finish,"
+    "activities": "schedule,snapshot,activity,name,state,planned_start,planned_finish,"
     "actual_start,actual_finish,total_float_hr",
     "qr-codes": "label_text,size,state,subject_key,issued_by,issued_at,expires_on,revoked_at",
     "work-orders": "key,work_kind,state,assigned_to,planned_start,planned_finish,actual_start,"

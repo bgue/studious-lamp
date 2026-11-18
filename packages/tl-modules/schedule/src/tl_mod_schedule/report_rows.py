@@ -22,7 +22,7 @@ from tl_mod_schedule import registry
 #: The page size the activities are read with (a monkeypatched value in the tests).
 _PAGE: Final = 500
 ACTIVITY_COLUMNS: Final = (
-    "schedule", "snapshot", "activity_id", "name", "state", "planned_start", "planned_finish",
+    "schedule", "snapshot", "activity", "name", "state", "planned_start", "planned_finish",
     "actual_start", "actual_finish", "total_float_hr",
 )  # fmt: skip
 
@@ -43,7 +43,7 @@ def activity_rows(
                 yield {
                     "schedule": schedule.code,
                     "snapshot": snapshot.number,
-                    "activity_id": row.activity_id,
+                    "activity": row.activity_id,
                     "name": row.name,
                     "state": row.status,
                     "planned_start": row.target_start,
