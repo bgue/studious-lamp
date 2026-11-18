@@ -1207,8 +1207,10 @@ class ClientInterface(Protocol):
     # templates, on the project for the rest); a missing or hidden template, submission or form
     # raises ``RecordNotFoundError`` with one text, and a draft is its author's alone.
     # ``form_command(name, cmd)`` takes a model of ``tl_mod_forms.module.FORMS_COMMANDS``, else
-    # ``ForbiddenError``. The intake methods and the runner are built by later units and raise
-    # ``NotImplementedError`` until then.
+    # ``ForbiddenError``. The intake reads (V3-F4) need ``forms.intake.review`` on the project and
+    # read under the person's clearance: a hidden, unknown, purged or other-project item is one
+    # ``RecordNotFoundError``; no row holds a code, a hash or an answer, and only the detail of a
+    # Pending item holds the sender's answers.
 
     def list_form_templates(
         self,
@@ -1253,11 +1255,11 @@ class ClientInterface(Protocol):
         ...
 
     def list_intake_items(self, project: str, *, state: str | None = None, limit: int = 100) -> Any:
-        """The intake queue (built in V3-F4; ``NotImplementedError`` until then)."""
+        """The project's intake items, oldest first: a ``Page`` of ``ItemRow``."""
         ...
 
     def get_intake_item(self, project: str, item_id: str) -> Any:
-        """One intake item (built in V3-F4; ``NotImplementedError`` until then)."""
+        """One intake item: ``ItemDetail`` (the row, and the answers while it is Pending)."""
         ...
 
     # --- the awp module: CWPs, CWAs, the WBS, the path, packages (P2-I1 T03b) ------------------

@@ -89,3 +89,13 @@ once it is submitted (`guards.submitted_or_later`).
 - D18 accept deletes the `forms_intake_body` row and appends `IntakeItem.Purged` in the same unit; reject keeps the body.
 - An intake code takes no number, so `Record.Created` is appended with `key: null` directly (as `SaveFormDraft` does);
   `create_module_record(key=None)` would look for a numbering pattern that does not exist.
+
+## Signed-in intake (V3-F4)
+
+`tl intake code issue|revoke|ls` and `tl intake ls|show|accept|reject|purge`, `GET /forms/intake/codes`,
+`/forms/intake/items` and `/forms/intake/items/{item_id}`, the client methods `list_intake_items` and
+`get_intake_item`, and the terminal "Intake" log (palette `intake`). The code is made by the CLI (`new_code`), only its
+hash is sent, and it is printed once. A controller opens an item (`show`: the answers of a Pending item), accepts it as the
+record the template proposes (`accept --as SubmitForm --args-file F`, through S7c's command) or rejects it, and `purge`
+removes the text of items older than `forms.intake.retention_days`. A hidden item is a missing one (`no such intake
+item`); an agent is refused. The public `/i/<code>` route is not part of this piece.

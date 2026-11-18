@@ -33,5 +33,11 @@ Rules of the root `AGENTS.md` apply. Local rules:
   the body row and appends `Purged` in the same unit. Texts of the four commands (`MSG_CODE_TAKEN`, `MSG_NOT_INTAKE`,
   `MSG_EXPIRY`, `MSG_NOT_ACCEPTED_AS`, `MSG_UNKNOWN`) never carry a body, claim, code, hash or command argument. An id the actor
   may not read, an absent id and another project answer `MSG_UNKNOWN` before any state or argument.
+- Signed-in intake (V3-F4): `intake_routes.py` (`/forms/intake/`), `intake_cli.py` (`tl intake`), the clients and the
+  terminal Intake log read through `intake_read.py` and `intake_views.py`, after `forms.intake.review` (items) or
+  `forms.intake.issue` (codes). Only `item_detail` returns the sender's answers, for a Pending item; no list, row, error,
+  log line, report or webhook holds an answer, a body, a salt, a code or a code hash. The routes sit behind `forms.read`, so
+  an agent is refused; the module has no agent tool for intake and no public route (S6 owns `/i/`). `intake.purge_due` and
+  S7c's accept handler are the only code that deletes `forms_intake_body` rows (a test pins it).
 - A new command is a `FORMS_COMMANDS` row and either a `PROPOSABLE` row or a line in `tests/tools/proposable_exclusions.toml`.
 - Tests live in `tests/`; `forms_world.py` runs commands as a person would (access word, intent, handler as that viewer).

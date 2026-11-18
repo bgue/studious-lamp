@@ -36,6 +36,17 @@ Modes (first argument):
   answers every question the way that passes (clause 6 fills it through ``tl form record``).
 * ``clause6 KEY``: the inspection KEY is Done with the result accept, recorded by hsato, and its
   form is closed (``already_recorded``); the forms module holds no submission for it.
+* ``clause10-stage CODE_ID``: a dev-only helper standing in for the public intake route (S6, owner
+  gate Q9; there is none): it writes two received items of the code, as ``svc:intake`` would (a
+  ``Received`` event and a body row), the second received 45 days ago. Prints their ids.
+* ``clause10-args TEMPLATE_KEY DEST``: write the arguments file the controller accepts item A with
+  (the command ``SubmitForm`` for that template, with every answer).
+* ``clause10 CODE ITEM_A ITEM_B TEMPLATE_KEY OUTFILE``: the signed-in reads give A as Accepted (as
+  SubmitForm) and B as Rejected and purged; the submission A proposed is read back with its
+  answers; a user without the intake word and a stranger are refused; the code (plain and grouped),
+  its hash, the salt and the stored body are in no read, in OUTFILE (the CLI outputs the shell
+  collected); the code (never its hash, which the event holds) is in no ledger row of the code and
+  the items.
 * ``budget``: every forms list read is under one second (median of five) as treyes and mokafor.
 """
 
@@ -48,20 +59,25 @@ import shutil
 import statistics
 import sys
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, NoReturn
 
 import httpx2
 import yaml
 from mcp.server.mcpserver.exceptions import ToolError
+from sqlalchemy import Connection, text
 from tl_adapters.backend import open_backend
-from tl_adapters.db import as_target
+from tl_adapters.db import as_target, open_uow
 from tl_core import confidentiality as cf
 from tl_core.auth import sessions
 from tl_core.forms import runner
 from tl_core.forms.jsonschema import to_json_schema
 from tl_core.forms.surveyjs import surveyjs_unsupported, to_surveyjs
 from tl_core.forms.types import FormBinding
+from tl_core.ledger import NewEvent
+from tl_core.qr.codes import code_hash, grouped, normalise_code
+from tl_core.util import new_ulid
 from tl_mcp.server import build_server
 from tl_mod_forms import bound
 
@@ -517,6 +533,205 @@ def clause6(key: str) -> None:
     world.close()
 
 
+SALT = "0f" * 16  # the staged rows' salt, as the item's body row holds it
+
+
+def clause10_stage(code_id: str) -> None:
+    """Write two received items of ``code_id`` (see the module docstring); print their ids."""
+    scope = f"project:{PROJECT}"
+    made: list[str] = []
+    with open_uow(as_target(os.environ["TL_DB"])) as uow:
+        conn = uow.conn()
+        code = (
+            conn.execute(
+                text(
+                    "SELECT template_id, template_version, template_hash "
+                    "FROM cur_forms_intake_code WHERE id = :i"
+                ),
+                {"i": code_id},
+            )
+            .mappings()
+            .one()
+        )
+        for topic, name, company, age in (
+            ("Scaffold for the gate 3 canopy", "Sam Smith", "Acme Scaffolding", 0),
+            ("Please call me about hire rates", "Pat Lee", "Lee Hire", 45),
+        ):
+            item = new_ulid()
+            stamp = (datetime.now(UTC) - timedelta(days=age)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            body = json.dumps(
+                {
+                    "answers": [
+                        {"q": "claim_name", "value": name, "note": None},
+                        {"q": "claim_company", "value": company, "note": None},
+                        {"q": "location", "value": topic, "note": None},
+                        {"q": "scaffold_type", "value": "Tube and fitting", "note": None},
+                        {"q": "height_m", "value": 6, "note": None},
+                    ]
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            uow.append(
+                stream_id=item,
+                stream_type="forms.IntakeItem",
+                scope=scope,
+                expected_version=0,
+                events=[
+                    NewEvent(
+                        event_type="Record.Created",
+                        payload={
+                            "record_type": "forms.IntakeItem",
+                            "key": None,
+                            "title": "Intake item",
+                            "description": None,
+                            "psets": {},
+                        },
+                    ),
+                    NewEvent(
+                        event_type="IntakeItem.Received",
+                        payload={
+                            "item_id": item,
+                            "code_id": code_id,
+                            "template_id": code["template_id"],
+                            "template_version": code["template_version"],
+                            "template_hash": code["template_hash"],
+                            "body_mac": "cd" * 32,
+                            "body_bytes": len(body.encode()),
+                            "received_at": stamp,
+                            "feed_policy": "none",
+                        },
+                    ),
+                ],
+                actor="svc:intake",
+                source=f"intake:{code_id}",
+                correlation_id=new_ulid(),
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO forms_intake_body (item_id, code_id, salt, body, received_at) "
+                    "VALUES (:i, :c, :s, :b, :r)"
+                ),
+                {"i": item, "c": code_id, "s": SALT, "b": body, "r": stamp},
+            )
+            made.append(item)
+    print(" ".join(made))
+
+
+def clause10_args(template_key: str, dest: str) -> None:
+    world = World()
+    answers = {
+        "topic": "Gate 3 canopy scaffold",
+        "talk_date": "2026-11-05",
+        "led_by": "Marta",
+        "hazards_covered": ["Falls"],
+        "ppe_checked": "yes",
+        "attendees": 6,
+    }
+    args = {
+        "template_id": _template_id(world, template_key),
+        "answers": [{"q": q, "value": v, "note": None} for q, v in answers.items()],
+    }
+    Path(dest).write_text(json.dumps(args), encoding="utf-8")
+    ok(f"arguments of SubmitForm for {template_key}")
+    world.close()
+
+
+def clause10(code: str, item_a: str, item_b: str, template_key: str, outfile: str) -> None:
+    plain = normalise_code(code)
+    check(plain is not None, "the printed code is a code")
+    assert plain is not None
+    secrets = [plain, grouped(plain), code_hash(plain), SALT, "cd" * 32]
+    world = World()
+    seen: list[str] = []
+
+    def read(who: str | None, path: str, **params: Any) -> httpx2.Response:
+        if who is None:
+            with httpx2.Client(base_url=world.url) as bare:
+                got = bare.get(path, params=params)
+        else:
+            got = world.get(who, path, **params)
+        seen.append(got.text)
+        return got
+
+    items = read("mokafor", "/forms/intake/items", project=PROJECT, limit=500)
+    check(items.status_code == 200, f"the items answered {items.status_code}")
+    rows = {r["id"]: r for r in items.json()["rows"]}
+    a, b = rows.get(item_a), rows.get(item_b)
+    check(a is not None and b is not None, "both items are in the queue")
+    assert a is not None and b is not None
+    check(
+        a["state"] == "Accepted" and a["accepted_as"] == "SubmitForm", "A is Accepted as SubmitForm"
+    )
+    check(a["claim_name"] == "Sam Smith" and a["claim_company"] == "Acme Scaffolding", "A's claim")
+    check(a["purged_at"] is not None, "A's text was removed when it was accepted")
+    check(b["state"] == "Rejected" and b["rejected_reason"] == "spam", "B is Rejected as spam")
+    check(b["purged_at"] is not None, "B's text was purged")
+    ok("A reads Accepted as SubmitForm and B Rejected (spam) and purged; neither holds its text")
+    for item in (item_a, item_b):
+        gone = read("mokafor", f"/forms/intake/items/{item}", project=PROJECT)
+        check(
+            gone.status_code == 200 and gone.json()["answers"] is None, f"{item}: no answers left"
+        )
+    codes = read("mokafor", "/forms/intake/codes", project=PROJECT, limit=500).json()["rows"]
+    mine = [c for c in codes if c["heading"] == "Poster at gate 3"]
+    check(len(mine) == 1 and mine[0]["state"] == "Active", "the code is listed Active")
+    check(mine[0]["pending"] == 0, "no item of the code is Pending")
+    subs = keys_of(world, "mokafor", template=_template_id(world, template_key))
+    made = [s for s in subs if s["author"] == "user:mokafor" and s["state"] == "Submitted"]
+    check(bool(made), "the record item A proposed exists")
+    key = max((s["key"] for s in made), key=lambda k: int(k.rsplit("-", 1)[1]))
+    detail = read("mokafor", f"/forms/submissions/{key}", project=PROJECT).json()
+    got = {a["q"]: a["value"] for a in detail["answers"]}
+    check(
+        got.get("topic") == "Gate 3 canopy scaffold",
+        "the submission holds the controller's answers",
+    )
+    ok(f"{key} read back: accepted from the item, answers as the controller completed them")
+    for who in ("cbrooks", "pnair"):
+        for path in ("/forms/intake/items", "/forms/intake/codes", f"/forms/intake/items/{item_a}"):
+            check(read(who, path, project=PROJECT).status_code == 403, f"{who} {path} is refused")
+    check(read(None, "/forms/intake/items", project=PROJECT).status_code == 401, "signed out: 401")
+    ok("a user without the intake word is refused (403) and a stranger is signed out (401)")
+    cli = Path(outfile).read_text(encoding="utf-8")
+    with open_uow(as_target(os.environ["TL_DB"]), readonly=True) as uow:
+        code_id = (
+            uow.conn()
+            .execute(
+                text("SELECT id FROM cur_forms_intake_code WHERE heading = :h"),
+                {"h": "Poster at gate 3"},
+            )
+            .scalar_one()
+        )
+        stored = [
+            *_payloads(uow.conn(), item_a),
+            *_payloads(uow.conn(), item_b),
+            *_payloads(uow.conn(), str(code_id)),
+        ]
+    shown_once = cli.replace(f"code {code}", "", 1)  # the one line that prints the code
+    for name, blob in (("a read", "\n".join(seen)), ("the CLI output", shown_once)):
+        for secret in secrets:
+            check(secret not in blob, f"{name} holds a secret ({secret[:4]}...)")
+    for secret in secrets[:2]:  # the code, plain and grouped: never stored (its hash is, by design)
+        check(secret not in "\n".join(stored), f"the ledger rows hold a secret ({secret[:4]}...)")
+    ok(
+        "code, hash, salt and stored body are in no read or CLI output; the code is in no ledger row"
+    )
+    world.close()
+
+
+def _payloads(conn: Connection, stream: str) -> list[str]:
+    found = conn.execute(
+        text("SELECT CAST(payload AS TEXT) FROM events WHERE stream_id = :s"), {"s": stream}
+    )
+    return [str(p) for p in found.scalars()]
+
+
+def _template_id(world: World, key: str) -> str:
+    got = world.get("mokafor", "/forms/templates", limit=500).json()["rows"]
+    return next(r["id"] for r in got if r["key"] == key)
+
+
 def budget() -> None:
     world = World()
     slowest = 0.0
@@ -555,6 +770,9 @@ def main() -> None:
         "clause7": clause7,
         "clause7-mcp": clause7_mcp,
         "clause8": clause8,
+        "clause10-stage": clause10_stage,
+        "clause10-args": clause10_args,
+        "clause10": clause10,
         "clause11": clause11,
         "budget": budget,
     }

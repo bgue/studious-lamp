@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Demo for P2-FORMS (general forms: publish, fill, submit, review): `just demo P2-FORMS`.
 #
-# The V3-F1a, F1s, F1b, F2 and F3 clauses of docs/tickets/P2-FORMS/README.md "Demo", each ending in a `PASS clause N: ...`
+# The V3-F1a, F1s, F1b, F2, F3 and F4 clauses of docs/tickets/P2-FORMS/README.md "Demo", each ending in a `PASS clause N: ...`
 # line that is printed only after its check returned success (a command's exit code and output, or
 # a driver comparison in dev/demos/p2_forms_demo.py). Each clause prints its wall time; the forms
 # list reads of the API are timed in the `budget` check and fail the demo over one second.
@@ -23,7 +23,9 @@
 #      the API, answers equal to what was typed, source `web`; no CSP violation (V3-F3);
 #  11  the terminal app: the forms log opens, a template is filled through the runner screen and sent;
 #      the new number is in the log (V3-F1b).
-# Clause 10 belongs to a later unit (V3-F4) and is not run here.
+#  10  intake, signed in (V3-F4): a controller issues a code (printed once, only its hash stored), one item is
+#      staged by a dev-only helper (the public route is not built), accepted as the record it proposes and read
+#      back, a second rejected, the due text purged; no secret in any read, CLI output or ledger row.
 #
 # The ledger is the whole demo project P200 (its `forms` section included). On SQLite it is the full
 # ledger tests/perf caches under .gate/demo-full (built once, about four minutes, then copied); on
@@ -135,6 +137,39 @@ clause9_run() { # clause 9 (V3-F3): self-contained; needs $PROJECT, $workdir, $u
   expect "followed the link to /web/forms/for/$key" "$out"
   wd inspection-check "$key" "$workdir/web-insp.json"
   clause 9 "cbrooks filled $tpl and hsato filled $key from its scan card, in a browser; both read back through the API; no CSP violation" "$((SECONDS - began))"
+}
+
+clause10_run() { # clause 10 (V3-F4): self-contained; needs $PROJECT, $workdir, $tpl, the sessions and the API
+  local began=$SECONDS out itpl code code_id ids item_a item_b log="$workdir/clause10.out"
+  step "[$backend] clause 10: intake, signed in: issue a code, accept one item, reject one, purge"
+  : >"$log"
+  out="$(as mokafor tl form publish schema/fixtures/forms/templates/intake/scaffold-request.yaml)"; echo "$out"
+  expect "published TPL-" "$out"
+  itpl="$(awk '{print $2}' <<<"$out")"
+  out="$(as mokafor tl intake code issue --project "$PROJECT" --template "$itpl" --heading "Poster at gate 3" \
+    --controller-role controller --expires-on "$(date -d '+10 days' +%F)")"; echo "$out"
+  expect "issued " "$out"; expect "code " "$out"
+  code_id="$(awk 'NR==1{print $2}' <<<"$out")"; code="$(sed -n 's/^code //p' <<<"$out")"
+  out="$(as mokafor tl intake code ls --project "$PROJECT")"; echo "$out" | tee -a "$log"
+  expect "Poster at gate 3" "$out"
+  ids="$(driver clause10-stage "$code_id")"; item_a="$(awk '{print $1}' <<<"$ids")"; item_b="$(awk '{print $2}' <<<"$ids")"
+  out="$(as mokafor tl intake ls --project "$PROJECT" --state Pending)"; echo "$out" | tee -a "$log"
+  expect "$item_a" "$out"; expect "$item_b" "$out"
+  out="$(as mokafor tl intake show "$item_a" --project "$PROJECT")"; echo "$out"
+  expect "Pending" "$out"; expect "Sam Smith" "$out"
+  driver clause10-args "$tpl" "$workdir/intake-args.json" >/dev/null
+  out="$(as mokafor tl intake accept "$item_a" --project "$PROJECT" --as SubmitForm --args-file "$workdir/intake-args.json")"; echo "$out"
+  expect "accepted $item_a as SubmitForm" "$out"
+  out="$(as mokafor tl intake reject "$item_b" --project "$PROJECT" --reason spam)"; echo "$out"
+  expect "rejected $item_b" "$out"
+  out="$(as mokafor tl intake purge --project "$PROJECT")"; echo "$out"
+  expect "purged 1" "$out"
+  out="$(as mokafor tl intake ls --project "$PROJECT")"; echo "$out" | tee -a "$log"
+  expect "SubmitForm" "$out"; expect "spam" "$out"
+  out="$(as mokafor tl intake code ls --project "$PROJECT")"; echo "$out" | tee -a "$log"
+  refuse "forbidden" as cbrooks tl intake ls --project "$PROJECT"
+  driver clause10 "$code" "$item_a" "$item_b" "$tpl" "$log"
+  clause 10 "a code issued (printed once); $item_a accepted as the record it proposes and read back; $item_b rejected and purged; no secret in any read" "$((SECONDS - began))"
 }
 
 run_backend() {
@@ -262,6 +297,8 @@ run_backend() {
   driver clause8 "$hsato_draft" hsato
   clause 8 "hsato's draft is a missing id for five other readers (CLI show and list, API); hsato reads it" "$((SECONDS - began))"
 
+  clause10_run
+
   step "[$backend] clause 11: the terminal app: open the forms log, fill a template through the runner screen"
   began=$SECONDS
   out="$(driver clause11 "$tpl")"; echo "$out"
@@ -273,7 +310,7 @@ run_backend() {
 
   stop_server
   drop_pg
-  echo "[$backend] clauses 1, 2, 3, 4, 5, 6, 7, 8, 9, 11 passed"
+  echo "[$backend] clauses 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 passed"
 }
 
 for backend in ${TL_DEMO_BACKENDS:-sqlite postgres}; do

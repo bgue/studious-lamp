@@ -47,6 +47,9 @@ REQUISITION_NAMES = [
 SCAFFOLD_NAMES = sorted(c.model.__name__ for c in SCAFFOLD_COMMANDS)
 FORMS_ROUTES = {
     "GET /forms/for/{key}",
+    "GET /forms/intake/codes",
+    "GET /forms/intake/items",
+    "GET /forms/intake/items/{item_id}",
     "GET /forms/submissions",
     "GET /forms/submissions/{key}",
     "GET /forms/templates",
