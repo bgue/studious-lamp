@@ -300,6 +300,8 @@ export const TOOL_RULES: ReadonlyArray<DomRule> = [
   { selector: '.mk-tag', keys: (_e, d) => [D(d, 'Model tag')], title: (e) => e.textContent ?? 'Model tag' },
   { selector: '.mk-item', keys: (_e, d) => [D(d, 'Markup row')], title: () => 'Markup row' },
   { selector: '.mk-status', keys: (_e, d) => [D(d, 'Status line')], title: () => 'Status line' },
+  // the clash block's close button carries a live count in its label ("Close 3 not found"): one key for every count
+  { selector: '.xt-btn[data-act=clash-close]', keys: (_e, d) => [D(d, 'Close not found')], title: () => 'Close not found' },
   { selector: '.xt-btn', keys: (e, d) => same(d, bare(txt(e))), title: (e) => bare(txt(e)) },
   { selector: '.pc-result', keys: (_e, d) => [D(d, 'Deviation result')], title: () => 'Deviation result' },
   { selector: '.xt-status, .bcf-status', keys: (_e, d) => [D(d, 'Status line')], title: () => 'Status line' },
