@@ -20,6 +20,7 @@ F5  5 mrg  l     b50ce7a4 runbook, README, tour 2 shots 20-22,24, highlights 19-
 awp proposable exclusions fixed by F1a | wheel count 27 vs 21 (DEFERRED)
 activities report `activity_id` column broke test_no_internal_id_is_a_column (P0c); renamed `activity` c4da8d5a
 tl-api: 4 tests red on fc02817a too (settings 34 vs 53 keys x3, activity select 16 vs 15); permits error table fixed by FX
+FG  5 disp f+s   d466c221 DONE gate fixes (walk import, role seams, webhook scenario, SchemaView OOM) + D44
 ## WAVE-REVIEW done 2026-11-18: F1 MD (N1) fixed by FN1; F2 LO moot; F3 LO fixed; bound.record, reports, seams P
 N1 privileged Submission that is itself a subject: its own answer class not checked on that hop (P0c sec) | F1s bound.record hardening (scope, use_viewer) before F1b/F3 call it
 ## OPEN
@@ -29,6 +30,7 @@ Q9 S6 public route: owner gate (out of the pilot)
 D40 2026-11-17 owner Q7: privileged forms hidden from all but the author (CR1 behaviour kept; no clearance table); F1a walk proves it
 D41 2026-11-17 owner Q10: key gaps from hidden records allowed, documented as a limit (ADR-0016 Known limits); per-project option later (DEFERRED)
 D43 2026-11-18 owner signed off the web fill page (F3); merged 687193ed; APPROVALS line
+D44 2026-11-19 owner: Submission.DraftSaved/DraftDiscarded are never delivered by webhook (found by V3-FG: after submit, late dispatch sent draft events to every reader); APPROVALS line
 D42 2026-11-18 owner: F1s (form sources) accepted on its full + security reviews (APPROVALS line); the web fill page (F3) needs the owner's own sign-off before merge
 ## METRICS (for V3-PILOT.md)
 merged demo 2026-11-18 @6530ebb7: sq PASS 1-11 (c7 175 s, c8 106 s, c9 47 s, c10 81 s) | pg @a894b1d0 PASS 1-11, list reads median <= 0.137 s | start 2026-11-17 wave 1 dispatched; handoffs 19 (5 dispatch, 9 resume, 5 reviews+rechecks beyond the first); rulings 7 (+P0 view word, P0 Q10 to owner, P1 alias rename); late surprises 0; wave 1 wall clock ~6 h (gate queueing ~2 h, disk full once)
