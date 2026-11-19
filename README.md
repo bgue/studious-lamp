@@ -16,6 +16,7 @@ plugins (see "Development"), so every feature below is a separate module with it
     order-independent transparency for the ghost pass.
   - View modes: behind-only cut and partial peelback ([view-modes.md](web/docs-features/view-modes.md)).
   - Imaging looks: radiograph and MRI slice, chosen with `Render style` at the top of the X-ray panel ([imaging.md](web/docs-features/imaging.md)).
+  - Optional map under the model (satellite or street map, off by default; sends the project location to the tile server when on) ([map.md](web/docs-features/map.md)).
   - Section box and section plane with caps ([section.md](web/docs-features/section.md)).
   - Cinematic effects: fly-to, flythrough, tour, sweep and reveal, exploded storeys, bloom, edge glow, depth grading.
   - Presets: thirteen named looks on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
@@ -153,6 +154,9 @@ parameter documents with `glowNear: true` load as `near`.
 - **Imaging** ([imaging.md](web/docs-features/imaging.md)). Radiograph and MRI-slice looks with the focus as the glowing
   "bone"; key `m` cycles `standard`, `radiograph`, `mri`. `auto exposure` (default on) fits the radiograph brightness to the
   thickness of the model, so a tall stack of floors stays readable.
+- **Map** ([map.md](web/docs-features/map.md)). Optional satellite or street map under the model, placed from
+  IfcMapConversion (UTM), IfcSite latitude and longitude, or by hand. Off by default: nothing is requested until you turn it on
+  and accept the notice.
 - **Section** ([section.md](web/docs-features/section.md)). A section box fitted to the selection or the model with draggable
   face handles, plus a section plane; keys `c`, `Shift+c`, `Alt+c`. BCF clipping planes use the same renderer call. Caps are
   painted on closed solids only.

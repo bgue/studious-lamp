@@ -28,6 +28,17 @@ export interface MapConversion {
   crs: { epsg?: number; name?: string };
 }
 
+/**
+ * IfcSite RefLatitude / RefLongitude / RefElevation and TrueNorth of the model context. Degrees and metres. `trueNorth` is the angle
+ * by which true north is turned from project +Y, counter-clockwise from above (0 when project +Y is north). See src/model/ifcSite.ts.
+ */
+export interface SiteGeo {
+  lat: number;
+  lon: number;
+  elevation?: number;
+  trueNorth?: number;
+}
+
 export interface ElementRecord {
   id: ElementId;
   globalId: string;
@@ -72,6 +83,8 @@ export interface SceneModel {
   storeys: StoreyRecord[];
   /** Where the project coordinates sit in a projected CRS, when the IFC file says so. */
   mapConversion?: MapConversion;
+  /** IfcSite reference latitude and longitude with the TrueNorth of the context, when the file says so. */
+  siteGeo?: SiteGeo;
   elements: ElementRecord[];
   relations: Relations;
   byGlobalId: Map<string, ElementId>;

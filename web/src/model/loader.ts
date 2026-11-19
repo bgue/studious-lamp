@@ -3,7 +3,8 @@
 import { Box3, Color, Matrix4, SRGBColorSpace, Vector3 } from 'three';
 import type { BufferGeometry, Material, Mesh, Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import type { ClassStyles, ElementRecord, MapConversion, Relations, SceneModel, StoreyRecord } from '../types';
+import type { ClassStyles, ElementRecord, MapConversion, Relations, SceneModel, SiteGeo, StoreyRecord } from '../types';
+import { cleanSiteGeo } from './ifcSite';
 import { MergedGeometry } from './merged';
 import { sanitizeProps } from './ifcProps';
 import type { MeshPart } from './merged';
@@ -22,6 +23,7 @@ interface SidecarJson {
   originShift?: [number, number, number];
   storeys?: StoreyRecord[];
   mapConversion?: MapConversion;
+  siteGeo?: SiteGeo;
   elements?: Array<Partial<ElementRecord> & { id?: number }>;
   relations?: Partial<Relations>;
   /** Class styles baked in by `ifc2glb.py --config` (passed through untouched; see src/styles.ts). */
@@ -191,6 +193,8 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
   };
   const mc = cleanMapConversion(side?.mapConversion);
   if (mc) model.mapConversion = mc;
+  const sg = cleanSiteGeo(side?.siteGeo);
+  if (sg) model.siteGeo = sg;
   if (side?.styles) model.styles = side.styles;
   if (side?.materialAliases) model.materialAliases = side.materialAliases;
   return { model, geometry };
@@ -242,7 +246,7 @@ export function reconcileBounds(elements: ElementRecord[], geometry: MergedGeome
 
 /** A LoadedModel from a sidecar head (everything but the elements), the normalised elements and the merged geometry. */
 export function assembleLoaded(
-  head: { originShift?: [number, number, number]; storeys?: StoreyRecord[]; mapConversion?: MapConversion; relations?: Partial<Relations> },
+  head: { originShift?: [number, number, number]; storeys?: StoreyRecord[]; mapConversion?: MapConversion; siteGeo?: SiteGeo; relations?: Partial<Relations> },
   elements: ElementRecord[], geometry: MergedGeometry,
 ): LoadedModel {
   reconcileBounds(elements, geometry, true);
@@ -259,6 +263,8 @@ export function assembleLoaded(
   };
   const mc = cleanMapConversion(head.mapConversion);
   if (mc) model.mapConversion = mc;
+  const sg = cleanSiteGeo(head.siteGeo);
+  if (sg) model.siteGeo = sg;
   return { model, geometry };
 }
 

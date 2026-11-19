@@ -4,7 +4,7 @@
 // Z-up to Y-up, origin shift, storey assignment and fallback, hosts from voids and fills, ports, systems, federation and
 // GlobalId dedupe. ifcImport.ts re-exports everything here.
 
-import type { ElementRecord, MapConversion, Relations, StoreyRecord } from '../types';
+import type { ElementRecord, MapConversion, Relations, SiteGeo, StoreyRecord } from '../types';
 import { computeEdges, EDGE_THRESHOLD_DEG } from './ifcEdges';
 import { classColor, isMarker, isSkippedClass, smoothMesh } from './ifcShared';
 import type { IfcProgress, RawElement, RawModel } from './ifcShared';
@@ -20,6 +20,8 @@ export interface Sidecar {
   storeys: StoreyRecord[];
   /** IfcMapConversion of the first file that has one (metres). */
   mapConversion?: MapConversion;
+  /** IfcSite reference point of the first file that has one. */
+  siteGeo?: SiteGeo;
   elements: ElementRecord[];
   relations: Relations;
 }
@@ -82,6 +84,7 @@ interface Prepared {
   files: string[];
   schemas: string[];
   mapConversion?: MapConversion;
+  siteGeo?: SiteGeo;
 }
 
 /** Steps shared by the glb path and the direct path: skip rules, welding fallback, dedupe, storeys, relations, origin shift. */
@@ -232,6 +235,7 @@ function prepare(raws: RawModel[]): Prepared {
     items, storeys, shift, voids, fills, hosts, openingsRaw, ports, systems, report,
     files: raws.map((r) => r.fileName), schemas: [...new Set(raws.map((r) => r.schema))],
     ...(raws.find((r) => r.mapConversion)?.mapConversion ? { mapConversion: raws.find((r) => r.mapConversion)!.mapConversion! } : {}),
+    ...(raws.find((r) => r.siteGeo)?.siteGeo ? { siteGeo: raws.find((r) => r.siteGeo)!.siteGeo! } : {}),
   };
 }
 
@@ -298,6 +302,7 @@ function sidecarHead(pr: Prepared): Omit<Sidecar, 'elements'> {
     originShift: shift,
     storeys: pr.storeys,
     ...(pr.mapConversion ? { mapConversion: pr.mapConversion } : {}),
+    ...(pr.siteGeo ? { siteGeo: pr.siteGeo } : {}),
     relations: {
       voids: pr.voids, fills: pr.fills, hosts: pr.hosts, ports: pr.ports,
       systems: [...pr.systems].map(([name, els]) => ({ name, elements: els })),
