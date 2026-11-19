@@ -55,7 +55,12 @@ export interface SettingChange {
 export interface SettingEntry extends UndoEntry {
   kind: 'setting';
   changes: SettingChange[];
+  /** The clip planes the settings made (a preset or view mode that turns the section on): one step with them. */
+  clip?: ClipChange;
 }
+
+/** Planes that start changing this soon after a settings entry are that entry's doing (the section tool pushes them a frame later). */
+const CLIP_FOLLOWS_SETTINGS_MS = 600;
 export type Entry = ViewEntry | SectionEntry | SelectionEntry | SettingEntry;
 
 export interface UndoApi {
@@ -214,7 +219,17 @@ function commitChanges(app: ViewerApp, t: number): void {
   // A drift under 0.3 % of the distance (the tail of an orbit's damping) is not a step to undo; `committed` stays put, so
   // drift that adds up still becomes an entry once it is big enough.
   const cam = committed && !viewPoseEqual(committed, pose, NEGLIGIBLE) ? committed : null;
+  const since = clipWatch.since;
   const clip = clipWatch.settle(() => readClip(app));
+  if (!cam && clip && since !== null) {
+    const undo = stack.list().undo;
+    const top = undo[undo.length - 1];
+    if (top && top.kind === 'setting' && !top.clip && since >= top.at && since - top.at <= CLIP_FOLLOWS_SETTINGS_MS) {
+      top.clip = clip;
+      top.label = `${top.label} and section`;
+      return;
+    }
+  }
   const step = composeStep(cam ? { before: cam, after: pose, label: describeViewChange(cam, pose) } : null, clip);
   if (step) stack.push({ ...step, at: t });
   if (cam) committed = pose;
@@ -364,6 +379,7 @@ function applySetting(app: ViewerApp, e: SettingEntry, dir: 'before' | 'after'):
       console.error('[undo] could not apply', err);
     }
   }
+  if (e.clip) putClip(app, dir === 'before' ? e.clip.before : e.clip.after);
   baselineSettings(app);
   quietUntil = Math.max(quietUntil, now() + 250); // a control that moves another one is not a new change
 }

@@ -359,7 +359,9 @@ try {
   await page.waitForFunction(() => document.querySelector('#sheet-view [data-act=raise]').textContent === 'Open issue');
   check('the button raised it as an issue and now reads "Open issue"', true);
   await page.evaluate(() => { const mk = window.__xraySheets.controller.markup; mk.activeId = window.__xraySheets.sketches(window.__xraySheets.openSheet).find((s) => s.readonly)?.id ?? null; mk.emit(); });
-  check('the button is off for a read-only sketch', await page.evaluate(() => document.querySelector('#sheet-view [data-act=raise]').disabled === true));
+  // the bar re-renders on the next frame: wait for it rather than reading the button straight after the change
+  const roOff = await page.waitForFunction(() => document.querySelector('#sheet-view [data-act=raise]').disabled === true, null, { timeout: 5000 }).then(() => true, () => false);
+  check('the button is off for a read-only sketch', roOff, await page.evaluate(() => { const b = document.querySelector('#sheet-view [data-act=raise]'); const mk = window.__xraySheets.controller.markup; return JSON.stringify({ text: b.textContent, disabled: b.disabled, active: mk.activeId, readonly: !!mk.active?.readonly }); }));
   await page.evaluate((id) => { const mk = window.__xraySheets.controller.markup; mk.activeId = id; mk.emit(); }, mkId);
   const topic = await page.evaluate((g) => { const t = window.__xrayBcf.topics.find((x) => x.guid === g); return { vps: t.viewpoints.length, snap: !!t.viewpoints[0].snapshot, data: t.viewpoints[0].data, sheet: t.viewpoints[0].sheet && { page: t.viewpoints[0].sheet.page, sha: t.viewpoints[0].sheet.sha256, n: t.viewpoints[0].sheet.markups.length }, docs: t.documentReferences.length, sketch: t.viewpoints[0].sketchId }; }, guid);
   check('raising a sheet sketch makes an issue with a snapshot of the sheet region and a document reference', topic.vps === 1 && topic.snap && topic.data === null && topic.docs === 1 && topic.sheet.page === 1 && topic.sheet.sha === reDoc.sha256 && topic.sheet.n === nOwn && topic.sketch === mkId, JSON.stringify(topic));
