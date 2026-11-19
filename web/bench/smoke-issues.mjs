@@ -7,6 +7,7 @@
 //   - removing a sketch of an issue asks first; the status bar says "N open issues" and opens the tab; the top-bar search
 //     finds an issue by title and by comment text;
 //   - the migration banner for a legacy markup JSON with comments and a resolved status, and its conversion to an issue;
+//   - a sketch and an issue (with its snapshot and the link) survive a page reload, per model, from IndexedDB; Clear all removes them;
 //   - the phone layout: the list is a bottom sheet and the toolbar fits 390 px;
 //   - fails on any console error.
 // Screenshots: bench/issues-panel.png, issues-sketch-toolbar.png, issues-phone.png.
@@ -217,6 +218,7 @@ try {
   await page.locator('.ab-input').fill('');
   await page.keyboard.type('girder', { delay: 30 });
   await page.waitForTimeout(1200);
+  await page.waitForFunction(() => window.__xraySearch.state().rows.some((r) => r.section === 'issues'), null, { timeout: 20000 }).catch(() => undefined);
   const st = await page.evaluate(() => window.__xraySearch.state());
   const hitRow = st.rows.find((r) => r.section === 'issues');
   check('the top-bar search lists the issue under "Issues and sketches"', !!hitRow && hitRow.label === 'Duct clash level 1' && /comment/.test(hitRow.sub), JSON.stringify(st.rows.slice(0, 3)));
@@ -268,6 +270,37 @@ try {
   });
   check('the sketch became an issue that links to it, with its comments, assignee and status moved', mig.title === 'Legacy review' && mig.comments.length === 2 && mig.comments[0] === '1. Moved the duct' && mig.authors[0] === 'old reviewer' && mig.assignee === 'planner' && mig.linked, JSON.stringify(mig));
   check('the issue is Open (the second drawing was still open); nothing is left on the sketch; the banner is gone', mig.status === 'Open' && !mig.legacyLeft && !mig.banner, JSON.stringify(mig));
+
+  // ------------------------------------------------------------------ part 5b: a sketch and an issue survive a reload (IndexedDB, per model)
+  const kept = await page.evaluate(async () => {
+    await window.__xrayWork.save();
+    const s = window.__xrayMarkup.list()[0];
+    const t = window.__xrayBcf.topics.find((x) => x.title === 'Legacy review');
+    return { persistent: window.__xrayWork.persistent, sketch: s.title, markups: s.markups, issues: window.__xrayBcf.topics.length, snap: t.viewpoints[0].snapshot?.length ?? 0, sketchId: t.viewpoints[0].sketchId, setId: s.id };
+  });
+  check('the saved copy is in IndexedDB', kept.persistent === true && kept.snap > 0, JSON.stringify(kept));
+  const urlBefore = await page.evaluate(() => location.href);
+  await boot();
+  await page.evaluate(() => window.__xrayWork.restored());
+  const back = await page.evaluate(() => {
+    const s = window.__xrayMarkup.list()[0];
+    const set = s ? window.__xrayMarkup.get(s.id) : null;
+    const t = window.__xrayBcf.topics.find((x) => x.title === 'Legacy review');
+    const old = window.__xrayBcf.topics.find((x) => x.title === 'Duct clash level 1');
+    return { sketch: s?.title, markups: set?.markups.length, id: s?.id, issues: window.__xrayBcf.topics.length, snap: t?.viewpoints[0].snapshot?.length ?? 0, link: t?.viewpoints[0].sketchId, back: set?.issue?.topic === t?.guid, comments: old?.comments.map((c) => c.text) };
+  });
+  check('after a reload the sketch and its drawings are back', back.sketch === 'Legacy review' && back.markups === 2 && back.id === kept.setId, JSON.stringify(back));
+  check('after a reload the issues, their comments and snapshots are back, linked to the sketch both ways', back.issues === kept.issues && back.snap === kept.snap && back.link === kept.setId && back.back && JSON.stringify(back.comments) === JSON.stringify(['Reroute below the girder']), JSON.stringify(back));
+  check('nothing of it is in the URL or localStorage', (await page.evaluate(() => location.href)) === urlBefore && (await page.evaluate(() => !Object.keys(localStorage).some((k) => /sketch|issue|topic|snapshot/i.test(k) || /Legacy review/.test(localStorage.getItem(k) ?? '')))));
+  await page.evaluate(() => window.__xrayIssues.open('sketches'));
+  await page.waitForSelector('#issues-panel [data-act=clear-all]');
+  await page.click('#issues-panel [data-act=clear-all]');
+  check('"Clear all sketches and issues for this model" asks for a second click', (await page.evaluate(() => window.__xrayWork.counts().issues)) === kept.issues && /Click again to delete/.test(await page.textContent('#issues-panel [data-act=clear-all]')));
+  await page.click('#issues-panel [data-act=clear-all]');
+  await page.waitForFunction(() => window.__xrayWork.counts().issues === 0 && window.__xrayWork.counts().sketches === 0);
+  await boot();
+  await page.evaluate(() => window.__xrayWork.restored());
+  check('after clearing and a reload nothing comes back', await page.evaluate(() => window.__xrayMarkup.list().length === 0 && window.__xrayBcf.topics.length === 0));
 
   // ------------------------------------------------------------------ part 6: phone
   const phone = await browser.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });

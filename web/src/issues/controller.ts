@@ -47,6 +47,8 @@ export class IssuesController {
   /** src/sheets sets this: the content of the Sheets segment, and "Raise as issue" for a sketch drawn on a PDF sheet. */
   sheetsPane: { render(): HTMLElement[]; status(): string } | null = null;
   sheetRaise: ((setId: string, o: { topic?: string }) => Promise<string>) | null = null;
+  /** src/work sets this: what "Clear all sketches and issues for this model" would remove, and the removal (it asks first, in the panel). */
+  work: { counts(): { sketches: number; issues: number }; clear(): Promise<unknown> } | null = null;
   /** The result of the last migration, for the panel and scripts. */
   lastMigration: { issues: number; failed: number } | null = null;
   private readonly listeners = new Set<() => void>();

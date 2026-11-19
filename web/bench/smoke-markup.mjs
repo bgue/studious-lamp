@@ -66,6 +66,8 @@ try {
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 
   async function boot(model = 'fzk-haus', pg = page) {
+    // sketches and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
+    await pg.evaluate(() => window.__xrayWork?.reset()).catch(() => undefined);
     await pg.goto(`http://127.0.0.1:${port}/?model=${model}`);
     await pg.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
     const err = await pg.evaluate('window.__xrayError');

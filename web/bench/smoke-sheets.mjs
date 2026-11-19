@@ -7,7 +7,7 @@
 //   - Export marked-up PDF: the layer "X-ray markups", real annotations that point at it (read back with pdf-lib in node), the
 //     foreign annotations untouched; a second export does not double them; opening the exported PDF gives the markups back
 //     editable and the foreign annotations read-only;
-//   - Raise as issue: snapshot, DocumentReference to the PDF in the bcfzip (3.0 and 2.1), sheet record in the side file; opening
+//   - Raise as issue (the button of the viewer bar for the active sketch): snapshot, DocumentReference to the PDF in the bcfzip (3.0 and 2.1), sheet record in the side file; opening
 //     the bcfzip again restores the sketch and its sheet link by the SHA-256 of the PDF;
 //   - the phone width (360 px) and no console errors.
 // Screenshots: bench/sheets-view.png, sheets-phone.png, sheets-imported.png.
@@ -349,7 +349,18 @@ try {
 
   // ------------------------------------------------------------------ raise as issue, BCF export, re-import
   const mkId = reOwn.id;
-  const guid = await page.evaluate((id) => window.__xraySheets.raise(id), mkId);
+  // from the viewer bar: the button raises the sketch you draw on, then reads "Open issue"
+  await page.evaluate((id) => { const mk = window.__xraySheets.controller.markup; mk.activeId = id; mk.emit(); }, mkId);
+  await page.waitForFunction(() => { const b = document.querySelector('#sheet-view [data-act=raise]'); return !!b && !b.disabled && b.textContent === 'Raise as issue'; });
+  check('the sheet viewer bar has "Raise as issue" for the active sketch', true);
+  await page.click('#sheet-view [data-act=raise]');
+  await page.waitForFunction((id) => !!window.__xrayIssues.issueOf(id), mkId, { timeout: 60000 });
+  const guid = await page.evaluate((id) => window.__xrayIssues.issueOf(id).topic, mkId);
+  await page.waitForFunction(() => document.querySelector('#sheet-view [data-act=raise]').textContent === 'Open issue');
+  check('the button raised it as an issue and now reads "Open issue"', true);
+  await page.evaluate(() => { const mk = window.__xraySheets.controller.markup; mk.activeId = window.__xraySheets.sketches(window.__xraySheets.openSheet).find((s) => s.readonly)?.id ?? null; mk.emit(); });
+  check('the button is off for a read-only sketch', await page.evaluate(() => document.querySelector('#sheet-view [data-act=raise]').disabled === true));
+  await page.evaluate((id) => { const mk = window.__xraySheets.controller.markup; mk.activeId = id; mk.emit(); }, mkId);
   const topic = await page.evaluate((g) => { const t = window.__xrayBcf.topics.find((x) => x.guid === g); return { vps: t.viewpoints.length, snap: !!t.viewpoints[0].snapshot, data: t.viewpoints[0].data, sheet: t.viewpoints[0].sheet && { page: t.viewpoints[0].sheet.page, sha: t.viewpoints[0].sheet.sha256, n: t.viewpoints[0].sheet.markups.length }, docs: t.documentReferences.length, sketch: t.viewpoints[0].sketchId }; }, guid);
   check('raising a sheet sketch makes an issue with a snapshot of the sheet region and a document reference', topic.vps === 1 && topic.snap && topic.data === null && topic.docs === 1 && topic.sheet.page === 1 && topic.sheet.sha === reDoc.sha256 && topic.sheet.n === nOwn && topic.sketch === mkId, JSON.stringify(topic));
   check('the sketch links to its issue', await page.evaluate((id) => window.__xrayIssues.issueOf(id)?.topic, mkId) === guid);

@@ -3,8 +3,9 @@
 // fzk-haus with a window selected. Writes bench/section-*.png:
 //   section-off, section-box (caps on), section-box-nocaps, section-plane, section-box-plane, section-handle-drag,
 //   section-radiograph (section with the radiograph style), section-behind (behind-only with a box on), section-bcf-applied
-// and prints the checks: standard pixel identity after clear, handle drag, picking never returns a clipped hit,
-// the BCF round trip (create a topic with planes, clear, apply, getClipPlanes matches).
+// and prints the checks: standard pixel identity after clear (of the 3D view only, see below), handle drag, picking never returns a clipped hit,
+// the BCF round trip (create a topic with planes, clear, apply, getClipPlanes matches), and undo and redo of a handle drag and of
+// applying a BCF viewpoint (one step each).
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
@@ -35,27 +36,34 @@ async function waitForServer() {
   throw new Error('vite did not start:\n' + viteLog);
 }
 
-async function diff(page, a, b) {
-  return page.evaluate(async ([x, y]) => {
+// `view` compares the 3D picture only: the screenshot also holds the top bar (its mode chip is off once the settings are not the factory
+// ones), the tool rail and the gizmo with its Undo and Redo buttons (enabled once there is something to undo). Those are chrome that
+// is meant to change; the picture under them is what the section must leave as it was.
+async function diff(page, a, b, view = false) {
+  return page.evaluate(async ([x, y, view]) => {
     const load = async (b64) => {
       const bmp = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
       const c = new OffscreenCanvas(bmp.width, bmp.height);
       const g = c.getContext('2d');
       g.drawImage(bmp, 0, 0);
-      return g.getImageData(0, 0, bmp.width, bmp.height).data;
+      return { data: g.getImageData(0, 0, bmp.width, bmp.height).data, width: bmp.width };
     };
-    const A = await load(x);
-    const B = await load(y);
-    let sum = 0, big = 0, exact = 0;
-    const n = A.length / 4;
+    const { data: A, width: W } = await load(x);
+    const { data: B } = await load(y);
+    let sum = 0, big = 0, exact = 0, n = 0;
     for (let i = 0; i < A.length; i += 4) {
+      if (view) {
+        const px = (i / 4) % W, py = Math.floor(i / 4 / W);
+        if (py < 40 || px < 50 || (px > 570 && py > 530)) continue;
+      }
+      n++;
       let m = 0;
       for (let c = 0; c < 3; c++) { const d = Math.abs(A[i + c] - B[i + c]); sum += d; if (d > m) m = d; }
       if (m > 12) big++;
       if (m === 0) exact++;
     }
     return { meanAbs: +(sum / (n * 3)).toFixed(3), fracOver12: +(big / n).toFixed(4), identical: exact === n };
-  }, [a.toString('base64'), b.toString('base64')]);
+  }, [a.toString('base64'), b.toString('base64'), view]);
 }
 
 let failed = false;
@@ -142,6 +150,17 @@ try {
   check('renderer planes follow the drag', await page.evaluate((y) => { const p = window.__xray.app.renderer.getClipPlanes().find((q) => q.normal[1] === -1); return !!p && Math.abs(p.point[1] - y) < 1e-6; }, after.max[1]));
   const dragged = await shot('handle-drag', 900);
   console.log('after drag vs before', JSON.stringify(await diff(page, capped, dragged)));
+  // the drag is one undo step: the box and the planes go back together, redo drags it again
+  await settle(1500); // the step settles after the planes have been still for a moment (longer on slow frames)
+  const lastUndo = await page.evaluate(() => window.__xrayUndo.list().undo.map((e) => `${e.kind}:${e.label}`).slice(-1)[0]);
+  check('the handle drag is one undo step (a section move)', lastUndo === 'section:section move', String(lastUndo));
+  await page.evaluate(() => window.__xrayUndo.undo());
+  await settle(800);
+  const undone = await page.evaluate(() => ({ box: JSON.parse(JSON.stringify(window.__xraySection.config.box)), planes: window.__xray.app.renderer.getClipPlanes().find((q) => q.normal[1] === -1)?.point[1] }));
+  check('undo puts the box and the clip plane back', Math.abs(undone.box.max[1] - before.max[1]) < 1e-6 && Math.abs(undone.planes - before.max[1]) < 1e-6, JSON.stringify(undone));
+  await page.evaluate(() => window.__xrayUndo.redo());
+  await settle(800);
+  check('redo drags it again', await page.evaluate((y) => Math.abs(window.__xraySection.config.box.max[1] - y) < 1e-6 && Math.abs(window.__xray.app.renderer.getClipPlanes().find((q) => q.normal[1] === -1).point[1] - y) < 1e-6, after.max[1]));
   await sec({ box: { min: before.min, max: before.max } });
 
   // ---- picking never returns a clipped hit
@@ -206,7 +225,7 @@ try {
     const topic = window.__xrayBcf.createTopic({ title: 'Section round trip', snapshot: false });
     const vp = topic.viewpoints[0].data;
     window.__xraySection.clear();
-    await new Promise((x) => setTimeout(x, 200));
+    await new Promise((x) => setTimeout(x, 4000)); // longer than the undo settle time even on slow frames: clearing and applying are two steps
     const cleared = r.getClipPlanes();
     const report = window.__xrayBcf.applyViewpoint(topic.guid);
     await new Promise((x) => setTimeout(x, 400));
@@ -220,13 +239,24 @@ try {
   const maxErr = sameN ? Math.max(...bcf.have.map((a, i) => Math.max(...a.n.map((v, k) => Math.abs(v - bcf.applied[i].n[k])), ...a.p.map((v, k) => Math.abs(v - bcf.applied[i].p[k]))))) : 1e9;
   check('applying the viewpoint restores the planes', sameN && maxErr < 1e-3, `max error ${maxErr}`);
   await shot('bcf-applied', 1500);
+  // applying the viewpoint (its planes, with the pivot it moves) is one undo step; undo takes the planes off, redo puts them back, and
+  // Clear viewpoint still removes them after that (the viewpoint keeps them as its own)
+  await settle(1500);
+  const bu = await page.evaluate(() => window.__xrayUndo.list().undo.map((e) => `${e.kind}:${e.label}`).slice(-1)[0]);
+  check('applying a BCF viewpoint with planes is one undo step', /^(view|section):.*section/.test(String(bu)), String(bu));
+  await page.evaluate(() => window.__xrayUndo.undo());
+  await settle(800);
+  check('undo takes the viewpoint planes off', (await page.evaluate(() => window.__xray.app.renderer.getClipPlanes())) === null, await page.evaluate(() => JSON.stringify({ planes: window.__xray.app.renderer.getClipPlanes()?.length ?? null, foreign: window.__xraySection.foreignPlanes(), box: window.__xraySection.config.box.enabled, list: window.__xrayUndo.list() })));
+  await page.evaluate(() => window.__xrayUndo.redo());
+  await settle(800);
+  check('redo puts the viewpoint planes back', (await page.evaluate(() => window.__xray.app.renderer.getClipPlanes()?.length)) === 7);
   await page.evaluate(() => window.__xrayBcf.clearViewpoint());
   check('clearing the viewpoint removes the planes', (await page.evaluate(() => window.__xray.app.renderer.getClipPlanes())) === null);
 
   // ---- back to normal: pixel identical to the start
   await page.evaluate(() => window.__xraySection.clear());
   const end = await shot('off-again', 1200);
-  const dEnd = await diff(page, base, end);
+  const dEnd = await diff(page, base, end, true);
   console.log('after clear vs before', JSON.stringify(dEnd));
   // the BCF viewpoint re-ran the sightlines, so ghost alpha smoothing may differ in the last bits: no pixel may differ by more than 12
   check('cleared section matches the start (no pixel differs by more than 12)', dEnd.fracOver12 === 0 && dEnd.meanAbs < 0.1, `mean ${dEnd.meanAbs}`);

@@ -41,6 +41,10 @@ The selected window of fzk-haus is a good example: its glass is a 2 cm thick clo
 
 The section plugin sends planes only when its own settings changed (or every frame while the plane axis is `camera`). If something else calls `setClipPlanes` (a BCF viewpoint), the plugin notices through `clipVersion`, stops sending, and takes the planes back only when you change a section setting. `Clear section` removes whatever is active.
 
+## Undo
+
+The undo stack (`src/plugins/undo.ts`, [undo.md](undo.md)) records plane changes: the renderer's planes and the section tool's settings are watched, and a change that has been still for 400 ms is one entry ("section on", "section off", "section move"). A handle drag is one step. Switching 3D · Plan · Section and applying or clearing a BCF viewpoint's planes are one step each, and when the camera moved with them it is the same step. The section controls of the parameter panel that make planes are recorded here and not as settings, so one change is one step.
+
 ## BCF
 
 Applying a viewpoint with clipping planes calls `setClipPlanes(plan.clip)`: clipped and capped. Creating a topic captures `getClipPlanes()` into the viewpoint (the box counts as six planes). Round trip: `createTopic` with a box and a plane, `clear()`, `applyViewpoint` restores the same seven planes within 1e-3 (checked in `bench/smoke-section.mjs` and, for the maths, `tests/section-maths.test.ts`).

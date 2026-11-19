@@ -11,7 +11,7 @@ import { writeBcf } from './write';
 import { boxAround, captureViewpoint, frameCamera, planViewpoint, topicGlobalIds, unionBox, visibilityHides } from './plan';
 import type { Box6, PlanCamera, ViewpointPlan } from './plan';
 import { dirViewerToIfc, emptyProject, ifcToViewer, newGuid, nowIso, toIfcGuid, viewerToIfc } from './model';
-import type { BcfAnnotation, BcfAnnotationType, BcfComment, BcfMeasureLink, BcfProject, BcfShapeType, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
+import type { BcfAnnotation, BcfAnnotationType, BcfComment, BcfDocument, BcfMeasureLink, BcfProject, BcfShapeType, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
 import { defaultOffset, drawOps, layoutSnapshot, shapeFraction, shapePointWorld, snapshotCamera, snapshotProjector, snapshotScale } from './annotate';
 import type { Ctx2D, LayoutContext } from './annotate';
 import type { ProbeHit, Ray3 } from './surface';
@@ -313,6 +313,26 @@ export class BcfController {
     this.markupRev++;
     this.setStatus(`Topic "${gone!.title}" deleted`);
     return true;
+  }
+
+  /** Add topics that were kept from an earlier session (src/work). Topics whose guid is already here are left alone. Returns how many came in. */
+  adoptTopics(topics: readonly BcfTopic[], documents: readonly BcfDocument[] = []): number {
+    const have = new Set(this.project.topics.map((t) => t.guid));
+    let n = 0;
+    for (const t of topics) {
+      if (have.has(t.guid)) continue;
+      this.project.topics.push(t);
+      n++;
+    }
+    for (const d of documents) {
+      if (!this.project.documents.some((x) => x.guid === d.guid || (!!d.sha256 && x.sha256 === d.sha256))) this.project.documents.push(d);
+    }
+    if (n) {
+      this.dirty = true;
+      this.markupRev++;
+      this.setStatus(`${n} issue${n === 1 ? '' : 's'} from the last session`);
+    }
+    return n;
   }
 
   /** The model a surface outline of `topic` is drawn on: re-projected onto reshaped elements, null when detached. */

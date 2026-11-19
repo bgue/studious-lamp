@@ -395,6 +395,12 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Pick a tool. Drag on the view. Press Done when the drawing is ready.',
     'Report: Appendix J, Coordination tools',
   ),
+  'Issues panel/Clear everything': h(
+    'The button deletes the sketches and the issues of the open model, and the copy this browser keeps. Sketches on sheets stay.',
+    'Click twice and your marks and your team tasks for this building are gone for good. Other buildings keep theirs.',
+    'Click the button. Click again within 8 seconds to confirm.',
+    'Report: Appendix J, Coordination tools',
+  ),
   'Sheet view': h(
     'The area shows 1 page of a PDF drawing in place of the 3D picture. The model stays loaded under it.',
     'This area shows the paper drawing, so that you can mark it for your team.',
@@ -423,6 +429,12 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'The button shows the drawing tools and lets you draw on the page.',
     'Click and a bar of tools appears. Your marks stay when the bar goes.',
     'Click the button. Pick a tool. Drag on the page.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sheet view/Raise as issue': h(
+    'The button makes an issue of the sketch you draw on. The issue gets a snapshot of the sheet region and the PDF. When the sketch already has an issue, the button opens that issue.',
+    'Click and your marks on the drawing go to your team as a task that they can follow.',
+    'Pick a sketch from the list. Click the button.',
     'Report: Appendix J, Coordination tools',
   ),
   'Sheet view/Drawing toolbar': h(

@@ -391,6 +391,17 @@ try {
   await page.evaluate(() => { const r = window.__xray.app.renderer; r.camera.position.set(16, 17, 24); r.controls.target.set(2, 0, -2); r.controls.update(); r.markDirty(); });
   await page.waitForTimeout(700);
   await page.screenshot({ path: resolve(here, 'sheets-3d.png') });
+  // section planes cut the quad too; it still has no raycast and no depth write
+  await page.evaluate(() => window.__xraySection.set({ plane: { enabled: true, axis: 'y', offset: 1 } }));
+  await page.waitForTimeout(500);
+  const qc = await page.evaluate((id) => window.__xraySheets.quad(id), sheetId);
+  check('a section plane gives the quad a clipping plane', qc.clipPlanes === 1, String(qc.clipPlanes));
+  check('the clipped quad still has no raycast and no depth write', qc.pickable === false && qc.depthWrite === false);
+  const picksClipped = await page.evaluate((g) => g.map(([x, y]) => window.__xray.app.renderer.pick(x, y)), grid);
+  check('picks ignore the clipped quad too', picksClipped.some((p) => p !== null));
+  await page.evaluate(() => window.__xraySection.clear());
+  await page.waitForTimeout(400);
+  check('clearing the section takes the clipping plane off the quad', (await page.evaluate((id) => window.__xraySheets.quad(id).clipPlanes, sheetId)) === 0);
   await page.evaluate(() => window.__xraySheets.show3d(window.__xraySheets.sheets()[0].id, false));
   await page.waitForTimeout(200);
   check('hiding the sheet removes the quad', (await page.evaluate((id) => window.__xraySheets.quad(id).exists, sheetId)) === false);
