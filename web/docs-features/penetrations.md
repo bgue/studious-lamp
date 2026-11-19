@@ -31,6 +31,8 @@ Summary counts, filter chips (status, storey, host class), a sortable table (cli
 
 CSV columns: id, mep_global_id, mep_class, mep_name, host_global_id, host_class, host_name, storey, orientation, size_a_mm, size_b_mm, host_thickness_mm, status, gap_mm, x_m, y_m, z_m (location in the viewer frame). Text cells starting with `=`, `+`, `-` or `@` get a leading apostrophe so spreadsheets do not run them.
 
+`Raise issues from results` (block `Issues` in the drawer, `src/issues/clashUi.ts`) makes one BCF issue per row, `Penetration: Duct-12 through Wall-3`, with both GlobalIds, the camera on the crossing, the labels `clash` and `penetration` and a sketch tied to the pair (attachment kind `penetration`). It takes the selected rows, else the filtered rows. Raising again after a re-run adds only new pairs (key: check type plus the sorted GlobalId pair); pairs the analysis no longer reports get the note `Not found in latest run` and can be closed with `Close n not found`; above 200 new rows it asks and offers the 200 worst (no opening first). Details: `docs-features/issues.md`, "Issues from checks". Script: `window.__xrayClash.raise('penetration', { limit? })`.
+
 ## Panel folder, scripting, params
 
 - Folder `Penetrations`: buttons `Analyse penetrations`, `Export penetrations CSV`; options `scope` (`focus classes`, `focus only`), `markers`.

@@ -22,6 +22,10 @@ import { requestFrame } from '../ui/fit';
 import { getOverlay, svgEl, underReserved } from '../ui/overlay';
 import type { Overlay } from '../ui/overlay';
 import { registerParamSection } from '../ui/params';
+import { penetrationResults } from '../penetrations/clash';
+import type { ClashResult } from '../issues/clash';
+import { registerClashSource } from '../issues/clashRaise';
+import { buildClashSection } from '../issues/clashUi';
 
 export const STATUS_COLOUR: Record<PenStatus, string> = { none: '#ef4444', opening: '#22c55e', unknown: '#9aa5b4' };
 const STATUS_LABEL: Record<PenStatus, string> = { none: 'no opening', opening: 'opening', unknown: 'unknown' };
@@ -209,6 +213,28 @@ class PenetrationsTool {
     return list.length;
   }
 
+  /** Rows as clash results (src/issues/clash.ts): the ones that have GlobalIds on both elements. */
+  clashResults(rows: readonly Penetration[]): ClashResult[] {
+    const m = this.model;
+    return penetrationResults(rows, { guid: (id) => m.elements[id]?.globalId || undefined, label: (id) => this.label(id), storeyName: this.storeyName });
+  }
+
+  /** The rows "Raise issues from results" takes: the selected ones, else the filtered ones. */
+  chosenClashes(): ClashResult[] {
+    const rows = this.visibleRows();
+    return this.clashResults(this.selected.size > 0 ? rows.filter((r) => this.selected.has(r.id)) : rows);
+  }
+
+  /** Whether the latest run could have found the pair of these GlobalIds (an MEP element it analysed and a host it knew). */
+  clashInScope(a: string, b: string): boolean {
+    const r = this.run;
+    if (!r) return false;
+    const x = this.model.byGlobalId.get(a);
+    const y = this.model.byGlobalId.get(b);
+    if (x === undefined || y === undefined) return false;
+    return (r.mepIds.has(x) && r.hostIds.has(y)) || (r.mepIds.has(y) && r.hostIds.has(x));
+  }
+
   select(r: Penetration, additive: boolean): void {
     if (additive) {
       if (this.selected.has(r.id)) this.selected.delete(r.id);
@@ -349,7 +375,8 @@ function panel(box: HTMLElement, app: ViewerApp): (() => void) | void {
   const scope = select<PenScope>('scope', SCOPES, () => t.opts.scope, (v) => { t.opts.scope = v; });
   const markers = check('Markers on the model', () => t.opts.markers, (v) => { t.opts.markers = v; t.onChangeMarkers(); });
 
-  box.append(row(analyseBtn, exportBtn, bcfBtn), scope.root, markers.root, status);
+  const clash = buildClashSection('penetration');
+  box.append(row(analyseBtn, exportBtn, bcfBtn), scope.root, markers.root, status, clash.root);
   scope.update();
   markers.update();
 
@@ -442,6 +469,7 @@ function panel(box: HTMLElement, app: ViewerApp): (() => void) | void {
 
   const refresh = (): void => {
     status.set(t.statusText);
+    clash.update();
     renderFilters();
     renderTable();
   };
@@ -469,6 +497,14 @@ export const penetrationsPlugin: AppPlugin = {
     registerTool({
       id: 'penetrations', label: 'Penetrations', title: 'Schedule of MEP penetrations through slabs and walls, with opening status',
       icon: ICONS.penetrations, order: 90, drawerWidth: 460, panel: (box, a) => panel(box, a),
+    });
+    registerClashSource({
+      check: 'penetration',
+      all: () => (t.run ? t.clashResults(t.rows) : null),
+      chosen: () => t.chosenClashes(),
+      inScope: (a, b) => t.clashInScope(a, b),
+      disabledReason: () => (t.run ? (t.rows.length ? null : 'No penetrations to raise') : 'Run the analysis first'),
+      onChange: (cb) => t.onChange(cb),
     });
     registerAction({ id: 'penetrations.analyse', label: 'Penetrations: analyse', group: 'Tools', keys: [], run: () => void t.analyse() });
 

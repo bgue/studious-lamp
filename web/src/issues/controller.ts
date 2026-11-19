@@ -352,6 +352,17 @@ export class IssuesController {
     return topic.guid;
   }
 
+  /** Run `fn` (raising many issues from a check, clashRaise.ts) without the panel opening each new issue in the detail. */
+  async batch<T>(fn: () => Promise<T>): Promise<T> {
+    const was = this.raising;
+    this.raising = true;
+    try {
+      return await fn();
+    } finally {
+      this.raising = was;
+    }
+  }
+
   // ---------------------------------------------------------------- legacy comments and status
 
   /** The sketches of the loaded model that still carry comments, a resolved status, an assignee or a due date. */

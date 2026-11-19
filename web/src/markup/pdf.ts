@@ -162,7 +162,7 @@ export interface PdfImage {
 export class PdfPage {
   readonly ops: string[] = [];
   readonly images = new Set<PdfImage>();
-  readonly links: Array<{ x: number; y: number; w: number; h: number; url: string }> = [];
+  readonly links: Array<{ x: number; y: number; w: number; h: number; url?: string; page?: PdfPage }> = [];
   constructor(readonly width: number, readonly height: number) {}
 
   /** One line of text with its baseline start at (x, y). Line breaks are not interpreted: use wrapPdfText. */
@@ -201,6 +201,11 @@ export class PdfPage {
   link(x: number, y: number, w: number, h: number, url: string): void {
     this.links.push({ x, y, w, h, url });
   }
+
+  /** A clickable rectangle that jumps to another page of the same document (it is resolved when the file is built). */
+  linkToPage(x: number, y: number, w: number, h: number, page: PdfPage): void {
+    this.links.push({ x, y, w, h, page });
+  }
 }
 
 export interface PdfInfo {
@@ -235,6 +240,8 @@ export class PdfDocument {
   readonly pages: PdfPage[] = [];
   private readonly imageData: Array<{ img: PdfImage; bytes: Uint8Array }> = [];
   private readonly files: Attachment[] = [];
+  /** Bookmarks (the outline of a reader's side bar): a title and the page it opens, in order. */
+  readonly outline: Array<{ title: string; page: PdfPage }> = [];
 
   addPage(width: number, height: number): PdfPage {
     const p = new PdfPage(width, height);
@@ -282,6 +289,8 @@ export class PdfDocument {
     const imgIds = this.imageData.map(() => next++);
     const pageIds: Array<{ page: number; content: number; annots: number[] }> = this.pages.map((p) => ({ page: next++, content: next++, annots: p.links.map(() => next++) }));
     const fileIds = this.files.map(() => ({ stream: next++, spec: next++ }));
+    const outRoot = this.outline.length ? next++ : 0;
+    const outIds = this.outline.map(() => next++);
     const size = next;
 
     push('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n');
@@ -289,7 +298,8 @@ export class PdfDocument {
     const names = this.files.length
       ? ` /Names << /EmbeddedFiles << /Names [${this.files.map((f, i) => `${pdfString(f.name)} ${fileIds[i]!.spec} 0 R`).join(' ')}] >> >> /AF [${fileIds.map((f) => `${f.spec} 0 R`).join(' ')}]`
       : '';
-    obj(1, `<< /Type /Catalog /Pages 2 0 R${names} >>`);
+    const outlines = outRoot ? ` /Outlines ${outRoot} 0 R /PageMode /UseOutlines` : '';
+    obj(1, `<< /Type /Catalog /Pages 2 0 R${outlines}${names} >>`);
     obj(2, `<< /Type /Pages /Count ${this.pages.length} /Kids [${pageIds.map((p) => `${p.page} 0 R`).join(' ')}] >>`);
     const info: string[] = [`/Producer ${pdfString('X-ray mode for BIM reference viewer')}`, `/CreationDate (${pdfDate(created)})`];
     const add = (k: string, v: string | undefined): void => { if (v) info.push(`/${k} ${pdfString(toWinAnsi(v))}`); };
@@ -312,8 +322,14 @@ export class PdfDocument {
       obj(ids.page, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(p.width)} ${num(p.height)}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>${xobj ? ` /XObject << ${xobj} >>` : ''} >> /Contents ${ids.content} 0 R${annots} >>`);
       obj(ids.content, stream('', latin1(p.ops.join('\n'))));
       p.links.forEach((l, k) => {
-        const url = l.url.replace(/[^\x21-\x7e]/g, (c) => encodeURIComponent(c));
-        obj(ids.annots[k]!, `<< /Type /Annot /Subtype /Link /Rect [${num(l.x)} ${num(l.y)} ${num(l.x + l.w)} ${num(l.y + l.h)}] /Border [0 0 0] /A << /S /URI /URI ${pdfString(url)} >> >>`);
+        const rect = `/Rect [${num(l.x)} ${num(l.y)} ${num(l.x + l.w)} ${num(l.y + l.h)}] /Border [0 0 0]`;
+        const target = l.page ? this.pages.indexOf(l.page) : -1;
+        if (target >= 0) {
+          obj(ids.annots[k]!, `<< /Type /Annot /Subtype /Link ${rect} /A << /S /GoTo /D [${pageIds[target]!.page} 0 R /Fit] >> >>`);
+          return;
+        }
+        const url = (l.url ?? '').replace(/[^\x21-\x7e]/g, (c) => encodeURIComponent(c));
+        obj(ids.annots[k]!, `<< /Type /Annot /Subtype /Link ${rect} /A << /S /URI /URI ${pdfString(url)} >> >>`);
       });
     });
     this.files.forEach((f, i) => {
@@ -323,6 +339,15 @@ export class PdfDocument {
       const desc = f.description ? ` /Desc ${pdfString(toWinAnsi(f.description))}` : '';
       obj(ids.spec, `<< /Type /Filespec /F ${pdfString(f.name)} /UF ${pdfString(f.name)}${desc} /AFRelationship /Data /EF << /F ${ids.stream} 0 R /UF ${ids.stream} 0 R >> >>`);
     });
+
+    if (outRoot) {
+      obj(outRoot, `<< /Type /Outlines /First ${outIds[0]} 0 R /Last ${outIds[outIds.length - 1]} 0 R /Count ${outIds.length} >>`);
+      this.outline.forEach((o, i) => {
+        const t = Math.max(0, this.pages.indexOf(o.page));
+        const links = `${i > 0 ? ` /Prev ${outIds[i - 1]} 0 R` : ''}${i < outIds.length - 1 ? ` /Next ${outIds[i + 1]} 0 R` : ''}`;
+        obj(outIds[i]!, `<< /Title ${pdfString(toWinAnsi(o.title))} /Parent ${outRoot} 0 R${links} /Dest [${pageIds[t]!.page} 0 R /Fit] >>`);
+      });
+    }
 
     const xrefAt = pos;
     let xref = `xref\n0 ${size}\n0000000000 65535 f \n`;

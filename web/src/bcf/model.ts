@@ -8,6 +8,7 @@
 
 import type { Attachment } from './attach';
 import type { ModelIdentity } from '../markup/model';
+import type { ClashRef } from '../issues/clash';
 
 export type Vec3 = [number, number, number];
 export type BcfVersion = '2.1' | '3.0';
@@ -306,6 +307,11 @@ export interface BcfTopic {
    * loaded; a topic without it (made by another tool) is shown on any model, tagged "model unknown". See markup/scope.ts.
    */
   model?: ModelIdentity;
+  /**
+   * The check result this issue was raised from (side file `clash`): check type and sorted GlobalId pair, so raising again from a
+   * later run finds it instead of making a second issue. See src/issues/clash.ts.
+   */
+  clash?: ClashRef;
 }
 
 export interface BcfExtensions {
