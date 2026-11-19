@@ -2,7 +2,8 @@
 // (design docs/design/ifc-save-and-revision.md, section 1). Pure core in src/ifcsave; this file is the dialog, the file
 // writing and the scripting hook.
 //
-//   window.__xrayIfcSave = { open(), close(), sources(), plan(opts?), save(opts?), attach(files), lastOutputs(), busy() }
+//   window.__xrayIfcSave = { open(), close(), sources(), plan(opts?), save(opts?), attach(files), lastOutputs(), busy(),
+//                            openClean(), cleanCandidates(), cleanPlan(), saveCleaned() }   (cleaned copy, design 2)
 //   action ifc.save ("Save IFC...", command palette), button "Save IFC" in the Open model folder
 //
 // Reviewer names and comments leave the viewer only when the box "Include reviewer names and comments" is ticked in the dialog
@@ -13,7 +14,11 @@ import { defaultSchema } from '../classify/schema';
 import type { ClassificationSchema, ClassifyResult } from '../classify/types';
 import { registerAction } from '../input/actions';
 import { cleanupMarks, planOf } from '../ifcsave/collect';
-import { SaveCancelled, startSave } from '../ifcsave/client';
+import { SaveCancelled, startClean, startSave } from '../ifcsave/client';
+import { cleanedName } from '../ifcsave/clean';
+import type { CleanCandidate, CleanJob, CleanReport } from '../ifcsave/clean';
+import { RISK_LINES, keptGroups, totals } from '../ifcsave/cleanReport';
+import type { CleanedBlob } from '../ifcsave/saveWorker';
 import { DEFAULT_SAVE_OPTIONS, UnsupportedSchemaError } from '../ifcsave/plan';
 import type { FileSavePlan, SaveExtra, SaveOptions } from '../ifcsave/plan';
 import { duplicatesOf, makeSource, sourcesOf, checkAttach } from '../ifcsave/source';
@@ -51,7 +56,46 @@ export interface PlanSummary {
   duplicatesSkipped: number;
 }
 
+export interface CleanRequest {
+  /** Write the classification and review data of the elements that stay (default true). */
+  withClassification?: boolean;
+  includeReviewers?: boolean;
+  /** Remove a host wall even when a door or window that stays stands in it (default false: keep and mark it). */
+  removeHostsAnyway?: boolean;
+  /** Also remove elements the user hid by hand (default false: only what cleanup hid). */
+  includeHandHidden?: boolean;
+  /** Element ids (model indices) to remove instead of what cleanup hid (tests, scripts). */
+  ids?: number[];
+  target?: 'download' | 'none';
+  forceMainThread?: boolean;
+  onProgress?(p: SaveProgress): void;
+}
+
+export interface CleanPlanSummary {
+  files: CleanReport[];
+  /** Candidates by source file name that have no retained source (cannot be cleaned until the source is attached). */
+  missingSources: string[];
+}
+
+export interface CleanSummary {
+  files: Array<{ name: string; source: string; bytes: number; sourceBytes: number; removed: number; cascaded: number; kept: number; linesDeleted: number; lines: number }>;
+  /** Elements that were kept and marked, with the reason. */
+  kept: Array<{ file: string; expressId: number; globalId: string; because: string }>;
+  mode: 'worker' | 'main';
+  target: 'download' | 'file' | 'folder' | 'none';
+  ms: number;
+}
+
 export interface IfcSaveApi {
+  /** The "Save cleaned copy..." dialog (design 2). */
+  openClean(): void;
+  /** How many elements a cleaned copy would try to remove, and how many more were hidden by hand. */
+  cleanCandidates(req?: CleanRequest): { cleanup: number; handHidden: number };
+  /** Dry run: what would be removed and kept, per file. Reads and indexes every source file. */
+  cleanPlan(req?: CleanRequest): Promise<CleanPlanSummary>;
+  /** Write the cleaned copies (`<stem>.cleaned.ifc`). */
+  saveCleaned(req?: CleanRequest): Promise<CleanSummary>;
+
   open(): void;
   close(): void;
   busy(): boolean;
@@ -208,7 +252,10 @@ export const ifcSavePlugin: AppPlugin = (() => {
   }
 
   async function write(saved: SavedFile[], target: Target): Promise<void> {
-    const blobs = saved.map((f) => ({ name: f.outName, blob: new Blob(f.parts, { type: 'application/octet-stream' }) }));
+    await writeBlobs(saved.map((f) => ({ name: f.outName, blob: new Blob(f.parts, { type: 'application/octet-stream' }) })), target);
+  }
+
+  async function writeBlobs(blobs: Array<{ name: string; blob: Blob }>, target: Target): Promise<void> {
     if (target.kind === 'none') { last = blobs; return; }
     if (target.kind === 'file') {
       const w = await target.handle.createWritable();
@@ -288,6 +335,274 @@ export const ifcSavePlugin: AppPlugin = (() => {
     ].filter(Boolean).join(' ');
     return { ok: attached.length > 0 && problems.length === 0, message, attached };
   }
+
+  // ------------------------------------------------------------ cleaned copy
+
+  interface CleanBuild {
+    jobs: CleanJob[];
+    options: SaveOptions;
+    /** Candidates per file, for the report words. */
+    names: Map<string, Map<number, { name: string; ifcClass: string }>>;
+    missingSources: string[];
+    counts: { cleanup: number; handHidden: number };
+  }
+
+  const userHides = (): ReadonlySet<number> => (app?.controller?.settings.overrides.userHides as Set<number> | undefined) ?? new Set<number>();
+
+  function cleanCounts(req: CleanRequest = {}): { cleanup: number; handHidden: number } {
+    const owned = new Set(cleanup()?.hiddenByCleanup?.() ?? []);
+    const hand = [...userHides()].filter((id) => !owned.has(id));
+    return { cleanup: req.ids ? req.ids.length : owned.size, handHidden: hand.length };
+  }
+
+  function buildClean(req: CleanRequest = {}): CleanBuild {
+    const loaded = app?.loaded;
+    const model = loaded?.model;
+    if (!loaded || !model) throw new Error('No model is open.');
+    const srcs = sources();
+    if (srcs.length === 0) throw new Error('This model has no source IFC. Attach the source IFC first.');
+    const owned = new Set(cleanup()?.hiddenByCleanup?.() ?? []);
+    const ids = new Set<number>(req.ids ?? owned);
+    const hand = [...userHides()].filter((id) => !owned.has(id));
+    if (req.includeHandHidden && !req.ids) for (const id of hand) ids.add(id);
+    const marks = cleanupMarks([...ids].filter((id) => owned.has(id)), model, cleanup()?.lastReport?.matches ?? []);
+    const options: SaveOptions = { ...DEFAULT_SAVE_OPTIONS, includeReviewers: req.includeReviewers === true, includeCleanupMarks: true, scope: 'all', toolVersion: 'xray-viewer' };
+    const c = classify();
+    const plans = planOf({
+      model, sources: srcs, results: req.withClassification === false ? [] : c?.results() ?? [], schema: schema(),
+      options: { ...options, includeCleanupMarks: false },
+      history: options.includeReviewers ? c?.review?.history() : undefined,
+    });
+    const byFile = new Map<string, CleanCandidate[]>();
+    const names = new Map<string, Map<number, { name: string; ifcClass: string }>>();
+    for (const id of ids) {
+      const e = model.elements[id];
+      if (!e || e.expressId === undefined) continue;
+      const plan = e.file !== undefined ? plans.find((p) => p.fileName === e.file) : plans.length === 1 ? plans[0] : undefined;
+      if (!plan) continue;
+      const m = marks.get(e.globalId) ?? { rules: ['hidden'], reasons: ['Hidden by hand'] };
+      let list = byFile.get(plan.fileName);
+      if (!list) byFile.set(plan.fileName, (list = []));
+      list.push({ expressId: e.expressId, globalId: e.globalId, rules: m.rules, reasons: m.reasons });
+      let nm = names.get(plan.fileName);
+      if (!nm) names.set(plan.fileName, (nm = new Map()));
+      nm.set(e.expressId, { name: e.name || e.globalId, ifcClass: e.ifcClass });
+    }
+    const missingSources = [...byFile.keys()].filter((f) => !srcs.some((s) => s.fileName === f));
+    const jobs: CleanJob[] = [];
+    for (const [file, candidates] of byFile) {
+      const plan = plans.find((p) => p.fileName === file);
+      const s = srcs.find((x) => x.fileName === file);
+      if (plan && s) jobs.push({ plan, blob: s.blob, candidates, removeHostsAnyway: req.removeHostsAnyway === true });
+    }
+    return { jobs, options, names, missingSources, counts: cleanCounts(req) };
+  }
+
+  async function cleanPlan(req: CleanRequest = {}): Promise<CleanPlanSummary> {
+    if (running) throw new Error('A save is already running');
+    const b = buildClean(req);
+    if (b.jobs.length === 0) return { files: [], missingSources: b.missingSources };
+    const run = startClean(b.jobs, schema(), b.options, 'plan', req.onProgress, req.forceMainThread);
+    running = run;
+    try {
+      const { files } = await run.promise;
+      return { files: files.map((f) => f.report), missingSources: b.missingSources };
+    } finally {
+      running = null;
+    }
+  }
+
+  async function saveCleaned(req: CleanRequest = {}, target: Target = { kind: req.target === 'none' ? 'none' : 'download' }): Promise<CleanSummary> {
+    if (running) throw new Error('A save is already running');
+    const b = buildClean(req);
+    if (b.missingSources.length > 0) throw new Error(`No source file for ${b.missingSources.join(', ')}. Attach the source IFC first.`);
+    if (b.jobs.length === 0) throw new Error('Nothing to remove: cleanup has not hidden anything.');
+    const t0 = performance.now();
+    const run = startClean(b.jobs, schema(), b.options, 'write', req.onProgress, req.forceMainThread);
+    running = run;
+    try {
+      const { files, mode } = await run.promise;
+      await writeBlobs(files.map((f) => ({ name: f.report.outName, blob: f.blob! })), target);
+      return {
+        files: files.map((f: CleanedBlob) => ({
+          name: f.report.outName, source: f.report.fileName, bytes: f.bytes, sourceBytes: f.report.sourceBytes, removed: f.report.removed, cascaded: f.report.cascaded,
+          kept: f.report.kept.length, linesDeleted: f.report.stats.linesDeleted, lines: f.lines,
+        })),
+        kept: files.flatMap((f) => f.report.kept.map((k) => ({ file: f.report.fileName, expressId: k.expressId, globalId: k.globalId, because: k.because }))),
+        mode, target: target.kind, ms: performance.now() - t0,
+      };
+    } finally {
+      running = null;
+    }
+  }
+
+  class CleanDialog {
+    private readonly back = el('div', 'xis-back', { hidden: '' });
+    private readonly box = el('div', 'xis-box', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'xis-clean-title' });
+    private body = el('div');
+    private opts = { withClassification: true, includeReviewers: false, removeHostsAnyway: false, includeHandHidden: false };
+    private state: { kind: 'checking' } | { kind: 'ready'; plan: CleanPlanSummary; build: CleanBuild } | { kind: 'error'; message: string } = { kind: 'checking' };
+    private message = '';
+    private progress: { text: string; frac: number } | null = null;
+    private token = 0;
+    private readonly onKey = (ev: KeyboardEvent): void => {
+      if (ev.key === 'Escape' && !running) { ev.stopPropagation(); this.hide(); }
+    };
+
+    constructor() {
+      ensureStyle();
+      this.box.append(el('h2', undefined, { id: 'xis-clean-title' }, 'Save cleaned copy'), this.body);
+      this.back.append(this.box);
+      this.back.addEventListener('mousedown', (ev) => { if (ev.target === this.back && !running) this.hide(); });
+      document.body.appendChild(this.back);
+    }
+
+    get visible(): boolean { return !this.back.hidden; }
+
+    show(): void {
+      // every opening starts with the safe choices: nothing about reviewers or hand-hidden elements is remembered
+      this.opts = { withClassification: (classify()?.results().length ?? 0) > 0, includeReviewers: false, removeHostsAnyway: false, includeHandHidden: false };
+      this.message = '';
+      this.progress = null;
+      this.back.hidden = false;
+      document.addEventListener('keydown', this.onKey, true);
+      this.check();
+    }
+
+    hide(): void {
+      if (running) return;
+      this.back.hidden = true;
+      this.token++;
+      document.removeEventListener('keydown', this.onKey, true);
+    }
+
+    /** Dry run: index the source, plan the removal, then show the report. */
+    private check(): void {
+      const my = ++this.token;
+      this.state = { kind: 'checking' };
+      this.render();
+      void (async () => {
+        try {
+          const build = buildClean(this.opts);
+          const plan = await cleanPlan({ ...this.opts, onProgress: (p) => { if (my === this.token) { this.progress = { text: `${{ read: 'Reading', index: 'Indexing', plan: 'Planning', locate: 'Reading', emit: 'Writing', splice: 'Writing', write: 'Writing' }[p.phase]} ${p.file}`, frac: p.done / p.total }; this.render(); } } });
+          if (my !== this.token) return;
+          this.progress = null;
+          this.state = { kind: 'ready', plan, build };
+        } catch (e) {
+          if (my !== this.token) return;
+          this.progress = null;
+          this.state = { kind: 'error', message: e instanceof Error ? e.message : String(e) };
+        }
+        if (this.visible) this.render();
+      })();
+    }
+
+    private render(): void {
+      const body = el('div');
+      body.style.cssText = 'display:flex;flex-direction:column;gap:10px';
+      const st = this.state;
+      const counts = cleanCounts();
+      const reports = st.kind === 'ready' ? st.plan.files : [];
+      const t = totals(reports);
+      body.append(el('p', 'xis-dim', undefined, 'A copy of the IFC file is written without the elements that cleanup hid. Your original is not changed. Nothing leaves your computer.'));
+      for (const line of RISK_LINES) body.append(el('p', 'xis-dim', undefined, line));
+
+      if (st.kind === 'error') body.append(el('p', 'xis-err', undefined, st.message));
+      if (st.kind === 'checking') body.append(el('p', 'xis-dim', undefined, this.progress ? this.progress.text : 'Checking what can be removed...'));
+      if (st.kind === 'ready') {
+        const nm = new Map<string, { name: string; ifcClass: string }>();
+        for (const m of st.build.names.values()) for (const [k, v] of m) nm.set(`${k}`, v);
+        if (st.plan.missingSources.length > 0) body.append(el('p', 'xis-warn', undefined, `No source file for ${st.plan.missingSources.join(', ')}. Attach it with Save IFC first.`));
+        if (reports.length === 0 && st.plan.missingSources.length === 0) body.append(el('p', 'xis-warn', undefined, 'Cleanup has not hidden anything. Run cleanup and use Hide matches first.'));
+        if (reports.length > 0) {
+          const list = el('div', 'xis-files');
+          for (const r of reports) {
+            const row = el('div', 'xis-file');
+            row.append(el('span', undefined, undefined, `${r.fileName} → ${cleanedName(r.fileName)}`), el('span', undefined, undefined, `${mb(r.sourceBytes)}, IFC${r.schema.toUpperCase()}`));
+            list.append(row);
+          }
+          body.append(list);
+          body.append(el('p', undefined, undefined, `Removed: ${plural(t.removed, 'element')}${t.cascaded > 0 ? `, with ${plural(t.cascaded, 'opening or port')} that went with them` : ''}. ${plural(t.linesDeleted, 'line')} leave the file (geometry, placements and property data that nothing else uses are swept out with them).`));
+          const rules = new Map<string, number>();
+          for (const b of st.build.jobs) for (const c of b.candidates) for (const r of c.rules) rules.set(r, (rules.get(r) ?? 0) + 1);
+          if (rules.size > 0) body.append(el('p', 'xis-dim', undefined, `Why: ${[...rules].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([r, n]) => `${r} ${n}`).join(', ')}.`));
+          if (t.relationsTrimmed + t.relationsDeleted + t.fillsCut > 0)
+            body.append(el('p', 'xis-dim', undefined, `Relationships: ${plural(t.relationsTrimmed, 'list')} trimmed, ${plural(t.relationsDeleted, 'relationship')} deleted${t.fillsCut > 0 ? `, ${plural(t.fillsCut, 'door or window fill')} cut (the opening stays as a hole)` : ''}.`));
+          const groups = keptGroups(reports);
+          if (groups.length > 0) {
+            body.append(el('p', 'xis-warn', undefined, `Kept and marked (Xray_Cleanup.KeptBecause): ${plural(t.kept, 'element')}.`));
+            for (const g of groups) {
+              const ex = g.ids.map((id) => nm.get(`${id}`)?.name ?? `#${id}`).join(', ');
+              body.append(el('p', 'xis-dim', undefined, `${g.count} x ${g.key}: ${g.why}${ex ? ` (${ex}${g.count > g.ids.length ? ', ...' : ''})` : ''}`));
+            }
+          }
+          for (const r of reports) for (const w of r.warnings) body.append(el('p', 'xis-warn', undefined, w));
+          for (const r of reports) if (r.foreignXrayLines > 0) body.append(el('p', 'xis-warn', undefined, `${r.fileName} holds ${plural(r.foreignXrayLines, 'line')} of Xray data written by another route: they are removed and written again.`));
+          if (t.missing > 0) body.append(el('p', 'xis-warn', undefined, `${plural(t.missing, 'element')} no longer found in the source file.`));
+        }
+      }
+
+      const checkBox = (label: string, hint: string, get: boolean, set: (v: boolean) => void, disabled = false): HTMLElement => {
+        const lab = el('label', 'xis-check');
+        const input = el('input', undefined, { type: 'checkbox' });
+        input.checked = get;
+        input.disabled = disabled || !!running;
+        input.addEventListener('change', () => { set(input.checked); this.check(); });
+        const text = el('span');
+        text.append(el('span', undefined, undefined, label), el('br'), el('span', 'xis-dim', undefined, hint));
+        lab.append(input, text);
+        return lab;
+      };
+      body.append(
+        checkBox('Also remove elements I hid by hand', counts.handHidden > 0 ? `${plural(counts.handHidden, 'element')} hidden by you, not by cleanup.` : 'You have not hidden anything by hand.', this.opts.includeHandHidden && counts.handHidden > 0, (v) => { this.opts.includeHandHidden = v; }, counts.handHidden === 0),
+        checkBox('Remove walls even if a door or window stays', 'Off: such walls are kept and marked. On: the door or window then stands in no wall.', this.opts.removeHostsAnyway, (v) => { this.opts.removeHostsAnyway = v; }),
+        checkBox('Also write the classification', 'Adds the classification and review data of the elements that stay, as Save IFC does.', this.opts.withClassification, (v) => { this.opts.withClassification = v; }),
+        checkBox('Include reviewer names and comments', 'Off: no name or comment is written.', this.opts.includeReviewers && this.opts.withClassification, (v) => { this.opts.includeReviewers = v; }, !this.opts.withClassification),
+      );
+      if (this.message) body.append(el('p', this.message.startsWith('Saved') ? 'xis-dim' : 'xis-err', undefined, this.message));
+      if (this.progress && (st.kind !== 'checking' || running)) {
+        const bar = el('div', 'xis-prog', { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(this.progress.frac * 100)) });
+        const fill = el('i');
+        fill.style.width = `${Math.round(this.progress.frac * 100)}%`;
+        bar.append(fill);
+        body.append(bar, el('p', 'xis-dim', undefined, this.progress.text));
+      }
+      const btns = el('div', 'xis-row');
+      const cancel = el('button', 'xis-btn', { type: 'button' }, running ? 'Cancel save' : 'Close');
+      cancel.addEventListener('click', () => { if (running) running.cancel(); else this.hide(); });
+      const go = el('button', 'xis-btn primary', { type: 'button' }, 'Save cleaned copy');
+      go.disabled = !!running || st.kind !== 'ready' || reports.length === 0 || t.removed + t.cascaded === 0;
+      go.addEventListener('click', () => void this.go(reports));
+      btns.append(cancel, go);
+      body.append(btns);
+      this.body.replaceWith(body);
+      this.body = body;
+    }
+
+    private async go(reports: CleanReport[]): Promise<void> {
+      const target = await chooseTarget(reports.length, cleanedName(reports[0]?.fileName ?? 'model.ifc'));
+      if (!target) return;
+      this.message = '';
+      this.progress = { text: 'Starting', frac: 0 };
+      this.render();
+      try {
+        const s = await saveCleaned({ ...this.opts, onProgress: (p) => {
+          this.progress = { text: `${{ read: 'Reading', index: 'Indexing', plan: 'Planning', locate: 'Reading', emit: 'Writing the block for', splice: 'Assembling', write: 'Writing' }[p.phase]} ${p.file}`, frac: p.done / p.total };
+          this.render();
+        } }, target);
+        this.progress = null;
+        const total = s.files.reduce((a, f) => a + f.bytes, 0);
+        this.message = `Saved ${s.files.map((f) => f.name).join(', ')} (${mb(total)}, ${plural(s.files.reduce((a, f) => a + f.removed, 0), 'element')} removed, ${s.kept.length} kept and marked, ${(s.ms / 1000).toFixed(1)} s).`;
+      } catch (e) {
+        this.progress = null;
+        if (e instanceof SaveCancelled) this.message = 'Save cancelled. Nothing was written.';
+        else if (isUnreadable(e)) this.message = UNREADABLE_MESSAGE(sources()[0]?.fileName ?? 'The source file');
+        else this.message = `Could not save: ${e instanceof Error ? e.message : String(e)}`;
+      }
+      if (this.visible) this.render();
+    }
+  }
+  let cleanDlg: CleanDialog | null = null;
 
   // ------------------------------------------------------------ dialog
 
@@ -444,7 +759,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
       this.render();
       try {
         const s = await doSave({ ...this.opts, onProgress: (p) => {
-          this.progress = { text: `${{ locate: 'Reading the end of', emit: 'Writing the block for', splice: 'Assembling' }[p.phase]} ${p.file}`, frac: (p.done + (p.phase === 'locate' ? 0 : p.phase === 'emit' ? 0.4 : 0.8)) / p.total };
+          this.progress = { text: `${{ locate: 'Reading the end of', emit: 'Writing the block for', splice: 'Assembling', read: 'Reading', index: 'Indexing', plan: 'Planning', write: 'Writing' }[p.phase]} ${p.file}`, frac: (p.done + (p.phase === 'locate' ? 0 : p.phase === 'emit' ? 0.4 : 0.8)) / p.total };
           this.render();
         } }, target);
         const total = s.files.reduce((a, f) => a + f.bytes, 0);
@@ -464,6 +779,10 @@ export const ifcSavePlugin: AppPlugin = (() => {
   const ensureDialog = (): Dialog => (dlg ??= new Dialog());
 
   const api: IfcSaveApi = {
+    openClean: () => (cleanDlg ??= new CleanDialog()).show(),
+    cleanCandidates: (req) => cleanCounts(req),
+    cleanPlan,
+    saveCleaned: (req) => saveCleaned(req),
     open: () => ensureDialog().show(),
     close: () => dlg?.hide(),
     busy: () => !!running,
@@ -486,6 +805,11 @@ export const ifcSavePlugin: AppPlugin = (() => {
         id: 'ifc.save', label: 'Save IFC...', group: 'File', keys: [],
         description: 'Save a copy of the open IFC file with the classification, review state and cleanup marks added',
         run: () => api.open(),
+      });
+      registerAction({
+        id: 'ifc.saveCleaned', label: 'Save cleaned copy...', group: 'File', keys: [],
+        description: 'Save a copy of the open IFC file without the elements that model cleanup hid',
+        run: () => api.openClean(),
       });
       // The File menu of the top bar does not exist yet: the button sits in the Open model folder, next to Open IFC.
       const panel = a.panel as unknown as { folders: Array<{ $title: HTMLElement; add(o: object, p: string): { name(n: string): unknown }; domElement: HTMLElement }> } | undefined;

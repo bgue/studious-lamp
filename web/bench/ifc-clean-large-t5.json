@@ -1,0 +1,77 @@
+{
+  "file": "/tmp/xray-big-ifc/big-100000.ifc",
+  "sizeMb": 90,
+  "cpus": 4,
+  "loadavgStart": 20.22,
+  "elements": 100000,
+  "toRemove": 5715,
+  "runs": [
+    {
+      "requested": "worker",
+      "mode": "worker",
+      "wallMs": 3960,
+      "apiMs": 3386,
+      "loadavg": [
+        24.7,
+        26.72
+      ],
+      "removed": 5715,
+      "cascaded": 0,
+      "kept": 0,
+      "linesDeleted": 82868,
+      "sourceMb": 89.6,
+      "outputMb": 84.6,
+      "heapBeforeMb": 302.6,
+      "heapAfterMb": 301.7,
+      "growthMb": -0.9,
+      "peakGrowthMb": 5.4
+    },
+    {
+      "requested": "main",
+      "mode": "main",
+      "wallMs": 4363,
+      "apiMs": 3747,
+      "loadavg": [
+        26.72,
+        26.9
+      ],
+      "removed": 5715,
+      "cascaded": 0,
+      "kept": 0,
+      "linesDeleted": 82868,
+      "sourceMb": 89.6,
+      "outputMb": 84.6,
+      "heapBeforeMb": 302.6,
+      "heapAfterMb": 301.7,
+      "growthMb": -0.8,
+      "peakGrowthMb": 331.1
+    },
+    {
+      "requested": "worker",
+      "mode": "worker",
+      "wallMs": 2144,
+      "apiMs": 1674,
+      "loadavg": [
+        26.9,
+        27.07
+      ],
+      "removed": 5715,
+      "cascaded": 0,
+      "kept": 0,
+      "linesDeleted": 82868,
+      "sourceMb": 89.6,
+      "outputMb": 84.6,
+      "heapBeforeMb": 302.6,
+      "heapAfterMb": 301.7,
+      "growthMb": -0.8,
+      "peakGrowthMb": 4.4
+    }
+  ],
+  "output": {
+    "name": "big-100000.cleaned.ifc",
+    "size": 88738175,
+    "endsOk": true,
+    "block": true
+  },
+  "loadavgEnd": 27.07
+}

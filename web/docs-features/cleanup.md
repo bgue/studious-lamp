@@ -78,7 +78,10 @@ properties out. `Save .glb` downloads `cleaned-<model>.glb`; then `Open the save
 
 The glb has one node per element, named by GlobalId, with `extras` `{ id, ifcClass, ifcName, props }`. The viewer's glb loader
 reads these back, so selection, the GlobalId and hover properties work. A glb cannot carry storeys, relations or full property
-sets, so the tree is grouped by class only. Saving a cleaned IFC is a separate feature.
+sets, so the tree is grouped by class only.
+
+`Save cleaned copy...` (also `ifc.saveCleaned` in the command palette) saves a cleaned **IFC** instead: the original file without the
+elements cleanup hid, relations repaired. It is described in [Save IFC](ifc-save.md#saving-a-cleaned-copy).
 
 ### CleanupPlan
 

@@ -1,10 +1,12 @@
 // Headless smoke for Save IFC and the revision walkthrough (design docs/design/ifc-save-and-revision.md, section 6).
-// This file holds steps 1 and 2 (ticket T2); the revision steps 3 to 7 are added by ticket T4.
+// This file holds steps 1 and 2 (ticket T2) and step 8 (ticket T5); the revision steps 3 to 7 are added by ticket T4.
 //   1. Open AC20-FZK-Haus.ifc through the file input; classify all with rules only; confirm 3 elements and commit.
 //   2. Save IFC (API, then the dialog button), capture the download, check the bytes (original untouched, no reviewer name),
 //      re-open the saved file as a new model (same element count, <psetName>.Discipline readable with properties: all) and
 //      screenshot bench/ifc-save-dialog.png.
-// Usage: SMOKE_PORT=5770 node bench/smoke-ifc-save-revision.mjs
+//   8. Cleaned copy: open Building-Architecture.ifc, run cleanup and hide the matches, Save cleaned copy (API, then the dialog), re-open
+//      the .cleaned.ifc: the elements cleanup hid are gone (except the ones kept and marked), every other element is still there.
+// Usage: SMOKE_PORT=5770 node bench/smoke-ifc-save-revision.mjs        (SMOKE_STEPS=8 runs only step 8)
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync } from 'node:fs';
@@ -18,6 +20,8 @@ const port = Number(process.env.SMOKE_PORT ?? 5770);
 const tmp = mkdtempSync(join(tmpdir(), 'smoke-ifc-save-'));
 const FZK = resolve(root, '..', 'models', 'AC20-FZK-Haus.ifc');
 const REVIEWER = 'Smoke Reviewer-Quentin';
+const ARCH = resolve(root, '..', 'models', 'Building-Architecture.ifc');
+const only8 = process.env.SMOKE_STEPS === '8';
 
 let pw;
 for (const c of [process.env.PLAYWRIGHT_MODULE, resolve(root, 'node_modules/playwright'), '/opt/node-tools/node_modules/playwright', '/opt/node22/lib/node_modules/playwright'].filter(Boolean)) {
@@ -65,6 +69,7 @@ try {
     return st;
   };
 
+  if (!only8) {
   // ---------------------------------------------------------------- step 1
   const opened = await openFile(FZK, 'AC20-FZK-Haus.ifc');
   const srcs = await page.evaluate(() => window.__xrayIfcSave.sources());
@@ -146,6 +151,60 @@ try {
     return { elements: r.byExpressId.size, withDiscipline, header: r.header };
   }, out.toString('base64'));
   check('<psetName>.Discipline is readable back from the block for every classified element', readBack.elements === opened.n && readBack.withDiscipline === opened.n, JSON.stringify(readBack));
+  }
+
+  // ---------------------------------------------------------------- step 8: cleaned copy
+  const arch = await openFile(ARCH, 'Building-Architecture.ifc');
+  await page.waitForFunction('window.__xrayCleanup', null, { timeout: 60000 });
+  // Building-Architecture has only 9 elements and nothing tiny: widen the tiny rule until cleanup hides some but not all of them
+  const hidden = await page.evaluate(() => {
+    const c = window.__xrayCleanup;
+    const m = window.__xray.app.controller.model;
+    for (const maxSize of [0.5, 1, 2, 3, 4, 6, 10]) {
+      c.restore();
+      c.setRules({ tiny: { enabled: true, maxSize } });
+      c.analyse();
+      c.hide();
+      const n = c.hiddenByCleanup().length;
+      if (n > 0 && n < m.elements.length / 2) break;
+    }
+    return { ids: c.hiddenByCleanup(), globalIds: c.hiddenByCleanup().map((i) => m.elements[i].globalId), all: m.elements.map((e) => e.globalId), rules: c.rules.tiny };
+  });
+  check('cleanup hid some elements', hidden.ids.length > 0, `${hidden.ids.length} of ${arch.n}, tiny ${JSON.stringify(hidden.rules)}`);
+  const cands = await page.evaluate(() => window.__xrayIfcSave.cleanCandidates());
+  check('the cleaned copy sees the hidden elements', cands.cleanup === hidden.ids.length, JSON.stringify(cands));
+  const cplan = await page.evaluate(() => window.__xrayIfcSave.cleanPlan());
+  check('the dry run reports removed and kept', cplan.files.length === 1 && cplan.files[0].removed + cplan.files[0].kept.length === hidden.ids.length, JSON.stringify({ removed: cplan.files[0]?.removed, kept: cplan.files[0]?.kept.length, cascaded: cplan.files[0]?.cascaded }));
+  // the dialog and its report
+  await page.evaluate(() => window.__xrayIfcSave.openClean());
+  const cdlg = page.locator('.xis-box').last();
+  await cdlg.locator('button.primary').waitFor();
+  await page.waitForFunction(() => { const b = [...document.querySelectorAll('.xis-box button.primary')].pop(); return b && !b.disabled; });
+  const ctext = await cdlg.textContent();
+  check('the dialog states what is removed and the risks', /Removed: \d/.test(ctext) && /Kept and marked instead/.test(ctext) && ctext.includes('Building-Architecture.cleaned.ifc'), ctext.slice(0, 200));
+  await page.screenshot({ path: resolve(here, 'ifc-clean-dialog.png') });
+  await cdlg.locator('button', { hasText: 'Close' }).click();
+  const t0 = Date.now();
+  const cdl = page.waitForEvent('download');
+  const csum = await page.evaluate(() => window.__xrayIfcSave.saveCleaned({ withClassification: false }));
+  const cfile = await cdl;
+  const cpath = join(tmp, cfile.suggestedFilename());
+  await cfile.saveAs(cpath);
+  const cbytes = readFileSync(cpath);
+  console.log(`cleaned copy: ${csum.files[0].removed} removed, ${csum.files[0].kept} kept, ${csum.files[0].sourceBytes} -> ${cbytes.length} bytes, ${csum.ms.toFixed(0)} ms in the ${csum.mode}, ${Date.now() - t0} ms with the download`);
+  check('the download is named <stem>.cleaned.ifc and smaller than the source', cfile.suggestedFilename() === 'Building-Architecture.cleaned.ifc' && cbytes.length < readFileSync(ARCH).length, `${cbytes.length}`);
+  check('the summary matches the file', csum.files[0].bytes === cbytes.length && csum.files[0].removed + csum.files[0].kept === hidden.ids.length, JSON.stringify(csum.files[0]));
+  const ctxt = cbytes.toString('latin1');
+  check('the block records removed and kept', ctxt.includes(`removed=${csum.files[0].removed} kept=${csum.files[0].kept}`));
+  const keptGuids = new Set(csum.kept.map((k) => k.globalId));
+  const goneGuids = hidden.globalIds.filter((g) => !keptGuids.has(g));
+  const reopened8 = await openFile(cpath, 'the cleaned copy');
+  const after = await page.evaluate(() => window.__xray.app.controller.model.elements.map((e) => e.globalId));
+  const afterSet = new Set(after);
+  const expected = hidden.all.filter((g) => !goneGuids.includes(g));
+  check('the elements cleanup hid are gone from the re-opened copy', goneGuids.every((g) => !afterSet.has(g)), `${goneGuids.length} removed`);
+  check('every other element is still there', expected.length === after.length && expected.every((g) => afterSet.has(g)), `${expected.length} expected, ${reopened8.n} found`);
+  if (keptGuids.size > 0) check('kept elements carry Xray_Cleanup.KeptBecause', ctxt.includes("'Xray_Cleanup'") && ctxt.includes("'KeptBecause'"));
 
   check('no console or page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e) {

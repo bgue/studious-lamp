@@ -1920,6 +1920,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Review the numbers. Click Save glb. Click Open the saved file to check it.',
     'Report: Appendix H, Model cleanup',
   ),
+  'Model cleanup/Save cleaned copy...': h(
+    'The button opens a dialog that saves a copy of the open IFC file without the elements that cleanup hid. Relations are repaired and unused geometry is swept out.',
+    'Click and a report says what goes, what stays and why. Your original file stays as it is. A wall with a door that stays, and an assembly with parts that stay, remain and get a mark.',
+    'Run cleanup and Hide matches first. Read the report. Press Save cleaned copy. The file is named like the original with .cleaned.ifc.',
+    'Report: Appendix H, Model cleanup',
+  ),
   'Simplify/Simplify status': h(
     'The read-only field shows the result of the last simplification step and what is staged for the saved file.',
     'A short text tells you what changed and how much lighter the model got.',

@@ -57,7 +57,7 @@ export interface ElementSave {
   result?: ClassifyResult;
   comment?: string;
   revision?: { status: RevisionStatus; baseline: string };
-  cleanup?: { rules: string[]; reasons: string[] };
+  cleanup?: { rules: string[]; reasons: string[]; keptBecause?: string };
 }
 
 export interface FileSavePlan {
@@ -73,7 +73,7 @@ export interface FileSavePlan {
 export interface SaveExtra {
   comments?: ReadonlyMap<string, string>;
   revision?: ReadonlyMap<string, { status: RevisionStatus; baseline: string }>;
-  cleanup?: ReadonlyMap<string, { rules: string[]; reasons: string[] }>;
+  cleanup?: ReadonlyMap<string, { rules: string[]; reasons: string[]; keptBecause?: string }>;
 }
 
 export class UnsupportedSchemaError extends Error {

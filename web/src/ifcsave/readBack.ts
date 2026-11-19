@@ -34,7 +34,7 @@ function nominal(v: StepValue | undefined): unknown {
  */
 export function readAdditions(blockText: string, external: ReadonlyMap<number, string> = new Map()): ReadAdditions {
   const out: ReadAdditions = { byExpressId: new Map() };
-  const h = /\/\* XRAY-BEGIN \S+ base=(\d+) lines=(\d+) tool=(\S+) \*\//.exec(blockText);
+  const h = /\/\* XRAY-BEGIN \S+ base=(\d+) lines=(\d+) tool=(\S+)(?: [^*]*?)? \*\//.exec(blockText);
   if (h) out.header = { base: Number(h[1]), lines: Number(h[2]), tool: h[3]! };
   const classes = new Map<number, string>(external);
   const references = new Map<number, { code: string; label: string; source: number }>();

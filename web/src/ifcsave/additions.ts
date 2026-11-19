@@ -132,6 +132,7 @@ export function elementProps(e: ElementSave, schema: ClassificationSchema, famil
     out.cleanup.push({ name: 'FlaggedForRemoval', type: 'IfcBoolean', value: true });
     if (e.cleanup.rules.length) out.cleanup.push({ name: 'Rules', type: 'IfcLabel', value: e.cleanup.rules.join(';') });
     if (e.cleanup.reasons.length) out.cleanup.push({ name: 'Reason', type: 'IfcText', value: e.cleanup.reasons.join('; ') });
+    if (e.cleanup.keptBecause) out.cleanup.push({ name: 'KeptBecause', type: 'IfcLabel', value: e.cleanup.keptBecause });
   }
   return out;
 }
@@ -157,7 +158,7 @@ const sysName = (r: RefSpec): string => r.system;
 const sameEdition = (a: string | null, b: string): boolean => !a || !b || b === 'unspecified' || a.toLowerCase() === b.toLowerCase();
 
 /** Lines of the block, then the block with its markers. With nothing to write the text is empty (which removes an old block). */
-export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, o: SaveOptions): Additions {
+export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, o: SaveOptions, note?: string): Additions {
   const f = plan.family;
   const lines: string[] = [];
   let next = plan.base;
@@ -208,7 +209,7 @@ export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, 
     groups.push(...m.values());
   }
 
-  if (!orderedRefs.length && !groups.length) return { text: '', lines: 0, lastId: plan.base };
+  if (!orderedRefs.length && !groups.length && !note) return { text: '', lines: 0, lastId: plan.base };
 
   // ---- owner history
   let owner: number | null = plan.ownerHistoryId;
@@ -270,7 +271,7 @@ export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, 
 
   // ---- markers
   const tool = `xray-viewer/${(o.toolVersion ?? 'dev').replace(/[^A-Za-z0-9._+-]/g, '_')}`;
-  const begin = `/* ${MARKER_BEGIN} ${BLOCK_FORMAT} base=${plan.base} lines=${lines.length} tool=${tool} */\n`;
+  const begin = `/* ${MARKER_BEGIN} ${BLOCK_FORMAT} base=${plan.base} lines=${lines.length} tool=${tool}${note ? ` ${note.replace(/[^A-Za-z0-9._=+ -]/g, '_')}` : ''} */\n`;
   const body = begin + lines.map((l) => l + '\n').join('');
   const bytes = body.length; // ASCII only: every non-ASCII character is escaped in the lines
   return { text: `${body}/* ${MARKER_END} bytes=${bytes} */\n`, lines: lines.length, lastId: next };

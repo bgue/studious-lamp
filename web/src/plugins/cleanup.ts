@@ -924,6 +924,7 @@ function buildGui(gui: GUI, c: CleanupController): void {
     select: () => c.select(),
     exportReport: () => c.exportReport(),
     save: () => c.openSaveDialog(),
+    saveCopy: () => window.__xrayIfcSave?.openClean(),
   };
   folder.add(actions, 'preview').name('Preview matches');
   folder.add(actions, 'hide').name('Hide matches');
@@ -931,6 +932,7 @@ function buildGui(gui: GUI, c: CleanupController): void {
   folder.add(actions, 'select').name('Select matches');
   folder.add(actions, 'exportReport').name('Export report');
   folder.add(actions, 'save').name('Save cleaned model');
+  folder.add(actions, 'saveCopy').name('Save cleaned copy...');
   const st = proxy(() => c as unknown as { status: string });
   folder.add(st, 'status').name('Cleanup status').disable();
   const al = proxy(() => c as unknown as { applyOnLoad: boolean });

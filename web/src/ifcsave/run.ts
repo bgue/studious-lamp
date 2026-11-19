@@ -3,15 +3,17 @@
 
 import type { ClassificationSchema } from '../classify/types';
 import { emitAdditions } from './additions';
+import { runClean } from './clean';
 import type { FileSavePlan, SaveOptions } from './plan';
 import { locateInsert, spliceParts } from './splice';
+import { scanStep } from './stepScan';
 
 export interface SaveJob {
   plan: FileSavePlan;
   blob: Blob;
 }
 
-export type SavePhase = 'locate' | 'emit' | 'splice';
+export type SavePhase = 'locate' | 'emit' | 'splice' | 'read' | 'index' | 'plan' | 'write';
 export interface SaveProgress {
   phase: SavePhase;
   file: string;
@@ -56,6 +58,17 @@ export async function runSave(
     const base = at.oldBlock ? at.oldBlock.base : j.plan.base;
     const plan: FileSavePlan = { ...j.plan, base, existingClassifications: j.plan.existingClassifications.filter((c) => c.id <= base) };
     onProgress?.({ phase: 'emit', file, done: i, total });
+    // Without markers, lines named like ours can still be in the file (it went through another tool): they are taken out by the patch
+    // writer first, so nothing is written twice (design 1.4).
+    if (!at.oldBlock) {
+      onProgress?.({ phase: 'locate', file, done: i + 0.5, total });
+      const found = await scanStep(j.blob);
+      if (found.ourNamedRoots.length > 0) {
+        const [f] = await runClean([{ plan: j.plan, blob: j.blob, candidates: [], removeHostsAnyway: false, plain: true }], schema, o, 'write', onProgress, cancelled);
+        out.push({ fileName: file, outName: outputName(file), parts: f!.parts, lines: f!.lines, elements: j.plan.elements.length, bytes: f!.bytes, replaced: true });
+        continue;
+      }
+    }
     const add = emitAdditions(plan, schema, o);
     onProgress?.({ phase: 'splice', file, done: i, total });
     const parts = spliceParts(j.blob, at, add.text);
