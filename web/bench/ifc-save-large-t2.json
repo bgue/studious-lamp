@@ -1,0 +1,37 @@
+{
+  "file": "/tmp/xray-big-ifc-t2/big-115000.ifc",
+  "sizeMb": 103,
+  "loadavgStart": 39,
+  "elements": 115000,
+  "classified": 115000,
+  "saves": [
+    {
+      "requested": "worker",
+      "mode": "worker",
+      "ms": 19195,
+      "lines": 116,
+      "outputMb": 107,
+      "heapBeforeMb": 402.8,
+      "heapAfterMb": 402.9,
+      "growthMb": 0.1,
+      "peakGrowthMb": 23.5
+    },
+    {
+      "requested": "main",
+      "mode": "main",
+      "ms": 21524,
+      "lines": 116,
+      "outputMb": 107,
+      "heapBeforeMb": 402.8,
+      "heapAfterMb": 403.1,
+      "growthMb": 0.3,
+      "peakGrowthMb": 113.9
+    }
+  ],
+  "output": {
+    "name": "big-115000.xray.ifc",
+    "size": 112283561,
+    "endsOk": true
+  },
+  "loadavgEnd": 34.18
+}

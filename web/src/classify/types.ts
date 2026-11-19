@@ -133,6 +133,16 @@ export interface SchemaPropertyNames {
   needsReview: string;
 }
 
+/** Which published classification a code list is, for the IFC writer (`IfcClassification`). Not part of `schemaHash`. */
+export interface SchemaSystemMeta {
+  name: string;
+  source?: string;
+  edition?: string;
+  /** YYYY-MM-DD */
+  editionDate?: string;
+  location?: string;
+}
+
 /** `xray-classification-schema/1`: the controlled output properties and their code lists. */
 export interface ClassificationSchema {
   schema: 'xray-classification-schema/1';
@@ -155,6 +165,8 @@ export interface ClassificationSchema {
   fallbackSubDiscipline?: string;
   disciplines: SchemaDiscipline[];
   masterformat: { edition?: string; note?: string; appliesTo?: 'building' | 'all'; divisions: SchemaDivision[] };
+  /** Optional names of the code lists for the IFC writer. Parsed, never hashed. */
+  systems?: { discipline?: SchemaSystemMeta; masterformat?: SchemaSystemMeta };
 }
 
 // ---------------------------------------------------------------- decision model contract (the Jev shape)

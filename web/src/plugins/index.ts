@@ -15,6 +15,7 @@ import { undoPlugin } from './undo';
 import { cleanupPlugin } from './cleanup';
 import { classifyPlugin } from './classify';
 import { revisionPlugin } from './revision';
+import { ifcSavePlugin } from './ifcSave';
 import { hoverInfoPlugin } from './hoverInfo';
 import { presetsPlugin } from './presets';
 import { keymapPlugin } from './keymap';
@@ -46,4 +47,4 @@ import { mapPlugin } from './map';
 // help runs after every panel-building plugin so it can see all controls; panelDock last so it wraps the finished panel.
 // topBar first: it creates the bar and the #xray-topbar-search host that the awesomeBar plugin mounts into, and its onModel
 // takes the factory settings hash before any other plugin changes the state.
-export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, mapPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, revisionPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, issuesPlugin, issueToolsPlugin, sheetsPlugin, helpPlugin, panelDockPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];
+export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, mapPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, ifcSavePlugin, revisionPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, issuesPlugin, issueToolsPlugin, sheetsPlugin, helpPlugin, panelDockPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];

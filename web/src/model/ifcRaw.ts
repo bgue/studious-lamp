@@ -14,7 +14,8 @@ import type { MapConversion, SiteGeo } from '../types';
 import { mapConversionFrom } from './ifcMap';
 import { siteGeoFrom } from './ifcSite';
 import { isMarker, isSkippedClass, SYSTEM_CLASSES, smoothMesh } from './ifcShared';
-import type { IfcProgress, RawElement, RawModel, RawStorey } from './ifcShared';
+import type { IfcProgress, RawElement, RawModel, RawStorey, SaveInfo } from './ifcShared';
+import { ownClassifications, tailBlockBase } from '../ifcsave/source';
 import {
   SI_SCALES, attributeEntries, finalizeProps, normalizeNumber, propertyGroup, quantityGroup,
 } from './ifcProps';
@@ -456,10 +457,33 @@ export async function extractIfc(api: IfcAPI, data: Uint8Array, fileName: string
   const model = api.OpenModel(data, { COORDINATE_TO_ORIGIN: false });
   if (model < 0) throw new IfcReadError(`${fileName} could not be parsed as IFC`, 'invalid');
   try {
-    return await extractModel(api, model, fileName, progress, check, hooks.props ?? 'common');
+    const raw = await extractModel(api, model, fileName, progress, check, hooks.props ?? 'common');
+    raw.saveInfo = saveInfoOf(api, model, tailBlockBase(data));
+    return raw;
   } finally {
     try { api.CloseModel(model); } catch { /* already closed */ }
   }
+}
+
+/** Three numbers per file for Save IFC (design 1.3): max express id, the project's OwnerHistory, the file's own IfcClassification lines. */
+function saveInfoOf(api: IfcAPI, model: number, blockBase: number | null): SaveInfo {
+  let maxExpressId = 0;
+  try { maxExpressId = api.GetMaxExpressID(model); } catch { /* keep 0 */ }
+  let ownerHistoryId: number | null = null;
+  try {
+    const proj = ids(api, model, WebIFC.IFCPROJECT)[0];
+    if (proj !== undefined) ownerHistoryId = refId(api.GetLine(model, proj)?.OwnerHistory);
+  } catch { /* none */ }
+  const classifications: SaveInfo['classifications'] = [];
+  for (const id of ids(api, model, WebIFC.IFCCLASSIFICATION)) {
+    try {
+      const l = api.GetLine(model, id);
+      const name = str(l?.Name);
+      if (name) classifications.push({ id, name, edition: str(l?.Edition) || null });
+    } catch { /* unreadable line: skip */ }
+  }
+  classifications.sort((a, b) => a.id - b.id);
+  return { maxExpressId, ownerHistoryId, classifications: ownClassifications(classifications, blockBase), blockBase };
 }
 
 async function extractModel(

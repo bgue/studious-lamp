@@ -105,6 +105,18 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Scan drawer](#scan-drawer)
 - [WebXR drawer](#webxr-drawer)
 - [Classify drawer](#classify-drawer)
+- [Simplif](#simplif)
+- [Decimate mes](#decimate-mes)
+- [Small detail](#small-detail)
+- [Hidden interio](#hidden-interio)
+- [Instance](#instance)
+- [Weld and clea](#weld-and-clea)
+- [Simplify](#simplify)
+- [Decimate mesh](#decimate-mesh)
+- [Small details](#small-details)
+- [Hidden interior](#hidden-interior)
+- [Instances](#instances)
+- [Weld and clean](#weld-and-clean)
 - [Search bar](#search-bar)
 - [Status ba](#status-ba)
 - [Status bar](#status-bar)
@@ -247,6 +259,7 @@ Impact follows the same sentence rules and adds these:
 | Open IFC or glb file | The button opens a file picker for your own model files. The viewer reads the files in the browser and sends nothing out. You can also drop files on the viewer. | Click and a window lets you pick a building from your computer. You can also drag it onto the picture. | Click the button. Choose a model file from your computer. Read the status line for the result. | Report: Appendix B, WebGL |
 | Cancel load | The button stops a load in progress. The viewer keeps the current model. | Click while a new building is coming in and it stops. The building you see now stays on screen. | Click the button when a load takes too long or you chose the wrong file. | Report: Appendix B, WebGL |
 | Load status | The field shows the progress of a load, then the result or an error. You cannot edit it. | The text shows progress while a building comes in. It then says whether it worked or what went wrong. | Read the field after you choose a file. Read the error text if the model does not appear. | Report: Appendix B, WebGL |
+| Save IFC | The button opens a dialog that saves a copy of the open IFC file. The copy holds the classification, the review state and the cleanup marks. | Click and a dialog lists the files to write. Your original bytes stay as they are and one block of new data goes in before the end. | Click the button. Leave the reviewer box off to keep names out of the file. Press Save IFC in the dialog. | Report: Appendix B, WebGL |
 | edges | The list sets whether the loader builds edge lines for an IFC file. The value auto skips edge lines above 50,000 elements. | Choose none, or auto on a big building, and the file loads faster. The sharp outlines then go missing. Choose all to keep every outline. | Select auto for most files. Select none for a huge file. Select all to force edge lines. The choice applies to the next IFC file that you open. | Report: Appendix K, Packaging, point clouds and large models |
 | properties | The list sets whether the loader reads the properties of each element from an IFC file. The value none skips property extraction for speed. | Choose none and a big file loads faster. The info card and the side list then have no facts to show. Choose common to keep them. | Select common to keep the usual facts. Select none for the fastest load. The choice applies to the next IFC file that you open. | Report: Appendix L, Hover info and properties |
 | Model stats | The read-only field shows the size of the last model. It lists the elements, the triangles and the load time. | A short text of numbers tells you how big the building is and how long it took to load. | Read the line after a load. Open the Large model tool for all figures. | Report: Appendix K, Packaging, point clouds and large models |
@@ -567,6 +580,8 @@ Impact follows the same sentence rules and adds these:
 | Export report | The button downloads a JSON file with the ids, GlobalIds, classes, names and reasons of the matches. | Click and a file of the found pieces, with the reason for each, lands in your downloads. | Click the button to share the list with other people. | Report: Appendix H, Model cleanup |
 | Cleanup status | The read-only field shows the result of the last cleanup step. | A short text tells you how many pieces the rules found or hid. | Read the line after each step. | Report: Appendix H, Model cleanup |
 | apply on load | The switch runs the cleanup rules and hides the matches each time a model loads. | On: the debris is gone as soon as a building appears. Off: you decide when to hide it. | Turn the switch on for models that always need the same clean up. | Report: Appendix H, Model cleanup |
+| Save cleaned model | The button shows a summary and writes the cleaned model as a glb file. Removed elements are left out and simplified elements use their new meshes. | Click and a short list of changes appears. Then you download a lighter copy of the building. | Review the numbers. Click Save glb. Click Open the saved file to check it. | Report: Appendix H, Model cleanup |
+| Save cleaned copy... | The button opens a dialog that saves a copy of the open IFC file without the elements that cleanup hid. Relations are repaired and unused geometry is swept out. | Click and a report says what goes, what stays and why. Your original file stays as it is. A wall with a door that stays, and an assembly with parts that stay, remain and get a mark. | Run cleanup and Hide matches first. Read the report. Press Save cleaned copy. The file is named like the original with .cleaned.ifc. | Report: Appendix H, Model cleanup |
 | length unit | The list sets the unit of every length limit of the cleanup. The choices are mm, cm and m. The rules keep metres. | Choose mm and the sizes and gaps show in millimetres. Choose m and they show in metres. The result stays the same. | Select mm for small parts such as fasteners. Select m for distances across the site. | Report: Appendix H, Model cleanup |
 
 ## Floating
@@ -1427,6 +1442,100 @@ Impact follows the same sentence rules and adds these:
 | Calibrate on rules | The button fits a temperature for each question. It uses the parts that the rules label with confidence as proxy labels. | The model runs once for each kind of part. Afterwards the table shows the numbers before and after for a held-out share. | Click the button on a model with many parts that the rules know. Read the table. A rule can be wrong. | Report: Limitations and extensions, classification |
 | Forget fit | The button deletes the fitted temperatures of the chosen model from this browser. | The list then falls back to the shipped numbers. Stored answers stay. | Click the button before you fit again on other data. | Report: Limitations and extensions, classification |
 | Status line | The line shows the last message, such as the number of results and calls. | It tells you what happened and whether something failed. | Read the line after each run. | Report: Limitations and extensions, classification |
+
+## Simplif
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+|  | The folder holds tools that make the model lighter. Each tool previews its change before it applies it. | These tools shrink the model. You see the numbers first, and you can undo every step. | Preview a tool, read the counts, then click Apply. Click Save cleaned model to write the result. | Report: Appendix H, Model cleanup |
+
+## Decimate mes
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+|  | The folder reduces the triangles of each element. It keeps the outline and the sharp edges. | This tool makes curved parts coarser so the file gets smaller. Flat parts and corners stay as they are. | Set a target ratio or a max error. Click Preview, then Apply. | Report: Appendix H, Model cleanup |
+
+## Small detail
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+|  | The folder removes elements below a size or volume limit, and optionally loose pieces inside larger elements. | This tool takes away tiny parts such as bolts and screws that add size but little to the picture. | Set the limits and the class filter. Click Preview, then Apply. | Report: Appendix H, Model cleanup |
+
+## Hidden interio
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+|  | The folder finds elements that nothing outside can see. It shoots lines from many points on each element and keeps any element with a single open line. | This tool finds parts sealed deep inside others, such as a pipe inside a solid wall. | Click Preview and check the tint. Click Apply to remove the tinted elements. | Report: Appendix H, Model cleanup |
+
+## Instance
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+|  | The folder finds repeats of a shape. The saved file stores the shape once and places it many times. | This tool makes the file smaller when the model has many identical parts, such as columns or chairs. | Click Preview to see the savings. Click Apply to stage the repeats. | Report: Appendix H, Model cleanup |
+
+## Weld and clea
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+|  | The folder joins vertices that lie on the same spot and drops empty or doubled triangles. | This tool tidies the mesh of each element. The picture stays the same and the file shrinks a little. | Set the weld distance. Click Preview, then Apply. | Report: Appendix H, Model cleanup |
+
+## Simplify
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Simplify status | The read-only field shows the result of the last simplification step and what is staged for the saved file. | A short text tells you what changed and how much lighter the model got. | Read the line after each step. | Report: Appendix H, Model cleanup |
+| Cancel run | The button stops a preview that is still running. The model stays as it was. | Click and a long job stops at the next small break. | Click the button when a preview takes too long. | Report: Appendix H, Model cleanup |
+| Undo simplification | The button drops every staged change of the simplify tools and shows the removed elements again. | Click and the model returns to the state before you applied the tools. | Click the button to start the simplify steps again. | Report: Appendix H, Model cleanup |
+| strip property data | The switch leaves the element names and properties out of the saved glb. The GlobalId and the class stay. | On: the file is smaller and hover cards show less. Off: hover cards keep the full details. | Turn the switch on when the file must be as small as possible. | Report: Appendix H, Model cleanup |
+
+## Decimate mesh
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| mode | The list picks how far each element is reduced. The choices are target ratio and max error. | One choice cuts a fixed share of the triangles. The other cuts as much as a fixed shape change allows. | Select target ratio for a clear size goal. Select max error to protect fine shapes. | Report: Appendix H, Model cleanup |
+| target ratio | The slider sets the share of triangles that each element keeps. The value 0.5 keeps half. | Move the slider left and parts get coarse and light. Move it right and they keep more detail. | Start at 0.5. Click Preview and check the counts. | Report: Appendix H, Model cleanup |
+| max error (m) | The slider sets how far the new surface may move from the old surface. The length unit list sets the unit. | Move the slider right and parts may change shape more for a lighter file. At 0 nothing changes. | Select 10 mm for most buildings. Click Preview and check the counts. | Report: Appendix H, Model cleanup |
+| skip below (triangles) | The slider sets the smallest element that the tool touches. An element below the value stays as it is. | Move the slider right and more simple parts stay untouched. Move it left and every part gets reduced. | Increase the value to leave boxes and simple parts alone. | Report: Appendix H, Model cleanup |
+| sharp edge angle | The slider sets the bend at which an edge counts as sharp. The tool keeps sharp edges and outlines in place. | Move the slider left and more outlines stay fixed, so parts look crisp. Move it right and more outlines can soften. | Keep 30 degrees for most models. Decrease the value to protect rounded corners. | Report: Appendix H, Model cleanup |
+| Preview | The button runs the decimation on all elements without changing them, then tints the elements that would change. | Click and the pink parts show what gets coarser. The counts show the saving. | Set the options first. Click the button and read the status line. | Report: Appendix H, Model cleanup |
+| Apply | The button stages the previewed reduction for the saved file. | Click and the file you save gets the lighter shapes. Your picture stays as it is. | Click Preview first. Click the button when the counts look right. | Report: Appendix H, Model cleanup |
+
+## Small details
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| max size (m) | The slider sets the largest side that a small detail may have. The length unit list sets the unit. | Move the slider right and bigger bits count as debris. Move it left and only specks do. | Increase the value to remove more bolts and fittings. The default is 50 mm. | Report: Appendix H, Model cleanup |
+| max volume (m³) | The slider sets the box volume below which an element counts as a small detail. The value 0 switches the test off. | Move the slider right and bulkier bits count as debris. At 0 only the size limit counts. | Set a volume for parts that are short but thick. Keep 0 for the size limit only. | Report: Appendix H, Model cleanup |
+| class filter | The list limits the tool to certain classes. The choices are any class and fasteners and accessories. | One choice looks at every part. The other looks only at bolts, screws and add-ons. | Select fasteners and accessories to keep other small parts safe. | Report: Appendix H, Model cleanup |
+| cut loose pieces | The switch also cuts separate pieces smaller than the size limit out of larger elements. | On: stray bits inside a part vanish, and the part stays. Off: only whole parts can go. | Turn the switch on for parts that hold bolts as part of their mesh. | Report: Appendix H, Model cleanup |
+| Preview | The button finds the small details without changing the model and tints them. | Click and the pink parts show what goes. | Set the limits first. Click the button and read the status line. | Report: Appendix H, Model cleanup |
+| Apply | The button hides the small details and removes them from the saved file. | Click and the tiny parts vanish from the picture and from the file you save. | Click Preview first. Click Restore cleanup to bring them back. | Report: Appendix H, Model cleanup |
+
+## Hidden interior
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| rays per point | The slider sets how many directions the tool tries from each point. More directions find more openings. | Move the slider right and the check gets stricter and slower. Move it left and it gets quick and rough. | Keep 16 for a first try. Increase the value before you apply a large removal. | Report: Appendix H, Model cleanup |
+| points per element | The slider sets how many points on each element the tool tries. | Move the slider right and the check looks at more spots of each part, so fewer parts count as sealed. | Keep 6 for a first try. Increase the value for large or odd shapes. | Report: Appendix H, Model cleanup |
+| Preview | The button finds elements that no line from outside reaches and tints them. Windows do not block a line. | Click and the pink parts show what sits sealed inside others. | Click the button and check the tint. Use Select matches when a part hides inside a wall. | Report: Appendix H, Model cleanup |
+| Apply | The button hides the enclosed elements and removes them from the saved file. | Click and the sealed parts vanish from the picture and from the file you save. | Click Preview first. Click Restore cleanup to bring them back. | Report: Appendix H, Model cleanup |
+
+## Instances
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Preview | The button finds elements with identical shape and colour, even when they are moved or turned. It shows the saving. | Click and the pink parts are repeats. The counts show how much lighter the file gets. | Click the button and read the status line. | Report: Appendix H, Model cleanup |
+| Apply | The button stages the repeats as instances for the saved file. Every element keeps its own node and its GlobalId. | Click and the saved file stores each shape once. Your picture stays as it is. | Click Preview first. Apply the other tools before you save. | Report: Appendix H, Model cleanup |
+
+## Weld and clean
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| weld distance (m) | The slider sets the distance below which a pair of vertices join to a single vertex. The length unit list sets the unit. | Move the slider right and more points merge, which makes the file smaller. At 0 only exact matches join. | Keep 0.1 mm for most models. Increase the value for rough meshes. | Report: Appendix H, Model cleanup |
+| drop degenerate | The switch drops triangles that have no area or that use the same vertex twice. | On: broken slivers are cut from the mesh. Off: they stay in the file. | Keep the switch on for most models. | Report: Appendix H, Model cleanup |
+| drop duplicate faces | The switch drops a triangle that repeats another triangle on the same spot. A single copy stays. | On: doubled triangles stop flickering and the file gets smaller. Off: doubled triangles stay. | Keep the switch on for most models. | Report: Appendix H, Model cleanup |
+| Preview | The button tidies every element in a trial run and tints the ones that would change. | Click and the pink parts show where the mesh has loose or doubled pieces. | Set the weld distance first. Click the button and read the status line. | Report: Appendix H, Model cleanup |
+| Apply | The button stages the tidy meshes for the saved file. | Click and the file you save gets the tidied shapes. Your picture stays as it is. | Click Preview first. Click the button when the counts look right. | Report: Appendix H, Model cleanup |
 
 ## Search bar
 

@@ -157,17 +157,20 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
     const sorted = allIds ? [...order].sort((a, b) => a.extrasId! - b.extrasId!) : order;
     elements = sorted.map((g, i) => {
       const name = nodeName(g.node) || `element-${i}`;
-      const extras = g.node.userData as { ifcClass?: unknown };
+      // extras written by the cleanup export (cleanup/glbExport.ts): ifcName and props come back as name and hover properties
+      const extras = g.node.userData as { ifcClass?: unknown; ifcName?: unknown; props?: unknown };
       const cls = typeof extras.ifcClass === 'string' ? extras.ifcClass : guessClassFromName(name);
       parts.push(partsOf(g));
+      const props = extras.props && typeof extras.props === 'object' ? sanitizeProps(extras.props) : undefined;
       return {
         id: i,
         globalId: name,
         ifcClass: cls,
-        name,
+        name: typeof extras.ifcName === 'string' && extras.ifcName ? extras.ifcName : name,
         storey: null,
         color: materialColour(g.meshes[0]!, hasMaterials),
         bounds: [0, 0, 0, 0, 0, 0],
+        ...(props ? { props } : {}),
       };
     });
     storeys = [];

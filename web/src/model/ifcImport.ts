@@ -15,7 +15,7 @@ import type { ExtractSummary, MergeTimings, WorkerIn, WorkerOut } from './ifcWor
 import { buildMergedData, buildModelData } from './ifcBuild';
 import type { BuildReport, EdgesOption, Sidecar } from './ifcBuild';
 import type { PropsMode } from './ifcProps';
-import type { IfcProgress, RawElement, RawModel } from './ifcShared';
+import type { IfcProgress, RawElement, RawModel, SaveInfo } from './ifcShared';
 import type { MergedArrays } from './mergedArrays';
 
 export type { IfcProgress, RawModel, RawElement, RawStorey } from './ifcShared';
@@ -137,7 +137,7 @@ export interface ImportResult {
   extractMs: number;
   buildMs: number;
   report: BuildReport;
-  raws: Array<{ fileName: string; schema: string; elements: number; stats?: RawModel['stats'] }>;
+  raws: Array<{ fileName: string; schema: string; elements: number; stats?: RawModel['stats']; saveInfo?: SaveInfo }>;
   timings: StageTimings;
   stats: ModelStats;
 }
@@ -200,7 +200,7 @@ export async function importIfc(inputs: IfcInput[], opts: ImportOptions = {}): P
   opts.onProgress?.({ phase: 'build' });
   await nextTick(); // let the status text paint before the (synchronous) build
   if (opts.signal?.aborted) throw new ImportCancelled();
-  const summaries = raws.map((r) => ({ fileName: r.fileName, schema: r.schema, elements: r.elements.length, stats: r.stats }));
+  const summaries = raws.map((r) => ({ fileName: r.fileName, schema: r.schema, elements: r.elements.length, stats: r.stats, saveInfo: r.saveInfo }));
   const timings = zeroTimings();
   timings.meshMs = t1 - t0;
   if (opts.viaGlb) {
@@ -257,7 +257,7 @@ async function importInWorker(inputs: IfcInput[], opts: ImportOptions, t0: numbe
     Object.assign(timings, m.timings, { handoffMs: t3 - m.lastWorkerMessageAt, totalMs: t3 - t0 });
     return {
       loaded, mode: 'worker', extractMs: t1 - t0, buildMs: t3 - t1, report: m.report,
-      raws: summaries.map((s) => ({ fileName: s.fileName, schema: s.schema, elements: s.elements, stats: s.stats })), timings,
+      raws: summaries.map((s) => ({ fileName: s.fileName, schema: s.schema, elements: s.elements, stats: s.stats, saveInfo: s.saveInfo })), timings,
       stats: statsOf(m.arrays, m.edgesSkipped, m.bvhBuilt ? 'worker' : 'lazy'),
     };
   } finally {

@@ -56,8 +56,57 @@ Each match carries its reason, for example `floating lone element, no contacts: 
 `distant stray: 312 m from the model centre > 6.00 x robust radius 10.8 m, 300 m outside the main model >= 5.00 m`.
 Reasons are always in metres.
 
+## Simplify and save
+
+The `Simplify` folder (inside `Model cleanup`) makes the model lighter. Each tool has `Preview` and `Apply`. Preview tints the
+elements it would change and reports the elements, the triangles before and after, and an estimated glb size. It changes
+nothing. `Apply` stages the change for the saved file. `Undo simplification` forgets the staged changes and shows removed
+elements again; `Restore cleanup` also does that. A running preview works in chunks, shows `Working: n of m` and stops with
+`Cancel run`.
+
+| Tool | Controls | What it does |
+| --- | --- | --- |
+| Decimate mesh | `mode`, `target ratio`, `max error (m)`, `skip below (triangles)`, `sharp edge angle` | Quadric edge collapse per element. Vertices only move onto neighbours, so the bounding box cannot grow. Boundary and sharp edges are protected: corners never move and a rim point only slides along its rim. Elements under the triangle limit are skipped. The error is an estimate in model units. |
+| Small details | `max size (m)`, `max volume (m³)`, `class filter`, `cut loose pieces` | Removes elements whose largest side or bounds volume is below the limit. The class filter limits it to IfcFastener, IfcMechanicalFastener and IfcDiscreteAccessory. `cut loose pieces` also cuts separate pieces smaller than the size out of larger elements. |
+| Hidden interior | `rays per point`, `points per element` | Shoots rays from points on each element in many directions. An element is hidden only when every ray is blocked by another element. Windows, spaces and openings never block. Conservative: one open ray keeps the element. Removed elements are hidden in the viewer too. |
+| Instances | none | Finds elements with the same mesh and colour, also moved or turned (geometry hash, then an exact rigid transform check; mirrored copies do not match). The glb stores the mesh once and each element keeps its own node. |
+| Weld and clean | `weld distance (m)`, `drop degenerate`, `drop duplicate faces` | Joins coincident vertices, drops zero-area triangles and repeated faces, and rebuilds normals with a 35 degree crease. Elements that gain nothing are left alone. |
+
+`Save cleaned model` (also `cleanup.save` in the command palette) opens a summary: elements removed (with the rule), simplified
+and instanced, triangles drawn and stored before and after, and the estimated size. `strip property data` leaves names and
+properties out. `Save .glb` downloads `cleaned-<model>.glb`; then `Open the saved file to check` opens it in the viewer.
+
+The glb has one node per element, named by GlobalId, with `extras` `{ id, ifcClass, ifcName, props }`. The viewer's glb loader
+reads these back, so selection, the GlobalId and hover properties work. A glb cannot carry storeys, relations or full property
+sets, so the tree is grouped by class only.
+
+`Save cleaned copy...` (also `ifc.saveCleaned` in the command palette) saves a cleaned **IFC** instead: the original file without the
+elements cleanup hid, relations repaired. It is described in [Save IFC](ifc-save.md#saving-a-cleaned-copy). Behind `?experimental=simplifiedIfc` it can also write the simplified meshes back as the bodies of their elements.
+
+### CleanupPlan
+
+`buildCleanupPlan(input)` in `src/cleanup/plan.ts` is a pure function that turns the staged edits into a `CleanupPlan`. The glb
+writer uses it; an IFC writer can use the same plan.
+
+```ts
+interface CleanupPlan {
+  schema: 'xray-cleanup-plan/1';
+  removedGlobalIds: string[];
+  removalReasons: Record<string, string[]>;      // GlobalId -> rule names
+  replacements: { globalId; id; mesh: { positions; normals; indices }; trianglesBefore; trianglesAfter; ops: string[] }[];
+  mergedGroups: { masterGlobalId; masterId; members: { globalId; id; matrix: number[16] }[]; trianglesSaved }[];
+  stats: PlanStats;   // elements, removed, simplified, instance groups, triangles drawn and stored, estimated bytes
+}
+```
+
+Meshes are in model (viewer) coordinates. A member `matrix` is column-major and takes the master's mesh to the member.
+Scripting: `window.__xrayCleanup.simplify` has `options`, `preview(tool)`, `apply()`, `reset()`, `cancel()`, `plan()`,
+`save()`, `openSaved()` and `openDialog()`; tools are `decimate`, `details`, `interior`, `instances` and `weld`.
+
 ## Limits
 
+- Simplification shows in the saved file, not in the live view: the viewer keeps its merged buffers. Removals do hide in the view.
+- Instancing works on world-space meshes with the same vertex order and indices. Copies that were decimated differently do not match; run Instances after the other tools.
 - Bounds based contacts treat a box as solid: an element inside the box of a large curved element counts as touching it unless `precise contacts` is on.
 - Hidden matches stay in the model; sightlines, picking and the focus set ignore them (they are in `userHides`). Hidden elements are removed from the selection.
 - Preview tints the render colour and is cleared by any rule change, `Hide matches` or a model change.

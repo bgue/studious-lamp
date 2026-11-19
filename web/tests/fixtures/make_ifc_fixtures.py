@@ -163,6 +163,98 @@ def make_mm(path: str) -> None:
     f.write(path)
 
 
+def make_mini_x3(path: str) -> None:
+    """Five elements in an IFC4X3_ADD2 file (wall, slab, column, beam, a duct segment), one storey: the schema-family fixture."""
+    f = ifcopenshell.api.run("project.create_file", version="IFC4X3_ADD2")
+    proj = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcProject", name="Mini X3")
+    ifcopenshell.api.run("unit.assign_unit", f, length={"is_metric": True, "raw": "METERS"})
+    mctx = ifcopenshell.api.run("context.add_context", f, context_type="Model")
+    body = ifcopenshell.api.run("context.add_context", f, context_type="Model", context_identifier="Body",
+                                target_view="MODEL_VIEW", parent=mctx)
+    site = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcSite", name="Site")
+    bld = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcBuilding", name="Building")
+    st = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcBuildingStorey", name="Level 1")
+    st.Elevation = 0.0
+    ifcopenshell.api.run("aggregate.assign_object", f, products=[site], relating_object=proj)
+    ifcopenshell.api.run("aggregate.assign_object", f, products=[bld], relating_object=site)
+    ifcopenshell.api.run("aggregate.assign_object", f, products=[st], relating_object=bld)
+    specs = [("IfcWall", "Wall X1", (4.0, 0.2, 2.8), (0, 0, 0)), ("IfcSlab", "Slab X1", (5.0, 5.0, 0.25), (0, 2, -0.25)),
+             ("IfcColumn", "Column X1", (0.4, 0.4, 3.0), (6, 0, 0)), ("IfcBeam", "Beam X1", (4.0, 0.3, 0.4), (0, 3, 2.6)),
+             ("IfcDuctSegment", "Duct X1", (2.0, 0.4, 0.3), (0, 5, 2.0))]
+    elems = []
+    for cls, name, size, at in specs:
+        e = ifcopenshell.api.run("root.create_entity", f, ifc_class=cls, name=name)
+        e.Representation = f.create_entity("IfcProductDefinitionShape", Representations=[box(f, body, size, None)])
+        place(f, e, at)
+        elems.append(e)
+    ifcopenshell.api.run("spatial.assign_container", f, products=elems, relating_structure=st)
+    pset = ifcopenshell.api.run("pset.add_pset", f, product=elems[0], name="Pset_WallCommon")
+    ifcopenshell.api.run("pset.edit_pset", f, pset=pset, properties={"IsExternal": True})
+    f.write(path)
+
+
+def make_voids(schema: str, path: str) -> None:
+    """Removal fixture (cleaned copy, ticket T5): Wall A with an opening and a door and an opening and a window, Wall B with an unfilled
+    opening, an element assembly with two parts, two debris proxies (one with a property set, one sharing Wall A's material), a free beam."""
+    f = ifcopenshell.api.run("project.create_file", version=schema)
+    if schema == "IFC2X3":
+        import ifcopenshell.api.owner.settings as osettings
+        person = f.create_entity("IfcPerson", FamilyName="Fixture")
+        org = f.create_entity("IfcOrganization", Name="Fixture")
+        user = f.create_entity("IfcPersonAndOrganization", ThePerson=person, TheOrganization=org)
+        app = f.create_entity("IfcApplication", ApplicationDeveloper=org, Version="1", ApplicationFullName="fixture", ApplicationIdentifier="fixture")
+        osettings.get_user = lambda ifc: user
+        osettings.get_application = lambda ifc: app
+    run = ifcopenshell.api.run
+    proj = run("root.create_entity", f, ifc_class="IfcProject", name="Voids")
+    run("unit.assign_unit", f, length={"is_metric": True, "raw": "METERS"})
+    mctx = run("context.add_context", f, context_type="Model")
+    body = run("context.add_context", f, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=mctx)
+    site = run("root.create_entity", f, ifc_class="IfcSite", name="Site")
+    bld = run("root.create_entity", f, ifc_class="IfcBuilding", name="Building")
+    st = run("root.create_entity", f, ifc_class="IfcBuildingStorey", name="Level 1")
+    st.Elevation = 0.0
+    run("aggregate.assign_object", f, products=[site], relating_object=proj)
+    run("aggregate.assign_object", f, products=[bld], relating_object=site)
+    run("aggregate.assign_object", f, products=[st], relating_object=bld)
+
+    def mk(cls, name, size, at, contain=True):
+        e = run("root.create_entity", f, ifc_class=cls, name=name)
+        e.Representation = f.create_entity("IfcProductDefinitionShape", Representations=[box(f, body, size, None)])
+        place(f, e, at)
+        if contain:
+            run("spatial.assign_container", f, products=[e], relating_structure=st)
+        return e
+
+    wall_a = mk("IfcWall", "Wall A", (6.0, 0.2, 2.8), (0, 0, 0))
+    op1 = mk("IfcOpeningElement", "Opening 1", (0.9, 0.5, 2.0), (1, 0, 0), contain=False)
+    op2 = mk("IfcOpeningElement", "Opening 2", (1.2, 0.5, 1.2), (4, 0, 0.9), contain=False)
+    run("feature.add_feature", f, feature=op1, element=wall_a)
+    run("feature.add_feature", f, feature=op2, element=wall_a)
+    door = mk("IfcDoor", "Door 1", (0.8, 0.1, 2.0), (1, 0, 0))
+    window = mk("IfcWindow", "Window 1", (1.0, 0.1, 1.0), (4, 0, 0.9))
+    run("feature.add_filling", f, opening=op1, element=door)
+    run("feature.add_filling", f, opening=op2, element=window)
+    wall_b = mk("IfcWall", "Wall B", (4.0, 0.2, 2.8), (0, 5, 0))
+    op3 = mk("IfcOpeningElement", "Opening 3", (0.9, 0.5, 2.0), (1, 5, 0), contain=False)
+    run("feature.add_feature", f, feature=op3, element=wall_b)
+
+    asm = mk("IfcElementAssembly", "Assembly 1", (2.0, 0.5, 0.5), (8, 0, 0))
+    part1 = mk("IfcBeam", "Part 1", (1.0, 0.3, 0.3), (8, 0, 0), contain=False)
+    part2 = mk("IfcBeam", "Part 2", (1.0, 0.3, 0.3), (9, 0, 0), contain=False)
+    run("aggregate.assign_object", f, products=[part1, part2], relating_object=asm)
+
+    mat = run("material.add_material", f, name="Concrete C30")
+    run("material.assign_material", f, products=[wall_a], material=mat)
+    debris1 = mk("IfcBuildingElementProxy", "Debris 1", (0.1, 0.1, 0.1), (20, 20, 0))
+    pset = run("pset.add_pset", f, product=debris1, name="Acme_Debris")
+    run("pset.edit_pset", f, pset=pset, properties={"Note": "stray", "Count": 3})
+    debris2 = mk("IfcBuildingElementProxy", "Debris 2", (0.1, 0.1, 0.1), (21, 20, 0))
+    run("material.assign_material", f, products=[debris2], material=mat)
+    mk("IfcBeam", "Free beam", (3.0, 0.3, 0.4), (0, 10, 3))
+    f.write(path)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for schema, name in (("IFC4", "ports-ifc4.ifc"), ("IFC2X3", "ports-ifc2x3.ifc")):
@@ -170,3 +262,8 @@ if __name__ == "__main__":
         print("wrote", name, file=sys.stderr)
     make_mm(os.path.join(OUT, "props-mm-ifc4.ifc"))
     print("wrote props-mm-ifc4.ifc", file=sys.stderr)
+    make_mini_x3(os.path.join(OUT, "mini-ifc4x3.ifc"))
+    print("wrote mini-ifc4x3.ifc", file=sys.stderr)
+    make_voids("IFC4", os.path.join(OUT, "voids-ifc4.ifc"))
+    make_voids("IFC2X3", os.path.join(OUT, "voids-ifc2x3.ifc"))
+    print("wrote voids-ifc4.ifc, voids-ifc2x3.ifc", file=sys.stderr)
