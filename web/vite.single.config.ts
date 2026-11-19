@@ -28,6 +28,7 @@ function ifcRuntimeVariant(): Plugin {
       if (/(^|\/)workerRuntime$/.test(source) && importer.includes('/pointcloud/')) return resolve(here, 'src/pointcloud/workerRuntime.single.ts');
       if (/(^|\/)pdfRuntime$/.test(source) && importer.includes('/sheets/')) return resolve(here, 'src/sheets/pdfRuntime.single.ts');
       if (/(^|\/)runtime$/.test(source) && importer.includes('/ifcsave/')) return resolve(here, 'src/ifcsave/runtime.single.ts');
+      if (/(^|\/)diffRuntime$/.test(source) && importer.includes('/revision/')) return resolve(here, 'src/revision/diffRuntime.single.ts');
       if (!/(^|\/)ifcRuntime$/.test(source)) return null;
       return target;
     },

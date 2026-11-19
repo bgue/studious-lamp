@@ -48,13 +48,18 @@ async function diff(page, a, b) {
     const B = await load(y);
     let sum = 0, big = 0, exact = 0;
     const n = A.length / 4;
+    const W = (await createImageBitmap(await (await fetch('data:image/png;base64,' + x)).blob())).width;
+    let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
     for (let i = 0; i < A.length; i += 4) {
       let m = 0;
       for (let c = 0; c < 3; c++) { const d = Math.abs(A[i + c] - B[i + c]); sum += d; if (d > m) m = d; }
       if (m > 12) big++;
       if (m === 0) exact++;
+      else { const p = i / 4, px = p % W, py = Math.floor(p / W); x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py); }
     }
-    return { meanAbs: +(sum / (n * 3)).toFixed(3), fracOver12: +(big / n).toFixed(4), identical: exact === n };
+    // where the differing pixels sit (clip coordinates), so a failure says whether it is the picture or a piece of chrome
+    const box = x1 < 0 ? null : { x0, y0, x1, y1 };
+    return { meanAbs: +(sum / (n * 3)).toFixed(3), fracOver12: +(big / n).toFixed(4), identical: exact === n, box };
   }, [a.toString('base64'), b.toString('base64')]);
 }
 
