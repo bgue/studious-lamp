@@ -6,7 +6,7 @@
 // now disagrees.
 
 import type { KeyValueStorage } from './cache';
-import { committedResult, createReviewPersistence, isCommittedSource, modelFingerprint, ReviewLog, REVIEWER_STORAGE_KEY, sameState, schemaEditionOf, stateOf, UNSURE_CONFIDENCE } from './reviewLog';
+import { committedResult, createReviewPersistence, isCommittedSource, modelFingerprint, ReviewLog, REVIEW_LOG_SCHEMA, REVIEWER_STORAGE_KEY, sameState, schemaEditionOf, stateOf, UNSURE_CONFIDENCE } from './reviewLog';
 import type { ImportOutcome, ReviewAction, ReviewChange, ReviewCommit, ReviewPersistence, ReviewState } from './reviewLog';
 import { makeManual } from './results';
 import type { ManualPartial } from './results';
@@ -249,6 +249,32 @@ export class ReviewManager {
       void this.persist();
     }
     return r;
+  }
+
+  /**
+   * Add commits carried over from another model's log (the revision walk). They carry the head's fingerprint, so `importDoc` accepts
+   * them; commits whose id is in the log already are skipped, so carrying twice adds nothing. Waits for the stored log first.
+   */
+  async appendCarried(commits: readonly ReviewCommit[]): Promise<ImportOutcome> {
+    await this.ready;
+    const log = this.log;
+    if (!log) return { ok: false, error: 'Load a model first.', added: [], duplicates: [] };
+    const r = log.importDoc({ schema: REVIEW_LOG_SCHEMA, ...log.info, exportedAt: new Date().toISOString(), commits });
+    if (r.ok && r.added.length) {
+      this.apply();
+      await this.persist();
+    }
+    return r;
+  }
+
+  /** The stored commits of another model fingerprint (the base of a revision). Empty when there are none or storage fails. */
+  async commitsOf(fingerprint: string): Promise<ReviewCommit[]> {
+    if (this.log && this.log.fingerprint === fingerprint) return [...this.log.commits];
+    try {
+      return [...(await this.persistence.load(fingerprint))];
+    } catch {
+      return [];
+    }
   }
 
   /** Elements that are committed and where the latest run says something else: id -> the run's result. */

@@ -88,6 +88,7 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Top bar modes: Solid, Ghost, Radiograph, Glow, Cutaway ([topbar.md](topbar.md)); pressing a lit mode again switches to Solid | `Shift+code:Digit0` to `Shift+code:Digit4` (`Shift+0` to `Shift+4`) |
 | Show or hide the top bar | `Shift+t` |
 | Classify: review walk, to confirm classifications ([classify.md](classify.md#review-walk)); while it is open it also takes Enter or Y, 2, E, N (skip; Shift+N the other skip in a type), `?` (flag the next action as unsure, a guess), the arrow keys, `[`, `]`, A, U and Esc; the panel handles these itself | `Shift+r` |
+| Revision: review changes between an earlier model and this one, to confirm what differs ([revision.md](revision.md)); while the walk is open it also takes Enter or Y, 2, E, R (reject), N (skip), `?`, the arrow keys, `[`, `]`, A, U, G (ghost), B (bulk rules) and Esc; the panel handles these itself | `Shift+v` |
 | Sketches: open the Issues tab on the Sketches segment ([issues.md](issues.md)); the palette also has `issues.open`, `issues.sketches`, `issues.edit`, `issues.done`, and `tool.bcf` / `tool.markup` as aliases of the old drawer actions | `k` |
 | Save view; previous / next saved view ([saved-views.md](saved-views.md)) | `Ctrl+Shift+s`; `Shift+PageUp` / `Shift+PageDown` |
 

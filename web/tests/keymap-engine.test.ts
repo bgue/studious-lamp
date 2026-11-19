@@ -15,6 +15,7 @@ import {
 } from '../src/input/keymap';
 import type { KeyLike } from '../src/input/keymap';
 import { MemoryStorage } from '../src/selectionSets';
+import { REVISION_ACTIONS, REVISION_WALK_KEYS } from '../src/revision/keys';
 
 const app = {} as ViewerApp;
 const ev = (key: string, o: Partial<KeyLike> = {}): KeyLike => ({ key, code: o.code ?? '', ...o });
@@ -327,5 +328,22 @@ describe('hold actions (fake dt)', () => {
     const km = new Keymap({ actions: () => [action('w', ['w'], { hold: () => undefined, enabled: () => false })] });
     expect(km.handleKeyDown(ev('w', { code: 'KeyW' }), app)).toBe(false);
     expect(km.heldCount).toBe(0);
+  });
+});
+
+describe('revision walk keys', () => {
+  it('opens the walk with Shift+V and leaves V (the gizmo) and the review walk key Shift+R alone', () => {
+    const acts = [action('gizmo.toggle', ['v']), action('classify.walk', ['Shift+r']), ...REVISION_ACTIONS.map((a) => action(a.id, a.keys))];
+    const km = new Keymap({ actions: () => acts, warn: () => undefined });
+    expect(km.conflicts()).toHaveLength(0);
+    expect(km.lookup(ev('V', { shiftKey: true })).map((a) => a.id)).toEqual(['revision.walk']);
+    expect(km.lookup(ev('v')).map((a) => a.id)).toEqual(['gizmo.toggle']);
+  });
+  it('every key of the panel is a plain key that the keymap parses, none with a modifier', () => {
+    for (const k of REVISION_WALK_KEYS.flatMap((x) => x.keys)) {
+      const c = parseChord(k);
+      expect(c, k).not.toBeNull();
+      expect(c!.ctrl || c!.alt || c!.meta, k).toBe(false);
+    }
   });
 });

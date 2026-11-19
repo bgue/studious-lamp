@@ -840,6 +840,18 @@ export class ClassifyService {
     return r;
   }
 
+  /**
+   * Take results into the store without a run (the revision walk carries a base model's results over to the revised model). A manual
+   * or committed result is never replaced, like after a run. Returns how many were offered.
+   */
+  adoptResults(results: readonly ClassifyResult[]): number {
+    if (results.length === 0) return 0;
+    this.store.merge(results);
+    if (this.draft.writePset) this.writeToModel(results.map((r) => this.store.get(r.id) ?? r));
+    this.emit();
+    return results.length;
+  }
+
   /** Remove a manual override. The element has no result until it is classified again. */
   removeOverride(id: string): void {
     this.store.removeManual(id);

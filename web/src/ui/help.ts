@@ -317,10 +317,23 @@ export const DIALOG_RULES: ReadonlyArray<DomRule> = [
   { selector: '.kx-edit .kx-cell', keys: () => ['Shortcut editor/Key cell'], title: () => 'Key cell' },
 ];
 
+/** Keys of the revision banner and walk panel (plugins/revision.ts, plugins/revisionWalk.ts): their buttons carry the key in `data-help`. */
+export const REVISION_HELP_KEYS: readonly string[] = [
+  'Revision banner/Review changes', 'Revision banner/Not a revision', 'Revision banner/Compare with', 'Revision banner/Compare with an IFC file',
+  'Revision banner/Resume', 'Revision banner/Dismiss', 'Revision banner/OK', 'Revision banner/Cancel',
+  'Revision walk/Accept', 'Revision walk/Reject', 'Revision walk/Skip', 'Revision walk/Unsure', 'Revision walk/Other', 'Revision walk/Edit', 'Revision walk/Ghost',
+  'Revision walk/Bulk', 'Revision walk/More', 'Revision walk/Raise issue', 'Revision walk/Apply rule', 'Revision walk/Commit', 'Revision walk/Export report',
+];
+
+/** Rules for the revision banner and panel, which sit outside the drawers. */
+export const REVISION_RULES: ReadonlyArray<DomRule> = [
+  { selector: '[data-help^="Revision "]', keys: (e) => { const k = e.getAttribute('data-help'); return k ? [k] : null; }, title: (e) => (e.getAttribute('data-help') ?? '').split('/').pop() ?? '' },
+];
+
 /** Match the DOM rules against one element. The first rule that matches and gives a key with a text wins; else the first key. */
 export function domTarget(e: Element): HelpTarget | null {
   const d = drawerTitleOf(e);
-  const rules = d ? TOOL_RULES : [TOOL_RULES[0]!, TOOL_RULES[1]!, ...DIALOG_RULES];
+  const rules = d ? TOOL_RULES : [TOOL_RULES[0]!, TOOL_RULES[1]!, ...DIALOG_RULES, ...REVISION_RULES];
   for (const r of rules) {
     if (!e.matches(r.selector)) continue;
     const keys = r.keys(e, d);
@@ -334,7 +347,7 @@ export function domTarget(e: Element): HelpTarget | null {
 /** Elements of a drawer or dialog that carry help: the check on the drawer content uses this list. */
 export const DOM_CANDIDATES =
   '.xt-btn-tool, .xt-title, .xt-close, .xt-grip, .xt-sec, .xt-table, .xt-table th, .xt-slider, .xt-select, .xt-check, .xt-chip, .xt-btn, .xt-status, .xt-item, .xp-card, .xp-key, .xp-badge, .xp-skip, .xp-form input[type=text], .pc-result, ' +
-  '.bcf-btn, .bcf-in, .bcf-h, .bcf-item, .bcf-snap, .bcf-comment, .bcf-status, .bcf-detail label, .kx-input, .kx-btn, .kx-cell, .kx-row, .kx-item';
+  '.bcf-btn, .bcf-in, .bcf-h, .bcf-item, .bcf-snap, .bcf-comment, .bcf-status, .bcf-detail label, .kx-input, .kx-btn, .kx-cell, .kx-row, .kx-item, [data-help^="Revision "]';
 
 // ---------------------------------------------------------------- popover
 

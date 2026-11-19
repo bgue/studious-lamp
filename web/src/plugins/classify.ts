@@ -1166,6 +1166,9 @@ let tint: Tint | null = null;
 let lastSelKey = '';
 let reviewWalk: ReviewWalk | null = null;
 
+/** The classify service of this page (the revision plugin reads results and the review log through it). Null before install. */
+export const classifyService = (): ClassifyService | null => svc;
+
 export const classifyPlugin: AppPlugin = {
   name: 'classify',
   install(app) {
