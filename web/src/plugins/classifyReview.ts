@@ -73,6 +73,9 @@ const CSS = `
 .xrw-row .grow{flex:1 1 auto;min-width:0}
 .xrw-commit{border:1px solid #1a202b;border-radius:4px;padding:5px 6px;display:flex;flex-direction:column;gap:4px}
 .xrw-commit.rev{border-style:dashed}
+/* In the Classification tab of the right sidebar: part of the column, not a panel over the view. */
+.xrw.xrw-in{position:static;left:auto;bottom:auto;width:auto;max-height:none;flex:1 1 auto;min-height:0;z-index:auto;border:0;border-radius:0;box-shadow:none;background:transparent}
+.xrw.xrw-in .xrw-head,.xrw.xrw-in .xrw-tabs{padding-left:0;padding-right:0}
 .xrw-changes{font-size:11px;color:var(--sb-dim,#8d99a8);display:flex;flex-direction:column;gap:2px;max-height:160px;overflow:auto}
 @media (max-width:760px){
   .xrw{left:var(--sb-rail,28px);right:var(--dk-rail,28px);width:auto;bottom:${STATUS_H}px;max-height:70%;border-radius:10px 10px 0 0;font-size:13px}
@@ -98,6 +101,19 @@ function ensureStyle(): void {
 
 const pct = (x: number): string => `${Math.round(x * 100)}%`;
 const when = (iso: string): string => (iso.length >= 16 ? `${iso.slice(0, 10)} ${iso.slice(11, 16)}` : iso);
+
+/**
+ * Where the walk lives. The Classification tab of the right sidebar gives a container (`mount`), shows itself on `opened` and takes its
+ * panel back on `closed`; with no container the walk floats over the stage as before.
+ */
+export interface WalkHost {
+  /** The container for the walk, or null to float over the stage. */
+  mount(): HTMLElement | null;
+  /** The walk is about to open (show the tab, hide what it replaces). */
+  opened(): void;
+  /** The walk closed. */
+  closed(): void;
+}
 
 export interface WalkState {
   open: boolean;
@@ -144,7 +160,7 @@ export class ReviewWalk {
   private off: (() => void) | null = null;
   private importFile: HTMLInputElement | null = null;
 
-  constructor(private readonly app: ViewerApp, private readonly svc: ClassifyService, private readonly closeDrawer: () => void) {}
+  constructor(private readonly app: ViewerApp, private readonly svc: ClassifyService, private readonly host: WalkHost) {}
 
   get isOpen(): boolean {
     return this.opened;
@@ -234,7 +250,7 @@ export class ReviewWalk {
     if (!this.svc.model) return;
     ensureStyle();
     ensureKeyStyles();
-    this.closeDrawer(); // the drawer would cover the panel: close it (the walk has its own Classify button)
+    this.host.opened(); // the Classification tab shows the walk in place of its panel (the walk has its own Classify button)
     if (!this.opened) {
       const sel = this.app.selection;
       this.saved = { pose: currentPose(this.app), selection: sel };
@@ -262,6 +278,7 @@ export class ReviewWalk {
     this.off = null;
     this.root?.remove();
     this.root = null;
+    this.host.closed();
     const s = this.saved;
     this.saved = null;
     if (s) {
@@ -541,8 +558,9 @@ export class ReviewWalk {
   // ------------------------------------------------------------ DOM
 
   private build(): void {
-    const stage = this.app.canvas.parentElement ?? document.body;
-    const root = el('section', 'xrw', { 'aria-label': 'Review walk', role: 'dialog', 'data-testid': 'review-walk' });
+    const inTab = this.host.mount();
+    const stage = inTab ?? this.app.canvas.parentElement ?? document.body;
+    const root = el('section', inTab ? 'xrw xrw-in' : 'xrw', { 'aria-label': 'Review walk', role: 'dialog', 'data-testid': 'review-walk' });
     this.head = el('div', 'xrw-head');
     this.tabs = el('div', 'xrw-tabs', { role: 'tablist' });
     this.body = el('div', 'xrw-body');

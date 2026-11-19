@@ -2,7 +2,7 @@
 
 A small card that follows the pointer once it rests on an element: the element name, `class · storey · material`, a few
 properties picked by a priority list, and (optionally) the x-ray bucket and current alpha. The same properties feed a
-collapsible "Properties" list in the sidebar footer.
+collapsible "Properties" list in the Properties tab of the right sidebar ([right-sidebar.md](right-sidebar.md)).
 
 ## Using it
 
@@ -29,7 +29,7 @@ under the pointer as it was up to 80 ms earlier; it matters only when the pointe
 | `show x-ray state` | on | Dim footer `x-ray: <bucket> · alpha <a>` (only while x-ray is on). |
 | `highlight` | on | Outline the hovered element while the card shows. |
 | `property filter` | see below | Comma-separated glob patterns, in priority order. |
-| `all properties in sidebar` | off | Sidebar list shows every property instead of the filtered ones. |
+| `all properties in sidebar` | off | The Properties tab list shows every property instead of the filtered ones. |
 
 Default `property filter`:
 `Attr.ObjectType, *.IsExternal, *.LoadBearing, *.FireRating, *.Reference, Qto*.Length, Qto*.Width, Qto*.Height, Qto*.NetVolume, *Quantities.Length, *Quantities.Width, *Quantities.Height, *Quantities.NetVolume`

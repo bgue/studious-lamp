@@ -12,6 +12,7 @@ import { runQuery } from '../query';
 import { defaultSetsFor, globalIdsToIds, isCriteria, loadSets, unionBounds } from '../selectionSets';
 import type { SelectionSet } from '../selectionSets';
 import { boxFromTuple } from '../ui/fit';
+import { getRightSidebar } from '../ui/rightSidebar';
 import type { ElementId } from '../types';
 import { ElementIndex } from './elementIndex';
 import { fuzzyScore, quickScore, termsOf } from './fuzzy';
@@ -112,12 +113,15 @@ export function collectSettings(app: ViewerApp): SettingItem[] {
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
 let flashed: HTMLElement | null = null;
 
-/** Open the folders above a control, make the dock visible, scroll to the control and flash it. */
+/** Open the folders above a control, make the Parameters tab visible, scroll to the control and flash it. */
 export function jumpToSetting(app: ViewerApp, ctl: GuiCtl): void {
   const chain: GuiFolder[] = [];
   for (let f = ctl.parent as GuiFolder | null | undefined; f; f = f.parent) chain.push(f);
   for (const f of chain.reverse()) f.open?.(true);
-  if (document.body.classList.contains('dk-collapsed')) runAction(app, 'panel.right');
+  // The panel is the Parameters tab of the right sidebar: open the column on that tab.
+  const rs = getRightSidebar();
+  if (rs) rs.showTab('parameters');
+  else if (document.body.classList.contains('dk-collapsed')) runAction(app, 'panel.right');
   const dom = ctl.domElement;
   if (!dom) return;
   const show = (): void => {

@@ -1,9 +1,9 @@
 # Gizmo: navigation cube, section strip and plane handles
 
 An on-screen tool in the bottom-right corner of the stage (30 px above the bottom edge, clear of the status bar and of the
-right dock): a navigation cube with roll, turn, home and projection buttons, and a compact section strip. Key `v` (action
+right sidebar): a navigation cube with roll, turn, home and projection buttons, and a compact section strip. Key `v` (action
 `gizmo.toggle`) or the panel checkbox `Gizmo / show` hides it; the `-` button collapses it to a small cube button. On a
-screen 700 px wide or less it starts collapsed and sits 36 px from the right edge (clear of the dock rail). When an open
+screen 700 px wide or less it starts collapsed and sits 36 px from the right edge (clear of the right sidebar rail). When an open
 tool drawer leaves too little room beside it, the gizmo drops the section strip, then shows only the cube button, then
 hides (without changing the saved state); the cube button then opens it over the drawer until `-` or the drawer closes.
 Legends (clearance, point cloud deviation) sit left of the gizmo, or above it when there is no room. The state is

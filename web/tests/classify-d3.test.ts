@@ -426,6 +426,14 @@ describe('settings and identity', () => {
     expect(providerId(validateSettings({ provider: 'jev', geometryText: 'svg' }).settings)).toMatch(/@g[0-9a-f]{8}$/);
     expect(providerId(validateSettings({ provider: 'decision', geometryText: 'svg' }).settings)).not.toMatch(/@g/);
     expect(validateSettings({ provider: 'decision', geometryText: 'svg' }).warnings.join(' ')).toMatch(/geometryText is not used by this provider/);
+    // the numeric shape line: every provider sends it, so it is part of every identity when it is on, and only then
+    for (const prov of ['jev', 'decision', 'webllm', 'd3'] as const) {
+      const on = providerId(validateSettings({ provider: prov, geometryVector: true }).settings);
+      expect(on, prov).toMatch(/@v1$/);
+      expect(providerId(validateSettings({ provider: prov }).settings), prov).not.toMatch(/@v1/);
+    }
+    expect(providerId(validateSettings({ provider: 'off', geometryVector: true }).settings)).not.toMatch(/@v1/);
+    expect(validateSettings({ geometryVector: 'yes' }).errors[0]).toMatch(/^geometryVector must be true or false/);
     expect(validateSettings({ provider: 'd3', geometryText: 'pdf', geometryContext: 'yes' }).errors.map((e) => e.split(' ')[0])).toEqual(['geometryText', 'geometryContext']);
     expect(id({ d3MaxStateBytes: 3000 })).toBe(`d3:browser:${D3_REPO_DEFAULT}@117fb255@s3000`);
     // Jev: pictures only when its switch is on

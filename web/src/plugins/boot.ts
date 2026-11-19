@@ -110,12 +110,13 @@ function applyBoot(app: ViewerApp, boot: BootWithCamera): void {
     if (ids.length > 0) app.selectIds(ids);
   }
 
-  if (boot.openTool) openTool(boot.openTool);
-
   if (boot.kiosk) {
     if (!document.body.classList.contains('sb-collapsed')) runAction(app, 'panel.left');
     if (!document.body.classList.contains('dk-collapsed')) runAction(app, 'panel.right');
   }
+
+  // After the kiosk step: a tool that lives in the right sidebar (classify) opens that column again on purpose.
+  if (boot.openTool) openTool(boot.openTool);
 
   if (boot.openView) {
     if (!openBootView(boot.openView)) warn(`saved view "${boot.openView}" not found`);

@@ -243,14 +243,14 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Export the settings before an experiment. Import the file later to return to the same state.',
     'Report: Onboarding checklist',
   ),
-  'Panel dock': h(
-    'The dock holds this panel at the right edge of the window. It folds into a narrow rail.',
-    'The settings area sits on the right and can fold into a thin strip. A folded strip gives the picture more room.',
-    'Fold the dock to gain view area. Unfold it to change a setting.',
+  'Right sidebar': h(
+    'The right sidebar holds the properties, the classification and the parameters. It folds into a narrow rail.',
+    'The side area shows the details of the picked part and the settings. A folded strip gives the picture more room.',
+    'Pick a tab. Fold the sidebar to gain view area. On a phone it opens from the bottom.',
     'Report: Onboarding checklist',
   ),
   Sidebar: h(
-    'The sidebar shows the model tree, the selection sets and the properties of the selected object.',
+    'The sidebar shows the model tree, the selection sets, the saved views and the issues.',
     'The left side lists the parts of the building and your saved groups. Pick a part to see it light up.',
     'Click an item to select it. Use the eye icon to hide it.',
     'Report: Onboarding checklist',
@@ -1374,11 +1374,29 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Parameters and defaults',
   ),
 
-  // ------------------------------------------------------------------ Panel dock
-  'Panel dock/Collapse toggle': h(
-    'The button folds the settings panel into a narrow rail and opens it again. The 3D view uses the freed width.',
-    'Click and the settings area shrinks to a thin strip, so the picture gets wider. Click again and it opens.',
+  // ------------------------------------------------------------------ Right sidebar
+  'Right sidebar/Collapse toggle': h(
+    'The button folds the right sidebar into a narrow rail and opens it again. The 3D view uses the freed width.',
+    'Click and the side area shrinks to a thin strip, so the picture gets wider. Click again and it opens.',
     'Click the button to gain view area. Press the ] key for the same action.',
+    'Report: Onboarding checklist',
+  ),
+  'Right sidebar/Properties tab': h(
+    'The tab shows the properties of the selected part: its class, name, storey, material and property sets.',
+    'Click a part and the facts about it appear here. Use the menu of a value to select all parts with the same value.',
+    'Click the tab. Select a part in the view or in the tree.',
+    'Report: Onboarding checklist',
+  ),
+  'Right sidebar/Classification tab': h(
+    'The tab holds the classifier. It shows the result for the selected part and has the settings and the review walk.',
+    'Click a part and see its discipline and division here. Accept the answer or change it, and walk through all answers.',
+    'Click the tab. Select 1 part. Click Accept, Change or Unsure.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Right sidebar/Parameters tab': h(
+    'The tab holds the X-ray parameters. Each folder groups the settings of a feature.',
+    'Move a slider here and the picture changes at once. Click a folder title to open or close it.',
+    'Click the tab. Open a folder and change a setting.',
     'Report: Onboarding checklist',
   ),
 
@@ -4474,16 +4492,22 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Read the block. Turn the pictures on only for a model that reads images.',
     'Report: Limitations and extensions, classification',
   ),
-  'Classify drawer/Geometry (heading)': h(
-    'The heading starts the section for the shape of the element as drawing code. The model reads it as words, so no picture is needed.',
-    'The block below sets what shape data goes into the request, and shows the same markup for the selected part.',
-    'Read the block. Turn the markup on for Jev or d3-edge when names and properties do not tell the shape.',
+  'Classify drawer/Shape (heading)': h(
+    'The heading starts the section for the shape of the part as text. The model reads it as drawing code or as a short text of numbers.',
+    'The block below sets what form data goes into the request, and shows the same data for the selected part.',
+    'Read the block. Turn on the numbers for any provider. Turn on the drawing code for Jev or d3-edge.',
     'Report: Limitations and extensions, classification',
   ),
-  'Classify drawer/Geometry as text': h(
-    'The list chooses whether the shape goes into the request as SVG markup. SVG is a plain drawing format in metres.',
-    'With SVG the model reads plan and side outlines of the part. This costs extra tokens for every question.',
-    'Keep Off for the fastest run. Choose SVG in the state for parts that look alike by name.',
+  'Classify drawer/Send shape as vector (SVG)': h(
+    'The switch adds the shape of the part to the request as SVG markup. SVG is a plain drawing format in metres.',
+    'On: the model reads plan and side outlines of the part. This costs extra tokens for every question. Only Jev and d3-edge read it.',
+    'Keep it off for the fastest run. Turn it on for parts that look alike by name.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Send shape as numbers (one line)': h(
+    'The switch adds a short text of numbers to the request. It gives the box sides, the volume, the direction and the height above the storey.',
+    'On: every provider reads the text, also the small local models. It costs about 50 tokens. New text gives new answers, not saved answers.',
+    'Turn it on when names and properties do not tell a bar from a slab.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Add the element in its bounding box': h(

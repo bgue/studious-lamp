@@ -20,6 +20,7 @@ import type { MarkupSet } from '../markup/model';
 import { bcfController } from './bcf';
 import { markupController } from './markup';
 import { addSidebarTab, collapseSidebar } from './sidebar';
+import { getRightSidebar } from '../ui/rightSidebar';
 import type { SidebarTabHandle } from './sidebar';
 
 declare global {
@@ -79,6 +80,12 @@ declare global {
 }
 
 const PHONE_QUERY = '(max-width: 700px)';
+
+/** On a phone the Issues sheet takes the bottom: close the left sidebar and the right sidebar sheet (not stored: the wide-screen choice stays). */
+function collapseSides(): void {
+  collapseSidebar();
+  getRightSidebar()?.setCollapsed(true, false);
+}
 
 const SHEET_CSS = `
 #issues-sheet{position:absolute;left:var(--sb-rail,28px);right:var(--dk-rail,28px);bottom:${STATUS_H}px;max-height:68%;z-index:16;box-sizing:border-box;display:none;flex-direction:column;background:rgba(20,24,32,.98);color:var(--sb-fg,#dfe6ee);border:1px solid #2d3748;border-bottom:0;border-radius:10px 10px 0 0;font:13px/1.35 system-ui,-apple-system,'Segoe UI',sans-serif;box-shadow:0 -6px 24px rgba(0,0,0,.45)}
@@ -161,7 +168,7 @@ export const issuesPlugin: AppPlugin = {
       onShow: () => {
         if (phone()) {
           sheetWanted = true;
-          collapseSidebar();
+          collapseSides();
         }
         place();
         syncOpen();
@@ -207,7 +214,7 @@ export const issuesPlugin: AppPlugin = {
         if (phone()) sheetWanted = true;
         if (tab) tab.show();
         else if (phone()) sheetWanted = true;
-        if (phone()) collapseSidebar();
+        if (phone()) collapseSides();
         place();
         syncOpen();
         panel.render();

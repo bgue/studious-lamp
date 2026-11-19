@@ -254,7 +254,7 @@ free), tools (`src/tools/registry.ts`, `registerTool`: a button and drawer in th
 | `xr` | `xr` (scale, pointer rays) | `xr.vr`, `xr.ar` (no default keys) | `xr` (only when supported) |
 | `toolbar` | none | `toolbar.toggle`, `tool.<id>` | none |
 | `keymap` | `keymap` (overrides) | `help.cheatsheet`, `palette.open`, `keys.edit`, `keys.reset`, `nav.*`, `view.*` | none |
-| `exportParams`, `help`, `panelDock`, `boot` | none | none | none |
+| `exportParams`, `help`, `rightSidebar`, `boot` | none | none | none |
 
 The built-in tools `xray` and `cleanup`/`viewModes` are registered by `src/tools/builtin.ts`; the tool `xr` (WebXR, experimental,
 `src/plugins/xr.ts`, `src/xr/`) shows only when `navigator.xr` supports VR or AR. Scripting objects: `window.__xray` (core), `__xrayViewModes`, `__xrayImaging`, `__xraySection`, `__xrayCleanup`,

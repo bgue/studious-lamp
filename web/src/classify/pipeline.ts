@@ -69,6 +69,11 @@ export interface ClassifyRunOptions {
    * A failure is not fatal: the request goes out without it and the message is added to `stats.errors`.
    */
   geometry?: (input: ClassifyInput, signal: AbortSignal) => Promise<{ legend: string; svg: string } | null> | { legend: string; svg: string } | null;
+  /**
+   * The numeric shape descriptor of the representative element as ONE line (geometryVector.ts): it goes into the state as `shape`, for every provider.
+   * The decision and browser-chat providers fold it into their short premise.
+   */
+  shape?: (input: ClassifyInput) => string;
   retry?: RetryOptions;
   signal?: AbortSignal;
   onProgress?: (p: ProgressInfo) => void;
@@ -314,6 +319,15 @@ export async function classifyInputs(inputs: readonly ClassifyInput[], o: Classi
         try {
           let state = buildState(rep, o.maxStateBytes ?? DEFAULT_MAX_STATE_BYTES);
           let extra: DecideExtra | undefined;
+          if (o.shape) {
+            try {
+              const line = o.shape(rep);
+              // After the cap on the state (one line of about 50 tokens), so it never costs a property.
+              if (line) state = { ...state, shape: line };
+            } catch (e) {
+              addError(`The shape of an element could not be measured, so it went out without it: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          }
           if (o.geometry) {
             try {
               const g = await o.geometry(rep, signal);

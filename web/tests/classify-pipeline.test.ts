@@ -163,6 +163,22 @@ describe('pictures with a request', () => {
       expect(r.state['geometry']).toBe("Geometry as SVG, metres. <svg id='plan'/> <svg id='elev'/>");
     }
   });
+  it('puts the numeric shape line into the state as `shape`, after the properties, and goes on without it when it cannot be measured', async () => {
+    seen.length = 0;
+    await classifyInputs(inputs, { schema, provider: spy, rules: false, shape: () => '4 x 2.7 x 0.2 m sorted; elongation 1.48' });
+    expect(seen.length).toBeGreaterThan(0);
+    for (const r of seen) {
+      expect(r.state['shape']).toBe('4 x 2.7 x 0.2 m sorted; elongation 1.48');
+      expect(Object.keys(r.state).at(-1)).toBe('shape');
+    }
+    seen.length = 0;
+    const { stats } = await classifyInputs(inputs, { schema, provider: spy, rules: false, shape: () => { throw new Error('no mesh'); } });
+    expect(seen.every((r) => !('shape' in r.state))).toBe(true);
+    expect(stats.errors.join(' ')).toMatch(/The shape of an element could not be measured, so it went out without it: no mesh/);
+    seen.length = 0;
+    await classifyInputs(inputs, { schema, provider: spy, rules: false, shape: () => '' });
+    expect(seen.every((r) => !('shape' in r.state))).toBe(true);
+  });
   it('goes on without the geometry when it cannot be made, and says so', async () => {
     seen.length = 0;
     const { stats } = await classifyInputs(inputs, { schema, provider: spy, rules: false, geometry: () => { throw new Error('no mesh'); } });

@@ -69,6 +69,8 @@ export interface ServiceEnv {
   thumbnails?: (id: number, s: ThumbSettings) => Promise<ThumbSet> | ThumbSet;
   /** Builds the SVG geometry of an element (the viewer has the meshes; tests pass a fake). */
   geometry?: (id: number, s: GeometrySettings) => GeometrySet;
+  /** The one-line numeric shape of an element (geometryVector; the viewer has the meshes, tests pass a fake). Empty when it has none. */
+  shape?: (id: number) => string;
   /** Replace the loaders of the d3 browser backend (tests): the runtime, the tokenizer, the file source and the cache. */
   d3LoadOrt?: Parameters<typeof createProvider>[1]['d3LoadOrt'];
   d3LoadTokenizerLib?: Parameters<typeof createProvider>[1]['d3LoadTokenizerLib'];
@@ -338,6 +340,7 @@ export class ClassifyService {
       signal,
       ...(o.rules === false || s.rulesMode === 'off' ? { rules: false } : {}),
       ...(this.geometrySettings() && this.env.geometry ? { geometry: (input: ClassifyInput) => this.geometryOf(input.id, this.geometrySettings()!) } : {}),
+      ...(this.settings().geometryVector && this.env.shape ? { shape: (input: ClassifyInput) => this.shapeOf(input.id) } : {}),
       ...(imgs && this.env.thumbnails ? { images: async (input: ClassifyInput) => this.thumbnailPictures(input.id, imgs) } : {}),
       onProgress: (p: ProgressInfo) => {
         this.progress = p;
@@ -359,6 +362,13 @@ export class ClassifyService {
   geometrySettings(): GeometrySettings | null {
     const s = this.settings();
     return sendsGeometry(s) ? { context: s.geometryContext, margin: s.imageMargin } : null;
+  }
+
+  /** The numeric shape line of one element (geometryVector), or '' when the page has none. Works for every provider. */
+  shapeOf(id: string | number): string {
+    const idx = typeof id === 'number' ? id : this.model?.byGlobalId.get(id);
+    if (idx === undefined || !this.model?.elements[idx]) throw new Error(`No element "${String(id)}" in the model.`);
+    return this.env.shape?.(idx) ?? '';
   }
 
   private readonly geoMemo = new Map<string, GeometrySet>();

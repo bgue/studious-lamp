@@ -59,6 +59,8 @@ export interface ClassifyShared {
   geometryText: GeometryText;
   /** With the SVG: also the element in its bounding box with the elements around it (the margin is `imageMargin`). */
   geometryContext: boolean;
+  /** A one-line numeric shape descriptor in the state (src/classify/geometryVector.ts). Every provider can use it. */
+  geometryVector: boolean;
 }
 export interface JevSettings {
   provider: 'jev';
@@ -132,7 +134,7 @@ export const D3_DEFAULTS = {
   d3Backend: 'browser', d3Repo: D3_REPO_DEFAULT, d3Revision: D3_REVISION_DEFAULT, d3HfEndpoint: D3_HF_ENDPOINT_DEFAULT, d3Device: 'auto',
   d3Endpoint: D3_ENDPOINT_DEFAULT, d3Model: D3_MODEL_DEFAULT, d3MaxStateBytes: D3_STATE_BYTES_DEFAULT,
 } as const;
-export const SHARED_DEFAULTS = { rulesMode: 'final', calibration: 'auto', images: 'off', imageStyle: 'render', imagePlan: false, imageSize: IMAGE_SIZE_DEFAULT, imageMargin: IMAGE_MARGIN_DEFAULT, geometryText: 'off', geometryContext: true } as const;
+export const SHARED_DEFAULTS = { rulesMode: 'final', calibration: 'auto', images: 'off', imageStyle: 'render', imagePlan: false, imageSize: IMAGE_SIZE_DEFAULT, imageMargin: IMAGE_MARGIN_DEFAULT, geometryText: 'off', geometryContext: true, geometryVector: false } as const;
 
 /** Every field at once: the form behind the union. The drawer edits this; `toSettings` picks the part that the provider uses. */
 export interface ClassifyDraft extends ClassifyShared {
@@ -183,7 +185,7 @@ export const customHypotheses = (h: HypothesisTemplates): boolean => HYPOTHESIS_
 export function toSettings(d: ClassifyDraft): ClassifySettings {
   const shared: ClassifyShared = {
     schemaUrl: d.schemaUrl, minConfidence: d.minConfidence, writePset: d.writePset, rulesMode: d.rulesMode, calibration: d.calibration, temperatures: { ...d.temperatures },
-    images: d.images, imageStyle: d.imageStyle, imagePlan: d.imagePlan, imageSize: d.imageSize, imageMargin: d.imageMargin, geometryText: d.geometryText, geometryContext: d.geometryContext,
+    images: d.images, imageStyle: d.imageStyle, imagePlan: d.imagePlan, imageSize: d.imageSize, imageMargin: d.imageMargin, geometryText: d.geometryText, geometryContext: d.geometryContext, geometryVector: d.geometryVector,
   };
   switch (d.provider) {
     case 'jev':
@@ -210,7 +212,7 @@ export function toSettings(d: ClassifyDraft): ClassifySettings {
 export function toDraft(s: ClassifySettings, base: ClassifyDraft = defaultDraft()): ClassifyDraft {
   const d: ClassifyDraft = {
     ...base, provider: s.provider, schemaUrl: s.schemaUrl, minConfidence: s.minConfidence, writePset: s.writePset, rulesMode: s.rulesMode, calibration: s.calibration, temperatures: { ...s.temperatures },
-    images: s.images, imageStyle: s.imageStyle, imagePlan: s.imagePlan, imageSize: s.imageSize, imageMargin: s.imageMargin, geometryText: s.geometryText, geometryContext: s.geometryContext,
+    images: s.images, imageStyle: s.imageStyle, imagePlan: s.imagePlan, imageSize: s.imageSize, imageMargin: s.imageMargin, geometryText: s.geometryText, geometryContext: s.geometryContext, geometryVector: s.geometryVector,
   };
   if (s.provider === 'jev') Object.assign(d, { endpoint: s.endpoint, model: s.model, timeoutMs: s.timeoutMs, concurrency: s.concurrency, maxStateBytes: s.maxStateBytes, jevImages: s.jevImages });
   if (s.provider === 'd3') {
@@ -244,7 +246,7 @@ const KNOWN = new Set([
   'provider', 'schemaUrl', 'minConfidence', 'writePset', 'endpoint', 'model', 'timeoutMs', 'concurrency', 'maxStateBytes', 'webllmModel',
   'webllmMode', 'webllmEmbedModel', 'embedTemperature', 'hybridMargin', 'webllmCustomModel', 'webllmCustomLib',
   'hfModel', 'device', 'dtype', 'hfEndpoint', 'hypothesis',
-  'rulesMode', 'calibration', 'temperatures', 'images', 'imageStyle', 'imagePlan', 'imageSize', 'imageMargin', 'imageViews', 'geometryText', 'geometryContext', 'jevImages',
+  'rulesMode', 'calibration', 'temperatures', 'images', 'imageStyle', 'imagePlan', 'imageSize', 'imageMargin', 'imageViews', 'geometryText', 'geometryContext', 'geometryVector', 'jevImages',
   'd3Backend', 'd3Repo', 'd3Revision', 'd3HfEndpoint', 'd3Device', 'd3Endpoint', 'd3Model', 'd3MaxStateBytes',
 ]);
 
@@ -441,6 +443,10 @@ export function validateSettings(raw: unknown): SettingsCheck {
   if (raw['geometryContext'] !== undefined) {
     if (typeof raw['geometryContext'] === 'boolean') d.geometryContext = raw['geometryContext'];
     else errors.push('geometryContext must be true or false. Using true.');
+  }
+  if (raw['geometryVector'] !== undefined) {
+    if (typeof raw['geometryVector'] === 'boolean') d.geometryVector = raw['geometryVector'];
+    else errors.push('geometryVector must be true or false. Using false.');
   }
   if (d.geometryText === 'svg' && (d.provider === 'decision' || d.provider === 'webllm')) warnings.push('geometryText is not used by this provider: its premise is short. Use Jev or d3-edge for the SVG.');
   if (raw['jevImages'] !== undefined) {

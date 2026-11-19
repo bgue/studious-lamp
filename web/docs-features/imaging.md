@@ -48,7 +48,7 @@ A slab through the focus bounds at `position`, `thickness` wide.
 
 ## In the X-ray panel (render style)
 
-The X-ray panel (the parameter dock) has a `Render style` list (`Standard`, `Radiograph`, `MRI`) right under `X-ray (X)` and `Tiers mode`, and the `Imaging` folder directly below it. The list, the `style` control of the folder, the drawer, key `m`, presets, saved views and the share link all write the same `imaging.style`, and every one of them refreshes the others.
+The X-ray panel (the Parameters tab of the right sidebar) has a `Render style` list (`Standard`, `Radiograph`, `MRI`) right under `X-ray (X)` and `Tiers mode`, and the `Imaging` folder directly below it. The list, the `style` control of the folder, the drawer, key `m`, presets, saved views and the share link all write the same `imaging.style`, and every one of them refreshes the others.
 
 What the user reported ("the radiographic preset does not seem integrated into our X-ray configurator") came to four findings:
 

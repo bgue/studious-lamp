@@ -70,6 +70,8 @@ try {
   async function open(context, tag, query = 'model=fzk-haus', init) {
     const page = await context.newPage();
     watch(page, tag);
+    // The "X-ray panel" checks read the lil-gui panel, which is the Parameters tab of the right sidebar (the default tab is Properties): start on it (folded on a phone as usual).
+    await page.addInitScript(() => { try { if (!localStorage.getItem('xray.dock')) localStorage.setItem('xray.dock', JSON.stringify({ tab: 'parameters' }) /* no `collapsed`: the app folds it on a phone by itself */); } catch { /* ignore */ } });
     if (init) await page.addInitScript(init);
     await page.goto(`http://127.0.0.1:${port}/?${query}`, { timeout: 240000 });
     await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });

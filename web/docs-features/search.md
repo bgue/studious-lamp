@@ -19,7 +19,7 @@ highest comes first.
 | Saved views | `window.__xrayViews` | restores the view |
 | Selection sets | the sets of the model (`src/selectionSets.ts`), static and criteria | selects the set and frames it |
 | Issues and sketches | issues (BCF topics) and sketches of the loaded model, by title, note or description and comment text, the row says which field matched ([issues.md](issues.md)) | opens the Issues tab on it and brings its view back |
-| Settings | every named control of the parameter panel: label, folder path, help text | opens its folders and the dock, scrolls to the control and flashes it |
+| Settings | every named control of the parameter panel: label, folder path, help text | opens its folders and the Parameters tab, scrolls to the control and flashes it |
 
 - **Shift+Enter** adds an element, a set or the query result to the selection instead of replacing it (the camera stays).
 - **Several words** all have to match: `duct level 2`. A word matches as a prefix, a word start, a substring or, for letters

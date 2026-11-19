@@ -1,6 +1,6 @@
 # Top bar
 
-A thin strip (32 px) along the top of the canvas (`#xray-topbar`, inside `#stage`, so it spans the stage between the model tree and the parameter dock). On the left a segmented control with five visualisation modes; to the right a host element, `#xray-topbar-search`, that takes the rest of the width. The search bar ([search.md](search.md), `src/plugins/awesomeBar.ts`) mounts into it; the top bar itself leaves it empty. Code: `src/ui/topBar.ts` (pure model and DOM), `src/plugins/topBar.ts`. Tests: `tests/topbar.test.ts`. Smoke: `SMOKE_PORT=5708 node bench/smoke-topbar.mjs` (screenshots `bench/topbar-*.png`).
+A thin strip (32 px) along the top of the canvas (`#xray-topbar`, inside `#stage`, so it spans the stage between the model tree and the right sidebar). On the left a segmented control with five visualisation modes; to the right a host element, `#xray-topbar-search`, that takes the rest of the width. The search bar ([search.md](search.md), `src/plugins/awesomeBar.ts`) mounts into it; the top bar itself leaves it empty. Code: `src/ui/topBar.ts` (pure model and DOM), `src/plugins/topBar.ts`. Tests: `tests/topbar.test.ts`. Smoke: `SMOKE_PORT=5708 node bench/smoke-topbar.mjs` (screenshots `bench/topbar-*.png`).
 
 ## The five modes
 
@@ -34,7 +34,7 @@ The active mode is the one whose preset the presets engine reports as active (`w
 ## Layout
 
 - The bar registers its rect with the shared overlay (`ov.reserve('topbar', ...)`), and the overlay counts `#xray-topbar` as a top inset, so measure labels, penetration markers, BCF pins, callouts and legends stay below it.
-- The tool strip and its drawer start below the bar (CSS variable `--tb-h`, set on `body` together with the class `tb-on`; `0px` when hidden). The status bar, the gizmo and the dock are unchanged. On a phone (max-width 700 px) the model tree and the dock are overlays; they start below the bar too.
+- The tool strip and its drawer start below the bar (CSS variable `--tb-h`, set on `body` together with the class `tb-on`; `0px` when hidden). The status bar, the gizmo and the right sidebar are unchanged. On a phone (max-width 700 px) the model tree is an overlay and the right sidebar a bottom sheet; their rails start below the bar too.
 - Phone (390 x 844): the five modes become 30 px icon-only buttons (the bar fits at 390 and 360 px); the label stays as the accessible name (`aria-label="Radiograph (Shift+2)"`); the search host shrinks (minimum 60 px) but stays.
 
 ## Scripting

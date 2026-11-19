@@ -75,7 +75,10 @@ function rebuild(): void {
 /** What a click does: open or close the drawer for tools with a panel, else switch the tool on or off. */
 function activate(app: ViewerApp, t: XrayTool): void {
   if (!view) return;
-  if (t.panel) {
+  if (t.host) {
+    if (t.host.isOpen(app)) t.host.close(app);
+    else t.host.open(app);
+  } else if (t.panel) {
     if (view.openToolId === t.id) view.closeDrawer(true);
     else {
       if (view.hidden) setHidden(false);
@@ -97,7 +100,9 @@ const api: ToolbarApi = {
   open(id) {
     const t = shown.find((x) => x.id === id) ?? (getTool(id) && visibleTools([getTool(id)!], bootConfig(), appRef ?? undefined).length > 0 ? getTool(id) : undefined);
     if (!t || !view || !appRef) return false;
-    if (t.panel) {
+    if (t.host) {
+      t.host.open(appRef);
+    } else if (t.panel) {
       if (view.hidden) setHidden(false);
       if (view.openToolId !== t.id) view.openDrawer(t);
     } else if (t.toggle) {

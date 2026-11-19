@@ -167,11 +167,11 @@ export interface HelpTarget {
   cls?: string | null;
 }
 
-/** Selectors for elements that the viewer builds outside lil-gui: the sidebar and the panel dock. */
+/** Selectors for elements that the viewer builds outside lil-gui: the sidebar and the right sidebar. */
 export const ELEMENT_RULES: ReadonlyArray<{ selector: string; key: string | ((el: Element) => string | null); title: string | ((el: Element) => string) }> = [
   { selector: '.sb-toggle, .sb-rail-label', key: 'Sidebar/Collapse toggle', title: 'Collapse toggle' },
   { selector: '.sb-tab', key: (e) => ((e.textContent ?? '').trim() === 'Sets' ? 'Sidebar/Sets tab' : 'Sidebar/Model tab'), title: (e) => `${(e.textContent ?? '').trim()} tab` },
-  { selector: '.dk-toggle, .dk-rail-label', key: 'Panel dock/Collapse toggle', title: 'Collapse toggle' },
+  { selector: '.dk-toggle, .dk-rail-label', key: 'Right sidebar/Collapse toggle', title: 'Collapse toggle' },
   { selector: '.sb-filter', key: 'Sidebar/Filter box', title: 'Filter box' },
   { selector: '.eye', key: 'Sidebar/Eye icon', title: 'Eye icon' },
   { selector: '.tr .dot', key: 'Sidebar/Bucket dot', title: 'Bucket dot' },
@@ -225,7 +225,9 @@ const prevSection = (e: Element): string => {
 /** The title of the open tool drawer, or "" when the element lies outside a drawer. */
 export function drawerTitleOf(e: Element): string {
   const d = e.closest('#xray-toolbar-drawer');
-  return d ? txt(d.querySelector('.xt-title')) : '';
+  // The classify panel lives in the Classification tab of the right sidebar; its help keys keep the "Classify drawer/" prefix.
+  if (!d) return e.closest('#dk-pane-classification') ? 'Classify' : '';
+  return txt(d.querySelector('.xt-title'));
 }
 
 /** Key prefix of a drawer: "<tool label> drawer". */

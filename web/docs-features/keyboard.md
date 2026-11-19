@@ -79,7 +79,7 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Hide selected | `h` |
 | Unhide all (your hides only; pins stay) | `Alt+h` |
 | Hide everything not selected | `Shift+h` |
-| Toggle model tree / parameter panel | `[` / `]` |
+| Toggle model tree / right sidebar ([right-sidebar.md](right-sidebar.md)) | `[` / `]` |
 | Focus the tree filter | `Alt+f` (was `/`, now the search bar) |
 | Search bar: elements, commands, presets, views, sets, settings, WHERE queries ([search.md](search.md)) | `/`, `Ctrl+k`, `Meta+k` |
 | Cheat sheet | `?`, `F1` |

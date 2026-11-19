@@ -5,7 +5,28 @@ elements, a CSI **MasterFormat division** (2018 edition, 00 to 49). The labels c
 so downstream processing can rely on them: a check, a quantity sum or a query never meets a free-text value.
 
 The core is `src/classify/`: pure TypeScript with no DOM, so it runs in Node as well (`import { classifyInputs } from './classify'`).
-The viewer adds the drawer, the settings section and `window.__xrayClassify` (`src/plugins/classify.ts`).
+The viewer adds the **Classification tab of the right sidebar** (the panel that used to be a drawer), the settings section and
+`window.__xrayClassify` (`src/plugins/classify.ts`).
+
+### Where it lives
+
+The panel is the **Classification** tab of the right sidebar ([right-sidebar.md](right-sidebar.md)). The tool `classify` keeps its
+id, its strip button (tag icon) and the action `tool.classify`: they open that tab (expanding the sidebar when it is folded; a second
+click on the strip button folds it again). `window.__xrayToolbar.open('classify')` and `boot.openTool: "classify"` (`--open-tool classify`
+of `xray-pack`) do the same; with `--kiosk` the tab is opened after the sidebars are folded. The review walk lives in the same tab and
+replaces its content while it runs. On a phone the sidebar is a bottom sheet. The tab is 420 px wide while it is shown. Every
+`window.__xrayClassify` call and every key (`Shift+R` for the walk) is unchanged.
+
+### The selected element
+
+At the top of the tab, a card shows the **one selected element**: its class and name, the discipline, sub-discipline and
+division with their confidences, the source (rule, model, cache, confirmed, corrected, manual), the rule's reason, "Needs review" and
+the **decision** (none, confirmed or corrected by whom, or a pending change). Three buttons record your answer as a **pending change**
+of the review service (the same path as the review walk, `window.__xrayClassify.review.propose`): **Accept** confirms the codes,
+**Change...** opens the three pickers (discipline, sub-discipline, division) and **Apply change** corrects them, **Unsure** confirms as
+a guess (still needs review, left out of *Calibrate on confirmed*). When changes are pending, **Commit N pending** writes them to the
+review log as one commit (a name box shows while no reviewer is set). With several elements selected the card shows the first; with an
+unclassified element it offers **Classify this element**.
 
 > **The shipped schema is the "Throughline-aligned default".** Its discipline codes follow the Throughline `Discipline` code list where
 > it has an entry (`PIP`, `MEC`, `ELE`, `INS`, `CIV`, `STR`); `ARC`, `PLB`, `FPR`, `TEL` and `GEN` are added. It is a stand-in:
@@ -22,7 +43,7 @@ Cheapest step first. An element leaves the pipeline at the first step that decid
    follows the system name (sprinkler, chilled water, domestic water, process, site drainage). A rule gives an answer and a
    confidence. A rule at or above **0.85** (`RULE_FINAL`) is **final**: the element is decided there, for the discipline, the
    sub-discipline and the division together, with the rule's confidence, and no request goes out for it. A weaker rule is kept as a
-   fallback only (used, and flagged for review, when the model fails). The setting **`rulesMode`** chooses (drawer: *Rules and model*):
+   fallback only (used, and flagged for review, when the model fails). The setting **`rulesMode`** chooses (Classification tab: *Rules and model*):
    `final` (default, "rules where certain, else the model": the behaviour above) or `off` (the rules are not run, the model answers
    every element; the *Calibrate on rules* run always uses this, as its labels must not be the model's own answers). There is no
    per-question mix: a final rule that names the discipline keeps its own sub-discipline and division, so the three answers of
@@ -211,7 +232,7 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | Field | Applies to | Default | Meaning |
 | --- | --- | --- | --- |
 | `provider` | all | `off` | `off` (rules and cache only), `decision` (a small NLI model in the browser, recommended), `d3` (Decision 3.0 d3-edge), `webllm`, `jev`, `mock` |
-| `schemaUrl` | all | empty | URL of a schema file. Empty: the built-in placeholder (or the file you loaded in the drawer) |
+| `schemaUrl` | all | empty | URL of a schema file. Empty: the built-in placeholder (or the file you loaded in the Classification tab) |
 | `minConfidence` | all | `null` | 0 to 1. `null`: the value of the schema |
 | `writePset` | all | `true` | Write the results as properties of the elements |
 | `rulesMode` | all | `final` | `final`: a rule at or above 0.85 decides the element completely (discipline, sub-discipline, division), the model answers the rest. `off`: the model answers every element, the rules are not run. See [The pipeline](#the-pipeline) |
@@ -224,6 +245,7 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | `imageMargin` | same | 25 | Margin of the context box, 0 to 200 percent of the largest side of the element, never under 0.5 m |
 | `geometryText` | `jev`, `d3` (both backends) | `off` | `off` or `svg`: put the shape of the element into the request state as compact SVG text. Independent of `images`. Not used by `decision` and `webllm` (their premise is short; a warning says so). See [Geometry as SVG text](#geometry-as-svg-text) |
 | `geometryContext` | same | `true` | With `svg`: also the element in its bounding box with the elements around it (the margin is `imageMargin`) |
+| `geometryVector` | all | `false` | Put the numeric shape line (`state.shape`, about 50 tokens) into the request. Works with every provider, also `decision` and `webllm`. See [Shape as numbers](#shape-as-numbers-geometryvector) |
 | `imageViews` | none | | Removed. An old value is ignored, with a warning |
 | `endpoint` | `jev` | `https://api.typesafe.ai/v1/systemone` | An https URL, or a same-origin path such as `/api/jev` |
 | `model` | `jev` | `jev-1.13.0` | The pinned model id. `jev-latest` is a moving alias and gives a warning. DigitalOcean inference uses `typesafe-jev-1.13.0` |
@@ -252,13 +274,13 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 
 Settings are checked on load with plain messages (for example `concurrency must be a whole number from 1 to 16. Using 4.`); a bad
 value keeps its default, and a field that looks like a secret (`apiKey`, `hfToken`, `token`, ...) is refused. Neither the Jev key nor the
-Hugging Face token nor the d3 key is a setting. Fitted temperatures are not settings either (they are kept per model in `localStorage`). The drawer shows the
+Hugging Face token nor the d3 key is a setting. Fitted temperatures are not settings either (they are kept per model in `localStorage`). The Classification tab shows the
 messages. `window.__xrayClassify.configure({ provider: 'jev', model: 'typesafe-jev-1.13.0' })` changes settings from a script.
 
 ## Setup: Jev
 
-1. Choose **Jev (HTTP)** in the drawer. Keep the default endpoint and the pinned model id `jev-1.13.0`.
-2. Paste your API key and click **Save key**. The box empties; the drawer shows only that a key is set.
+1. Choose **Jev (HTTP)** in the Classification tab. Keep the default endpoint and the pinned model id `jev-1.13.0`.
+2. Paste your API key and click **Save key**. The box empties; the Classification tab shows only that a key is set.
 3. Click **Test connection**. It sends one small yes/no question and shows the model id that answered.
 4. Read the estimate (it lists elements, rules, cached, signatures and requests), then click **Classify selection** or
    **Classify all**. **Stop** ends the run after the requests in flight.
@@ -307,7 +329,7 @@ weights. The provider is `src/classify/providers/decision.ts`.
 **Loading.** `@huggingface/transformers` is **not bundled**. It is loaded at run time, only when the provider is used, from an exact
 pinned version (`https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js`, constant `TRANSFORMERS_VERSION`; this
 file contains onnxruntime-web, so no other import is needed). The single-file viewer does not grow. The weights come from huggingface.co (or
-`hfEndpoint`) on first use, and **the browser keeps them in the Cache API** (`transformers-cache`). The drawer shows the cache size and has
+`hfEndpoint`) on first use, and **the browser keeps them in the Cache API** (`transformers-cache`). The Classification tab shows the cache size and has
 **Clear model cache**.
 
 **Models** (ids and sizes checked against the Hugging Face model API; sizes are the ONNX files):
@@ -323,7 +345,7 @@ file contains onnxruntime-web, so no other import is needed). The single-file vi
 The dropdown shows these with their sizes, and the **Hugging Face model id** box takes any other repository id (`owner/name`,
 checked for its format). **Device** is `auto` (WebGPU when `navigator.gpu` gives an adapter, else WASM), `webgpu` or `wasm`; a forced
 WebGPU that is not there is an error, never a silent switch. **Data type** is `auto` (q8 on WASM, fp16 on WebGPU when the adapter has
-`shader-f16` and the model has fp16 weights, else fp32), `fp32`, `fp16`, `q8` or `q4`. Without WebGPU the drawer says in plain words:
+`shader-f16` and the model has fp16 weights, else fp32), `fp32`, `fp16`, `q8` or `q4`. Without WebGPU the Classification tab says in plain words:
 "Slower: this browser has no WebGPU, so the model runs on the CPU with WebAssembly." The WebGPU path was **not run** here (no GPU in the sandbox).
 
 **How a question becomes NLI.** The *premise* is a compact text of the element, the *hypothesis* is one sentence per option:
@@ -365,7 +387,7 @@ WebGPU that is not there is an error, never a silent switch. **Data type** is `a
   passes (signature cache).
 
 **Test model.** The button loads the model, runs one tiny choice (a duct against two disciplines) and reports the load time, the device,
-the data type and the size: `Ready: <id> on wasm (q8) in 1.7 s, 87 MB of files. Test question: chose MEC (0.86) in 2 ms.` The drawer shows the
+the data type and the size: `Ready: <id> on wasm (q8) in 1.7 s, 87 MB of files. Test question: chose MEC (0.86) in 2 ms.` The Classification tab shows the
 download progress (all files added together) while it loads. For a model that is not in the list it first reads `config.json` and the
 file sizes from the Hub API.
 
@@ -382,7 +404,7 @@ A failed load is not repeated for every signature of a run (30 seconds), so a ru
 
 **Hugging Face token** (private or gated models): handled exactly like the Jev key (`keyStore.ts`, a second entry `xray.classify.hfToken`).
 It is not a setting and never in the params document, the share link, saved views, presets or packed pages. It is kept in
-`sessionStorage` (the tab), or in `localStorage` with **Remember token on this device**; the box is a password field that empties; the drawer
+`sessionStorage` (the tab), or in `localStorage` with **Remember token on this device**; the box is a password field that empties; the Classification tab
 shows only that a token is set and its length. It is sent **only to the Hugging Face endpoint** (the origin of `hfEndpoint`), through the
 `env.fetch` of transformers.js for the weights and in the header of the `config.json` check; not to the CDN, not to any other host, and
 the wrapper is removed after the load. The leak test covers it together with the Jev key.
@@ -457,11 +479,11 @@ The mode and its knobs are part of the cache identity, so a decision of another 
 
 **A custom model from Hugging Face** (advanced): the **Custom model URL** (a repository such as `https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f16_1-MLC`)
 and the **Custom library URL** (the compiled `.wasm`, https). Both or neither. They are added to the engine as an `appConfig` model entry
-(`model`, `model_id` `custom-<repository name>`, `model_lib`). A model library runs as code in the page: the drawer warns, and warns more for a
+(`model`, `model_id` `custom-<repository name>`, `model_lib`). A model library runs as code in the page: the Classification tab warns, and warns more for a
 host other than huggingface.co, raw.githubusercontent.com and github.com. Settings with half a custom model, a non-https URL or a library that is not `.wasm`
 are refused with a plain message.
 
-Without WebGPU the drawer says so in plain words and **Test connection** returns the same message. A tiny model is weaker than Jev: treat
+Without WebGPU the Classification tab says so in plain words and **Test connection** returns the same message. A tiny model is weaker than Jev: treat
 its results as a draft and expect more elements to need review.
 
 ## Logit scaling (calibration)
@@ -473,14 +495,14 @@ temperature `T` per question (`discipline`, `sub_discipline`, `masterformat`, `b
 log domain, `p_i ∝ exp(log p_i / T)`. The WebLLM embed mode gives the logits `cosine / embedTemperature`, so `embedTemperature` and the calibration temperature multiply.
 
 - **Raw scores are cached.** The signature cache keeps the logits (or log-probabilities) next to every model decision (`raw` in `CachedDecision`). The calibration is applied when a
-  decision is **read**, so a change of mode or temperature re-scores the results (and the stored results of the drawer) without running the model, and the calibration is **not**
+  decision is **read**, so a change of mode or temperature re-scores the results (and the stored results of the tab) without running the model, and the calibration is **not**
   part of the cache identity. The sub-discipline step uses the scaled discipline confidence to decide how many disciplines to put in the second request.
   A cache entry from before this feature has no raw scores and is shown as it is.
 - **Modes** (`calibration`): `auto` uses the numbers shipped for the model (`calibrationDefaults.ts`; none for a model that is not listed: no scaling and a hint);
   `fitted` uses the numbers fitted on this model by **Calibrate on rules** (kept per model id in `localStorage`, not secret, not in the settings); `manual` uses `temperatures`;
   `off` is the model as it comes.
 - **Calibrate on rules.** The elements that a *final* rule labels in the loaded model (one per signature, at most 120) are the proxy labels. The model runs for the ones that are not in the
-  cache, a fixed 30 % of the signatures (by hash) is held out, `T` is fitted on the rest, and the drawer shows before and after on the held-out part: accuracy, mean confidence,
+  cache, a fixed 30 % of the signatures (by hash) is held out, `T` is fitted on the rest, and the Classification tab shows before and after on the held-out part: accuracy, mean confidence,
   expected calibration error (ECE, 10 bins), the share of answers that clear the minimum confidence and their accuracy. The stored `T` is refitted on all signatures. **The rules are not the truth**: a rule can be wrong, and
   a model that agrees with a wrong rule looks worse than it is. The mode is set to `fitted`. API: `window.__xrayClassify.calibrate()`.
 
@@ -578,7 +600,7 @@ Qwen3.5 stack with full attention, last-position hidden state), `onnx/readout.on
 
 - **Libraries are not bundled.** onnxruntime-web `1.30.0` (`ort.webgpu.min.mjs`) and transformers.js `4.3.2` (the Qwen tokenizer) load from
   jsDelivr at exact versions, only when the provider is used.
-- **A confirmed download.** The drawer reads `MANIFEST.json` and `decision_config.json` first (a few KB) and shows the size. **Test model** asks
+- **A confirmed download.** The Classification tab reads `MANIFEST.json` and `decision_config.json` first (a few KB) and shows the size. **Test model** asks
   "download 1.04 GB from huggingface.co?" and downloads only after **Download model**. The files stream into the Cache API (`xray-d3-cache`); the next load
   reads them from there. **Clear model cache** deletes them and the confirmation.
 - **Integrity.** Every file is checked against the size in the manifest, and the files up to 64 MB (readout, tokenizer) against its sha256. The torso is checked by
@@ -625,9 +647,9 @@ Then **serve the folder over http with CORS** and point the viewer at it. For ex
 node -e "require('http').createServer((q,r)=>{const f=require('path').join('/tmp/d3-mm',decodeURIComponent(new URL(q.url,'http://x').pathname));require('fs').stat(f,(e,s)=>{if(e||!s.isFile()){r.writeHead(404,{'access-control-allow-origin':'*'});return r.end()}r.writeHead(200,{'access-control-allow-origin':'*','content-length':s.size});require('fs').createReadStream(f).pipe(r)})}).listen(8123)"
 ```
 
-In the Classify drawer choose Decision 3.0 d3-edge, backend In the browser, **Model repository** `http://localhost:8123` (any folder address works; a path such as `https://example.org/models/d3-mm` too),
+In the Classification tab choose Decision 3.0 d3-edge, backend In the browser, **Model repository** `http://localhost:8123` (any folder address works; a path such as `https://example.org/models/d3-mm` too),
 and any text as **Revision** (a label: it goes into the cache identity and the file addresses, so change it when you export again to the same folder). Then set Images. Or upload the folder to a Hugging Face
-repository of your own and use its id and commit. The drawer reads the manifest first (a few KB) and shows the size; **Test model** asks before it downloads, as for the default export. A token is never sent to a
+repository of your own and use its id and commit. The Classification tab reads the manifest first (a few KB) and shows the size; **Test model** asks before it downloads, as for the default export. A token is never sent to a
 folder address.
 
 What the export is (all numbers from this repository's run, see below):
@@ -698,10 +720,10 @@ and has no shading for the 0.6B model to misread. Which style reads better for t
 The sentences name the pictures in the order that they are sent.
 
 Example pictures (a pipe spool, a pump, a beam and a wall of process-plant; top row render, bottom row line drawing with the plan): `bench/classify-pictures-pipe.png`,
-`classify-pictures-pump.png`, `classify-pictures-beam.png`, `classify-pictures-wall.png`. The drawer with the preview of a column: `bench/classify-pictures-drawer.png`. `bench/smoke-thumbs.mjs` draws them and checks the sizes, the order, the note, that the
+`classify-pictures-pump.png`, `classify-pictures-beam.png`, `classify-pictures-wall.png`. The Classification tab with the preview of a column: `bench/classify-pictures-drawer.png`. `bench/smoke-thumbs.mjs` draws them and checks the sizes, the order, the note, that the
 line drawing is black on white and that no ghost line lies outside the box.
 
-The drawer shows the **same data URLs** that the request carries, for the selected element, with the note (a preview, "what the model sees"). They are drawn once per element and settings
+The Classification tab shows the **same data URLs** that the request carries, for the selected element, with the note (a preview, "what the model sees"). They are drawn once per element and settings
 and kept in memory only. **A picture is never in params, share links, saved views, presets, packed pages or `localStorage`** (a unit test checks it, with the picture, its note and every
 setting). The picture settings that change a picture are part of the cache identity of a decision (`@i<hash>` in the model id) when pictures are sent, and absent when they are not; the plan
 view only counts with the isolated picture and the margin only with the context picture.
@@ -712,6 +734,10 @@ export with a vision graph." and a decision made with it is labelled as text onl
 **untested** (Jev is not known to read images); it uses the same picture settings.
 
 ## Geometry as SVG text
+
+In the Classification tab, section **Shape**: the switch **Send shape as vector (SVG)** sets `geometryText` (`off` or `svg`), **Add the element in its bounding box** sets `geometryContext`.
+The switch is disabled for `decision` and `webllm` (their prompt is short; use the numbers instead). Under the switches the tab shows what it says, the **token estimate** for the selected
+element, the rendered views and the exact text, **also while the switch is off** (a preview of what it would send).
 
 `geometryText: "svg"` puts the shape of the element into the `state` of the request as native vector markup, so the model reads it as **text tokens**. It needs no picture and no vision
 graph: it works with the text-only browser export (warsang), the endpoint and Jev. It is built by `src/classify/geometrySvg.ts` (pure, tested in Node) from the meshes of the loaded model.
@@ -725,10 +751,40 @@ graph: it works with the text-only browser export (warsang), the endpoint and Je
   single quotes, so the JSON state needs no escapes (each escape costs a token). The text is **not** counted in `d3MaxStateBytes`; it has its own budget of about **1500 tokens** (estimated at 3 characters a token): over it, the farthest neighbours
   are dropped first, then the outlines are simplified harder. Measured on the 51 representative elements of the real bench: the element alone about 110 tokens (largest 137), with the box about 750 on average (largest 1,479).
 - The torso runs **once per question** over the whole prompt, so the tokens multiply by the questions (4 passes per element). d3-edge takes up to 32k tokens, so the length is not a limit; the time is (see below).
-- The drawer shows the **same markup** for the selected element, rendered (the target in orange; the styles are for the preview only) and as text, with the token estimate. `window.__xrayClassify.geometry(id)` returns it.
+- The tab shows the **same markup** for the selected element, rendered (the target in orange; the styles are for the preview only) and as text, with the token estimate. `window.__xrayClassify.geometry(id)` returns it.
 - It is part of the cache identity (`@g<hash>`: with the box or not and the margin) for Jev and d3, and nowhere else. **It is never in params, share links, saved views, presets or packed pages** (the leak test checks it).
 - Drawing: `bench/classify-geometry-svg.png` (pipe, pump, beam, wall: the element's plan and elevation, then the box views).
 - Limits. The outline is a convex hull: a wall with a door opening is a plain rectangle in the isolated views, an L is filled. Round parts are only a circle when the outline is round within 5 %.
+
+### Shape as numbers (`geometryVector`)
+
+`geometryVector: true` (switch **Send shape as numbers (one line)**, default **off**) puts **one line of text** into the request state as `state.shape`. Unlike the SVG it
+works with **every** provider, including `decision` and `webllm` (their short premise gets a `Shape: ...` sentence after the parent; the browser chat model reads the key in its JSON state).
+It is built by `src/classify/geometryVector.ts` (pure, tested in Node: `tests/classify-geometry-vector.test.ts`) from the box, the mesh, the storey and the voids of the element. Example (a 4 m wall):
+
+```
+4 x 2.7 x 0.2 m sorted; volume 2.16 m3; surface 24.3 m2; elongation 1.48; flatness 13.5; main axis horizontal (90 deg from up); plan angle 0 deg; base 0.1 m above storey, top 2.8 m; 2 openings
+```
+
+| Part | Meaning |
+| --- | --- |
+| `a x b x c m sorted` | The bounding box sides in metres, longest first |
+| `volume`, `surface` | From the triangles of the mesh (divergence theorem and the sum of the areas). The volume is left out when the mesh is not a closed solid (zero, or larger than its own box) or has over 200,000 triangles |
+| `elongation` | Longest side over the middle one: 1 is compact, large is a bar or a duct |
+| `flatness` | Middle side over the shortest: 1 is not flat, large is a slab or a plate |
+| `main axis ... (N deg from up)` | The main axis of the vertices (principal component; the longest box side when there is no mesh) against up: `vertical` under 20 deg, `horizontal` over 70, else `inclined` |
+| `plan angle N deg` | The direction of the longest horizontal axis in plan, 0 to 179 deg from east towards north (IFC frame; the next axis for a vertical element) |
+| `base`, `top` | The bottom and top of the box above the elevation of the element's storey, in metres. Left out for an element without a storey |
+| `N openings` | The number of voids cut into the element (`relations.voids`), when the model has any |
+
+Anything unknown is left out. Numbers are rounded to the centimetre (ratios to 2 significant decimals), so equal shapes give equal text and share a signature's cache entry.
+
+- **Token cost.** About **40 to 60 tokens** (the line is 150 to 200 characters; the tab shows the estimate for the selected element, 3 characters a token). It is sent with each of the up to two
+  requests of a signature, so it adds roughly 100 tokens per signature to the Jev or d3 bill, and about 40 to the premise of the decision model, which is cut at its token budget from the end (the
+  building-context sentence goes before the shape). The SVG is 100 to 1,500 tokens: use the numbers first.
+- **Identity.** It is part of the provider id (`@v1`) for every provider when on, so answers made with and without it are never mixed in the cache. It is **never** in params, share links, saved views, presets or packed pages beyond the plain boolean setting.
+- The line goes after the properties in the state (after the cap on the state, so it never costs a property).
+- Scripting: `window.__xrayClassify.configure({ geometryVector: true })`, the setting `classify.geometryVector`; `service.shapeOf(id)` returns the line.
 
 ### The real bench with pictures and SVG (51 signatures)
 
@@ -802,7 +858,7 @@ Measured on the shipped models, with the mock provider (the numbers do not depen
 
 For the decision provider a "request" is one `decide` call; each is several forward passes of the NLI model (see [Passes](#setup-the-decision-model-in-the-browser-recommended-local-option)).
 
-Requests are at most 2 per signature (discipline, building and division, then sub-discipline). The drawer estimates them before
+Requests are at most 2 per signature (discipline, building and division, then sub-discipline). The Classification tab estimates them before
 a run (`estimate(target)` in the API): "elements, by rules, cached, signatures, N to M requests". Retries after 429 and 5xx
 are not counted in `stats.calls`.
 
@@ -855,7 +911,7 @@ decision, so they are not part of the schema hash.
 
 ### Your own schema
 
-- In the drawer: **Load schema file**. The file is checked (plain messages for each problem) and kept in `localStorage`
+- In the Classification tab: **Load schema file**. The file is checked (plain messages for each problem) and kept in `localStorage`
   (`xray.classify.schema.v1`); **Use built-in schema** goes back.
 - By URL: the `schemaUrl` setting (also in a params document or `xray-pack --params`).
 - From a script: `window.__xrayClassify.setSchema(jsonObjectOrText)` returns the list of problems (empty: accepted).
@@ -884,7 +940,7 @@ Elsewhere `discipline` is a plain code of that list: `documents.Document.discipl
 `correspondence.TechnicalItem.discipline` ("a code of the project standards, for example `M`, `E`, `C`"). The sub-discipline and the
 MasterFormat division are **not** Throughline code lists, so the export carries them as `attributes`, as a code list's own `attributes` do.
 
-**Import** (`importDisciplineList`, drawer button **Import Throughline list**, `__xrayClassify.importThroughline(json)`,
+**Import** (`importDisciplineList`, button **Import Throughline list**, `__xrayClassify.importThroughline(json)`,
 `service.importThroughline(json)`): a JSON list of `Discipline` entries, or an object with `values`, `code_values` or `entries`, becomes the
 schema. Entries of another list, and retired or superseded ones (`lifecycle`, `effective_to`), are skipped with a note. `label` and `code` carry over; the
 text the decision model reads is `attributes.description` (the label when there is none, with a warning); `attributes.sub_disciplines`
@@ -893,7 +949,7 @@ first entry) marks the discipline for elements that nothing could place. **The b
 (else the `crosswalk`, else the code itself) names the rules code it replaces, so `M` with `rules_key: MEC` still gets ducts from the rule. The MasterFormat list is the shipped one
 (Throughline has no MasterFormat list). A new schema has a new hash, so decisions of the old one are not reused. A file that is not a list gets a plain message.
 
-**Export** (`exportThroughline`, drawer button **Export Throughline JSON**, `__xrayClassify.export('throughline')`): `xray-throughline-classification/1`.
+**Export** (`exportThroughline`, button **Export Throughline JSON**, `__xrayClassify.export('throughline')`): `xray-throughline-classification/1`.
 
 ```json
 {
@@ -949,7 +1005,7 @@ element a result with source `manual` and confidence 1. A manual result wins ove
 
 ## Review walk
 
-The **Review walk** (drawer section **Review**, the command palette entry "Classify: review walk", key **Shift+R**) visits the
+The **Review walk** (Classification tab, section **Review**, which replaces the tab's content while it runs; the command palette entry "Classify: review walk", key **Shift+R**) visits the
 classified elements one work item at a time, shows what the classifier proposes and why, and records your answer as a
 **committed change**. Classify first (rules only is enough): the walk visits elements that have a result.
 
@@ -1136,7 +1192,7 @@ Commands (palette): `classify.selection`, `classify.all`, `classify.review`, `cl
   `collectParams`, the share URL, saved views and the packed output.
 - It is kept in `sessionStorage` (gone when the tab closes). The **Remember on this device** switch, off by default, keeps it
   in `localStorage` instead.
-- The box is a password field and empties after saving; the drawer shows only that a key is set and its length. The viewer never
+- The box is a password field and empties after saving; the Classification tab shows only that a key is set and its length. The viewer never
   logs it, and it is removed from error messages.
 - It is sent in the `Authorization` header to the configured endpoint only, and not at all when the endpoint has no key
   (a proxy). The requests use `credentials: 'omit'`.

@@ -1,4 +1,4 @@
-// Headless smoke test for the right-hand parameter dock and the params export:
+// Headless smoke test for the right sidebar (Parameters tab holds the lil-gui panel) and the params export:
 // starts vite (bench/vite.smoke.config.mjs), loads /?model=building at 1600x900 and checks the layout
 // (dock 300 px, canvas = viewport - sidebar - dock), `]` collapse to the 28 px rail, canvas growth, persistence
 // across a reload, lil-gui scrolling inside the dock, window.__xrayParams.collect() keys and a share-URL round trip.
@@ -56,6 +56,8 @@ try {
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
   });
   const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+  // The lil-gui panel is the Parameters tab of the right sidebar (the default tab is Properties): start on it, as this smoke drives the panel.
+  await context.addInitScript(() => { try { if (!localStorage.getItem('xray.dock')) localStorage.setItem('xray.dock', JSON.stringify({ collapsed: false, tab: 'parameters' })); } catch { /* ignore */ } });
   const page = await context.newPage();
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
@@ -91,7 +93,7 @@ try {
   check('dock sits at the right edge', Math.round(g.dockLeft + g.dock) === g.vw);
   check('canvas is the viewport minus both panels', g.cw === g.vw - g.sb - g.dock && g.ch === g.vh, `cw=${g.cw}, expected ${g.vw - g.sb - g.dock}`);
   check('canvas drawing buffer matches CSS size', Math.abs(g.bw - g.cw * g.dpr) <= 1);
-  check('lil-gui lives in the dock body, not fixed', g.guiParent === 'dk-body' && g.guiPos !== 'fixed', `${g.guiParent} ${g.guiPos}`);
+  check('lil-gui lives in the Parameters pane of the dock, not fixed', g.guiParent === 'dk-pane' && g.guiPos !== 'fixed', `${g.guiParent} ${g.guiPos}`);
   check('lil-gui fills the dock width', Math.abs(g.guiW - 299) <= 2, `w=${g.guiW}`);
   check('lil-gui is not taller than the dock', g.guiH <= g.dockH, `gui=${g.guiH} dock=${g.dockH}`);
 

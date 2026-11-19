@@ -255,6 +255,9 @@ describe('the premise: what the model reads', () => {
   };
 
   it('puts the class, the type and the name first, then properties, system, material, storey and parent', () => {
+    // the numeric shape line joins the premise after the parent (it is cut with the rest when the budget is short)
+    expect(buildPremise({ ...rich, shape: '4 x 2.7 x 0.2 m sorted; elongation 1.48' })).toMatch(/ Shape: 4 x 2.7 x 0.2 m sorted; elongation 1.48\./);
+    expect(buildPremise(rich)).not.toMatch(/Shape:/);
     const t = buildPremise(rich);
     expect(t.startsWith('Element class IfcPipeSegment (pipe segment).')).toBe(true);
     const at = (s: string): number => t.indexOf(s);

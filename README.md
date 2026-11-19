@@ -36,7 +36,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - `xray-pack`: model plus viewer in one HTML file ([xray-pack.md](web/docs-features/xray-pack.md)).
   - A single-file viewer, `xray-viewer.html`, that runs from disk.
 - **Navigation**
-  - Model tree, hover cards with properties ([hover-info.md](web/docs-features/hover-info.md)).
+  - Model tree on the left; a right sidebar with the Properties, Classification and Parameters tabs, a bottom sheet on a phone ([right-sidebar.md](web/docs-features/right-sidebar.md)); hover cards with properties ([hover-info.md](web/docs-features/hover-info.md)).
   - Keyboard navigation, cheat sheet, command palette, rebindable keys ([keyboard.md](web/docs-features/keyboard.md)).
   - Search bar in the top bar: elements, commands, presets, views, sets, settings and WHERE queries ([search.md](web/docs-features/search.md)).
   - Action panel (toolbar) with a drawer per tool ([toolbar.md](web/docs-features/toolbar.md)), tooltips on every setting
@@ -129,10 +129,10 @@ browser uses. Options (`--params`, `--preset`, `--select`, `--tools`, `--open-to
 ## The action panel and its tools
 
 A vertical icon strip at the left edge of the canvas (key `t` shows or hides it) with a drawer per tool. Only one drawer is open
-at a time; Escape closes it. Every tool also has a folder in the parameter panel (top right), palette commands (Ctrl+Shift+K), search bar entries (`/`) and a
+at a time; Escape closes it. The Classify tool has no drawer: its button opens the Classification tab of the right sidebar ([right-sidebar.md](web/docs-features/right-sidebar.md)). Every tool also has a folder in the Parameters tab of the right sidebar, palette commands (Ctrl+Shift+K), search bar entries (`/`) and a
 `window.__xray*` scripting object. [toolbar.md](web/docs-features/toolbar.md) describes the strip and the shared overlay.
 
-**Status bar.** A one-line, 22 px bar along the bottom of the canvas, between the strip and the parameter dock (it follows both
+**Status bar.** A one-line, 22 px bar along the bottom of the canvas, between the strip and the right sidebar (it follows both
 when they collapse, and the phone layout): model name and element count, x-ray on or off (and tiers), the bucket counts
 focus, host, near and far, the hovered or selected element (`#id class "name"`) and the frame time. Its tooltip and the `ⓘ`
 button (or a click on the model name) show the full details (Algorithm 1 and 2 timings, rays, the bucket, occlusion and alpha
@@ -251,7 +251,7 @@ compare without case. It is a small parser in `web/src/query/` (no SQLite), abou
 **New criteria set** opens a row builder (field, operator, value, with suggestions from the model) that writes the query,
 next to a raw query box, a live match count with inline errors, and **Preview**. Each set is one line: click the name to
 select and frame, **+** to add, **⋯** for Update or Re-evaluate, Rename, Edit criteria, Duplicate and Delete; a filter box
-finds a set among many. Right-click a row of the properties footer (or its **⋯**) to select all elements with the same
+finds a set among many. Right-click a row of the Properties tab of the right sidebar (or its **⋯**) to select all elements with the same
 value or the same property, copy the value, or save the equivalent query as a criteria set. Sets are stored by GlobalId
 in `localStorage` (`xray.sets.<model>`) and exported as `xray-sets/1` JSON; criteria sets add `kind` and `query` and stay
 readable by older versions as static sets.
@@ -288,7 +288,7 @@ every button of the parameter panel.
 | Numpad `1` `3` `7` `0` `5` | Front, right, top, isometric, perspective or orthographic (`Ctrl` for the opposite side) |
 | `Ctrl+A`, `Ctrl+I`, `Alt+S` | Select all visible, invert, same class |
 | `H`, `Shift+H`, `Alt+H` | Hide selected, hide everything not selected, unhide all |
-| `[`, `]`, `/` | Model tree, parameter panel, tree filter |
+| `[`, `]`, `/` | Model tree, right sidebar, tree filter |
 | `B`, `P`, `M`, `C` | Behind-only, peelback, imaging cycle, section box |
 | `I`, `T`, `V` | Hover info, action panel, view cube and section strip |
 | `1` to `9` | Presets |
