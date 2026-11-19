@@ -1,6 +1,6 @@
-// Headless smoke test for the revision walk (docs/design/ifc-save-and-revision.md, section 6, steps 3 to 7). Steps 1 and 2 (Save IFC) and
-// the `RevisionStatus` check of step 6 belong to ticket T2 (Save IFC), which lives on another branch: they are skipped here with a note
-// and are added when that branch is merged. The `RevisionStatus` hand-off itself is unit tested (tests/revision-ui.test.ts).
+// Headless smoke test for the revision walk (docs/design/ifc-save-and-revision.md, section 6, steps 3 to 7, including the RevisionStatus
+// check of step 6 in the saved file). Steps 1, 2 and 8 (Save IFC, cleaned copy) are in bench/smoke-ifc-save.mjs
+// The `RevisionStatus` hand-off itself is unit tested (tests/revision-ui.test.ts).
 //
 // Desktop run: load AC20-FZK-Haus.ifc as v1, classify with the rules, commit a few confirmations, store a snapshot, load fzk-v2.ifc,
 // expect the banner, "Review changes", expect the counts of the truth file, then a walk with the KEYBOARD only (accept a move and see the
@@ -254,6 +254,14 @@ async function runDesktop(browser) {
     check(`${tag} the report file names and two downloads`, downloads.some((d) => /^revision-.*\.csv$/.test(d)) && downloads.some((d) => /-summary\.md$/.test(d)), downloads.join(', '));
     const status = await page.evaluate(async () => { const m = await window.__xrayRevision.status(); const v = m ? [...m.values()] : []; return { n: v.length, changed: v.filter((x) => x.status === 'changed').length, base: v[0]?.baseline }; });
     check(`${tag} the RevisionStatus hand-off gives every element a status and the baseline name`, status.n === 81 && status.changed === 14 && status.base === 'file:AC20-FZK-Haus.ifc', JSON.stringify(status));
+    // step 6: Save IFC carries the walk's result into Xray_Review.RevisionStatus
+    const saved = await page.evaluate(async () => {
+      await window.__xrayIfcSave.save({ target: 'none' });
+      const out = window.__xrayIfcSave.lastOutputs();
+      const text = out[0] ? new TextDecoder('latin1').decode(await out[0].blob.arrayBuffer()) : '';
+      return { files: out.length, status: (text.match(/'RevisionStatus'/g) ?? []).length, changed: (text.match(/IFCLABEL\('changed'\)/g) ?? []).length, baseline: text.includes("IFCLABEL('file:AC20-FZK-Haus.ifc')") };
+    });
+    check(`${tag} the saved IFC holds RevisionStatus and RevisionBaseline for the reviewed elements`, saved.files === 1 && saved.status > 0 && saved.changed > 0 && saved.baseline, JSON.stringify(saved));
     await settle(page, 500);
   } catch (e) {
     check(`${tag} run completed`, false, e instanceof Error ? e.stack : String(e));
@@ -329,7 +337,6 @@ let browser;
 try {
   await waitForServer();
   browser = await chromium.launch({ args: GL });
-  console.log('NOTE steps 1, 2 and the RevisionStatus-in-the-saved-file check of step 6 need ticket T2 (Save IFC, another branch): skipped here.');
   if (only !== 'phone') await runDesktop(browser);
   if (only !== 'desktop') await runPhone(browser);
 } catch (e) {

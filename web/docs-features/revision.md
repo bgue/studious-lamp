@@ -72,4 +72,4 @@ IndexedDB database `xray-revisions`: snapshots (3 per file name, 300 MB in all, 
 
 `window.__xrayRevision`: `candidates()`, `snapshots()`, `start(baseKey)`, `resume()`, `state()`, `decide(key, verdict)`, `bulk(ruleId)`, `report()`, `items()`, `commit(note)`, `status()`, `snapshotNow()`, and `walk` (`open`, `close`, `state`, `goto`).
 
-Code: `src/revision/` (pure core and `controller.ts`, `ghost.ts`, `attachHost.ts`, `capture.ts`, `card.ts`, `status.ts`), `src/plugins/revision.ts` (banner, actions), `src/plugins/revisionWalk.ts` (panel), `src/ui/panelHost.ts` (where the panel sits). Design: `docs/design/ifc-save-and-revision.md`. Smoke test: `bench/smoke-ifc-save-revision.mjs`.
+Code: `src/revision/` (pure core and `controller.ts`, `ghost.ts`, `attachHost.ts`, `capture.ts`, `card.ts`, `status.ts`), `src/plugins/revision.ts` (banner, actions), `src/plugins/revisionWalk.ts` (panel), `src/ui/panelHost.ts` (where the panel sits). Design: `docs/design/ifc-save-and-revision.md`. Smoke tests: `bench/smoke-ifc-save-revision.mjs` (the walk and RevisionStatus in the saved file), `bench/smoke-ifc-save.mjs` (Save IFC and the cleaned copy).

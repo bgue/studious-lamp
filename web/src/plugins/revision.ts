@@ -15,6 +15,7 @@ import type { RevisionCandidate } from '../revision/snapshot';
 import type { RevisionSession } from '../revision/types';
 import { showToast } from '../ui/keymapView';
 import { el } from '../ui/dom';
+import { identityKey } from '../markup/scope';
 import { floatingPanelHost } from '../ui/panelHost';
 import type { PanelHost } from '../ui/panelHost';
 import { classifyService } from './classify';
@@ -48,12 +49,18 @@ export interface RevisionApi {
   commit(note?: string): Promise<{ commitId: string | null; changes: number; carried: number; attachments: number }>;
   /** The `extra.revision` of the IFC save plan: the revision status of every element of the model on screen (null without a session). */
   status(): Promise<Map<string, RevisionStatus> | null>;
+  /** Synchronous form for Save IFC: the open session's statuses, else the last value `refreshSaveStates` read from the stored sessions. */
+  saveStates(): Map<string, RevisionStatus> | undefined;
+  /** Re-read the stored session of the model on screen so `saveStates` also covers a finished walk after a reload. */
+  refreshSaveStates(): Promise<void>;
   snapshotNow(force?: boolean): Promise<boolean>;
   walk: { open(): void; close(): void; state(): RevisionWalkState; goto(i: number): void };
   controller: RevisionController;
 }
 
 let ctl: RevisionController | null = null;
+let stored: Map<string, RevisionStatus> | null = null;
+let storedFor: string | null = null;
 let panel: RevisionWalkPanel | null = null;
 export const revisionController = (): RevisionController | null => ctl;
 
@@ -97,6 +104,8 @@ export const revisionPlugin: AppPlugin = {
       items: () => walk.list(),
       commit: (note) => c.commit(note),
       status: () => c.storedStatus(),
+      saveStates: () => { const id = c.identity(); return c.status() ?? (id && storedFor === identityKey(id) ? stored ?? undefined : undefined); },
+      refreshSaveStates: async () => { const id = c.identity(); stored = await c.storedStatus(); storedFor = id ? identityKey(id) : null; },
       snapshotNow: (force) => c.snapshotNow(force),
       walk: { open: () => walk.open(), close: () => walk.close(), state: () => walk.state(), goto: (i) => walk.goto(i) },
       controller: c,

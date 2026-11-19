@@ -227,9 +227,11 @@ export const ifcSavePlugin: AppPlugin = (() => {
     toolVersion: 'xray-viewer',
   });
 
-  /** Hook for ticket T4: the revision walk fills this with `RevisionStatus` by GlobalId (design 3.7). */
-  const revisionStates = (): SaveExtra['revision'] =>
-    (window as unknown as { __xrayRevision?: { saveStates?(): SaveExtra['revision'] } }).__xrayRevision?.saveStates?.();
+  /** The revision walk's `RevisionStatus` by GlobalId (design 3.7): the open session, else the stored one read by `refreshRevision`. */
+  type RevisionHook = { saveStates?(): SaveExtra['revision']; refreshSaveStates?(): Promise<void> };
+  const revisionHook = (): RevisionHook | undefined => (window as unknown as { __xrayRevision?: RevisionHook }).__xrayRevision;
+  const revisionStates = (): SaveExtra['revision'] => revisionHook()?.saveStates?.();
+  const refreshRevision = async (): Promise<void> => { try { await revisionHook()?.refreshSaveStates?.(); } catch { /* no stored session */ } };
 
   const buildPlans = (o: SaveOptions): FileSavePlan[] => {
     const model = app?.loaded?.model;
@@ -295,6 +297,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
 
   async function doSave(req: SaveRequest, target: Target): Promise<SaveSummary> {
     if (running) throw new Error('A save is already running');
+    await refreshRevision();
     const o = options(req);
     const plans = buildPlans(o);
     const srcs = sources();
@@ -713,6 +716,9 @@ export const ifcSavePlugin: AppPlugin = (() => {
 
     get visible(): boolean { return !this.back.hidden; }
 
+    /** Re-draw with the current choices (after the stored revision statuses arrive). */
+    refresh(): void { if (this.visible && !this.progress) this.render(); }
+
     show(): void {
       // every opening starts with the safe choices: the reviewer box is never remembered
       const owned = ownedCleanup().size;
@@ -869,7 +875,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
     cleanCandidates: (req) => cleanCounts(req),
     cleanPlan,
     saveCleaned: (req) => saveCleaned(req),
-    open: () => ensureDialog().show(),
+    open: () => { const d = ensureDialog(); d.show(); void refreshRevision().then(() => d.refresh()); },
     close: () => dlg?.hide(),
     busy: () => !!running,
     sources: () => sources().map((s) => ({ fileName: s.fileName, size: s.blob.size, schema: s.schema, maxExpressId: s.maxExpressId, ownerHistoryId: s.ownerHistoryId, classifications: s.classifications.length })),

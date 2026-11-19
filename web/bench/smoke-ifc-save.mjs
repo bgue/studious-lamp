@@ -1,12 +1,12 @@
 // Headless smoke for Save IFC and the revision walkthrough (design docs/design/ifc-save-and-revision.md, section 6).
-// This file holds steps 1 and 2 (ticket T2) and step 8 (ticket T5); the revision steps 3 to 7 are added by ticket T4.
+// This file holds steps 1 and 2 (Save IFC) and step 8 (cleaned copy); the revision steps 3 to 7 are in bench/smoke-ifc-save-revision.mjs.
 //   1. Open AC20-FZK-Haus.ifc through the file input; classify all with rules only; confirm 3 elements and commit.
 //   2. Save IFC (API, then the dialog button), capture the download, check the bytes (original untouched, no reviewer name),
 //      re-open the saved file as a new model (same element count, <psetName>.Discipline readable with properties: all) and
 //      screenshot bench/ifc-save-dialog.png.
 //   8. Cleaned copy: open Building-Architecture.ifc, run cleanup and hide the matches, Save cleaned copy (API, then the dialog), re-open
 //      the .cleaned.ifc: the elements cleanup hid are gone (except the ones kept and marked), every other element is still there.
-// Usage: SMOKE_PORT=5770 node bench/smoke-ifc-save-revision.mjs        (SMOKE_STEPS=8 runs only step 8;
+// Usage: SMOKE_PORT=5770 node bench/smoke-ifc-save.mjs        (SMOKE_STEPS=8 runs only step 8;
 //   SMOKE_QUERY='&experimental=simplifiedIfc' adds the simplified-geometry check of ticket T5b to step 8)
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
