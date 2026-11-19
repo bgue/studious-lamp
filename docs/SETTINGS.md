@@ -73,6 +73,8 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Place in model](#place-in-model)
 - [Sheets/3D opacity](#sheets3d-opacity)
 - [Issues panel/View switch](#issues-panelview-switch)
+- [Issues panel/Export report](#issues-panelexport-report)
+- [Issues panel/Raise issues from results](#issues-panelraise-issues-from-results)
 - [Drawing toolbar/View switch](#drawing-toolbarview-switch)
 - [Status bar/Open issues](#status-baropen-issues)
 - [Markup drawer](#markup-drawer)
@@ -813,6 +815,18 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Issues panel/View switch* | The control shows a sketch in 3D, in plan or in section. It appears when a drawing sits on a part of the model. | Click Plan and the picture turns to a cut from above. Click Section for a cut from the side. Click 3D to go back. | Click 3D, Plan or Section. Your own cut returns when you click 3D. | Report: Appendix J, Coordination tools |
+
+## Issues panel/Export report
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Issues panel/Export report* | The block makes a PDF or a CSV file of the issues in the list. The list follows the chips and the search. | The PDF opens with the counts, then gives each item its own page. The CSV has one row for each item. | Open the block. Pick the page size. Click PDF report or CSV. | Report: Appendix J, Coordination tools |
+
+## Issues panel/Raise issues from results
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Issues panel/Raise issues from results* | The block turns each result of the check into an issue. Each issue frames both elements and holds a sketch tied to them. | A second run adds only the new finds. A find that vanishes gets a note, and you can close it. | Run the check. Click Raise issues from results. Click Close to close the issues that are gone. | Report: Appendix J, Coordination tools |
 
 ## Drawing toolbar/View switch
 

@@ -17,6 +17,7 @@ import { pickMarkupFile } from '../markup/ui';
 import type { BcfTopic, BcfViewpointRef } from '../bcf/model';
 import type { IssuesController, StatusFilter } from './controller';
 import { isOpenStatus } from './controller';
+import { buildReportBlock } from './reportUi';
 
 const STYLE_ID = 'issues-styles';
 const CSS = `
@@ -268,6 +269,7 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
       }
       out.push(list);
     }
+    out.push(buildReportBlock(c));
     const other = otherGroup(
       bcf.otherModels().map((g) => ({ label: `${g.model.name} (${g.model.elementCount} elements)`, key: g.key, items: g.items })),
       (t) => {

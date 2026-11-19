@@ -15,6 +15,7 @@ import { registerTool } from '../tools/registry';
 import { button, check, note, row, select, statusLine } from '../tools/ui';
 import { el } from '../ui/dom';
 import { ClearanceTool, clearancePanel } from '../measure/clearanceTool';
+import { registerClashSource } from '../issues/clashRaise';
 import { getOverlay, svgEl } from '../ui/overlay';
 import type { Overlay, ScreenPoint } from '../ui/overlay';
 import { registerParamSection } from '../ui/params';
@@ -399,6 +400,14 @@ export const measurePlugin: AppPlugin = {
     registerTool({
       id: 'clearance', label: 'Clearance', title: 'Colour context elements by distance to the focus: clash, tight, ok', icon: ICONS.clearance, order: 80,
       panel: (box) => clearancePanel(box, c), toggle: (_a, on) => c.setEnabled(on), isActive: () => c.enabled,
+    });
+    registerClashSource({
+      check: 'clearance',
+      all: () => c.clashResults(),
+      chosen: () => c.clashResults() ?? [],
+      inScope: (a, b) => c.clashInScope(a, b),
+      disabledReason: () => (c.enabled ? (c.lastCounts ? (c.lastPairs.length ? null : 'Nothing is tight or clashing') : 'Select an MEP element (the focus) first') : 'Turn the clearance colouring on first'),
+      onChange: (cb) => c.onChange(cb),
     });
     registerAction({ id: 'clearance.toggle', label: 'Clearance: toggle colouring', group: 'Tools', keys: [], run: () => c.setEnabled(!c.enabled) });
     registerParamSection('clearance', {

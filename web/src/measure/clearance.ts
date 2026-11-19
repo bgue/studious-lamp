@@ -61,6 +61,8 @@ export interface ClearanceGeometry {
 export interface ClearanceResult {
   /** Context elements within the range, with their minimum distance to the focus set. */
   distances: Map<number, number>;
+  /** The focus element each context element in `distances` is nearest to (the other end of the clearance). */
+  nearest: Map<number, number>;
   counts: Record<Band, number>;
   /** Elements that needed a mesh distance query (passed the bounds prefilter). */
   queried: number;
@@ -73,6 +75,7 @@ export interface ClearanceResult {
  */
 export function computeClearance(focus: readonly number[], context: readonly number[], geo: ClearanceGeometry, s: ClearanceSettings): ClearanceResult {
   const distances = new Map<number, number>();
+  const nearest = new Map<number, number>();
   const counts: Record<Band, number> = { clash: 0, tight: 0, ok: 0, far: 0 };
   let queried = 0;
   const near: Array<[number, number]> = [];
@@ -90,15 +93,16 @@ export function computeClearance(focus: readonly number[], context: readonly num
     queried++;
     near.sort((a, b) => a[0] - b[0]);
     let best = Infinity;
+    let bestFocus = -1;
     for (const [bd, f] of near) {
       if (bd >= best) break;
       const d = geo.surfaceDistance(f, c, Math.min(s.max, best));
-      if (d < best) best = d;
+      if (d < best) { best = d; bestFocus = f; }
       if (best <= TOUCH_EPS) break;
     }
     const band = bandOf(best, s);
     counts[band]++;
-    if (band !== 'far') distances.set(c, best);
+    if (band !== 'far') { distances.set(c, best); nearest.set(c, bestFocus); }
   }
-  return { distances, counts, queried };
+  return { distances, nearest, counts, queried };
 }

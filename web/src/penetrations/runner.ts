@@ -18,6 +18,9 @@ export interface PenRun {
   scope: PenScope;
   mepCount: number;
   hostCount: number;
+  /** The analysed MEP elements and hosts (viewer ids): which pairs this run could have found (issues raised from it, src/issues/clash.ts). */
+  mepIds: Set<number>;
+  hostIds: Set<number>;
   /** Whether the model carries opening bounds (otherwise every status is unknown unless hosted by relation). */
   hasOpeningData: boolean;
 }
@@ -26,7 +29,7 @@ export function runPenetrations(app: ViewerApp, scope: PenScope): PenRun {
   const t0 = performance.now();
   const loaded = app.loaded;
   const geo = app.geometry;
-  if (!loaded || !geo) return { rows: [], summary: summarise([]), ms: 0, scope, mepCount: 0, hostCount: 0, hasOpeningData: false };
+  if (!loaded || !geo) return { rows: [], summary: summarise([]), ms: 0, scope, mepCount: 0, hostCount: 0, mepIds: new Set(), hostIds: new Set(), hasOpeningData: false };
   const model = loaded.model;
   const settings = app.controller.settings.classification;
   const focusClasses = new Set(settings.focusClasses);
@@ -67,6 +70,8 @@ export function runPenetrations(app: ViewerApp, scope: PenScope): PenRun {
     scope,
     mepCount: mep.length,
     hostCount: hosts.length,
+    mepIds: new Set(mep.map((e) => e.id)),
+    hostIds: new Set(hosts.map((e) => e.id)),
     hasOpeningData: (openings?.length ?? 0) > 0,
   };
 }

@@ -10,6 +10,10 @@ import { getOverlay, svgEl } from '../ui/overlay';
 import type { Overlay } from '../ui/overlay';
 import { CLASH_COLOUR, clearanceColour, computeClearance, DEFAULT_CLEARANCE, legendStops, TIGHT_COLOUR } from './clearance';
 import type { Band, ClearanceSettings } from './clearance';
+import { buildClashSection } from '../issues/clashUi';
+import { clearanceResults } from './clearanceClash';
+import type { ClashResult } from '../issues/clash';
+import type { Box6 } from '../bcf/plan';
 
 /** Height of the clearance legend (px); the point cloud legend stacks above it. */
 export const CLEARANCE_LEGEND_H = 112;
@@ -21,6 +25,10 @@ export class ClearanceTool {
   status = 'Off';
   lastCounts: Record<Band, number> | null = null;
   lastMs = 0;
+  /** The context elements of the last run that are clashing or tight, with the focus element nearest to each and the distance (m): what "Raise issues from results" raises. */
+  lastPairs: Array<{ focus: number; context: number; distance: number }> = [];
+  /** The focus and context elements of the last run (GlobalId scope of a re-run). */
+  lastScope: { focus: Set<number>; context: Set<number> } = { focus: new Set(), context: new Set() };
   private saved = new Map<number, [number, number, number]>();
   private focusSig = '';
   private overlay: Overlay | null = null;
@@ -60,6 +68,7 @@ export class ClearanceTool {
     } else {
       this.restore();
       this.lastCounts = null;
+      this.lastPairs = [];
       this.status = 'Off';
       this.focusSig = '';
       this.overlay?.invalidate();
@@ -110,6 +119,7 @@ export class ClearanceTool {
     const focus = [...app.controller.classification.focus];
     if (focus.length === 0) {
       this.lastCounts = null;
+      this.lastPairs = [];
       this.status = 'Select an MEP element (the focus) to see clearances';
       this.overlay?.invalidate();
       return;
@@ -139,9 +149,44 @@ export class ClearanceTool {
     app.renderer.markDirty();
     this.lastMs = performance.now() - t0;
     this.lastCounts = r.counts;
+    this.lastPairs = [...r.distances].filter(([, d]) => d < this.settings.tight || d <= 1e-6).map(([context, distance]) => ({ focus: r.nearest.get(context)!, context, distance }));
+    this.lastScope = { focus: focusSet, context: new Set(context) };
     const n = r.counts;
     this.status = `clash ${n.clash}, tight ${n.tight}, ok ${n.ok}, beyond ${n.far} (${context.length} context, ${focus.length} focus, ${r.queried} mesh queries, ${this.lastMs.toFixed(0)} ms)`;
     this.overlay?.invalidate();
+  }
+
+  private elementLabel(id: number): string {
+    const e = this.app.controller.model.elements[id];
+    if (!e) return `#${id}`;
+    return e.name && e.name.trim() ? e.name : `${e.ifcClass.replace(/^Ifc/, '')} #${id}`;
+  }
+
+  /** The clashing and tight pairs of the last run as clash results (src/issues/clash.ts); null while the tool is off or has no focus. */
+  clashResults(): ClashResult[] | null {
+    if (!this.enabled || !this.lastCounts) return null;
+    const m = this.app.controller.model;
+    return clearanceResults(this.lastPairs, {
+      guid: (id) => m.elements[id]?.globalId || undefined,
+      label: (id) => this.elementLabel(id),
+      bounds: (id) => (m.elements[id]?.bounds as Box6 | undefined) ?? null,
+      tight: this.settings.tight,
+    });
+  }
+
+  /** Whether the last run could have found the pair: one element in the focus, the other in the context it looked at. */
+  clashInScope(a: string, b: string): boolean {
+    const m = this.app.controller.model;
+    const x = m.byGlobalId.get(a);
+    const y = m.byGlobalId.get(b);
+    if (x === undefined || y === undefined) return false;
+    const { focus, context } = this.lastScope;
+    return (focus.has(x) && context.has(y)) || (focus.has(y) && context.has(x));
+  }
+
+  /** A recompute from the panel: tell the listeners (the issue counts). */
+  onStatusChanged(): void {
+    this.emit();
   }
 
   /** Selection or classification changed: refresh when the focus set is different. */
@@ -200,6 +245,7 @@ export class ClearanceTool {
 
 export function clearancePanel(box: HTMLElement, t: ClearanceTool): () => void {
   const widgets: Widget[] = [];
+  const clash = buildClashSection('clearance');
   const add = (w: Widget): void => {
     widgets.push(w);
     box.appendChild(w.root);
@@ -216,12 +262,14 @@ export function clearancePanel(box: HTMLElement, t: ClearanceTool): () => void {
     t.settings.max = Math.max(v, t.settings.tight);
     t.settingsChanged();
   }, (v) => v.toFixed(2)));
-  box.appendChild(button('Recompute', () => { if (t.enabled) { t.recompute(); } else t.setEnabled(true); }, { primary: true, title: 'Recompute for the current focus' }));
+  box.appendChild(button('Recompute', () => { if (t.enabled) { t.recompute(); t.onStatusChanged(); } else t.setEnabled(true); }, { primary: true, title: 'Recompute for the current focus' }));
   box.appendChild(status);
+  box.appendChild(clash.root);
   box.appendChild(note('Colours the context classes (slabs, walls, beams, ...) by their minimum distance to the focus: red = clash or touching, amber = tight, a blue ramp up to the max range. Beyond the range nothing changes. The focus is the selected element and its connected run.'));
   const refresh = (): void => {
     widgets.forEach((w) => w.update());
     status.set(t.status);
+    clash.update();
   };
   const off = t.onChange(refresh);
   return off;

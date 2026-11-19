@@ -32,6 +32,8 @@
 //     }
 //   }
 
+import { clashRef, isClashCheck } from '../issues/clash';
+import type { ClashRef } from '../issues/clash';
 import { ANNOTATION_TYPES, IFC_GUID_RE, isShapeType, newGuid } from './model';
 import { attachGuids, cleanAttachment, cloneAttachment } from './attach';
 import { cleanIdentity, sanitizeMarkup } from '../markup/model';
@@ -64,6 +66,8 @@ export interface Sidecar {
   pinNumber?: number;
   pin?: BcfPin;
   model?: ModelIdentity;
+  /** The check result the issue was raised from (src/issues/clash.ts). */
+  clash?: ClashRef;
   viewpoints: Record<string, SidecarViewpoint>;
 }
 
@@ -122,12 +126,13 @@ export function baseSnapshotName(viewpointGuid: string, version: BcfVersion): st
  */
 export function sidecarJson(t: BcfTopic, version: BcfVersion, baseSnapshots: ReadonlyMap<string, string> = new Map()): string | null {
   // The model identity alone is worth a side file: it says which model the topic belongs to.
-  if (!hasMarkup(t) && !t.model) return null;
+  if (!hasMarkup(t) && !t.model && !t.clash) return null;
   const g = (s: string): string => (version === '3.0' ? s.toLowerCase() : s);
   const out: Sidecar = { format: SIDECAR_FORMAT, version: SIDECAR_VERSION, frame: 'ifc', units: 'm', topic: g(t.guid), viewpoints: {} };
   if (t.pinNumber !== undefined) out.pinNumber = t.pinNumber;
   if (t.pin) out.pin = clonePin(t.pin);
   if (t.model) out.model = { ...t.model };
+  if (t.clash) out.clash = { ...t.clash };
   for (const r of t.viewpoints) {
     const v: SidecarViewpoint = {};
     if (r.annotations?.length) v.annotations = r.annotations.map(cloneAnnotation);
@@ -293,8 +298,20 @@ export interface SidecarRead {
   pinNumber?: number;
   pin?: BcfPin;
   model?: ModelIdentity;
+  clash?: ClashRef;
   viewpoints: Map<string, SidecarViewpoint>;
   problems: string[];
+}
+
+function readClash(v: unknown): ClashRef | undefined {
+  if (!isObj(v) || !isClashCheck(v['check'])) return undefined;
+  const a = str(v['a']);
+  const b = str(v['b']);
+  if (!a || !b) return undefined;
+  const out = clashRef(v['check'], a, b);
+  const missing = str(v['missing']);
+  if (missing) out.missing = missing;
+  return out;
 }
 
 /** Parse the side file. Throws only on text that is not JSON of this format. */
@@ -317,6 +334,8 @@ export function parseSidecar(text: string): SidecarRead {
   }
   const model = cleanIdentity(raw['model']);
   if (model) out.model = model;
+  const clash = readClash(raw['clash']);
+  if (clash) out.clash = clash;
   const pn = raw['pinNumber'];
   if (pn !== undefined) {
     if (fin(pn) && Number.isInteger(pn) && pn >= 1 && pn < 1e6) out.pinNumber = pn;
@@ -358,6 +377,7 @@ export function parseSidecar(text: string): SidecarRead {
 export function applySidecar(t: BcfTopic, s: SidecarRead): { baseSnapshots: Map<string, string>; missing: string[] } {
   if (s.pin) t.pin = s.pin;
   if (s.model) t.model = s.model;
+  if (s.clash) t.clash = s.clash;
   if (s.pinNumber !== undefined) t.pinNumber = s.pinNumber;
   const baseSnapshots = new Map<string, string>();
   const seen = new Set<string>();

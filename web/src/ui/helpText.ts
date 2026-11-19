@@ -467,6 +467,18 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Click 3D, Plan or Section. Your own cut returns when you click 3D.',
     'Report: Appendix J, Coordination tools',
   ),
+  'Issues panel/Export report': h(
+    'The block makes a PDF or a CSV file of the issues in the list. The list follows the chips and the search.',
+    'The PDF opens with the counts, then gives each item its own page. The CSV has one row for each item.',
+    'Open the block. Pick the page size. Click PDF report or CSV.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Issues panel/Raise issues from results': h(
+    'The block turns each result of the check into an issue. Each issue frames both elements and holds a sketch tied to them.',
+    'A second run adds only the new finds. A find that vanishes gets a note, and you can close it.',
+    'Run the check. Click Raise issues from results. Click Close to close the issues that are gone.',
+    'Report: Appendix J, Coordination tools',
+  ),
   'Drawing toolbar/View switch': h(
     'The control shows the sketch in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model.',
     'Click Plan and the picture shows a cut from above, with your marks on the same part. Click Section for a cut from the side.',
