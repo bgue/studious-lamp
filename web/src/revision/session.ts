@@ -246,6 +246,7 @@ export function parseSession(v: unknown): { session: RevisionSession | null; err
       at: d['at'],
       by: d['by'],
       ...(d['unsure'] === true ? { unsure: true as const } : {}),
+      ...(isObj(d['edited']) && typeof d['edited']['discipline'] === 'string' ? { edited: { discipline: d['edited']['discipline'], subDiscipline: typeof d['edited']['subDiscipline'] === 'string' ? d['edited']['subDiscipline'] : null, division: typeof d['edited']['division'] === 'string' ? d['edited']['division'] : null } } : {}),
       ...(d['attachments'] === 'keep' || d['attachments'] === 'reattach' || d['attachments'] === 'resolve' ? { attachments: d['attachments'] } : {}),
       ...(typeof d['reattachTo'] === 'string' ? { reattachTo: d['reattachTo'] } : {}),
       ...(typeof d['note'] === 'string' ? { note: d['note'] } : {}),

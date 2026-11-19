@@ -27,6 +27,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - Point clouds and as-built deviation ([pointcloud.md](web/docs-features/pointcloud.md)).
   - Model cleanup: find and hide floating, tiny, duplicate or distant debris ([cleanup.md](web/docs-features/cleanup.md)).
   - Classify: label elements by discipline, sub-discipline and CSI MasterFormat division with rules, a signature cache and a decision model (a small zero-shot NLI model in the browser with transformers.js, Decision 3.0 d3-edge in the browser with WebGPU or on a System One endpoint with optional thumbnails of the element, a WebLLM chat or embedding model, or Jev over HTTP), with logit scaling so that the confidence tracks accuracy (a fit on the rules' own labels, with held-out numbers), against a pluggable code-list schema (a Throughline-aligned default; a Throughline `Discipline` list imports and the results export in its shape) ([classify.md](web/docs-features/classify.md)).
+  - Revision walk: when a second version of a model arrives, compare it with the first, carry the unchanged decisions over and walk only through what changed, with a ghost of the earlier shape, bulk rules, a phone layout, resume after a reload and a CSV report ([revision.md](web/docs-features/revision.md)).
   - WebXR, experimental: walk through the model in VR, place it on a table in AR, or lay it at real size over the real building on
     site (field AR) to see the services behind walls ([webxr.md](web/docs-features/webxr.md)).
 - **Input and output**

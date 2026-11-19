@@ -16,7 +16,10 @@ import {
   type GuiLike,
 } from '../src/ui/help';
 import { HELP } from '../src/ui/helpText';
-import { CLEANUP_CLASSES_KEY, DRAWER_FOLDERS, DOM_CANDIDATES, TOOL_RULES, DIALOG_RULES } from '../src/ui/help';
+import { CLEANUP_CLASSES_KEY, DRAWER_FOLDERS, DOM_CANDIDATES, TOOL_RULES, DIALOG_RULES, REVISION_HELP_KEYS, REVISION_RULES } from '../src/ui/help';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { WEB } from './revision-helpers';
 
 // A fake lil-gui: a folder has a title (as $title text, like lil-gui) and a parent; a controller has _name, property and a parent.
 function folder(title: string, parent: GuiLike | null = null, how: '$title' | '_title' = '$title'): GuiLike {
@@ -227,5 +230,27 @@ describe('keys of the later folders', () => {
       expect(folders.length, drawer).toBeGreaterThan(0);
       for (const f of folders) expect(lookupHelp(f), `${drawer} -> ${f}`).toBeDefined();
     }
+  });
+});
+
+describe('revision banner and walk panel', () => {
+  const src = (f: string): string => readFileSync(resolve(WEB, f), 'utf8');
+  it('has a help entry for every key, and the rule hands the key through', () => {
+    for (const k of REVISION_HELP_KEYS) expect(lookupHelp(k), k).toBeDefined();
+    const rule = REVISION_RULES[0]!;
+    const fake = { getAttribute: (n: string) => (n === 'data-help' ? 'Revision walk/Accept' : null) } as unknown as Element;
+    expect(rule.keys(fake, '')).toEqual(['Revision walk/Accept']);
+    expect(rule.title(fake, '')).toBe('Accept');
+    expect(DOM_CANDIDATES).toContain('[data-help^="Revision "]');
+  });
+  it('names in the sources only keys that the list holds', () => {
+    const used = new Set<string>();
+    for (const f of ['src/plugins/revisionWalk.ts', 'src/plugins/revision.ts']) {
+      for (const m of src(f).matchAll(/(?:help: |'data-help': )'(Revision [^']+)'/g)) used.add(m[1]!);
+    }
+    expect(used.size).toBeGreaterThan(10);
+    for (const k of used) expect(REVISION_HELP_KEYS, k).toContain(k);
+    // the banner builds its keys from the button label: every label it uses has an entry
+    for (const label of ['Review changes', 'Not a revision', 'Compare with', 'Compare with an IFC file', 'Resume', 'Dismiss', 'OK', 'Cancel']) expect(REVISION_HELP_KEYS).toContain(`Revision banner/${label}`);
   });
 });

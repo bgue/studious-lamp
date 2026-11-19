@@ -166,6 +166,8 @@ export interface RevisionDecision {
   verdict: 'accepted' | 'rejected';
   unsure?: true;
   classification: 'kept' | 'new' | 'edited' | 'none';
+  /** The codes an edit (`E`) chose: `classification` is 'edited'. Kept so a resumed walk can propose the same correction again. */
+  edited?: { discipline: string; subDiscipline: string | null; division: string | null };
   attachments?: 'keep' | 'reattach' | 'resolve';
   reattachTo?: string;
   note?: string;

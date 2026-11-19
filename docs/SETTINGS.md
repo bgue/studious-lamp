@@ -105,6 +105,8 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Search bar](#search-bar)
 - [Status ba](#status-ba)
 - [Status bar](#status-bar)
+- [Revision banner](#revision-banner)
+- [Revision walk](#revision-walk)
 
 ## Glossary
 
@@ -1417,3 +1419,34 @@ Impact follows the same sentence rules and adds these:
 | Model name | The segment names the model and counts its elements. A click opens the details and the credits of the models. | It tells you which building you look at and how many parts it has. Click it to see where it comes from. | Click the segment to read the credits of the built-in models. | Report: Onboarding checklist |
 | Details button | The button opens a panel with the timings of Algorithm 1 and 2, the ray count and the model credits. | Click it and a small box opens with every number and the source of each demo building. | Click the button to open the box. Click it again or outside the box to close it. | Report: Algorithm 2 |
 | Dismiss button | The button removes the red message from the bar. | Click the cross and the red text goes away. The rest stays as it is. | Click the cross after you read the message. | Report: Onboarding checklist |
+
+## Revision banner
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Review changes | The button compares this model with the earlier model and opens the revision walk. | Decisions from the earlier model come over only now. The walk then lists what differs. | Click the button when the banner names the right earlier model. | Report: Limitations and extensions, revision walk |
+| Not a revision | The button hides the banner for this pair of models. | No decision comes over and no list is built. The hint stays away until you reload the page. | Click the button when the models have nothing to do with each other. | Report: Limitations and extensions, revision walk |
+| Compare with | The button lets you pick any stored earlier model. | You can pair models that the page did not guess as a pair. | Click the button. Choose the earlier model from the list. | Report: Limitations and extensions, revision walk |
+| Compare with an IFC file | The button reads an IFC file without showing it and compares it with this model. | It holds no decisions. You get the differences and the report only. | Click the button and choose the earlier file. | Report: Limitations and extensions, revision walk |
+| Resume | The button reopens a revision review that you left unfinished. | Your decisions, skips and place in the list come back. You continue where you stopped. | Click the button when the banner shows the count of decided changes. | Report: Limitations and extensions, revision walk |
+| Dismiss | The button hides the banner and leaves the saved review as it is. | The review stays stored in this browser. Open the walk from the command list to get it back. | Click the button when you do not want to continue now. | Report: Limitations and extensions, revision walk |
+| OK | The button closes the message. | The message goes away and nothing else changes. | Click the button after you read the message. | Report: Limitations and extensions, revision walk |
+| Cancel | The button closes the choice of the earlier model. | No model joins a pair. The hint goes back to what it showed before. | Click the button to leave the choice. | Report: Limitations and extensions, revision walk |
+
+## Revision walk
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Accept | The button accepts the change shown and goes to the next change. | The change waits for a commit. The earlier decision stays unless the new proposal is the default. | Press Enter or click the button when the change is right. | Report: Limitations and extensions, revision walk |
+| Reject | The button says that the change is wrong and goes to the next change. | The report gets a row with the verdict. No issue opens by itself, and the earlier decision is not written. | Press R or click the button. Click Raise issue afterwards when someone must act. | Report: Limitations and extensions, revision walk |
+| Skip | The button leaves the change undecided and goes on. | The change stays open and the review keeps it. You can come back to it after a reload. | Press N or click the button when you cannot decide now. | Report: Limitations and extensions, revision walk |
+| Unsure | The tick marks your next decision as a guess. | The decision shows as a guess in the report and keeps its need for a second look. | Tick the box, or press the question mark, before you accept or reject. | Report: Limitations and extensions, revision walk |
+| Other | The button accepts with the classification that Enter did not take. | You take the earlier decision or the new proposal, whichever Enter did not take. | Press 2 or click the button when the default is not what you want. | Report: Limitations and extensions, revision walk |
+| Edit | The button opens the codes so that you choose them by hand. | Your codes replace both proposals for this element. They wait for a commit. | Press E, choose the codes, then press Enter. | Report: Limitations and extensions, revision walk |
+| Ghost | The button switches what the view shows of the earlier shape. | You see the old shape in red with the new one, the new one alone, or the old one alone. | Press G to step through the 3 views. | Report: Limitations and extensions, revision walk |
+| Bulk | The button opens rules that accept many alike changes at once. | Each rule shows how many changes it takes. One undo takes a whole rule back. | Press B. Point at a rule to see its elements. Click Apply. | Report: Limitations and extensions, revision walk |
+| More | The button opens the rules, the filters and the report. | Phone screens use this button in place of the keys. | Tap the button to reach the lists that the keys open. | Report: Limitations and extensions, revision walk |
+| Raise issue | The button opens an issue for the rejected element. | The new entry holds the element ids and a view. The team sees it in the list of open work. | Click the button after a reject when the team must hear about it. | Report: Limitations and extensions, revision walk |
+| Apply rule | The button accepts every undecided change that the rule takes. | The decisions count as one step. You can still change any of them later. | Check the count and the highlighted elements first. Then click the button. | Report: Limitations and extensions, revision walk |
+| Commit | The button writes your accepted changes to the review log. | Accepted decisions become results. Matched elements bring their earlier decisions along. | Enter your name once. Click the button when you finish a stretch. | Report: Limitations and extensions, revision walk |
+| Export report | The button saves a table of every change and a short summary. | You get two files with the verdict, the person and the time for each change. | Click the button when the walk is done, or any time before. | Report: Limitations and extensions, revision walk |

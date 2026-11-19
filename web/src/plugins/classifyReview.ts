@@ -88,7 +88,8 @@ const CSS = `
 }
 `;
 
-function ensureStyle(): void {
+/** Installs the review walk's styles (`.xrw…`); the revision walk shares them. */
+export function ensureReviewWalkStyle(): void {
   if (document.getElementById(STYLE_ID)) return;
   const st = document.createElement('style');
   st.id = STYLE_ID;
@@ -232,7 +233,7 @@ export class ReviewWalk {
 
   open(o: { order?: WalkOrder } = {}): void {
     if (!this.svc.model) return;
-    ensureStyle();
+    ensureReviewWalkStyle();
     ensureKeyStyles();
     this.closeDrawer(); // the drawer would cover the panel: close it (the walk has its own Classify button)
     if (!this.opened) {
