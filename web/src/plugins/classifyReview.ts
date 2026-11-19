@@ -283,6 +283,8 @@ export class ReviewWalk {
     const s = this.saved;
     this.saved = null;
     if (s) {
+      // the selection first: selecting starts the cinematic fly-to-selection, which the camera move below then cancels
+      this.app.selectIds(s.selection);
       const smooth = navSettings.smoothMoves;
       navSettings.smoothMoves = false; // put the camera back at once: an eased move can be cut short by a flight that is still running
       try {
@@ -290,7 +292,6 @@ export class ReviewWalk {
       } finally {
         navSettings.smoothMoves = smooth;
       }
-      this.app.selectIds(s.selection);
     }
     const n = this.svc.review.pending().length;
     if (n > 0) showToast(`${n} pending change${n === 1 ? '' : 's'} kept: open the review walk again to commit them`, 3000);

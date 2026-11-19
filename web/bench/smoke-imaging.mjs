@@ -131,7 +131,8 @@ try {
     await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });
     const startErr = await page.evaluate('window.__xrayError');
     if (startErr) throw new Error(startErr);
-    await page.addStyleTag({ content: '.lil-gui, #xray-overlay, #xray-message { visibility: hidden !important }' });
+    // .xg-hist: the gizmo's undo and redo buttons turn on once the style changes are on the undo stack (right, but not the picture)
+    await page.addStyleTag({ content: '.lil-gui, #xray-overlay, #xray-message, .xg-hist { visibility: hidden !important }' });
     log(`\n== ${sc.model}`);
 
     const setup = await page.evaluate(async ([selectSrc]) => {

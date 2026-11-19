@@ -242,10 +242,11 @@ export class RevisionWalkPanel {
     const s = this.saved;
     this.saved = null;
     if (s) {
+      // the selection first: selecting starts the cinematic fly-to-selection, which the camera move then cancels
+      this.app.selectIds(s.selection);
       const smooth = navSettings.smoothMoves;
       navSettings.smoothMoves = false;
       try { moveToPose(this.app, s.pose); } finally { navSettings.smoothMoves = smooth; }
-      this.app.selectIds(s.selection);
     }
     const n = this.ctl.pendingCount();
     if (n.changes + n.other > 0) showToast(`${n.changes + n.other} accepted decision${n.changes + n.other === 1 ? '' : 's'} wait for a commit: open the revision walk again`, 3200);

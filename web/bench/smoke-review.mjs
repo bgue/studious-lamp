@@ -81,8 +81,10 @@ async function runDesktop(browser) {
     check(`${tag} rules-only classification gave results`, s1.total > 1000 && s1.bySource.rules > 1000 && s1.calls === 0, JSON.stringify(s1.bySource));
 
     // ---- 2. open the walk with its shortcut
-    const before = await pose(page);
+    // selecting flies the camera to the selection (cinematic fly-to): take the view to restore once that flight has ended
     await page.evaluate(() => window.__xray.app.selectIds([3, 4]));
+    let before = await pose(page);
+    for (let i = 0; i < 20; i++) { await settle(page, 300); const p = await pose(page); if (JSON.stringify(p) === JSON.stringify(before)) break; before = p; }
     await page.keyboard.press('Shift+R');
     await page.waitForSelector('.xrw:not([hidden])');
     let st = await walkState(page);

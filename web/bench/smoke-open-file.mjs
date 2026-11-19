@@ -95,7 +95,8 @@ try {
       cancelDisabled: ctl('cancel')._disabled,
       model: app.modelName,
       elements: app.controller.model.elements.length,
-      options: Array.from(sel.options).map((o) => o.value),
+      // the menu shows labels (Sample Projects menu); the model ids it lists are pickerValues()
+      options: typeof app.pickerValues === 'function' ? app.pickerValues() : Array.from(sel.options).map((o) => o.value),
       message: document.getElementById('xray-message')?.style.display === 'none' ? '' : (document.getElementById('xray-message')?.textContent ?? ''),
     };
   });
