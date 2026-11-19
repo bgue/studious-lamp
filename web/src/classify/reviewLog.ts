@@ -53,6 +53,8 @@ export interface ReviewCommit {
   changes: ReviewChange[];
   /** Set when this commit reverses another one. */
   reverts?: string;
+  /** Set on a commit that the revision walk carried over from another model's log (the base's fingerprint and commit id). */
+  carriedFrom?: { fingerprint: string; commitId: string };
 }
 
 export interface ReviewLogDoc {
@@ -326,6 +328,7 @@ export function parseReviewLog(input: unknown): { doc: ReviewLogDoc | null; erro
       schemaEdition: typeof c['schemaEdition'] === 'string' ? c['schemaEdition'] : '',
       changes,
       ...(typeof c['reverts'] === 'string' && c['reverts'] ? { reverts: c['reverts'] } : {}),
+      ...(isObj(c['carriedFrom']) && typeof c['carriedFrom']['fingerprint'] === 'string' && typeof c['carriedFrom']['commitId'] === 'string' ? { carriedFrom: { fingerprint: c['carriedFrom']['fingerprint'], commitId: c['carriedFrom']['commitId'] } } : {}),
     });
   });
   if (errors.length) return { doc: null, errors };
