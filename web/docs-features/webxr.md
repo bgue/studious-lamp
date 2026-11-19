@@ -1,6 +1,6 @@
 # WebXR (experimental)
 
-Look at the model in virtual reality (a headset), place it in augmented reality (a headset with passthrough, or a phone), or lay it at real size over the real building on site to see the services behind walls and ceilings (**field AR**, see below). Tool `xr` (label `WebXR`) in the action panel, folder `WebXR` in the panel, actions `xr.vr`, `xr.ar` and `xr.field` (no default keys). Everything is feature detected: the viewer asks `navigator.xr.isSessionSupported('immersive-vr')` and `('immersive-ar')`; when neither is supported (and AR Quick Look is not there either, see "iPhone and iPad") the tool, the folder and the buttons stay hidden, and the viewer behaves exactly as before. **Experimental**: it was developed and checked against the Immersive Web Emulation Runtime (iwer), not on a headset (see "What was verified" below).
+Look at the model in virtual reality (a headset), place it in augmented reality (a headset with passthrough, or a phone), or lay it at real size over the real building on site to see the services behind walls and ceilings (**field AR**, see below). Tool `xr` (label `WebXR`, headset icon, tooltip "AR / VR") in the action panel, always shown, folder `WebXR` in the panel, actions `xr.vr`, `xr.ar` and `xr.field` (no default keys). Everything is feature detected: the viewer asks `navigator.xr.isSessionSupported('immersive-vr')` and `('immersive-ar')`; when neither is supported (and AR Quick Look is not there either, see "iPhone and iPad") the folder stays hidden and the drawer opens with a note that this browser has no WebXR; Enter VR, Enter AR and Enter field AR are disabled with the reason, and Download USDZ and Share link as QR still work, to send the view to a phone or headset. **Experimental**: it was developed and checked against the Immersive Web Emulation Runtime (iwer), not on a headset (see "What was verified" below).
 
 | Control (folder `WebXR`) | Meaning |
 | --- | --- |
@@ -42,7 +42,7 @@ Honest state: developed and checked against the iwer emulator only (see "What wa
 | Apple Vision Pro, Safari (visionOS 2 and later) | yes as far as Apple documents WebXR (`immersive-vr`, gaze and pinch arrive as `select`); not tried | no: Safari offers no `immersive-ar` | no | - | - |
 | iPhone and iPad, Safari and every other iOS browser (all WebKit) | no | no | no: **Safari has no WebXR AR**, and no WebXR at all on iPhone and iPad | - | - |
 | iPhone, iPad, Vision Pro | AR Quick Look of a USDZ export (see "iPhone and iPad" below): the model stands on a surface you tap, without site registration | | | | |
-| Desktop browsers without a headset | no (tool hidden) | no | no | - | - |
+| Desktop browsers without a headset | no (tool shown with a note; QR and USDZ only) | no | no | - | - |
 
 Light estimation and depth sensing (occlusion of the model by real objects) are not used: the x-ray materials are flat, and the real walls already hide nothing because the model is drawn over the camera image. `local` is the reference space (gravity aligned on ARCore and Quest).
 

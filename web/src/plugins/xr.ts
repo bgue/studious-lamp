@@ -363,6 +363,11 @@ function drawer(box: HTMLElement): (() => void) | void {
     box.appendChild(w.root);
     w.update();
   };
+  const none = document.createElement('div');
+  none.className = 'xr-none';
+  none.style.cssText = 'margin:0 0 8px;padding:8px;border-radius:6px;background:rgba(80,140,220,.15);font-size:12px;line-height:1.4';
+  none.textContent = 'This browser has no WebXR, so AR and VR cannot start here. To see the model in AR, open this view on a phone or headset: use Share link as QR below, or Download USDZ for an iPhone or iPad.';
+  box.appendChild(none);
   const vr = button('Enter VR', () => void m.enter('vr'), { primary: true, title: 'Start a virtual reality session at real scale' });
   const ar = button('Enter AR', () => void m.enter('ar'), { primary: true, title: 'Start an augmented reality session and place the model' });
   box.append(vr, ar);
@@ -427,6 +432,7 @@ function drawer(box: HTMLElement): (() => void) | void {
 
   const upd = (): void => {
     widgets.forEach((w) => w.update());
+    none.hidden = m.support.vr || m.support.ar || quickLookSupported();
     vr.setDisabled(m.support.vr ? (m.active ? 'A session is running' : false) : 'Virtual reality is not supported on this device');
     ar.setDisabled(m.support.ar ? (m.active ? 'A session is running' : false) : 'Augmented reality is not supported on this device');
     enterField.setDisabled(m.support.ar ? (m.active ? 'A session is running' : false) : 'Augmented reality is not supported on this device: use AR Quick Look on iPhone and iPad');
@@ -498,11 +504,12 @@ export const xrPlugin: AppPlugin = {
     const tool: XrayTool = {
       id: 'xr',
       label: 'WebXR',
-      title: 'WebXR (experimental): look at the model in VR, place it in AR, or overlay it on site',
+      title: 'AR / VR (experimental): look at the model in VR, place it in AR, or overlay it on site. On a device without WebXR: send this view to a phone or headset',
       icon: ICON,
       order: 95,
       drawerWidth: 340,
-      available: () => m.support.vr || m.support.ar || quickLookSupported(),
+      // Always shown: on a device without WebXR the drawer explains why and offers the QR code and the USDZ file.
+      available: () => true,
       panel: (box) => drawer(box),
       isActive: () => m.active,
     };
