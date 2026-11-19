@@ -418,6 +418,11 @@ class CleanupController {
     return shown.length;
   }
 
+  /** Element ids that cleanup hid and the user has not un-hidden (read by Save IFC for the Xray_Cleanup marks). */
+  ownedIds(): number[] {
+    return [...this.hides.owned];
+  }
+
   hiddenText(): string {
     return `${this.hides.owned.size} hidden by cleanup`;
   }
@@ -665,6 +670,8 @@ declare global {
       hide(): CleanupReport | null;
       restore(): number;
       readonly lastReport: CleanupReport | null;
+      /** Ids hidden by cleanup and still hidden (not the ones the user hid by hand). */
+      hiddenByCleanup(): number[];
       /** The live rules (SI units: metres, m³). Treat as read-only; change them with setRules. */
       readonly rules: CleanupRules;
       /** Display unit of the length thresholds: mm, cm or m. */
@@ -714,6 +721,7 @@ export const cleanupPlugin: AppPlugin = {
       get lastReport() {
         return c.lastReport;
       },
+      hiddenByCleanup: () => c.ownedIds(),
       get rules() {
         return c.rules;
       },

@@ -2,7 +2,7 @@
 // Schema that the providers send as structured output.
 
 import { DEFAULT_SCHEMA } from './defaultSchema';
-import type { ClassificationSchema, SchemaDiscipline, SchemaPropertyNames } from './types';
+import type { ClassificationSchema, SchemaDiscipline, SchemaPropertyNames, SchemaSystemMeta } from './types';
 
 export const SCHEMA_ID = 'xray-classification-schema/1';
 export const DEFAULT_MIN_CONFIDENCE = 0.6;
@@ -34,6 +34,17 @@ export function propertyNames(schema: ClassificationSchema): SchemaPropertyNames
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const str = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
 const PROP_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function parseSystemMeta(v: unknown, path: string, errors: string[]): SchemaSystemMeta | undefined {
+  if (!isObj(v) || !str(v['name'])) {
+    errors.push(`"${path}" needs a "name".`);
+    return undefined;
+  }
+  const date = v['editionDate'];
+  if (date !== undefined && !(typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date))) errors.push(`"${path}.editionDate" must be a date such as 2024-05-01.`);
+  const opt = (k: string): Record<string, string> => (str(v[k]) ? { [k]: (v[k] as string).trim() } : {});
+  return { name: (v['name'] as string).trim(), ...opt('source'), ...opt('edition'), ...(typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? { editionDate: date } : {}), ...opt('location') };
+}
 
 export interface SchemaParse {
   schema: ClassificationSchema | null;
@@ -137,6 +148,16 @@ export function parseSchema(input: unknown): SchemaParse {
   }
   const fb = v['fallbackDiscipline'];
   if (fb !== undefined && (!str(fb) || !disciplines.some((d) => d.code === fb))) errors.push('"fallbackDiscipline" must be one of the discipline codes.');
+  let systems: ClassificationSchema['systems'];
+  if (v['systems'] !== undefined) {
+    const sy = v['systems'];
+    if (!isObj(sy)) errors.push('"systems" must be an object with "discipline" and/or "masterformat".');
+    else {
+      const d = sy['discipline'] === undefined ? undefined : parseSystemMeta(sy['discipline'], 'systems.discipline', errors);
+      const m = sy['masterformat'] === undefined ? undefined : parseSystemMeta(sy['masterformat'], 'systems.masterformat', errors);
+      if (d || m) systems = { ...(d ? { discipline: d } : {}), ...(m ? { masterformat: m } : {}) };
+    }
+  }
   if (errors.length) return { schema: null, errors };
   const fbCode = str(fb) ? (fb as string) : disciplines[0]!.code;
   const fbDisc = disciplines.find((d) => d.code === fbCode)!;
@@ -156,6 +177,7 @@ export function parseSchema(input: unknown): SchemaParse {
     ...(str(fsub) && fbDisc.subDisciplines.some((s) => s.code === fsub) ? { fallbackSubDiscipline: fsub as string } : {}),
     disciplines,
     masterformat: { ...mfRest, appliesTo, divisions },
+    ...(systems ? { systems } : {}),
   };
   return { schema, errors: [] };
 }

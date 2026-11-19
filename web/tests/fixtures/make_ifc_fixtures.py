@@ -163,6 +163,36 @@ def make_mm(path: str) -> None:
     f.write(path)
 
 
+def make_mini_x3(path: str) -> None:
+    """Five elements in an IFC4X3_ADD2 file (wall, slab, column, beam, a duct segment), one storey: the schema-family fixture."""
+    f = ifcopenshell.api.run("project.create_file", version="IFC4X3_ADD2")
+    proj = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcProject", name="Mini X3")
+    ifcopenshell.api.run("unit.assign_unit", f, length={"is_metric": True, "raw": "METERS"})
+    mctx = ifcopenshell.api.run("context.add_context", f, context_type="Model")
+    body = ifcopenshell.api.run("context.add_context", f, context_type="Model", context_identifier="Body",
+                                target_view="MODEL_VIEW", parent=mctx)
+    site = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcSite", name="Site")
+    bld = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcBuilding", name="Building")
+    st = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcBuildingStorey", name="Level 1")
+    st.Elevation = 0.0
+    ifcopenshell.api.run("aggregate.assign_object", f, products=[site], relating_object=proj)
+    ifcopenshell.api.run("aggregate.assign_object", f, products=[bld], relating_object=site)
+    ifcopenshell.api.run("aggregate.assign_object", f, products=[st], relating_object=bld)
+    specs = [("IfcWall", "Wall X1", (4.0, 0.2, 2.8), (0, 0, 0)), ("IfcSlab", "Slab X1", (5.0, 5.0, 0.25), (0, 2, -0.25)),
+             ("IfcColumn", "Column X1", (0.4, 0.4, 3.0), (6, 0, 0)), ("IfcBeam", "Beam X1", (4.0, 0.3, 0.4), (0, 3, 2.6)),
+             ("IfcDuctSegment", "Duct X1", (2.0, 0.4, 0.3), (0, 5, 2.0))]
+    elems = []
+    for cls, name, size, at in specs:
+        e = ifcopenshell.api.run("root.create_entity", f, ifc_class=cls, name=name)
+        e.Representation = f.create_entity("IfcProductDefinitionShape", Representations=[box(f, body, size, None)])
+        place(f, e, at)
+        elems.append(e)
+    ifcopenshell.api.run("spatial.assign_container", f, products=elems, relating_structure=st)
+    pset = ifcopenshell.api.run("pset.add_pset", f, product=elems[0], name="Pset_WallCommon")
+    ifcopenshell.api.run("pset.edit_pset", f, pset=pset, properties={"IsExternal": True})
+    f.write(path)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for schema, name in (("IFC4", "ports-ifc4.ifc"), ("IFC2X3", "ports-ifc2x3.ifc")):
@@ -170,3 +200,5 @@ if __name__ == "__main__":
         print("wrote", name, file=sys.stderr)
     make_mm(os.path.join(OUT, "props-mm-ifc4.ifc"))
     print("wrote props-mm-ifc4.ifc", file=sys.stderr)
+    make_mini_x3(os.path.join(OUT, "mini-ifc4x3.ifc"))
+    print("wrote mini-ifc4x3.ifc", file=sys.stderr)

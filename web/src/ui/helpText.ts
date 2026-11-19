@@ -849,6 +849,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Read the field after you choose a file. Read the error text if the model does not appear.',
     'Report: Appendix B, WebGL',
   ),
+  'Open model/Save IFC': h(
+    'The button opens a dialog that saves a copy of the open IFC file. The copy holds the classification, the review state and the cleanup marks.',
+    'Click and a dialog lists the files to write. Your original bytes stay as they are and one block of new data goes in before the end.',
+    'Click the button. Leave the reviewer box off to keep names out of the file. Press Save IFC in the dialog.',
+    'Report: Appendix B, WebGL',
+  ),
 
   // ------------------------------------------------------------------ Class styles
   'Class styles/Reset to config': h(

@@ -10,6 +10,8 @@ import {
 } from '../model/ifcImport';
 import type { EdgesOption, IfcInput, IfcProgress, StageTimings } from '../model/ifcImport';
 import { IfcUnreadable, friendlyIfcError } from '../model/ifcErrors';
+import { duplicatesOf, makeSource, sourcesOf } from '../ifcsave/source';
+import type { IfcSource } from '../ifcsave/source';
 import { registerTool } from '../tools/registry';
 import { note, section } from '../tools/ui';
 import { el } from '../ui/dom';
@@ -94,6 +96,17 @@ export function planOpen<T extends FileLike>(files: T[]): OpenPlan<T> {
     kind: 'glb', glb: g, sidecars: [...same, ...rest], ignored: other.map((f) => f.name), name: modelNameFor([g.name]),
     totalBytes: g.size + json.reduce((a, f) => a + f.size, 0),
   };
+}
+
+/** Names that are unique inside one federation: a second file of the same name becomes `name (2)` (ElementRecord.file must tell them apart). */
+export function uniqueFileNames(names: readonly string[]): string[] {
+  const seen = new Set<string>();
+  return names.map((n) => {
+    let out = n;
+    for (let i = 2; seen.has(out.toLowerCase()); i++) out = n.replace(/(\.[^./\\]*)?$/, (ext) => ` (${i})${ext}`);
+    seen.add(out.toLowerCase());
+    return out;
+  });
 }
 
 const mb = (bytes: number): string => `${(bytes / 1048576).toFixed(1)} MB`;
@@ -319,22 +332,27 @@ export const fileLoaderPlugin: AppPlugin = (() => {
       } else {
         if (!IFC_READER_AVAILABLE) throw new IfcReaderUnavailable();
         const inputs: IfcInput[] = [];
-        for (const f of plan.ifc) {
+        const blobs: Blob[] = [];
+        const fileNames = uniqueFileNames(plan.ifc.map((f) => f.name));
+        for (const [fi, f] of plan.ifc.entries()) {
           if (signal.aborted) throw new ImportCancelled();
           setStatus(`${warn}Reading ${f.name}, ${mb(f.size)}`);
           let bytes: Uint8Array = new Uint8Array(await f.arrayBuffer());
-          let name = f.name;
+          let name = fileNames[fi]!;
+          let blob: Blob = f; // the user's File: a disk-backed handle that costs no memory
           if (isZip(bytes)) {
             try {
               const z = await unzipIfc(bytes);
               bytes = z.bytes;
-              name = z.name.split('/').pop() ?? f.name;
+              name = uniqueFileNames([...fileNames.slice(0, fi), z.name.split('/').pop() ?? f.name]).pop()!;
+              blob = new Blob([z.bytes as BlobPart]); // before the buffer is transferred away
             } catch (e) {
               throw new Error(`${f.name} could not be unzipped (${e instanceof Error ? e.message : String(e)})`);
             }
           } else if (extOf(f.name) === '.ifczip') {
             throw new Error(`${f.name} is not a valid zip archive`);
           }
+          blobs.push(blob);
           // transferable copy that is exactly the file (a zip entry may be a view)
           inputs.push({ name, data: bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength ? (bytes.buffer as ArrayBuffer) : (bytes.slice().buffer as ArrayBuffer) });
         }
@@ -353,6 +371,10 @@ export const fileLoaderPlugin: AppPlugin = (() => {
           throw f;
         }
         loaded = res.loaded;
+        // keep the source files for Save IFC (design 1.3); names match ElementRecord.file
+        const sources: IfcSource[] = res.raws.map((r, i) => makeSource(inputs[i]?.name ?? r.fileName, blobs[i]!, r.schema, r.saveInfo));
+        sourcesOf.set(loaded, sources);
+        if (res.report.duplicatesSkipped > 0) duplicatesOf.set(loaded, res.report.duplicatesSkipped);
         importTimings = res.timings;
         importInfo = { edgesSkipped: res.stats.edgesSkipped, bvh: res.stats.bvh, edgeSegments: res.stats.edgeSegments };
         console.info('[ifc-import]', JSON.stringify({
