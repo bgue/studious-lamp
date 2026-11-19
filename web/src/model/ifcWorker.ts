@@ -17,7 +17,7 @@ import { buildBvh } from './ifcBvh';
 import type { PropsMode } from './ifcProps';
 import { IfcReadError, createIfcApi, extractIfc } from './ifcRaw';
 import type { WasmSource } from './ifcRaw';
-import type { IfcProgress, RawModel } from './ifcShared';
+import type { IfcProgress, RawModel, SaveInfo } from './ifcShared';
 import { mergedTransferables } from './mergedArrays';
 import type { MergedArrays } from './mergedArrays';
 
@@ -31,6 +31,8 @@ export interface ExtractSummary {
   schema: string;
   elements: number;
   stats?: RawModel['stats'];
+  /** Plain facts for Save IFC. */
+  saveInfo?: SaveInfo;
   /** ms spent opening the file, meshing products and reading relations/properties */
   openMs: number;
   meshMs: number;
@@ -112,7 +114,7 @@ ctx.onmessage = async (ev) => {
       post({
         type: 'extracted', id: msg.id,
         summary: {
-          fileName: raw.fileName, schema: raw.schema, elements: raw.elements.length, stats: raw.stats,
+          fileName: raw.fileName, schema: raw.schema, elements: raw.elements.length, stats: raw.stats, saveInfo: raw.saveInfo,
           openMs: (tMesh || t1) - tOpen, meshMs: (tRel || t1) - (tMesh || t1), relationsMs: t1 - (tRel || t1),
         },
       });

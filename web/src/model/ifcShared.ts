@@ -36,6 +36,18 @@ export interface RawStorey {
   elevation: number;
 }
 
+/** What saving needs from the source file (design 1.3): three plain facts per file, captured at import. */
+export interface SaveInfo {
+  /** web-ifc `GetMaxExpressID` (includes our own XRAY block when the file has one). */
+  maxExpressId: number;
+  /** OwnerHistory reference of the IfcProject line. */
+  ownerHistoryId: number | null;
+  /** IfcClassification lines of the file, our own old block excluded. */
+  classifications: Array<{ id: number; name: string; edition: string | null }>;
+  /** `base=` of the file's XRAY-BEGIN marker, when it has one: new ids start after it. */
+  blockBase: number | null;
+}
+
 /** What `extract` produces for one IFC file. Relations are keyed by express ids of that file. */
 export interface RawModel {
   fileName: string;
@@ -60,6 +72,8 @@ export interface RawModel {
   ports: Array<[number, number]>;
   /** Members are express ids of elements (already expanded through aggregates, as the converter does). */
   systems: Array<{ name: string; elements: number[] }>;
+  /** Facts for Save IFC; plain numbers, no cost. */
+  saveInfo?: SaveInfo;
   /** Counts for status messages and tests. */
   stats?: { products: number; skippedClass: number; noGeometry: number; markers: number };
 }

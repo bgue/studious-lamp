@@ -11,7 +11,12 @@ import type { WebLlmEngine } from '../src/classify/providers/webllm';
 import { runQuery, freshTable } from '../src/query';
 import { modelTable } from '../src/query/table';
 import { MemoryStorage } from '../src/selectionSets';
-import { encodeShare, collectParams, registerParamSection, shareSubset, shareUrl } from '../src/ui/params';
+import { encodeShare, collectParams, paramSectionNames, registerParamSection, shareSubset, shareUrl } from '../src/ui/params';
+import { planOf } from '../src/ifcsave/collect';
+import { DEFAULT_SAVE_OPTIONS } from '../src/ifcsave/plan';
+import { runSave } from '../src/ifcsave/run';
+import { sourcesOf } from '../src/ifcsave/source';
+import { blobOf, modelIfc, sourceInfo, textOf } from './ifcsave-helpers';
 import { captureView } from '../src/views/capture';
 import type { ViewsApp } from '../src/views/capture';
 import { encodeViewShare, VIEW_EXCLUDED_SECTIONS } from '../src/views/model';
@@ -253,6 +258,44 @@ describe('the API key never leaves the key store', () => {
     expect(JSON.stringify(svc.collect())).not.toMatch(/data:image/); // no picture in the settings
     expect(JSON.stringify(svc.settings())).not.toMatch(/token|apiKey|d3Key/i); // not a field of the settings
     expect(Object.keys(svc.collect())).not.toEqual(expect.arrayContaining(['hfToken']));
+  });
+
+  it('Save IFC writes no key, token, picture or reviewer name unless the box is ticked, and keeps the source out of params, links and views', async () => {
+    const { svc } = makeService();
+    const f = fakeApp();
+    svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
+    svc.keys.set(KEY, true);
+    svc.hfToken.set(HF_TOKEN, true);
+    svc.d3Key.set(D3_KEY, true);
+    await svc.classify('all');
+    svc.review.setReviewer(REVIEWER);
+    const first = svc.model!.elements[1]!.globalId;
+    svc.review.propose([first], { action: 'confirm', item: 'save-leak', comment: 'checked on site' });
+    svc.review.commit('save leak');
+    const model = svc.model!;
+    const file = model.elements[0]!.file!;
+    const blob = blobOf(modelIfc('AC20-FZK-Haus.ifc'));
+    const info = await sourceInfo(file, blob);
+    const sources = [{ ...info, blob }];
+    const save = async (includeReviewers: boolean): Promise<string> => {
+      const o = { ...DEFAULT_SAVE_OPTIONS, includeReviewers };
+      const plans = planOf({ model, sources, results: svc.results(), schema: svc.schema, options: o, history: includeReviewers ? svc.review.history() : undefined });
+      expect(plans[0]!.elements.length).toBeGreaterThan(0);
+      const [out] = await runSave([{ plan: plans[0]!, blob }], svc.schema, o);
+      return textOf(new Blob(out!.parts));
+    };
+    const off = await save(false);
+    for (const secret of [KEY, HF_TOKEN, D3_KEY, THUMB, PICTURE_NOTE, 'data:image', REVIEWER, 'Rosalind', 'Fanshawe', 'checked on site']) expect(off.includes(secret), `absent: ${secret}`).toBe(false);
+    expect(off).toContain('Xray_Review');
+    const on = await save(true);
+    expect(on).toContain(REVIEWER); // only on request
+    expect(on).toContain('checked on site');
+    for (const secret of [KEY, HF_TOKEN, D3_KEY, THUMB]) expect(on.includes(secret), `still absent: ${secret}`).toBe(false); // keys have no path in at all
+    // the retained source is not part of params, the share link, a view or a preset
+    sourcesOf.set({} as never, []);
+    const doc = collectParams(f.app, f.env);
+    expect(JSON.stringify(doc)).not.toMatch(/ifcSave|sourcesOf|XRAY-BEGIN|blob/i);
+    expect(paramSectionNames()).not.toContain('ifcSave');
   });
 
   it('is sent to the configured endpoint only, and not when the endpoint is a proxy with no key', async () => {

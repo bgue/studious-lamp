@@ -141,7 +141,7 @@ try {
   });
   console.log('panel:', JSON.stringify(layout));
   check(layout.hasFolder && layout.isFirst, "folder 'Open model' is the first thing in the panel");
-  check(JSON.stringify(layout.names) === JSON.stringify(['Open IFC or glb file', 'Cancel load', 'Load status', 'edges', 'properties', 'Model stats']), 'control names (open, cancel, status, then the large-model options and stats)');
+  check(JSON.stringify(layout.names) === JSON.stringify(['Open IFC or glb file', 'Cancel load', 'Load status', 'edges', 'properties', 'Model stats', 'Save IFC']), 'control names (open, cancel, status, then the large-model options and stats)');
   check(layout.cancelDisabled && layout.statusDisabled && layout.statusIsText, 'Cancel disabled at rest, status is a disabled text field');
   check(layout.accept === '.ifc,.ifczip,.glb,.json' && layout.multiple === true, 'input accept/multiple');
 

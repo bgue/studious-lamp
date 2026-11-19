@@ -3,7 +3,7 @@
 import { overallConfidence } from '../classify/review';
 import { propertyNames, schemaHash } from '../classify/schema';
 import type { ClassificationSchema, ClassifyResult, SchemaSystemMeta } from '../classify/types';
-import { classificationLine, classificationReferenceLine, dateType, ownerHistoryChain, propertySetLine, propertySingleValueLine, relAssociatesClassificationLine, relDefinesByPropertiesLine, typedValue } from './families';
+import { classificationLine, classificationReferenceLine, dateType, ownerHistoryChain, propertySetLine, propertySingleValueLine, relAssociatesClassificationLine, relDefinesByPropertiesLine } from './families';
 import type { PropSpec, SchemaFamily } from './families';
 import { xrayGuid } from './ifcGuid';
 import { XRAY_DEFAULTS } from './plan';
@@ -72,6 +72,14 @@ export interface ElementProps {
   cleanup: PropSpec[];
 }
 
+const hashCache = new WeakMap<ClassificationSchema, string>();
+/** `schemaHash` walks the whole schema: once per schema object, not once per element (100k elements cost seconds otherwise). */
+const schemaHashOf = (schema: ClassificationSchema): string => {
+  let h = hashCache.get(schema);
+  if (h === undefined) hashCache.set(schema, (h = schemaHash(schema)));
+  return h;
+};
+
 /** The properties of one element, in the fixed order of the design. Empty values are left out. */
 export function elementProps(e: ElementSave, schema: ClassificationSchema, family: SchemaFamily, o: SaveOptions): ElementProps {
   const out: ElementProps = { classification: [], review: [], cleanup: [] };
@@ -110,7 +118,7 @@ export function elementProps(e: ElementSave, schema: ClassificationSchema, famil
     add('Rationale', 'IfcText', r.rationale);
     add('ReviewedAt', dateType(family), r.confirmedAt ? isoDateTime(r.confirmedAt) : undefined);
     add('CommitId', 'IfcIdentifier', r.commitId);
-    add('SchemaHash', 'IfcIdentifier', schemaHash(schema));
+    add('SchemaHash', 'IfcIdentifier', schemaHashOf(schema));
     if (e.revision) {
       add('RevisionStatus', 'IfcLabel', e.revision.status);
       add('RevisionBaseline', 'IfcLabel', e.revision.baseline);
@@ -268,4 +276,5 @@ export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, 
   return { text: `${body}/* ${MARKER_END} bytes=${bytes} */\n`, lines: lines.length, lastId: next };
 }
 
-const propKey = (p: PropSpec): string => `${p.name}|${typedValue(p)}`;
+/** Identity of a property (name, type, value). Cheaper than the step text; the text is built once per distinct property. */
+const propKey = (p: PropSpec): string => `${p.name}|${p.type}|${p.value}`;
