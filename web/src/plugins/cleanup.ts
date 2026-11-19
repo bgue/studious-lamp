@@ -15,7 +15,16 @@ import {
 } from '../cleanup/analysis';
 import type { CleanupRules, CleanupResult, SizeMetric } from '../cleanup/analysis';
 import { CleanupHides } from '../cleanup/hides';
-import { mergedCleanupGeometry } from '../cleanup/geometryAdapter';
+import { mergedCleanupGeometry, mergedRayCaster, mergedSource } from '../cleanup/geometryAdapter';
+import { buildCleanupPlan } from '../cleanup/plan';
+import type { CleanupPlan, PlanStats } from '../cleanup/plan';
+import {
+  SimplifyWork, fmtBytes, previewClean, previewDecimation, previewInstances, previewInterior, previewSmallDetails,
+} from '../cleanup/work';
+import type { PendingEdit, SimplifyTool, ToolContext } from '../cleanup/work';
+import { DETAIL_CLASSES } from '../cleanup/simplify/details';
+import { showSaveDialog } from '../cleanup/saveDialog';
+import { parseModel } from '../model/loader';
 import {
   DEFAULT_LENGTH_UNIT, LENGTH_UNITS, displayRange, fromDisplay, isLengthUnit, metricFromDisplay, metricIsLength, metricLabel, metricToDisplay,
   metricUnit, toDisplay, withUnit,
@@ -32,6 +41,36 @@ export interface CleanupReport {
   total: number;
   analysisMs: number;
   matches: Array<{ id: number; globalId: string; ifcClass: string; name: string | null; rules: string[]; reasons: string[] }>;
+}
+
+/** Settings of the simplification tools (lengths in metres). Kept for the session, not stored per model. */
+export interface SimplifyOptions {
+  decimate: { mode: 'target ratio' | 'max error'; ratio: number; maxError: number; minTriangles: number; sharpAngle: number };
+  details: { maxSize: number; maxVolume: number; classFilter: 'any class' | 'fasteners and accessories'; cutPieces: boolean };
+  interior: { directions: number; samples: number };
+  weld: { distance: number; dropDegenerate: boolean; dropDuplicateFaces: boolean };
+  stripProps: boolean;
+}
+
+export function defaultSimplifyOptions(): SimplifyOptions {
+  return {
+    decimate: { mode: 'target ratio', ratio: 0.5, maxError: 0.01, minTriangles: 200, sharpAngle: 30 },
+    details: { maxSize: 0.05, maxVolume: 0, classFilter: 'any class', cutPieces: false },
+    interior: { directions: 16, samples: 6 },
+    weld: { distance: 0.0001, dropDegenerate: true, dropDuplicateFaces: true },
+    stripProps: false,
+  };
+}
+
+/** What the panel and scripts see of a pending (previewed, not yet applied) change. */
+export interface PendingSummary {
+  tool: SimplifyTool;
+  elements: number;
+  trianglesBefore: number;
+  trianglesAfter: number;
+  bytesBefore: number;
+  bytesAfter: number;
+  text: string;
 }
 
 interface Persisted {
@@ -110,6 +149,16 @@ function mergeRules(base: CleanupRules, patch: unknown): CleanupRules {
   return sanitiseRules(out);
 }
 
+function download(blob: Blob, name: string): void {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 class CleanupController {
   rules = defaultRules();
   thresholds: Record<string, number> = { ...METRIC_DEFAULT_THRESHOLD };
@@ -124,6 +173,16 @@ class CleanupController {
   private folder: GUI | null = null;
   private lastOwned = 0;
   private lastPrune = 0;
+
+  // simplification
+  readonly simplify: SimplifyOptions = defaultSimplifyOptions();
+  simplifyStatus = 'Nothing staged';
+  private readonly work = new SimplifyWork();
+  private pending: PendingEdit | null = null;
+  private running: { aborted: boolean } | null = null;
+  /** Rule names per element id of the matches that Hide matches hid, for the plan's removal reasons. */
+  private readonly hideReasons = new Map<number, string[]>();
+  private lastGlb: { buffer: ArrayBuffer; name: string } | null = null;
 
   /** Panel controls that show a length; they get a new label and range when the unit changes. */
   readonly unitListeners: Array<() => void> = [];
@@ -270,21 +329,26 @@ class CleanupController {
     this.cancelPreview();
     const report = this.analyse();
     if (!report) return null;
-    const app = this.app;
-    const color = app.renderer.state.color;
+    this.tint(report.matches.map((m) => m.id));
+    if (report.total > 0 && report.total < FRAME_LIMIT) this.frame(report.matches.map((m) => m.id));
+    this.setStatus(`${report.summary} (${report.total} previewed)`);
+    return report;
+  }
+
+  /** Tint these elements with the preview colour (replaces an earlier tint). */
+  private tint(ids: readonly number[]): void {
+    this.cancelPreview();
+    const color = this.app.renderer.state.color;
     const saved = new Map<number, [number, number, number]>();
-    for (const m of report.matches) {
-      const o = m.id * 3;
-      saved.set(m.id, [color[o]!, color[o + 1]!, color[o + 2]!]);
+    for (const id of ids) {
+      const o = id * 3;
+      saved.set(id, [color[o]!, color[o + 1]!, color[o + 2]!]);
       color[o] = HIGHLIGHT[0];
       color[o + 1] = HIGHLIGHT[1];
       color[o + 2] = HIGHLIGHT[2];
     }
     this.saved = saved;
-    app.renderer.markDirty();
-    if (report.total > 0 && report.total < FRAME_LIMIT) this.frame(report.matches.map((m) => m.id));
-    this.setStatus(`${report.summary} (${report.total} previewed)`);
-    return report;
+    this.app.renderer.markDirty();
   }
 
   cancelPreview(): void {
@@ -309,13 +373,10 @@ class CleanupController {
 
   // ---------------------------------------------------------------- hide and restore
 
-  hide(): CleanupReport | null {
-    this.cancelPreview();
-    const report = this.analyse();
-    if (!report) return null;
+  /** Add ids to the viewer's hide set with provenance and refresh the view. Returns how many were newly hidden by cleanup. */
+  private hideIds(ids: readonly number[]): number {
     const app = this.app;
     const ov = app.controller.settings.overrides;
-    const ids = report.matches.map((m) => m.id);
     const n = this.hides.hide(ov.userHides, ids);
     for (const id of ids) ov.userPins.delete(id);
     // Hidden elements stop being focus: drop them from the selection.
@@ -324,6 +385,16 @@ class CleanupController {
     app.controller.refreshOverrides();
     app.runSightlinesNow();
     app.renderer.markDirty();
+    return n;
+  }
+
+  hide(): CleanupReport | null {
+    this.cancelPreview();
+    const report = this.analyse();
+    if (!report) return null;
+    const ids = report.matches.map((m) => m.id);
+    const n = this.hideIds(ids);
+    for (const m of report.matches) this.hideReasons.set(m.id, m.rules.slice());
     this.lastOwned = this.hides.owned.size;
     this.setStatus(`${report.summary}; hid ${n} (${ids.length - n} already hidden by you)`);
     return report;
@@ -335,6 +406,10 @@ class CleanupController {
     if (!app.controller) return 0;
     const ov = app.controller.settings.overrides;
     const shown = this.hides.restore(ov.userHides);
+    this.work.clear();
+    this.pending = null;
+    this.hideReasons.clear();
+    this.setSimplifyStatus('Nothing staged');
     app.controller.refreshOverrides();
     app.runSightlinesNow();
     app.renderer.markDirty();
@@ -357,15 +432,181 @@ class CleanupController {
   exportReport(): void {
     const r = this.ensureReport();
     if (!r) return;
-    const blob = new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `cleanup-${this.app.modelName}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    download(new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' }), `cleanup-${this.app.modelName}.json`);
     this.setStatus(`${r.summary} (report exported)`);
+  }
+
+  // ---------------------------------------------------------------- simplification
+
+  setSimplifyStatus(text: string): void {
+    this.simplifyStatus = text;
+    this.folder?.controllersRecursive().forEach((c) => {
+      if (c.property === 'simplifyStatus') c.updateDisplay();
+    });
+  }
+
+  /** A simplify setting changed: the previewed change no longer matches it. */
+  simplifyChanged(): void {
+    if (!this.pending) return;
+    this.pending = null;
+    this.cancelPreview();
+    this.setSimplifyStatus(this.stagedText());
+  }
+
+  get isBusy(): boolean {
+    return this.running !== null;
+  }
+
+  cancelRun(): void {
+    if (this.running) this.running.aborted = true;
+  }
+
+  private summarisePending(p: PendingEdit): PendingSummary {
+    return { tool: p.tool, elements: p.ids.length, trianglesBefore: p.trianglesBefore, trianglesAfter: p.trianglesAfter, bytesBefore: p.bytesBefore, bytesAfter: p.bytesAfter, text: p.text };
+  }
+
+  /** Preview one tool: compute the change in chunks, tint the affected elements, keep it pending for Apply. */
+  async previewTool(tool: SimplifyTool): Promise<PendingSummary | null> {
+    const loaded = this.app.loaded;
+    if (!loaded || this.running) return null;
+    this.cancelPreview();
+    this.pending = null;
+    const signal = { aborted: false };
+    this.running = signal;
+    const o = this.simplify;
+    const ctx: ToolContext = {
+      src: mergedSource(loaded.geometry),
+      elements: loaded.model.elements,
+      work: this.work,
+      chunk: { signal, onProgress: (d, t) => this.setSimplifyStatus(`Working: ${d.toLocaleString('en-US')} of ${t.toLocaleString('en-US')}`) },
+    };
+    this.setSimplifyStatus('Working...');
+    try {
+      let p: PendingEdit | null = null;
+      if (tool === 'decimate') {
+        p = await previewDecimation(ctx, { mode: o.decimate.mode === 'target ratio' ? 'ratio' : 'error', ratio: o.decimate.ratio, maxError: o.decimate.maxError, minTriangles: o.decimate.minTriangles, sharpAngle: o.decimate.sharpAngle });
+      } else if (tool === 'details') {
+        p = await previewSmallDetails(ctx, {
+          maxSize: o.details.maxSize, maxVolume: o.details.maxVolume, subMeshes: o.details.cutPieces,
+          classes: o.details.classFilter === 'any class' ? [] : DETAIL_CLASSES,
+        });
+      } else if (tool === 'interior') {
+        p = await previewInterior(ctx, mergedRayCaster(loaded.geometry), { directions: o.interior.directions, samples: o.interior.samples });
+      } else if (tool === 'instances') {
+        p = await previewInstances(ctx);
+      } else {
+        p = await previewClean(ctx, { weldTolerance: o.weld.distance, dropDegenerate: o.weld.dropDegenerate, dropDuplicateFaces: o.weld.dropDuplicateFaces });
+      }
+      if (!p) {
+        this.setSimplifyStatus('Cancelled');
+        return null;
+      }
+      this.pending = p;
+      if (p.ids.length > 0) {
+        this.tint(p.ids);
+        if (p.ids.length < FRAME_LIMIT) this.frame(p.ids);
+      }
+      this.setSimplifyStatus(p.ids.length > 0 ? `${p.text}. Press Apply.` : `${p.text}. Nothing to change.`);
+      return this.summarisePending(p);
+    } finally {
+      this.running = null;
+    }
+  }
+
+  /** Stage the previewed change. Removals also hide the elements in the viewer (Restore cleanup shows them again). */
+  applyPending(): PendingSummary | null {
+    const p = this.pending;
+    if (!p || p.ids.length === 0) {
+      this.setSimplifyStatus('Nothing previewed to apply');
+      return null;
+    }
+    this.cancelPreview();
+    if (p.removals.size > 0) this.hideIds([...p.removals.keys()]);
+    this.work.commit(p);
+    this.pending = null;
+    this.lastOwned = this.hides.owned.size;
+    this.setSimplifyStatus(`Applied. ${this.stagedText()}. Save cleaned model writes it.`);
+    return this.summarisePending(p);
+  }
+
+  /** Forget the staged simplification (replacements, instances, removals) and show removed elements again. */
+  resetSimplify(): void {
+    this.cancelPreview();
+    const ov = this.app.controller?.settings.overrides;
+    if (ov && this.work.removals.size > 0) {
+      this.hides.release(ov.userHides, this.work.removals.keys());
+      this.app.controller.refreshOverrides();
+      this.app.runSightlinesNow();
+      this.app.renderer.markDirty();
+    }
+    this.work.clear();
+    this.pending = null;
+    this.setSimplifyStatus('Nothing staged');
+  }
+
+  /** The CleanupPlan of everything staged and hidden by cleanup (a pure function of the staged edits, see cleanup/plan.ts). */
+  buildPlan(stripProps = this.simplify.stripProps): CleanupPlan | null {
+    const loaded = this.app.loaded;
+    if (!loaded) return null;
+    const removed = new Map<number, string[]>();
+    for (const [id, reason] of this.work.removals) removed.set(id, [reason]);
+    const hides = this.app.controller?.settings.overrides.userHides;
+    if (hides) for (const id of this.hides.owned) if (hides.has(id) && !removed.has(id)) removed.set(id, this.hideReasons.get(id) ?? ['cleanup']);
+    return buildCleanupPlan({
+      elements: loaded.model.elements,
+      source: mergedSource(loaded.geometry),
+      removed,
+      replacements: this.work.replacements,
+      groups: this.work.groups,
+      stripProps,
+    });
+  }
+
+  stagedText(): string {
+    const plan = this.buildPlan();
+    if (!plan) return 'Nothing staged';
+    const s: PlanStats = plan.stats;
+    if (s.removed === 0 && s.simplified === 0 && s.instanceGroups === 0) return 'Nothing staged';
+    return `Staged: ${s.removed} removed, ${s.simplified} simplified, ${s.instanceGroups} instance groups; ${s.trianglesBefore.toLocaleString('en-US')} to ${s.trianglesAfter.toLocaleString('en-US')} triangles, ~${fmtBytes(s.bytesBefore)} to ~${fmtBytes(s.bytesAfter)}`;
+  }
+
+  /** Write the cleaned model as a glb and download it. */
+  async saveCleaned(stripProps = this.simplify.stripProps): Promise<{ bytes: number; fileName: string; glb: ArrayBuffer }> {
+    const loaded = this.app.loaded;
+    const plan = this.buildPlan(stripProps);
+    if (!loaded || !plan) throw new Error('No model is loaded');
+    const { exportCleanedGlb } = await import('../cleanup/glbExport');
+    const glb = await exportCleanedGlb(loaded.model.elements, mergedSource(loaded.geometry), plan, { stripProps });
+    const fileName = `cleaned-${this.app.modelName}.glb`;
+    this.lastGlb = { buffer: glb, name: `${this.app.modelName}-cleaned` };
+    download(new Blob([glb], { type: 'model/gltf-binary' }), fileName);
+    this.setSimplifyStatus(`Saved ${fileName}, ${fmtBytes(glb.byteLength)}`);
+    return { bytes: glb.byteLength, fileName, glb };
+  }
+
+  /** Open the file that was saved last in the viewer, to check it. */
+  async openSaved(): Promise<void> {
+    const saved = this.lastGlb;
+    if (!saved) throw new Error('Nothing saved yet');
+    const loaded = await parseModel(saved.buffer.slice(0));
+    this.app.openLoaded(loaded, saved.name);
+  }
+
+  openSaveDialog(): void {
+    if (!this.app.loaded) return;
+    showSaveDialog({
+      stats: (strip) => this.buildPlan(strip)!.stats,
+      save: async (strip) => {
+        const r = await this.saveCleaned(strip);
+        return { bytes: r.bytes, fileName: r.fileName };
+      },
+      openSaved: () => this.openSaved(),
+      initialStrip: this.simplify.stripProps,
+      onStrip: (strip) => {
+        this.simplify.stripProps = strip;
+        this.folder?.controllersRecursive().forEach((c) => c.updateDisplay());
+      },
+    });
   }
 
   // ---------------------------------------------------------------- model lifecycle
@@ -373,6 +614,11 @@ class CleanupController {
   onModel(): void {
     this.saved = null; // the renderer state was replaced
     this.hides.clear();
+    this.work.clear();
+    this.pending = null;
+    this.running = null;
+    this.hideReasons.clear();
+    this.setSimplifyStatus('Nothing staged');
     this.last = null;
     this.lastReport = null;
     this.lastOwned = 0;
@@ -423,6 +669,20 @@ declare global {
       readonly rules: CleanupRules;
       /** Display unit of the length thresholds: mm, cm or m. */
       lengthUnit: LengthUnit;
+      /** The simplification tools. Options are live (metres); change a field, then preview. */
+      simplify: {
+        readonly options: SimplifyOptions;
+        preview(tool: SimplifyTool): Promise<PendingSummary | null>;
+        apply(): PendingSummary | null;
+        reset(): void;
+        cancel(): void;
+        plan(stripProps?: boolean): CleanupPlan | null;
+        /** Build the glb and download it; resolves with its size. */
+        save(stripProps?: boolean): Promise<{ bytes: number; fileName: string }>;
+        openSaved(): Promise<void>;
+        openDialog(): void;
+        readonly status: string;
+      };
     };
   }
 }
@@ -442,6 +702,7 @@ export const cleanupPlugin: AppPlugin = {
     });
     registerAction({ id: 'cleanup.preview', label: 'Cleanup: preview matches', group: 'Cleanup', keys: [], run: () => void c.preview() });
     registerAction({ id: 'cleanup.hide', label: 'Cleanup: hide matches', group: 'Cleanup', keys: [], run: () => void c.hide() });
+    registerAction({ id: 'cleanup.save', label: 'Cleanup: save cleaned model', group: 'Cleanup', keys: [], run: () => c.openSaveDialog() });
     registerAction({ id: 'cleanup.restore', label: 'Cleanup: restore hidden', group: 'Cleanup', keys: [], run: () => void c.restore() });
 
     window.__xrayCleanup = {
@@ -461,6 +722,25 @@ export const cleanupPlugin: AppPlugin = {
       },
       set lengthUnit(u: LengthUnit) {
         c.setLengthUnit(u);
+      },
+      simplify: {
+        get options() {
+          return c.simplify;
+        },
+        preview: (tool) => c.previewTool(tool),
+        apply: () => c.applyPending(),
+        reset: () => c.resetSimplify(),
+        cancel: () => c.cancelRun(),
+        plan: (strip) => c.buildPlan(strip),
+        save: async (strip) => {
+          const r = await c.saveCleaned(strip);
+          return { bytes: r.bytes, fileName: r.fileName };
+        },
+        openSaved: () => c.openSaved(),
+        openDialog: () => c.openSaveDialog(),
+        get status() {
+          return c.simplifyStatus;
+        },
       },
     };
   },
@@ -492,7 +772,7 @@ function buildGui(gui: GUI, c: CleanupController): void {
   // Lengths: the rules keep metres, the controls show the chosen unit. Each control keeps its label base and range in
   // metres and is relabelled ("max size (mm)") when the unit changes. The help lookup maps "(mm)" and "(cm)" to "(m)".
   const length = <T extends object>(
-    f: GUI, get: () => T, prop: keyof T & string, label: string, range: [number, number, number] | [number, null, number],
+    f: GUI, get: () => T, prop: keyof T & string, label: string, range: [number, number, number] | [number, null, number], onChange: () => void = changed,
   ): void => {
     const view = new Proxy({} as Record<string, number>, {
       get: (_t, k) => (k === prop ? toDisplay((get() as Record<string, number>)[prop]!, c.lengthUnit) : undefined),
@@ -501,7 +781,7 @@ function buildGui(gui: GUI, c: CleanupController): void {
         return true;
       },
     });
-    const ctl = f.add(view, prop).onChange(changed);
+    const ctl = f.add(view, prop).onChange(onChange);
     const sync = (): void => {
       const [lo, hi, step] = range;
       const r = displayRange(lo, hi ?? 0, step, c.lengthUnit);
@@ -573,18 +853,76 @@ function buildGui(gui: GUI, c: CleanupController): void {
   fc.add(classes, 'furniture').name('furniture').onChange(changed);
   fc.add(classes, 'accessories').name('accessories and fasteners').onChange(changed);
 
+
+  // Simplification tools: each previews first (tint, counts, estimated size), then applies; nothing touches the model file.
+  const so = c.simplify;
+  const sc = (): void => c.simplifyChanged();
+  const sp = <T extends object>(get: () => T): T => proxy(get);
+  const fsimp = folder.addFolder('Simplify');
+  fsimp.close();
+  const sst = proxy(() => c as unknown as { simplifyStatus: string });
+  fsimp.add(sst, 'simplifyStatus').name('Simplify status').disable();
+  const toolButtons = (f: GUI, tool: SimplifyTool): void => {
+    f.add({ preview: () => void c.previewTool(tool) }, 'preview').name('Preview');
+    f.add({ apply: () => void c.applyPending() }, 'apply').name('Apply');
+  };
+
+  const fdec = fsimp.addFolder('Decimate mesh');
+  fdec.close();
+  const dec = sp(() => so.decimate);
+  fdec.add(dec, 'mode', ['target ratio', 'max error']).name('mode').onChange(sc);
+  fdec.add(dec, 'ratio', 0.02, 1, 0.01).name('target ratio').onChange(sc);
+  length(fdec, () => so.decimate, 'maxError', 'max error', [0, 0.5, 0.0005], sc);
+  fdec.add(dec, 'minTriangles', 0, 5000, 10).name('skip below (triangles)').onChange(sc);
+  fdec.add(dec, 'sharpAngle', 5, 90, 1).name('sharp edge angle').onChange(sc);
+  toolButtons(fdec, 'decimate');
+
+  const fdet = fsimp.addFolder('Small details');
+  fdet.close();
+  const det = sp(() => so.details);
+  length(fdet, () => so.details, 'maxSize', 'max size', [0, 1, 0.001], sc);
+  fdet.add(det, 'maxVolume', 0, 1, 0.0001).name('max volume (m³)').onChange(sc);
+  fdet.add(det, 'classFilter', ['any class', 'fasteners and accessories']).name('class filter').onChange(sc);
+  fdet.add(det, 'cutPieces').name('cut loose pieces').onChange(sc);
+  toolButtons(fdet, 'details');
+
+  const fint = fsimp.addFolder('Hidden interior');
+  fint.close();
+  const intr = sp(() => so.interior);
+  fint.add(intr, 'directions', 6, 64, 1).name('rays per point').onChange(sc);
+  fint.add(intr, 'samples', 1, 24, 1).name('points per element').onChange(sc);
+  toolButtons(fint, 'interior');
+
+  const finst = fsimp.addFolder('Instances');
+  finst.close();
+  toolButtons(finst, 'instances');
+
+  const fweld = fsimp.addFolder('Weld and clean');
+  fweld.close();
+  const weld = sp(() => so.weld);
+  length(fweld, () => so.weld, 'distance', 'weld distance', [0, 0.01, 0.00001], sc);
+  fweld.add(weld, 'dropDegenerate').name('drop degenerate').onChange(sc);
+  fweld.add(weld, 'dropDuplicateFaces').name('drop duplicate faces').onChange(sc);
+  toolButtons(fweld, 'weld');
+
+  fsimp.add({ cancel: () => c.cancelRun() }, 'cancel').name('Cancel run');
+  fsimp.add({ reset: () => c.resetSimplify() }, 'reset').name('Undo simplification');
+  fsimp.add(proxy(() => c.simplify), 'stripProps').name('strip property data');
+
   const actions = {
     preview: () => void c.preview(),
     hide: () => void c.hide(),
     restore: () => void c.restore(),
     select: () => c.select(),
     exportReport: () => c.exportReport(),
+    save: () => c.openSaveDialog(),
   };
   folder.add(actions, 'preview').name('Preview matches');
   folder.add(actions, 'hide').name('Hide matches');
   folder.add(actions, 'restore').name('Restore cleanup');
   folder.add(actions, 'select').name('Select matches');
   folder.add(actions, 'exportReport').name('Export report');
+  folder.add(actions, 'save').name('Save cleaned model');
   const st = proxy(() => c as unknown as { status: string });
   folder.add(st, 'status').name('Cleanup status').disable();
   const al = proxy(() => c as unknown as { applyOnLoad: boolean });

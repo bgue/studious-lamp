@@ -28,6 +28,15 @@ export class CleanupHides {
     return out;
   }
 
+  /** Show again only these ids, and only those that cleanup owns; returns the ids made visible. */
+  release(userHides: Set<number>, ids: Iterable<number>): number[] {
+    const out: number[] = [];
+    for (const id of ids) {
+      if (this.owned.delete(id) && userHides.delete(id)) out.push(id);
+    }
+    return out;
+  }
+
   /** Forget owned ids the user has since unhid (so a later manual hide of the same element is the user's). */
   prune(userHides: ReadonlySet<number>): boolean {
     let changed = false;
