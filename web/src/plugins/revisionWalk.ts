@@ -70,6 +70,10 @@ const CSS = `
   .xrr .xrw-foot.on{display:flex}
   .xrr-banner{top:auto;bottom:calc(${STATUS_H}px + 6px);left:8px;right:8px;transform:none;max-width:none}
 }
+@media (max-width:640px),(pointer:coarse){
+  .xrw.xrr.xrw-in{height:auto;max-height:none;border-radius:0}
+  .xrr.xrw-in .xrr-handle{display:none}
+}
 @media (min-width:641px) and (pointer:fine){
   .xrr .xrr-tbl{display:table}
   .xrr .xrr-chips{display:none}

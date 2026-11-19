@@ -283,10 +283,11 @@ async function runPhone(browser) {
       const r = document.querySelector('[data-testid=revision-walk]').getBoundingClientRect();
       const acts = [...document.querySelectorAll('[data-testid=revision-walk] .xrr-acts button')].filter((b) => b.offsetParent !== null);
       const inView = acts.every((b) => { const q = b.getBoundingClientRect(); return q.top >= 0 && q.bottom <= window.innerHeight && q.left >= 0 && q.right <= window.innerWidth; });
-      return { top: r.top, h: r.height, w: r.width, vh: window.innerHeight, vw: window.innerWidth, labels: acts.map((b) => b.dataset.act), inView, handle: !!document.querySelector('.xrr-handle') && getComputedStyle(document.querySelector('.xrr-handle')).display !== 'none', scrollX: document.documentElement.scrollWidth <= window.innerWidth };
+      return { top: r.top, h: r.height, w: r.width, vh: window.innerHeight, vw: window.innerWidth, labels: acts.map((b) => b.dataset.act), inView, inTab: !!document.querySelector('#dock [data-testid=revision-walk]'), handle: !!document.querySelector('.xrr-handle') && getComputedStyle(document.querySelector('.xrr-handle')).display !== 'none', scrollX: document.documentElement.scrollWidth <= window.innerWidth };
     });
     check(`${tag} the panel is a bottom sheet of about 45 % of the height`, lay.h / lay.vh > 0.3 && lay.h / lay.vh < 0.6 && lay.w <= lay.vw + 1, `${Math.round((lay.h / lay.vh) * 100)} %`);
-    check(`${tag} Accept, Reject, Skip and More are on screen, with a drag handle`, ['accept', 'reject', 'skip', 'more'].every((a) => lay.labels.includes(a)) && lay.inView && lay.handle, lay.labels.join(','));
+    // in the right sidebar's Revision tab the sidebar is the bottom sheet, so the panel's own drag handle gives way to the sheet's
+    check(`${tag} Accept, Reject, Skip and More are on screen, in the sidebar sheet or with a drag handle`, ['accept', 'reject', 'skip', 'more'].every((a) => lay.labels.includes(a)) && lay.inView && (lay.inTab || lay.handle), lay.labels.join(','));
     check(`${tag} the page does not scroll sideways`, lay.scrollX);
     await shot(page, 'revision-phone.png');
     // swipe left = skip, swipe right = back

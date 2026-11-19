@@ -1,6 +1,6 @@
 // Where a panel that is not a drawer sits (design 5.3). A panel is built once as an element and handed to a host, which decides where
-// it goes: the floating position of the review walk today, the right-hand sidebar when that lands. Nothing outside this file knows
-// which one is in use, so replacing the host is one change in one place (see `rightSidebarPanelHost` below).
+// it goes: a tab of the right-hand sidebar (`rightSidebarPanelHost`), or the floating position when there is no sidebar. Nothing
+// outside this file knows which one is in use.
 
 import type { ViewerApp } from '../app';
 
@@ -36,30 +36,57 @@ export function floatingPanelHost(app: Pick<ViewerApp, 'canvas'>): PanelHost {
   };
 }
 
-// ---------------------------------------------------------------- adapter stub for the right-hand sidebar (not wired)
+// ---------------------------------------------------------------- the right-hand sidebar host
 //
-// The sidebar agent's API is expected to look like `rightSidebar.addTab({ id, label, mount })`, where `mount(host)` fills the tab body
-// and the returned handle can show and hide the tab. This adapter turns it into a PanelHost. NOTHING CALLS IT YET.
-// To wire the sidebar, make these two edits in src/plugins/revision.ts (the only place that picks a host):
-//
-//   import { rightSidebarPanelHost } from '../ui/panelHost';
-//   const host: PanelHost = rightSidebarPanelHost(window.__xraySidebar!.right) ?? floatingPanelHost(app);
-//
-// (`window.__xraySidebar.right` is a placeholder for however the sidebar exposes `addTab`; change that one expression.)
+// A panel becomes a tab of the right sidebar (src/ui/rightSidebar.ts) while it is shown: `show` adds the tab (when needed) and opens the
+// sidebar on it, `hide` takes the tab away so the sidebar falls back to its first tab. The element gets the `xrw-in` class, which turns
+// the floating review-walk styles into a static column that fills the tab (on a phone the sidebar itself is the bottom sheet).
+
+import type { RightTabHandle, RightTabSpec } from './rightSidebar';
 
 export interface RightSidebarLike {
-  addTab(spec: { id: string; label: string; mount: (body: HTMLElement) => void }): { show(): void; hide(): void } | null;
+  addTab(spec: RightTabSpec): RightTabHandle;
 }
 
-/** A PanelHost over `rightSidebar.addTab(...)`. Null when there is no sidebar, so the caller can fall back to the floating host. */
-export function rightSidebarPanelHost(sidebar: RightSidebarLike | null | undefined): PanelHost | null {
+export interface RightSidebarPanelOptions {
+  /** Sort key of the tab (built-in tabs are 10, 20, 30). */
+  order?: number;
+  /** Preferred sidebar width while the tab is shown. */
+  width?: number;
+  /** Shorter tab label than the panel title. */
+  label?: string;
+}
+
+/** A PanelHost over the right sidebar's `addTab`. Null when there is no sidebar, so the caller can fall back to the floating host. */
+export function rightSidebarPanelHost(sidebar: RightSidebarLike | null | undefined, opts: RightSidebarPanelOptions = {}): PanelHost | null {
   if (!sidebar) return null;
-  const tabs = new Map<string, { show(): void; hide(): void } | null>();
+  const panels = new Map<string, { title: string; el: HTMLElement; tab: RightTabHandle | null }>();
   return {
     mount(id, title, el) {
-      tabs.set(id, sidebar.addTab({ id, label: title, mount: (body) => { el.hidden = false; body.appendChild(el); } }));
+      const old = panels.get(id);
+      old?.tab?.remove();
+      old?.el.remove();
+      el.setAttribute('aria-label', title);
+      el.classList.add('xrw-in');
+      el.hidden = true;
+      panels.set(id, { title, el, tab: null });
     },
-    show: (id) => tabs.get(id)?.show(),
-    hide: (id) => tabs.get(id)?.hide(),
+    show(id) {
+      const p = panels.get(id);
+      if (!p) return;
+      p.el.hidden = false;
+      p.tab ??= sidebar.addTab({
+        id, label: opts.label ?? p.title, title: p.title, order: opts.order, width: opts.width,
+        mount: (pane) => { pane.appendChild(p.el); return () => p.el.remove(); },
+      });
+      p.tab.show();
+    },
+    hide(id) {
+      const p = panels.get(id);
+      if (!p) return;
+      p.el.hidden = true;
+      p.tab?.remove();
+      p.tab = null;
+    },
   };
 }

@@ -16,7 +16,8 @@ import type { RevisionSession } from '../revision/types';
 import { showToast } from '../ui/keymapView';
 import { el } from '../ui/dom';
 import { identityKey } from '../markup/scope';
-import { floatingPanelHost } from '../ui/panelHost';
+import { floatingPanelHost, rightSidebarPanelHost } from '../ui/panelHost';
+import { addRightSidebarTab } from './rightSidebar';
 import type { PanelHost } from '../ui/panelHost';
 import { classifyService } from './classify';
 import { ensureRevisionWalkStyle, RevisionWalkPanel } from './revisionWalk';
@@ -72,7 +73,7 @@ export const revisionPlugin: AppPlugin = {
     const c = new RevisionController(app, svc);
     ctl = c;
     // Where the panel sits is decided here and only here. To use the right-hand sidebar instead, see the adapter in src/ui/panelHost.ts.
-    const host: PanelHost = floatingPanelHost(app);
+    const host: PanelHost = rightSidebarPanelHost({ addTab: addRightSidebarTab }, { label: 'Revision', order: 25, width: 420 }) ?? floatingPanelHost(app);
     const walk = new RevisionWalkPanel(app, c, host);
     panel = walk;
     c.onWalkReady = () => walk.open();

@@ -54,7 +54,7 @@ Accepting creates a normal pending change of the review log, so commit, undo, re
 
 ## Phone
 
-Up to 640 px wide, or with a touch screen, the panel is a bottom sheet of 45 % of the height. Drag the handle to 85 %. Accept, Reject, Skip and More are in a fixed grid. The table is a row of chips that open when tapped. Swipe left to skip, right to go back. Bulk rules and filters are under **More**. No key is needed.
+The walk opens as a **Revision** tab of the right sidebar ([right-sidebar.md](right-sidebar.md)); closing the walk takes the tab away. Up to 700 px wide the right sidebar is a bottom sheet, so the walk is too. Accept, Reject, Skip and More are in a fixed grid. The table is a row of chips that open when tapped. Swipe left to skip, right to go back. Bulk rules and filters are under **More**. No key is needed.
 
 ## Reload and resume
 

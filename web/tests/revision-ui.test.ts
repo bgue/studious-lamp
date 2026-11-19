@@ -211,24 +211,37 @@ describe('attachment adapter', () => {
   });
 });
 
-describe('panel host adapter for the right-hand sidebar (stub, not wired)', () => {
+describe('panel host over the right-hand sidebar', () => {
   it('is null without a sidebar so the floating host is used', () => {
     expect(rightSidebarPanelHost(null)).toBeNull();
     expect(rightSidebarPanelHost(undefined)).toBeNull();
   });
-  it('turns addTab({ id, label, mount }) into mount, show and hide', () => {
+  it('adds the tab on show, mounts the element into it and removes the tab on hide', () => {
     const log: string[] = [];
-    let mounted: ((b: HTMLElement) => void) | null = null;
-    const host = rightSidebarPanelHost({ addTab: (spec) => { log.push(`tab ${spec.id} ${spec.label}`); mounted = spec.mount; return { show: () => log.push('show'), hide: () => log.push('hide') }; } })!;
-    const body = { appended: [] as unknown[], appendChild(x: unknown) { this.appended.push(x); return x; } };
-    const el = { hidden: true } as unknown as HTMLElement;
+    let mount: ((p: HTMLElement) => (() => void) | void) | null = null;
+    const host = rightSidebarPanelHost({
+      addTab: (spec) => {
+        log.push(`tab ${spec.id} ${spec.label} ${spec.order} ${spec.width}`);
+        mount = (p) => spec.mount(p, { visible: () => true, onVisible: () => () => undefined, setBadge: () => undefined, show: () => undefined });
+        return { id: spec.id, show: () => { log.push('show'); }, visible: () => true, remove: () => { log.push('remove'); }, setBadge: () => undefined };
+      },
+    }, { label: 'Revision', order: 25, width: 420 })!;
+    const classes = new Set<string>();
+    const el = { hidden: false, classList: { add: (c: string) => classes.add(c) }, setAttribute: () => undefined, remove: () => { log.push('detach'); } } as unknown as HTMLElement;
     host.mount('revision-walk', 'Revision walk', el);
-    mounted!(body as unknown as HTMLElement);
+    expect(el.hidden).toBe(true);
+    expect(classes.has('xrw-in')).toBe(true);
+    expect(log).toEqual([]);
     host.show('revision-walk');
-    host.hide('revision-walk');
-    expect(log).toEqual(['tab revision-walk Revision walk', 'show', 'hide']);
-    expect(body.appended).toEqual([el]);
+    const pane = { appended: [] as unknown[], appendChild(x: unknown) { this.appended.push(x); return x; } };
+    const cleanup = mount!(pane as unknown as HTMLElement);
+    expect(pane.appended).toEqual([el]);
     expect(el.hidden).toBe(false);
+    host.show('revision-walk'); // a second show reuses the tab
+    host.hide('revision-walk');
+    expect(el.hidden).toBe(true);
+    if (cleanup) cleanup();
+    expect(log).toEqual(['tab revision-walk Revision 25 420', 'show', 'show', 'remove', 'detach']);
   });
 });
 
