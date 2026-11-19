@@ -104,6 +104,28 @@ export function utmForward(latDeg: number, lonDeg: number, zone: number, south: 
   return [E, south ? N + 10_000_000 : N];
 }
 
+/** Transverse Mercator (UTM) inverse projection, Krueger series: easting, northing in metres to [latitude, longitude] in degrees. */
+export function utmInverse(easting: number, northing: number, zone: number, south: boolean, ell: { a: number; f: number } = WGS84): Vec2 {
+  const k0 = 0.9996;
+  const lon0 = ((zone - 1) * 6 - 180 + 3) * (Math.PI / 180);
+  const n = ell.f / (2 - ell.f);
+  const A = (ell.a / (1 + n)) * (1 + n * n / 4 + n ** 4 / 64);
+  const b1 = n / 2 - (2 * n * n) / 3 + (37 * n ** 3) / 96;
+  const b2 = n * n / 48 + n ** 3 / 15;
+  const b3 = (17 * n ** 3) / 480;
+  const d1 = 2 * n - (2 * n * n) / 3 - 2 * n ** 3;
+  const d2 = (7 * n * n) / 3 - (8 * n ** 3) / 5;
+  const d3 = (56 * n ** 3) / 15;
+  const xi = (south ? northing - 10_000_000 : northing) / (k0 * A);
+  const eta = (easting - 500000) / (k0 * A);
+  const xi0 = xi - (b1 * Math.sin(2 * xi) * Math.cosh(2 * eta) + b2 * Math.sin(4 * xi) * Math.cosh(4 * eta) + b3 * Math.sin(6 * xi) * Math.cosh(6 * eta));
+  const eta0 = eta - (b1 * Math.cos(2 * xi) * Math.sinh(2 * eta) + b2 * Math.cos(4 * xi) * Math.sinh(4 * eta) + b3 * Math.cos(6 * xi) * Math.sinh(6 * eta));
+  const chi = Math.asin(Math.sin(xi0) / Math.cosh(eta0));
+  const lat = chi + d1 * Math.sin(2 * chi) + d2 * Math.sin(4 * chi) + d3 * Math.sin(6 * chi);
+  const lon = lon0 + Math.atan2(Math.sinh(eta0), Math.cos(xi0));
+  return [lat * (180 / Math.PI), lon * (180 / Math.PI)];
+}
+
 // ---------------------------------------------------------------- reading a page
 
 /** The largest similarity misfit (metres, or degrees for lat/long) the geo transform may have before it is called skewed. */

@@ -10,8 +10,9 @@
 //  - Type codes are the same in IFC2X3, IFC4 and IFC4X3 (CRC of the entity name).
 import * as WebIFC from 'web-ifc';
 import type { IfcAPI } from 'web-ifc';
-import type { MapConversion } from '../types';
+import type { MapConversion, SiteGeo } from '../types';
 import { mapConversionFrom } from './ifcMap';
+import { siteGeoFrom } from './ifcSite';
 import { isMarker, isSkippedClass, SYSTEM_CLASSES, smoothMesh } from './ifcShared';
 import type { IfcProgress, RawElement, RawModel, RawStorey } from './ifcShared';
 import {
@@ -184,6 +185,36 @@ function readMapConversion(api: IfcAPI, model: number, lengthUnit: number): MapC
       if (m) return m;
     }
   } catch { /* a file without the IFC4 map entities */ }
+  return undefined;
+}
+
+/** Plain list of numbers or wrapped values of a web-ifc attribute. */
+const plainList = (x: Line): unknown[] | null => {
+  const l = Array.isArray(x) ? x : x && typeof x === 'object' && Array.isArray(x.value) ? x.value : null; // a measure list arrives as { value: [...] }
+  return l ? l.map((e: Line) => num(e) ?? e) : null;
+};
+
+/**
+ * The first IfcSite that carries RefLatitude and RefLongitude, with RefElevation and the TrueNorth of the first geometric
+ * representation context that has one (IFC2X3 and later). Undefined when there is none.
+ */
+function readSiteGeo(api: IfcAPI, model: number, lengthUnit: number): SiteGeo | undefined {
+  try {
+    let tn: unknown[] | null = null;
+    for (const cid of ids(api, model, WebIFC.IFCGEOMETRICREPRESENTATIONCONTEXT)) {
+      const c = api.GetLine(model, cid);
+      const dirId = refId(c?.TrueNorth);
+      if (dirId === null) continue;
+      tn = plainList(api.GetLine(model, dirId)?.DirectionRatios);
+      if (tn) break;
+    }
+    for (const id of ids(api, model, WebIFC.IFCSITE)) {
+      const s = api.GetLine(model, id);
+      if (!s) continue;
+      const g = siteGeoFrom({ RefLatitude: plainList(s.RefLatitude), RefLongitude: plainList(s.RefLongitude), RefElevation: num(s.RefElevation) }, tn, lengthUnit);
+      if (g) return g;
+    }
+  } catch { /* a file without sites or contexts */ }
   return undefined;
 }
 
@@ -582,6 +613,7 @@ async function extractModel(
   }
 
   const mapConversion = readMapConversion(api, model, scale);
+  const siteGeo = readSiteGeo(api, model, scale);
 
   // containment and decomposition
   const containerOf = new Map<number, number>();
@@ -771,6 +803,7 @@ async function extractModel(
     elements,
     storeys,
     ...(mapConversion ? { mapConversion } : {}),
+    ...(siteGeo ? { siteGeo } : {}),
     voids,
     fills,
     openings,

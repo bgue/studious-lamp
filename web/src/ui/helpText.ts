@@ -491,6 +491,12 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Change a speed here. Click Shortcuts to see every key.',
     'Report: Appendix I, Presets and keyboard',
   ),
+  Map: h(
+    'The folder controls the optional picture of the ground under the building. The picture comes from a tile server on the internet.',
+    'A satellite photo or street plan appears on the ground below the building. It starts off.',
+    'Read the notice first. Turn the picture on only when you accept that the server learns the site place.',
+    'Report: Appendix J, Coordination tools',
+  ),
   Imaging: h(
     'The folder controls the imaging styles. A style draws the model as a radiograph or as an MRI slab slice.',
     'These controls turn the building picture into a scan, like a hospital photo or a thin slice of a body.',
@@ -646,6 +652,66 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
 
 /** Control entries. */
 export const CONTROL_HELP: Record<string, HelpEntry> = {
+  'Map/show map under model': h(
+    'The switch turns the ground picture on or off. The picture starts off and the first use shows a notice.',
+    'Tick the box and a photo of the site lies below the building. Untick it and the photo goes.',
+    'Tick the box. Read the notice and accept it. Untick the box to stop all requests.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/provider': h(
+    'The list chooses the tile server. The choices are Esri satellite, OpenStreetMap and your own server.',
+    'Esri gives a photo from the air. The street choice gives a plan of roads. Your own server gives what it holds.',
+    'Choose a server. Accept the notice for that server. Read the credit line at the corner.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/URL template': h(
+    'The field holds the address pattern of your own tile server. It needs the parts z, x and y in braces.',
+    'A wrong address leaves the ground empty. A right one fills the ground with the pictures of your server.',
+    'Paste the address pattern. Add key in braces when the server needs a secret code.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/API key': h(
+    'The field holds the secret code of your tile server. The viewer keeps it for this tab only.',
+    'The code never appears in links, saved looks or shared files. A missing code leaves the ground empty.',
+    'Paste the code. Leave the field empty when the server needs none.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/attribution': h(
+    'The field holds the credit text for your own tile server. The viewer shows it at the corner.',
+    'The credit line at the bottom corner of the picture changes to the words you type.',
+    'Type the credit that your server asks for. Keep it short.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/opacity': h(
+    'The slider sets how solid the ground picture looks. The value 1 is solid and the value 0 is gone.',
+    'At the right end the photo is strong. At the left end the ground shows the plain background.',
+    'Move the slider left to see the ground more faintly. Move it right for a clear photo.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/radius (m)': h(
+    'The slider sets the size of the round ground picture around the building. The unit is metres.',
+    'A small value gives a small round patch. A large value gives a wide patch and loads more pictures.',
+    'Start at 150. Raise it to see the nearby streets. Lower it to load less.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/location': h(
+    'The line tells where the place of the building comes from. It shows file data, site data, hand input or unknown.',
+    'The line says why the photo lies where it does. Unknown means no photo appears.',
+    'Read the line. Use Align manually when it says unknown or when the photo is in the wrong spot.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/Align manually…': h(
+    'The button opens a small card for the place and the turn of the building on the earth.',
+    'A card appears. You type the place or drag the photo until the building stands on its real spot.',
+    'Press the button. Type the latitude and longitude. Drag on the ground to fine tune. Press Done.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Map/Use the model’s own place': h(
+    'The button forgets the hand input and goes back to the place that the file gives.',
+    'The photo jumps back to where the file says the building stands, or goes if the file says nothing.',
+    'Press the button when your hand input was wrong.',
+    'Report: Appendix J, Coordination tools',
+  ),
   // ------------------------------------------------------------------ root folder
   'Sample Projects/Model': h(
     'The list selects the example model to load. Models that you opened from files are listed after the examples.',
