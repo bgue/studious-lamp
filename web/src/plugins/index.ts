@@ -28,7 +28,7 @@ import { pointcloudPlugin } from './pointcloud';
 import { xrPlugin } from './xr';
 import { bootPlugin } from './boot';
 import { helpPlugin } from './help';
-import { panelDockPlugin } from './panelDock';
+import { rightSidebarPlugin } from './rightSidebar';
 import { exportParamsPlugin } from './exportParams';
 import { viewsPlugin } from './views';
 import { issuesPlugin } from './issues';
@@ -46,7 +46,7 @@ import { mapPlugin } from './map';
 // pointerMode before gizmo (its toggle lives there); undo last: its onModel runs after boot has applied the link, preset and camera,
 // so what boot changed is the starting state, not history.
 // revision right after classify: it reads the classify service and its onModel runs after the classifier took the new model.
-// help runs after every panel-building plugin so it can see all controls; panelDock last so it wraps the finished panel.
+// help runs after every panel-building plugin so it can see all controls; rightSidebar last so it wraps the finished panel.
 // topBar first: it creates the bar and the #xray-topbar-search host that the awesomeBar plugin mounts into, and its onModel
 // takes the factory settings hash before any other plugin changes the state.
-export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, mapPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, ifcSavePlugin, revisionPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, issuesPlugin, issueToolsPlugin, sheetsPlugin, workPlugin, helpPlugin, panelDockPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];
+export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, mapPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, ifcSavePlugin, revisionPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, issuesPlugin, issueToolsPlugin, sheetsPlugin, workPlugin, helpPlugin, rightSidebarPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];

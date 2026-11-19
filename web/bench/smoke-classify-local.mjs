@@ -138,12 +138,12 @@ async function open(browser, opts = {}) {
 
 const openDrawer = async (page) => {
   await page.locator('.xt-btn-tool[data-tool="classify"]').click();
-  await page.waitForSelector('.xt-drawer:not(.hidden) .xt-table');
+  await page.waitForSelector('#dk-pane-classification .xt-table');
   await page.waitForTimeout(300);
 };
-const drawerText = (page) => page.locator('.xt-drawer').textContent();
-const field = (page, label) => page.locator('.xt-drawer label.xt-select', { has: page.locator('.xt-lbl', { hasText: new RegExp(`^${label}$`) }) });
-const btn = (page, text) => page.locator('.xt-drawer .xt-btn', { hasText: text });
+const drawerText = (page) => page.locator('#dk-pane-classification').textContent();
+const field = (page, label) => page.locator('#dk-pane-classification label.xt-select', { has: page.locator('.xt-lbl', { hasText: new RegExp(`^${label}$`) }) });
+const btn = (page, text) => page.locator('#dk-pane-classification .xt-btn', { hasText: text });
 
 // ---------------------------------------------------------------- desktop
 
@@ -154,12 +154,12 @@ async function runDesktop(browser) {
     await openDrawer(page);
 
     // ---- the provider list: the decision model is the first local option
-    const opts = await page.locator('.xt-drawer label.xt-select', { has: page.locator('.xt-lbl', { hasText: /^Provider$/ }) }).locator('option').allTextContents();
+    const opts = await page.locator('#dk-pane-classification label.xt-select', { has: page.locator('.xt-lbl', { hasText: /^Provider$/ }) }).locator('option').allTextContents();
     console.log(tag, 'providers:', opts.join(' | '));
     check(`${tag} the provider list shows "Decision model (in browser, WebGPU)" first among the local options`, opts[1] === 'Decision model (in browser, WebGPU)' && opts.indexOf('Decision model (in browser, WebGPU)') < opts.findIndex((o) => /WebLLM/.test(o)), opts.slice(0, 3).join(' | '));
-    await page.locator('.xt-drawer label.xt-select', { has: page.locator('.xt-lbl', { hasText: /^Provider$/ }) }).locator('select').selectOption('decision');
-    await page.waitForSelector('.xt-drawer .xc-group[data-for=decision]:not([hidden])', { timeout: 20000 });
-    await page.waitForFunction(() => /download fp32 284 MB, q8 87 MB/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 20000 });
+    await page.locator('#dk-pane-classification label.xt-select', { has: page.locator('.xt-lbl', { hasText: /^Provider$/ }) }).locator('select').selectOption('decision');
+    await page.waitForSelector('#dk-pane-classification .xc-group[data-for=decision]:not([hidden])', { timeout: 20000 });
+    await page.waitForFunction(() => /download fp32 284 MB, q8 87 MB/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 20000 });
     await page.waitForTimeout(300);
     const t0 = await drawerText(page);
     check(`${tag} the decision model shows its settings: model list, Hugging Face id, device, data type, Test model, Clear model cache`,
@@ -168,14 +168,14 @@ async function runDesktop(browser) {
     check(`${tag} the model list shows download sizes`, /download 87 MB \(q8\)|fp32 284 MB, q8 87 MB|download fp32 284 MB, q8 87 MB/.test(t0), t0.match(/DeBERTa[^.]*\. [^.]*MB[^.]*\./)?.[0] ?? '');
     check(`${tag} the default is the xsmall zero-shot model`, (await field(page, 'Hugging Face model id').locator('input').inputValue()) === 'MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33');
     check(`${tag} nothing was fetched from the CDN or Hugging Face before the model is used`, net.cdn.length === 0 && net.hf.length === 0, `cdn ${net.cdn.length}, hf ${net.hf.length}`);
-    const adv = await page.locator('.xt-drawer details.xc-adv summary').allTextContents();
+    const adv = await page.locator('#dk-pane-classification details.xc-adv summary').allTextContents();
     check(`${tag} the advanced section holds the endpoint and the hypotheses`, adv.some((s) => /endpoint and hypotheses/.test(s)));
     await shot(page, 'classify-local-decision.png');
 
     // ---- Test model: WASM fallback, load time, device, data type, download progress
     const gpu = await page.evaluate(async () => !!navigator.gpu && !!(await navigator.gpu.requestAdapter().catch(() => null)));
     await btn(page, 'Test model').click();
-    await page.waitForFunction(() => /Ready:|could not|Could not/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 30000 });
+    await page.waitForFunction(() => /Ready:|could not|Could not/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 30000 });
     await page.waitForTimeout(300);
     const t1 = await drawerText(page);
     const ready = /Ready: MoritzLaurer\/deberta-v3-xsmall-zeroshot-v1\.1-all-33 on (\w+) \((\w+)\) in ([\d.]+) s/.exec(t1);
@@ -187,24 +187,24 @@ async function runDesktop(browser) {
       check(`${tag} WebGPU is present here: the device is webgpu`, ready?.[1] === 'webgpu');
     }
     check(`${tag} Test model runs one tiny choice and names the answer`, /Test question: chose MEC \(0\.\d\d\) in \d+ ms/.test(t1));
-    const prog = await page.evaluate(() => ({ line: [...document.querySelectorAll('.xt-drawer .xt-status')].map((e) => e.textContent).find((t) => /Downloading/.test(t)) ?? '', w: [...document.querySelectorAll('.xt-drawer .xc-prog > i')].map((i) => i.style.width) }));
+    const prog = await page.evaluate(() => ({ line: [...document.querySelectorAll('#dk-pane-classification .xt-status')].map((e) => e.textContent).find((t) => /Downloading/.test(t)) ?? '', w: [...document.querySelectorAll('#dk-pane-classification .xc-prog > i')].map((i) => i.style.width) }));
     check(`${tag} the download progress reaches 100 percent and shows the size`, /Downloading 87 of 87 MB/.test(prog.line) && prog.w.includes('100%'), `${prog.line} ${prog.w.join(',')}`);
     check(`${tag} the library came from the pinned CDN URL, once, with no token`, net.cdn.length === 1 && net.cdn[0].url === CDN && net.cdn[0].auth === null);
     const log1 = await page.evaluate(() => window.__fakeTransformersLog.pipelines);
     check(`${tag} the pipeline was created for zero-shot-classification with the device and data type`, log1.length === 1 && log1[0].task === 'zero-shot-classification' && log1[0].model === 'MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33' && log1[0].device === (gpu ? 'webgpu' : 'wasm'), JSON.stringify(log1[0]));
-    const gpuLine = await page.locator('.xt-drawer .xt-note[role=status]').allTextContents();
+    const gpuLine = await page.locator('#dk-pane-classification .xt-note[role=status]').allTextContents();
     check(`${tag} the drawer says where the model runs`, /Device (wasm|webgpu), data type (q8|fp32|fp16)/.test(gpuLine.join(' ')), gpuLine.join(' | ').slice(0, 160));
 
     // ---- the model cache: size and Clear model cache
     await page.evaluate(async () => { const c = await caches.open('transformers-cache'); await c.put('https://huggingface.co/x/y/resolve/main/model.onnx', new Response(new Uint8Array(5_000_000), { headers: { 'Content-Length': '5000000' } })); });
     await btn(page, 'Test model').click();
-    await page.waitForFunction(() => /Model cache: 5 MB in 1 file/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 });
+    await page.waitForFunction(() => /Model cache: 5 MB in 1 file/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 15000 });
     check(`${tag} the drawer shows the cache size`, /Model cache: 5 MB in 1 file/.test(await drawerText(page)));
     await btn(page, 'Clear model cache').click();
-    await page.waitForFunction(() => /Model cache: empty/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 });
+    await page.waitForFunction(() => /Model cache: empty/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 15000 });
     check(`${tag} Clear model cache empties it`, (await page.evaluate(async () => (await window.__xrayClassify.modelCache()).files)) === 0 && /deleted from the browser cache/.test(await drawerText(page)));
     await btn(page, 'Test model').click();
-    await page.waitForFunction(() => /Ready:/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 });
+    await page.waitForFunction(() => /Ready:/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 15000 });
 
     // ---- classify all, rules off: the decision model decides every signature
     const est = await page.evaluate(() => window.__xrayClassify.estimate('all', { rules: false }));
@@ -220,7 +220,7 @@ async function runDesktop(browser) {
     check(`${tag} classify all with the rules off: 5000 results from the decision model, 9 signatures, the cache answers the rest`, stats.total === 5000 && stats.signatures === 9 && stats.bySource.model + stats.bySource.cache === 5000 && stats.bySource.rules === 0 && stats.failed === 0);
     check(`${tag} every result carries the model id of the decision model`, await page.evaluate(() => window.__xrayClassify.results().every((r) => r.model === 'decision:MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33')));
     check(`${tag} passes per signature: 6 to 9 forward passes, 52 to 64 text pairs (batches of 8)`, run.passes / stats.signatures >= 6 && run.passes / stats.signatures <= 9 && run.pairs / stats.signatures >= 52 && run.pairs / stats.signatures <= 64, `${(run.passes / stats.signatures).toFixed(1)} passes, ${(run.pairs / stats.signatures).toFixed(1)} pairs`);
-    const reported = await page.waitForFunction(() => /Decision model: \d+ text pairs in \d+ passes/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 20000 }).then(() => true, () => false);
+    const reported = await page.waitForFunction(() => /Decision model: \d+ text pairs in \d+ passes/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 20000 }).then(() => true, () => false);
     check(`${tag} the drawer reports the pairs and passes of the run`, reported);
     const again = await page.evaluate(async () => { const a = window.__xrayClassify.decisionStats().passes; await window.__xrayClassify.classify('all', { rules: false }); return window.__xrayClassify.decisionStats().passes - a; });
     check(`${tag} a second run is answered from the signature cache (0 passes)`, again === 0);
@@ -241,7 +241,7 @@ async function runDesktop(browser) {
     });
     check(`${tag} an element of a known signature needs no pass`, known === 0);
     await page.evaluate(() => window.__xrayClassify.clear());
-    await page.locator('.xt-drawer .xt-btn', { hasText: 'Clear cache' }).click();
+    await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Clear cache' }).click();
     await page.evaluate(() => { window.__xrayClassify.configure({ device: 'wasm' }); window.__xrayClassify.decisionStats(); window.__xrayClassify.configure({ device: 'auto' }); window.__xrayClassify.decisionStats(); }); // a new provider: no pair cache
     const perType = await page.evaluate(async () => {
       const api = window.__xrayClassify;
@@ -264,18 +264,18 @@ async function runDesktop(browser) {
     await page.evaluate(() => window.__xrayClassify.classify('all', { rules: false }));
     await page.evaluate(() => window.__xray.app.selectIds(window.__xray.app.controller.model.elements.slice(0, 40).map((e) => e.id)));
     await page.waitForTimeout(400);
-    await page.locator('.xt-drawer .xt-table-wrap').scrollIntoViewIfNeeded();
-    await page.evaluate(() => { const b = document.querySelector('.xt-body'); b.scrollTop = b.scrollHeight * 0.5; });
+    await page.locator('#dk-pane-classification .xt-table-wrap').scrollIntoViewIfNeeded();
+    await page.evaluate(() => { const b = document.querySelector('#dk-pane-classification .xc-tab-body'); b.scrollTop = b.scrollHeight * 0.5; });
     await page.waitForTimeout(250);
     await shot(page, 'classify-local-results.png');
-    await page.evaluate(() => { document.querySelector('.xt-body').scrollTop = 0; });
+    await page.evaluate(() => { document.querySelector('#dk-pane-classification .xc-tab-body').scrollTop = 0; });
 
     // ---- a custom Hugging Face id that fails: a plain message
     const idInput = field(page, 'Hugging Face model id').locator('input');
     await idInput.fill('not a model');
     await idInput.press('Enter');
-    await page.waitForFunction(() => [...document.querySelectorAll('.xt-drawer .xt-note')].some((n) => /hfModel: "not a model" is not a model id/.test(n.textContent)), null, { timeout: 20000 });
-    const bad = await page.locator('.xt-drawer .xt-note.xc-err').allTextContents();
+    await page.waitForFunction(() => [...document.querySelectorAll('#dk-pane-classification .xt-note')].some((n) => /hfModel: "not a model" is not a model id/.test(n.textContent)), null, { timeout: 20000 });
+    const bad = await page.locator('#dk-pane-classification .xt-note.xc-err').allTextContents();
     check(`${tag} a malformed custom id gives a plain message and keeps the default`, bad.some((x) => /hfModel: "not a model" is not a model id\. Use owner\/name/.test(x)) && (await page.evaluate(() => window.__xrayClassify.settings().hfModel)) === 'MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33', bad.join(' | ').slice(0, 200));
     await shot(page, 'classify-local-invalid-id.png');
     await idInput.fill('org/chat-llm');
@@ -284,7 +284,7 @@ async function runDesktop(browser) {
     await page.evaluate(() => window.__fakeTransformersLog.pipelines.length = 0);
     const hf0 = net.hf.length;
     await btn(page, 'Test model').click();
-    await page.waitForFunction(() => /is not a classifier/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 });
+    await page.waitForFunction(() => /is not a classifier/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 15000 });
     const t3 = await drawerText(page);
     check(`${tag} a chat model as the custom id is refused in plain words before any download`, /"org\/chat-llm" is not a classifier \(its architecture is Qwen2ForCausalLM\), so it cannot decide among options/.test(t3) && /sequence-classification \(NLI\) model/.test(t3));
     check(`${tag} the refused model created no pipeline (nothing downloaded)`, (await page.evaluate(() => window.__fakeTransformersLog.pipelines.length)) === 0 && net.hf.length > hf0);
@@ -292,20 +292,20 @@ async function runDesktop(browser) {
     await idInput.press('Enter');
     await idInput.blur();
     await btn(page, 'Test model').click();
-    await page.waitForFunction(() => /was not found at https:\/\/huggingface\.co/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 });
+    await page.waitForFunction(() => /was not found at https:\/\/huggingface\.co/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 15000 });
     check(`${tag} an id that does not exist says so, with the endpoint`, /"org\/does-not-exist" was not found at https:\/\/huggingface\.co\. Check the spelling/.test(await drawerText(page)));
 
     // ---- a good custom model, and the token goes to Hugging Face only
     await field(page, 'Hugging Face token').locator('input').fill(HF_TOKEN);
     await btn(page, 'Save token').click();
-    const tokenText = await page.locator('.xt-drawer .xt-status', { hasText: 'Hugging Face token' }).textContent();
+    const tokenText = await page.locator('#dk-pane-classification .xt-status', { hasText: 'Hugging Face token' }).textContent();
     check(`${tag} the token is masked in the drawer and the box empties`, !tokenText.includes(HF_TOKEN) && /hidden/.test(tokenText) && (await field(page, 'Hugging Face token').locator('input').inputValue()) === '', tokenText);
     await idInput.fill('org/custom-nli');
     await idInput.press('Enter');
     await idInput.blur();
     const hf1 = net.hf.length;
     await btn(page, 'Test model').click();
-    await page.waitForFunction(() => /Ready: org\/custom-nli/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 }).catch(async (e) => { console.log('DEBUG status lines:', (await page.locator('.xt-drawer .xt-status').allTextContents()).join(' | ').slice(0, 800)); throw e; });
+    await page.waitForFunction(() => /Ready: org\/custom-nli/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 15000 }).catch(async (e) => { console.log('DEBUG status lines:', (await page.locator('#dk-pane-classification .xt-status').allTextContents()).join(' | ').slice(0, 800)); throw e; });
     const t4 = await drawerText(page);
     check(`${tag} a custom NLI model loads, with its file sizes from the Hub shown`, /Ready: org\/custom-nli on (wasm|webgpu) \((q8|fp32|fp16)\)/.test(t4) && /Files: fp32 739 MB, q8 244 MB/.test(t4));
     const hfReqs = net.hf.slice(hf1);
@@ -344,8 +344,8 @@ async function runDesktop(browser) {
       { code_list: 'Discipline', code: 'S', label: 'Structural', sort_order: 20, origin: 'company', edition: 'co.acme.standards@2.0.0', attributes: { rules_key: 'STR' } },
       { code_list: 'Discipline', code: 'G', label: 'General', sort_order: 99, origin: 'company', edition: 'co.acme.standards@2.0.0', attributes: { fallback: true } },
     ];
-    await page.locator('.xt-drawer input[type=file]').nth(1).setInputFiles({ name: 'discipline.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(company)) });
-    await page.waitForFunction(() => /Throughline Discipline list \(co\.acme\.standards@2\.0\.0\)/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 10000 });
+    await page.locator('#dk-pane-classification input[type=file]').nth(1).setInputFiles({ name: 'discipline.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(company)) });
+    await page.waitForFunction(() => /Throughline Discipline list \(co\.acme\.standards@2\.0\.0\)/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 10000 });
     const t5 = await drawerText(page);
     check(`${tag} Import Throughline list replaces the schema and the drawer shows notes`, /3 disciplines/.test(t5) && /have no description/.test(t5) && !/Load the Discipline code list of your company standards/.test(t5));
     await page.evaluate(() => window.__xrayClassify.classify('all'));
@@ -353,17 +353,17 @@ async function runDesktop(browser) {
     console.log(tag, 'with the imported list', JSON.stringify(imp));
     check(`${tag} the rules still work with the company codes: ducts are M, slabs and beams are S`, (imp['M:rules'] ?? 0) === 870 && (imp['S:rules'] ?? 0) > 0);
     await btn(page, 'Use built-in schema').click();
-    await page.waitForFunction(() => /Throughline-aligned default \(built in\)/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 20000 }).catch(() => {});
+    await page.waitForFunction(() => /Throughline-aligned default \(built in\)/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 20000 }).catch(() => {});
     check(`${tag} Use built-in schema returns to the Throughline-aligned default`, /Throughline-aligned default \(built in\)/.test(await drawerText(page)));
-    await page.locator('.xt-drawer input[type=file]').nth(1).setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"nope": 1}') });
-    await page.waitForFunction(() => /JSON list of Discipline entries/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 10000 });
+    await page.locator('#dk-pane-classification input[type=file]').nth(1).setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"nope": 1}') });
+    await page.waitForFunction(() => /JSON list of Discipline entries/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 10000 });
     check(`${tag} a file that is not a Discipline list is refused in plain words`, true);
     await page.evaluate(() => window.__xrayClassify.configure({ provider: 'off' }));
 
     // ---- the WebLLM modes show their settings, without WebGPU a plain message
     await page.evaluate(() => window.__xrayClassify.clear());
     await page.evaluate(() => window.__xrayClassify.configure({ provider: 'webllm', webllmMode: 'hybrid' }));
-    await page.waitForSelector('.xt-drawer .xc-group[data-for=webllm]:not([hidden])', { timeout: 20000 });
+    await page.waitForSelector('#dk-pane-classification .xc-group[data-for=webllm]:not([hidden])', { timeout: 20000 });
     await page.waitForTimeout(300);
     const t6 = await drawerText(page);
     check(`${tag} WebLLM hybrid shows the mode, both models and the margin`, (await field(page, 'Mode').isVisible()) && (await field(page, 'Embedding model').isVisible()) && (await field(page, 'Hybrid margin').isVisible()) && /Qwen3 0\.6B/.test(t6) && /Snowflake Arctic Embed S/.test(t6) && /download about 347 MB, GPU memory about 1403 MB/.test(t6));
@@ -380,7 +380,7 @@ async function runDesktop(browser) {
 // ---------------------------------------------------------------- Decision 3.0 d3-edge, calibration, thumbnails
 
 const select = (page, label, value) => field(page, label).locator('select').selectOption(value);
-const drawerHas = (page, re) => page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.xt-drawer')?.textContent ?? ''), re.source, { timeout: 30000 });
+const drawerHas = (page, re) => page.waitForFunction((src) => new RegExp(src).test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), re.source, { timeout: 30000 });
 
 /** Decode a data URL in the page and say what is in it: size and whether orange (the element) and grey (neighbours) pixels are present. */
 const pixels = (page, url) => page.evaluate(async (u) => {
@@ -410,7 +410,7 @@ async function runD3(browser) {
     try {
       await openDrawer(page);
       await select(page, 'Provider', 'd3');
-      await page.waitForSelector('.xt-drawer .xc-group[data-for=d3]:not([hidden])', { timeout: 20000 });
+      await page.waitForSelector('#dk-pane-classification .xc-group[data-for=d3]:not([hidden])', { timeout: 20000 });
       await drawerHas(page, /Download 6 MB/);
       await drawerHas(page, /needs WebGPU with 16-bit float support \(shader-f16\)/);
       const t = await drawerText(page);
@@ -427,7 +427,7 @@ async function runD3(browser) {
       // Test model: the refusal comes first (no question about 1 GB for a device that cannot run it), and no weights are requested
       await btn(page, 'Test model').click();
       await drawerHas(page, /needs WebGPU with 16-bit float support/);
-      check(`${tag} Test model on a device without WebGPU gives the reason at once and shows no download question`, (await page.locator('.xt-drawer .xc-confirm:not([hidden])').count()) === 0 && /Use the endpoint backend/.test(await drawerText(page)));
+      check(`${tag} Test model on a device without WebGPU gives the reason at once and shows no download question`, (await page.locator('#dk-pane-classification .xc-confirm:not([hidden])').count()) === 0 && /Use the endpoint backend/.test(await drawerText(page)));
       check(`${tag} the refusal came before any weights were requested`, net.d3files.every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && net.ort.length === 0);
       await shot(page, 'classify-d3-settings.png');
     } finally {
@@ -443,15 +443,15 @@ async function runD3(browser) {
     try {
       await openDrawer(page);
       await select(page, 'Provider', 'd3');
-      await page.waitForSelector('.xt-drawer .xc-group[data-for=d3]:not([hidden])');
+      await page.waitForSelector('#dk-pane-classification .xc-group[data-for=d3]:not([hidden])');
       await drawerHas(page, /WebGPU with 16-bit floats is available/);
       await btn(page, 'Test model').click();
-      await page.waitForSelector('.xt-drawer .xc-confirm:not([hidden])');
+      await page.waitForSelector('#dk-pane-classification .xc-confirm:not([hidden])');
       await btn(page, 'Cancel').first().click();
       await page.waitForTimeout(300);
       check(`${tag} Cancel downloads nothing`, net.d3files.every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && net.ort.length === 0);
       await btn(page, 'Test model').click();
-      await page.waitForSelector('.xt-drawer .xc-confirm:not([hidden])');
+      await page.waitForSelector('#dk-pane-classification .xc-confirm:not([hidden])');
       await btn(page, 'Download model').click();
       await drawerHas(page, /Ready: warsang\/d3-edge-web on webgpu/);
       const t = await drawerText(page);
@@ -462,7 +462,7 @@ async function runD3(browser) {
       check(`${tag} onnxruntime-web came from the pinned CDN URL, once`, net.ort.length === 1 && net.ort[0].url === ORT_CDN);
       const log = await page.evaluate(() => window.__fakeOrtLog.sessions.map((s) => s.options.executionProviders[0]));
       check(`${tag} the torso runs on webgpu and the readout on wasm`, log.join() === 'webgpu,wasm', log.join());
-      check(`${tag} the progress bar reached 100 percent`, await page.evaluate(() => [...document.querySelectorAll('.xt-drawer .xc-prog > i')].some((i) => i.style.width === '100%')));
+      check(`${tag} the progress bar reached 100 percent`, await page.evaluate(() => [...document.querySelectorAll('#dk-pane-classification .xc-prog > i')].some((i) => i.style.width === '100%')));
       await drawerHas(page, /Model cache: 6 MB in 4 files/);
       check(`${tag} the cache line shows the size and the files`, /Model cache: 6 MB in 4 files/.test(await drawerText(page)));
       // a second Test model reads from the cache: no new file request, no confirmation
@@ -470,7 +470,7 @@ async function runD3(browser) {
       await page.evaluate(() => window.__xrayClassify.configure({ d3Device: 'webgpu' }));
       await btn(page, 'Test model').click();
       await drawerHas(page, /Ready: warsang\/d3-edge-web/);
-      check(`${tag} the second load reads the Cache API: no new file request and no question`, net.d3files.slice(n0).every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && (await page.locator('.xt-drawer .xc-confirm:not([hidden])').count()) === 0);
+      check(`${tag} the second load reads the Cache API: no new file request and no question`, net.d3files.slice(n0).every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && (await page.locator('#dk-pane-classification .xc-confirm:not([hidden])').count()) === 0);
 
       // classify, rules off: raw logits in the cache
       await page.evaluate(() => window.__xrayClassify.configure({ calibration: 'off' }));
@@ -491,17 +491,17 @@ async function runD3(browser) {
       await page.evaluate(() => window.__xrayClassify.configure({ calibration: 'auto' }));
       await page.evaluate(() => window.__xrayClassify.clear());
       await btn(page, 'Calibrate on rules').click();
-      await page.waitForSelector('.xt-drawer .xc-caltable', { timeout: 60000 });
+      await page.waitForSelector('#dk-pane-classification .xc-caltable', { timeout: 60000 });
       await page.waitForTimeout(300);
       const tc = await drawerText(page);
-      const rows = await page.locator('.xt-drawer .xc-caltable tbody tr').allTextContents();
+      const rows = await page.locator('#dk-pane-classification .xc-caltable tbody tr').allTextContents();
       console.log(tag, 'calibration table:', rows.slice(0, 4).join(' | '));
-      check(`${tag} Calibrate on rules shows before and after rows (accuracy, mean confidence, ECE, share that clears, accuracy of those)`, rows.length >= 2 && /before/.test(rows[0]) && /^after/.test(rows[1]) && (await page.locator('.xt-drawer .xc-caltable th').allTextContents()).join().includes('ECE'));
+      check(`${tag} Calibrate on rules shows before and after rows (accuracy, mean confidence, ECE, share that clears, accuracy of those)`, rows.length >= 2 && /before/.test(rows[0]) && /^after/.test(rows[1]) && (await page.locator('#dk-pane-classification .xc-caltable th').allTextContents()).join().includes('ECE'));
       check(`${tag} the drawer says what is used now (fitted on synth5k) and warns that the rules are proxy labels`, /In use: fitted on synth5k/.test(tc) && /proxy labels, not the truth/.test(tc) && (await page.evaluate(() => window.__xrayClassify.settings().calibration)) === 'fitted');
       const fit = await page.evaluate(() => window.__xrayClassify.calibration());
       check(`${tag} the fitted temperatures are numbers in range, stored per model id in localStorage and not in the settings`, Object.values(fit.temperatures).every((x) => x >= 0.05 && x <= 50) && await page.evaluate(() => !!localStorage.getItem('xray.classify.calibration.v1') && !JSON.stringify(window.__xrayClassify.settings()).includes('0.0') || true) && (await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('xray.classify.calibration.v1'))))).join() === `d3:browser:warsang/d3-edge-web@117fb255`);
-      await page.evaluate(() => { document.querySelector('.xt-body').scrollTop = 0; });
-      await page.locator('.xt-drawer .xc-cal').scrollIntoViewIfNeeded();
+      await page.evaluate(() => { document.querySelector('#dk-pane-classification .xc-tab-body').scrollTop = 0; });
+      await page.locator('#dk-pane-classification .xc-cal').scrollIntoViewIfNeeded();
       await page.waitForTimeout(250);
       await shot(page, 'classify-calibration.png');
 
@@ -522,7 +522,7 @@ async function runD3(browser) {
     try {
       await openDrawer(page);
       await select(page, 'Provider', 'd3');
-      await page.waitForSelector('.xt-drawer .xc-group[data-for=d3]:not([hidden])');
+      await page.waitForSelector('#dk-pane-classification .xc-group[data-for=d3]:not([hidden])');
       await page.evaluate(() => window.__xrayClassify.confirmD3Download());
       await btn(page, 'Test model').click();
       await drawerHas(page, /does not match the sha256|has \d+ bytes, but the manifest says/);
@@ -540,7 +540,7 @@ async function runD3(browser) {
       await openDrawer(page);
       await select(page, 'Provider', 'd3');
       await select(page, 'Backend', 'endpoint');
-      await page.waitForSelector('.xt-drawer .xc-group[data-for=jev]:not([hidden])', { timeout: 20000 });
+      await page.waitForSelector('#dk-pane-classification .xc-group[data-for=jev]:not([hidden])', { timeout: 20000 });
       await drawerHas(page, /vllm-sr serve -e vllm-sr\/d3-edge/);
       await page.waitForTimeout(300);
       const t = await drawerText(page);
@@ -558,17 +558,17 @@ async function runD3(browser) {
       await field(page, 'Image size').locator('input').press('Enter');
       // pick a part with neighbours: the first column of synth5k
       const pick = await page.evaluate(() => { const m = window.__xray.app.controller.model; const e = m.elements.find((x) => x.ifcClass === 'IfcColumn') ?? m.elements[10]; window.__xray.app.selectIds([e.id]); return { id: e.id, gid: e.globalId, name: e.name }; });
-      await page.waitForSelector('.xt-drawer .xc-pics figure', { timeout: 30000 });
+      await page.waitForSelector('#dk-pane-classification .xc-pics figure', { timeout: 30000 });
       await drawerHas(page, /The model gets 2 pictures.*Picture 1: the element alone, a render, axonometric, with a scale bar\. Picture 2: the element \(orange\) in its bounding box with nearby elements in grey\./);
-      const imgs = await page.locator('.xt-drawer .xc-pics img').evaluateAll((l) => l.map((i) => i.src));
+      const imgs = await page.locator('#dk-pane-classification .xc-pics img').evaluateAll((l) => l.map((i) => i.src));
       const px = [];
       for (const u of imgs) px.push(await pixels(page, u));
       console.log(tag, 'thumbnails:', JSON.stringify(px));
       check(`${tag} the drawer previews 2 pictures (isolated, context) of 384 px, as WebP or PNG data URLs`, imgs.length === 2 && imgs.every((u) => /^data:image\/(webp|png);base64,/.test(u)) && px.every((x) => x.w === 384 && x.h === 384));
       check(`${tag} each picture draws the element (orange) on the neutral background, and the context picture has the nearby elements in grey`, px.every((x) => x.orange > 120 && x.bg > x.total * 0.2) && px[1].grey > 60, JSON.stringify(px.map((x) => [x.orange, x.grey, x.bg])));
-      const caps = await page.locator('.xt-drawer .xc-pics figcaption').allTextContents();
+      const caps = await page.locator('#dk-pane-classification .xc-pics figcaption').allTextContents();
       check(`${tag} the captions name the pictures and the scale bar`, caps.length === 2 && caps[0].startsWith('element alone') && caps[1].startsWith('element in its box') && caps.every((c) => /bar \d+(\.\d+)? (m|cm)/.test(c)), caps.join(' | '));
-      await page.locator('.xt-drawer .xc-pics').scrollIntoViewIfNeeded();
+      await page.locator('#dk-pane-classification .xc-pics').scrollIntoViewIfNeeded();
       await page.waitForTimeout(250);
       await shot(page, 'classify-pictures-drawer.png');
       // the request carries them
@@ -591,11 +591,11 @@ async function runD3(browser) {
       check(`${tag} no picture and no key in the params, the share link or the browser storage (apart from the key entries)`, ![doc, share].some((x) => /data:image|UklGR|iVBOR/.test(x) || x.includes(D3_KEY) || x.includes(JEV_KEY)) && !/data:image|UklGR|iVBOR/.test(dump) && /d3Endpoint/.test(doc), `params ${doc.length} chars`);
       // the Jev switch
       await select(page, 'Provider', 'jev');
-      await page.locator('.xt-drawer .xt-check', { hasText: 'Send images to Jev' }).waitFor({ state: 'visible', timeout: 30000 });
-      await page.waitForFunction(() => /Turn on Send images to Jev first/.test([...document.querySelectorAll('.xt-drawer .xt-note')].filter((n) => n.offsetParent !== null).map((n) => n.textContent).join(' ')), null, { timeout: 30000 });
+      await page.locator('#dk-pane-classification .xt-check', { hasText: 'Send images to Jev' }).waitFor({ state: 'visible', timeout: 30000 });
+      await page.waitForFunction(() => /Turn on Send images to Jev first/.test([...document.querySelectorAll('#dk-pane-classification .xt-note')].filter((n) => n.offsetParent !== null).map((n) => n.textContent).join(' ')), null, { timeout: 30000 });
       await page.waitForTimeout(300);
-      check(`${tag} Jev has a "Send images to Jev" switch, off by default, marked untested`, (await page.locator('.xt-drawer .xt-check', { hasText: 'Send images to Jev' }).isVisible()) && !(await page.evaluate(() => window.__xrayClassify.settings().jevImages)) && /Untested: Jev is not known to read images/.test(await drawerText(page)));
-      check(`${tag} with Jev and the switch off, no preview and the images option is disabled with the reason`, (await field(page, 'Images').locator('select').isDisabled()) && (await page.locator('.xt-drawer .xc-pics:visible').count()) === 0 && /Turn on Send images to Jev first/.test(await drawerText(page)));
+      check(`${tag} Jev has a "Send images to Jev" switch, off by default, marked untested`, (await page.locator('#dk-pane-classification .xt-check', { hasText: 'Send images to Jev' }).isVisible()) && !(await page.evaluate(() => window.__xrayClassify.settings().jevImages)) && /Untested: Jev is not known to read images/.test(await drawerText(page)));
+      check(`${tag} with Jev and the switch off, no preview and the images option is disabled with the reason`, (await field(page, 'Images').locator('select').isDisabled()) && (await page.locator('#dk-pane-classification .xc-pics:visible').count()) === 0 && /Turn on Send images to Jev first/.test(await drawerText(page)));
     } finally {
       const real = errors.filter((e) => !/favicon|ERR_FAILED|Failed to load resource/i.test(e));
       check(`${tag} (endpoint) zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
@@ -640,19 +640,19 @@ async function runD3(browser) {
       await openDrawer(page);
       await page.evaluate(() => window.__xrayClassify.configure({ provider: 'd3', d3Backend: 'endpoint', images: 'both', imagePlan: true, imageStyle: 'vector', imageSize: 256, calibration: 'manual', temperatures: { discipline: 0.5 } }));
       await page.evaluate(() => { const m = window.__xray.app.controller.model; window.__xray.app.selectIds([m.elements.find((x) => x.ifcClass === 'IfcColumn').id]); });
-      await page.waitForSelector('.xt-drawer .xc-pics figure', { timeout: 30000 });
+      await page.waitForSelector('#dk-pane-classification .xc-pics figure', { timeout: 30000 });
       await page.evaluate(() => window.__xrayClassify.configure({ d3Backend: 'browser', images: 'off' }));
       await page.waitForTimeout(300);
       const geom = async () => page.evaluate(() => {
-        const dr = document.querySelector('.xt-drawer').getBoundingClientRect();
-        const bad = [...document.querySelectorAll('.xt-drawer .xt-btn, .xt-drawer input, .xt-drawer select, .xt-drawer img')].filter((e) => e.offsetParent !== null && e.getBoundingClientRect().right > window.innerWidth + 1).length;
+        const dr = document.querySelector('#dk-pane-classification').getBoundingClientRect();
+        const bad = [...document.querySelectorAll('#dk-pane-classification .xt-btn, #dk-pane-classification input, #dk-pane-classification select, #dk-pane-classification img')].filter((e) => e.offsetParent !== null && e.getBoundingClientRect().right > window.innerWidth + 1).length;
         return { right: dr.right, vw: window.innerWidth, scrollW: document.documentElement.scrollWidth, bad };
       });
       const g1 = await geom();
       check(`${tag} the d3 drawer fits the phone width (browser backend)`, g1.right <= g1.vw + 1 && g1.scrollW <= g1.vw + 1 && g1.bad === 0, JSON.stringify(g1));
       await page.evaluate(() => window.__xrayClassify.configure({ d3Backend: 'endpoint', images: 'both' }));
-      await page.waitForSelector('.xt-drawer .xc-pics figure', { timeout: 30000 });
-      await page.locator('.xt-drawer .xc-pics').scrollIntoViewIfNeeded();
+      await page.waitForSelector('#dk-pane-classification .xc-pics figure', { timeout: 30000 });
+      await page.locator('#dk-pane-classification .xc-pics').scrollIntoViewIfNeeded();
       await page.waitForTimeout(300);
       const g2 = await geom();
       check(`${tag} the pictures fit the phone width`, g2.right <= g2.vw + 1 && g2.scrollW <= g2.vw + 1 && g2.bad === 0, JSON.stringify(g2));
@@ -678,15 +678,15 @@ async function runPhone(browser) {
     await page.evaluate(() => window.__xrayClassify.configure({ provider: 'decision' }));
     await page.waitForTimeout(400);
     await btn(page, 'Test model').click();
-    await page.waitForFunction(() => /Ready:/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 30000 });
+    await page.waitForFunction(() => /Ready:/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 30000 });
     await page.evaluate(() => window.__xrayClassify.classify('all', { rules: false }));
     await page.waitForTimeout(500);
     const box = await page.evaluate(() => {
-      const dr = document.querySelector('.xt-drawer').getBoundingClientRect();
+      const dr = document.querySelector('#dk-pane-classification').getBoundingClientRect();
       return { right: dr.right, vw: window.innerWidth, scrollW: document.documentElement.scrollWidth };
     });
     check(`${tag} the drawer fits inside the phone width`, box.right <= box.vw + 1 && box.scrollW <= box.vw + 1, JSON.stringify(box));
-    const inside = await page.evaluate(() => [...document.querySelectorAll('.xt-drawer .xt-btn, .xt-drawer input, .xt-drawer select')].filter((e) => e.offsetParent !== null).every((b) => b.getBoundingClientRect().right <= window.innerWidth + 1));
+    const inside = await page.evaluate(() => [...document.querySelectorAll('#dk-pane-classification .xt-btn, #dk-pane-classification input, #dk-pane-classification select')].filter((e) => e.offsetParent !== null).every((b) => b.getBoundingClientRect().right <= window.innerWidth + 1));
     check(`${tag} every visible button and field is inside the screen`, inside);
     await shot(page, 'classify-local-phone.png');
   } finally {

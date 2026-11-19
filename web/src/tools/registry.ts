@@ -28,6 +28,12 @@ export interface XrayTool {
    * toolbar's drawer. Return a cleanup function, called when the drawer closes or another tool opens.
    */
   panel?(container: HTMLElement, app: ViewerApp): (() => void) | void;
+  /**
+   * Optional: the tool does not use a drawer; its panel lives elsewhere (the Classification tab of the right sidebar). The strip
+   * button, the `tool.<id>` action, `window.__xrayToolbar.open(id)` and `boot.openTool` call `open`; a second click on the button
+   * calls `close` while `isOpen` is true.
+   */
+  host?: { open(app: ViewerApp): void; close(app: ViewerApp): void; isOpen(app: ViewerApp): boolean };
   /** Optional on/off behaviour for mode-like tools (the toolbar shows the active state). */
   toggle?(app: ViewerApp, on: boolean): void;
   isActive?(app: ViewerApp): boolean;

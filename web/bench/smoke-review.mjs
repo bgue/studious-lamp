@@ -229,20 +229,20 @@ async function runDesktop(browser) {
     await page.locator('.xrw select[data-role=discipline]').selectOption(pick);
     await page.waitForTimeout(200);
 
-    // ---- export from the drawer button, then import on a fresh browser profile
+    // ---- export from the Classification tab button, then import on a fresh browser profile
     await page.evaluate(() => window.__xrayClassify.walk.close());
-    await page.locator('.xt-btn-tool[data-tool="classify"]').click();
-    await page.waitForSelector('.xt-drawer:not(.hidden)');
+    await page.evaluate(() => window.__xrayToolbar.open('classify')); // idempotent: the strip button toggles the Classification tab (the walk can leave it open)
+    await page.waitForSelector('#dk-pane-classification');
     const dl = page.waitForEvent('download', { timeout: 15000 });
-    await page.locator('.xt-drawer .xt-btn', { hasText: 'Export review log' }).click();
+    await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Export review log' }).click();
     const d = await dl;
     exported = readFileSync(await d.path(), 'utf8');
     const parsed = JSON.parse(exported);
     check(`${tag} Export review log writes an xray-classification-review/1 file`, parsed.schema === 'xray-classification-review/1' && parsed.commits.length === 1 && parsed.commits[0].id === firstCommit.id && parsed.modelFingerprint === firstCommit.modelFingerprint && /review.*\.json$/.test(d.suggestedFilename()), d.suggestedFilename());
     await page.evaluate(() => window.__xrayClassify.configure({ provider: 'mock' }));
     await page.waitForTimeout(300);
-    const calBtn = page.locator('.xt-drawer .xt-btn', { hasText: 'Calibrate on confirmed' });
-    check(`${tag} the drawer has Calibrate on confirmed next to Calibrate on rules`, (await calBtn.count()) === 1 && (await page.locator('.xt-drawer .xt-btn', { hasText: 'Calibrate on rules' }).count()) === 1 && !(await calBtn.isDisabled()));
+    const calBtn = page.locator('#dk-pane-classification .xt-btn', { hasText: 'Calibrate on confirmed' });
+    check(`${tag} the Classification tab has Calibrate on confirmed next to Calibrate on rules`, (await calBtn.count()) === 1 && (await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Calibrate on rules' }).count()) === 1 && !(await calBtn.isDisabled()));
     await page.evaluate(() => window.__xrayClassify.configure({ provider: 'off' }));
   } finally {
     const real = errors.filter((e) => !/favicon/i.test(e));
@@ -250,15 +250,15 @@ async function runDesktop(browser) {
     await ctx.close();
   }
 
-  // ---- a fresh profile: import by the drawer button
+  // ---- a fresh profile: import by the Classification tab button
   const fresh = await open(browser);
   try {
     check(`${tag} a fresh profile has no commit`, (await fresh.page.evaluate(() => window.__xrayClassify.review.history().length)) === 0);
-    await fresh.page.locator('.xt-btn-tool[data-tool="classify"]').click();
-    await fresh.page.waitForSelector('.xt-drawer:not(.hidden)');
+    await fresh.page.evaluate(() => window.__xrayToolbar.open('classify')); // idempotent: the strip button toggles the Classification tab (the walk can leave it open)
+    await fresh.page.waitForSelector('#dk-pane-classification');
     await fresh.page.evaluate(() => window.__xrayClassify.classify('all'));
     const file = { name: 'review-log.json', mimeType: 'application/json', buffer: Buffer.from(exported) };
-    await fresh.page.locator('.xt-drawer input[type=file][accept*="json"]').last().setInputFiles(file);
+    await fresh.page.locator('#dk-pane-classification input[type=file][accept*="json"]').last().setInputFiles(file);
     await fresh.page.waitForTimeout(600);
     const imp = await fresh.page.evaluate(() => ({ h: window.__xrayClassify.review.history().map((c) => c.id), src: window.__xrayClassify.results().filter((r) => r.source === 'corrected').length }));
     check(`${tag} Import review log replays the commit (once) and the results come back`, imp.h.length === 1 && imp.h[0] === firstCommit.id && imp.src >= 1, JSON.stringify(imp));
@@ -452,13 +452,13 @@ async function runSkipUnsure(browser) {
 
     // ---- the results table marks it
     await page.evaluate(() => window.__xrayClassify.walk.close());
-    await page.locator('.xt-btn-tool[data-tool="classify"]').click();
-    await page.waitForSelector('.xt-drawer:not(.hidden)');
+    await page.evaluate(() => window.__xrayToolbar.open('classify')); // idempotent: the strip button toggles the Classification tab (the walk can leave it open)
+    await page.waitForSelector('#dk-pane-classification');
     await page.waitForTimeout(400);
-    const rowText = async (g) => (await page.locator(`.xt-drawer tr[data-gid="${g}"]`).first().locator('td').nth(6).textContent().catch(() => null));
+    const rowText = async (g) => (await page.locator(`#dk-pane-classification tr[data-gid="${g}"]`).first().locator('td').nth(6).textContent().catch(() => null));
     const t1 = await rowText(uGid1);
     check(`${tag} the results table marks the unsure result with "?" after the source`, t1 !== null && /^confirmed \?$/.test(t1.trim()), `${t1}`);
-    const marked = await page.evaluate(() => [...document.querySelectorAll('.xt-drawer tr[data-gid]')].filter((tr) => / \?( !)?$/.test(tr.children[6]?.textContent ?? '')).map((tr) => tr.dataset.gid).sort());
+    const marked = await page.evaluate(() => [...document.querySelectorAll('#dk-pane-classification tr[data-gid]')].filter((tr) => / \?( !)?$/.test(tr.children[6]?.textContent ?? '')).map((tr) => tr.dataset.gid).sort());
     check(`${tag} only the unsure results carry the marker`, marked.join() === [uGid1, uGid2].sort().join(), marked.join());
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.__xrayClassify.walk.open());
@@ -505,12 +505,12 @@ async function runPhone(browser) {
   const { ctx, page, errors } = await open(browser, { viewport: { width: 390, height: 844 } });
   try {
     await page.evaluate(() => window.__xrayClassify.classify('all'));
-    await page.locator('.xt-btn-tool[data-tool="classify"]').click();
-    await page.waitForSelector('.xt-drawer:not(.hidden)');
-    await page.locator('.xt-drawer .xt-btn', { hasText: 'Review walk' }).click();
+    await page.evaluate(() => window.__xrayToolbar.open('classify')); // idempotent: the strip button toggles the Classification tab (the walk can leave it open)
+    await page.waitForSelector('#dk-pane-classification');
+    await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Review walk' }).click();
     await page.waitForSelector('.xrw:not([hidden])');
     await page.waitForTimeout(900);
-    check(`${tag} the Review walk button in the drawer opens the panel and closes the drawer`, (await page.locator('.xt-drawer:not(.hidden)').count()) === 0 && (await walkState(page)).open);
+    check(`${tag} the Review walk button in the Classification tab opens the walk in place of the panel`, (await page.locator('#dk-pane-classification .xc-tab-body').isHidden()) && (await walkState(page)).open);
     const box = await page.evaluate(() => { const r = document.querySelector('.xrw').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, vw: window.innerWidth, vh: window.innerHeight, scrollW: document.documentElement.scrollWidth }; });
     check(`${tag} the panel fits the phone width and sits in the lower part of the screen`, box.left >= 0 && box.right <= box.vw + 1 && box.scrollW <= box.vw + 1 && box.top > box.vh * 0.25, JSON.stringify(box));
     const tiny = await page.evaluate(() => [...document.querySelectorAll('.xrw-acts .xrw-btn')].filter((b) => b.getBoundingClientRect().height < 34 || b.getBoundingClientRect().right > window.innerWidth).length);

@@ -159,7 +159,13 @@ export class ToolbarView {
       }
       b.classList.toggle('active', active);
       b.setAttribute('aria-pressed', String(active));
-      b.classList.toggle('open', this.openId === t.id);
+      let hosted = false;
+      try {
+        hosted = !!t.host?.isOpen(this.app);
+      } catch {
+        hosted = false;
+      }
+      b.classList.toggle('open', this.openId === t.id || hosted);
     }
   }
 

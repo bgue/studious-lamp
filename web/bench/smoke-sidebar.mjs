@@ -1,6 +1,6 @@
 // Headless smoke test for the sidebar: starts vite, loads /?model=building, expands the storey and IfcDuctSegment
 // nodes with DOM clicks, clicks the duct row, waits 1 s and screenshots to bench/smoke-sidebar.png (1600x900).
-// Also checks the layout (canvas fills the stage, collapse to the 28 px rail and back, persisted state).
+// Also checks the layout (canvas fills the stage, collapse to the 28 px rail and back, persisted state), and that the properties show in the right sidebar.
 // Usage: node bench/smoke-sidebar.mjs [--out bench/smoke-sidebar.png]
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -82,9 +82,11 @@ try {
   const selected = await page.evaluate('window.__xray.app.selection.length');
   check('clicking the duct row selects one element', selected === 1, `selection=${selected}`);
   check('selected row is highlighted', (await page.locator('.tr.sel').count()) >= 1);
-  const footer = await page.locator('.props-grid dd .pv-t').allTextContents(); // the value text; each row also has a ⋯ menu button
+  // The properties moved from the foot of this sidebar to the Properties tab of the right sidebar (#dock); the selectors are the same.
+  const footer = await page.locator('#dock .props-grid dd .pv-t').allTextContents(); // the value text; each row also has a ⋯ menu button
   console.log('properties:', JSON.stringify(footer));
-  check('properties footer shows a globalId and class', footer[0]?.length > 5 && footer[1] === 'IfcDuctSegment');
+  check('the Properties tab of the right sidebar shows a globalId and class', footer[0]?.length > 5 && footer[1] === 'IfcDuctSegment');
+  check('the left sidebar no longer has a properties block', (await page.locator('#sidebar .props').count()) === 0);
   const buckets = await page.locator('.tr.k-element .dot').first().getAttribute('class');
   check('selected duct has the focus dot', /b-focus/.test(buckets ?? ''), buckets ?? '');
 

@@ -1,5 +1,5 @@
 // Headless smoke test for the Classify tool: starts vite (bench/vite.smoke.config.mjs) on port 5691, loads synth5k at
-// 1600x900 and drives the drawer and window.__xrayClassify with Playwright. The Jev endpoint is a page.route that returns
+// 1600x900 and drives the Classification tab (formerly the drawer; #dk-pane-classification) and window.__xrayClassify with Playwright. The Jev endpoint is a page.route that returns
 // Jev-shaped answers (no real network). It covers: classify all with the rules (0 requests) and with the rules off (requests
 // against elements), a WHERE on discipline in the search bar, colour by discipline, a manual override, the CSV export,
 // the WebLLM provider without WebGPU (a plain message), the phone layout, and zero console errors.
@@ -115,11 +115,11 @@ async function open(browser, opts = {}) {
 
 const openDrawer = async (page) => {
   await page.locator('.xt-btn-tool[data-tool="classify"]').click();
-  await page.waitForSelector('.xt-drawer:not(.hidden) .xt-table');
+  await page.waitForSelector('#dk-pane-classification .xt-table');
   await page.waitForTimeout(300);
 };
 const ensureDrawer = async (page) => {
-  if (await page.locator('.xt-drawer.hidden').count()) await openDrawer(page);
+  if (!(await page.locator('#dk-pane-classification').isVisible())) await openDrawer(page);
 };
 const typeInBar = async (page, text) => {
   await page.keyboard.press('/');
@@ -137,21 +137,21 @@ async function runDesktop(browser) {
     check(`${tag} the Classify tool is in the action panel`, (await page.locator('.xt-btn-tool[data-tool="classify"]').count()) === 1);
     await openDrawer(page);
     {
-      const dt = await page.locator('.xt-drawer').textContent();
+      const dt = await page.locator('#dk-pane-classification').textContent();
       check(`${tag} the drawer names the Throughline-aligned default schema and says how to replace it`, /Throughline-aligned default/.test(dt) && /Load the Discipline code list of your company standards/.test(dt) && !/PLACEHOLDER/.test(dt));
     }
 
     // ---- the settings: jev, key, test connection
     await page.evaluate(() => window.__xrayClassify.configure({ provider: 'jev' }));
     await page.waitForTimeout(200);
-    await page.locator('.xt-drawer input[aria-label="API key"]').fill(KEY);
-    await page.locator('.xt-drawer .xt-btn', { hasText: 'Save key' }).click();
-    const keyText = await page.locator('.xt-drawer .xt-status', { hasText: 'API key' }).textContent();
+    await page.locator('#dk-pane-classification input[aria-label="API key"]').fill(KEY);
+    await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Save key' }).click();
+    const keyText = await page.locator('#dk-pane-classification .xt-status', { hasText: 'API key' }).textContent();
     check(`${tag} the key is masked in the drawer`, !keyText.includes(KEY) && /hidden/.test(keyText), keyText);
-    check(`${tag} the key box is a password field and empty after saving`, (await page.locator('.xt-drawer input[aria-label="API key"]').inputValue()) === '');
-    await page.locator('.xt-drawer .xt-btn', { hasText: 'Test connection' }).click();
-    await page.waitForFunction(() => /Connected/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 });
-    check(`${tag} test connection reaches the fake endpoint and reports the model`, jev.calls === 1 && /jev-1\.13\.0/.test(await page.locator('.xt-drawer').textContent()), `calls ${jev.calls}`);
+    check(`${tag} the key box is a password field and empty after saving`, (await page.locator('#dk-pane-classification input[aria-label="API key"]').inputValue()) === '');
+    await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Test connection' }).click();
+    await page.waitForFunction(() => /Connected/.test(document.querySelector('#dk-pane-classification')?.textContent ?? ''), null, { timeout: 15000 });
+    check(`${tag} test connection reaches the fake endpoint and reports the model`, jev.calls === 1 && /jev-1\.13\.0/.test(await page.locator('#dk-pane-classification').textContent()), `calls ${jev.calls}`);
     check(`${tag} the key goes in the Authorization header of the endpoint`, jev.auth[0] === `Bearer ${KEY}`);
     const stored = await page.evaluate(() => ({ s: Object.keys(sessionStorage), l: Object.keys(localStorage).filter((k) => /key/i.test(k)) }));
     check(`${tag} the key is in sessionStorage and not in localStorage by default`, stored.s.some((k) => /apiKey/.test(k)) && stored.l.length === 0, JSON.stringify(stored));
@@ -203,8 +203,8 @@ async function runDesktop(browser) {
     await page.evaluate(() => window.__xray.app.selectIds(window.__xray.app.controller.model.elements.slice(0, 40).map((e) => e.id)));
     await page.waitForTimeout(400);
     await shot(page, 'classify-drawer-settings.png');
-    await page.locator('.xt-drawer .xt-table-wrap').scrollIntoViewIfNeeded();
-    await page.evaluate(() => { const b = document.querySelector('.xt-body'); b.scrollTop = b.scrollHeight * 0.45; });
+    await page.locator('#dk-pane-classification .xt-table-wrap').scrollIntoViewIfNeeded();
+    await page.evaluate(() => { const b = document.querySelector('#dk-pane-classification .xc-tab-body'); b.scrollTop = b.scrollHeight * 0.45; });
     await page.waitForTimeout(200);
     await shot(page, 'classify-drawer-results.png');
 
@@ -227,7 +227,7 @@ async function runDesktop(browser) {
     await page.evaluate(() => window.__xrayClassify.colourByDiscipline(false));
 
     // ---- manual override from the drawer
-    const firstRow = page.locator('.xt-drawer tbody tr').first();
+    const firstRow = page.locator('#dk-pane-classification tbody tr').first();
     const editedGid = await firstRow.getAttribute('data-gid');
     await firstRow.locator('.xc-edit').click();
     await page.waitForSelector('.xc-editor:not([hidden])');
@@ -257,7 +257,7 @@ async function runDesktop(browser) {
     // ---- low confidence: needs review, the top-2 combined sub-discipline question, the set and the filter chips
     lowFor.add('IfcBeam');
     await ensureDrawer(page);
-    await page.locator('.xt-drawer .xt-btn', { hasText: 'Clear cache' }).click();
+    await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Clear cache' }).click();
     const c1 = jev.calls;
     await page.evaluate(() => window.__xrayClassify.classify('all', { rules: false }));
     const s3 = await page.evaluate(() => window.__xrayClassify.stats());
@@ -267,20 +267,20 @@ async function runDesktop(browser) {
     const nrCount = await page.evaluate(() => window.__xrayClassify.selectNeedsReview());
     check(`${tag} Select needs review selects them`, nrCount === beams && (await page.evaluate(() => window.__xray.app.selection.length)) === beams);
     check(`${tag} the query engine sees XR_Classification.NeedsReview`, (await page.evaluate(() => window.__xraySearch.summarize('count where NeedsReview = TRUE').matched)) === beams);
-    await page.locator('.xt-drawer .xt-chip', { hasText: 'Needs review' }).click();
+    await page.locator('#dk-pane-classification .xt-chip', { hasText: 'Needs review' }).click();
     await page.waitForTimeout(300);
-    const shown = await page.evaluate(() => [...document.querySelectorAll('.xt-drawer tbody tr')].every((tr) => tr.querySelector('.xc-review')));
-    check(`${tag} the Needs review chip filters the table to amber rows`, shown && (await page.locator('.xt-drawer tbody tr').count()) === 200);
-    await page.locator('.xt-drawer tbody tr').first().scrollIntoViewIfNeeded();
+    const shown = await page.evaluate(() => [...document.querySelectorAll('#dk-pane-classification tbody tr')].every((tr) => tr.querySelector('.xc-review')));
+    check(`${tag} the Needs review chip filters the table to amber rows`, shown && (await page.locator('#dk-pane-classification tbody tr').count()) === 200);
+    await page.locator('#dk-pane-classification tbody tr').first().scrollIntoViewIfNeeded();
     await shot(page, 'classify-needs-review.png');
-    await page.locator('.xt-drawer .xt-chip', { hasText: 'Needs review' }).click();
+    await page.locator('#dk-pane-classification .xt-chip', { hasText: 'Needs review' }).click();
     lowFor.clear();
-    await page.locator('.xt-drawer .xt-btn', { hasText: 'Clear cache' }).click();
+    await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Clear cache' }).click();
     await page.evaluate(() => window.__xrayClassify.classify('all', { rules: false }));
 
     // ---- CSV export
     const dl = page.waitForEvent('download', { timeout: 15000 });
-    await page.locator('.xt-drawer .xt-btn', { hasText: 'Export CSV' }).click();
+    await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Export CSV' }).click();
     const d = await dl;
     const csv = readFileSync(await d.path(), 'utf8');
     const lines = csv.trim().split(/\r?\n/);
@@ -295,12 +295,12 @@ async function runDesktop(browser) {
     await page.evaluate(() => window.__xrayClassify.configure({ provider: 'webllm' }));
     await page.waitForTimeout(800);
     const hasGpu = await page.evaluate(async () => !!navigator.gpu && !!(await navigator.gpu.requestAdapter().catch(() => null)));
-    const drawerText = await page.locator('.xt-drawer').textContent();
+    const drawerText = await page.locator('#dk-pane-classification').textContent();
     if (!hasGpu) {
       check(`${tag} WebLLM without WebGPU shows a plain message`, /WebGPU/.test(drawerText) && /cannot run/.test(drawerText) && /Jev provider|rules only/.test(drawerText), '');
-      await page.locator('.xt-drawer .xt-btn', { hasText: 'Test connection' }).click();
+      await page.locator('#dk-pane-classification .xt-btn', { hasText: 'Test connection' }).click();
       await page.waitForTimeout(500);
-      check(`${tag} Test connection under WebLLM gives the same message, no crash`, /WebGPU/.test(await page.locator('.xt-drawer .xt-status.xc-err').first().textContent().catch(() => '')));
+      check(`${tag} Test connection under WebLLM gives the same message, no crash`, /WebGPU/.test(await page.locator('#dk-pane-classification .xt-status.xc-err').first().textContent().catch(() => '')));
     } else {
       check(`${tag} WebGPU is present here, so the missing-GPU message is not shown`, !/not available/.test(drawerText));
     }
@@ -323,15 +323,15 @@ async function runPhone(browser) {
   const { ctx, page, errors } = await open(browser, { viewport: { width: 390, height: 844 } });
   try {
     await page.locator('.xt-btn-tool[data-tool="classify"]').click();
-    await page.waitForSelector('.xt-drawer:not(.hidden) .xt-table');
+    await page.waitForSelector('#dk-pane-classification .xt-table');
     await page.evaluate(() => window.__xrayClassify.classify('all'));
     await page.waitForTimeout(500);
     const box = await page.evaluate(() => {
-      const d = document.querySelector('.xt-drawer').getBoundingClientRect();
+      const d = document.querySelector('#dock').getBoundingClientRect(); // the sheet: the classify panel is the Classification tab of the right sidebar
       return { left: d.left, right: d.right, vw: window.innerWidth, scrollW: document.documentElement.scrollWidth };
     });
-    check(`${tag} the drawer fits inside the phone width`, box.right <= box.vw + 1 && box.scrollW <= box.vw + 1, JSON.stringify(box));
-    const btns = await page.evaluate(() => [...document.querySelectorAll('.xt-drawer .xt-btn')].every((b) => b.getBoundingClientRect().right <= window.innerWidth));
+    check(`${tag} the sheet with the Classification tab fits inside the phone width`, box.right <= box.vw + 1 && box.scrollW <= box.vw + 1, JSON.stringify(box));
+    const btns = await page.evaluate(() => [...document.querySelectorAll('#dk-pane-classification .xt-btn')].every((b) => b.getBoundingClientRect().right <= window.innerWidth));
     check(`${tag} every button is inside the screen`, btns);
     await shot(page, 'classify-phone.png');
   } finally {

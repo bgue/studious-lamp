@@ -95,7 +95,7 @@ describe('help texts', () => {
     const must = [
       'Classification (Alg 1)/bufferBase (m)', 'Sightlines (Alg 2)/occluderScope', 'Sightlines (Alg 2)/farWeight',
       'Sightlines (Alg 2)/layerWeighting', 'Sightlines (Alg 2)/layerFalloff', 'Sightlines (Alg 2)/layerBudget',
-      'Rendering/order-independent ghosts', 'Rendering/depthWeight', 'Rendering/OIT antialiasing', 'Export / import/Export JSON', 'Panel dock/Collapse toggle', 'Class styles/*', 'Class styles/*/alphaMax',
+      'Rendering/order-independent ghosts', 'Rendering/depthWeight', 'Rendering/OIT antialiasing', 'Export / import/Export JSON', 'Right sidebar/Collapse toggle', 'Class styles/*', 'Class styles/*/alphaMax',
       'Class styles/*/alphaMin', 'Class styles/*/floor', 'Class styles/*/hidden', 'Class styles/*/color',
       'Sidebar/Filter box', 'Sidebar/Eye icon', 'Sidebar/Bucket dot', 'Sidebar/Collapse toggle',
       'Open model', 'Open model/Open IFC or glb file', 'Open model/Cancel load', 'Open model/Load status',

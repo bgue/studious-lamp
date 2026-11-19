@@ -20,8 +20,8 @@ import type { QuestionReport, TemperatureKey } from '../classify/calibrate';
 import type { CalibrationReport } from '../classify/calibrateRules';
 import { renderThumbs, thumbKey, disposeThumbRenderer } from '../classify/thumbs';
 import { buildGeometry, previewSvg } from '../classify/geometrySvg';
+import { describeShape, shapeLine, shapeTokens } from '../classify/geometryVector';
 import type { GeoSource } from '../classify/geometrySvg';
-import { GEOMETRY_TEXT_MODES } from '../classify/providers/d3Config';
 import type { ThumbSet, ThumbSource } from '../classify/thumbs';
 import type { DecisionStats, ModelCacheInfo } from '../classify/providers/decision';
 import type { WebLlmStats } from '../classify/providers/webllm';
@@ -47,7 +47,10 @@ import { registerParamSection } from '../ui/params';
 import { quoteIdent } from '../query';
 import { openCriteriaSetEditor } from './sidebar';
 import { ReviewWalk } from './classifyReview';
-import type { WalkState } from './classifyReview';
+import { SELECTION_CSS, buildSelectionCard } from './classifySelection';
+import { addRightSidebarTab } from '../ui/rightSidebar';
+import type { RightTabHandle } from '../ui/rightSidebar';
+import type { WalkHost, WalkState } from './classifyReview';
 import type { PendingChange } from '../classify/reviewService';
 import type { ImportOutcome, ReviewCommit } from '../classify/reviewLog';
 import type { WalkOrder } from '../classify/reviewWalk';
@@ -161,7 +164,11 @@ const CSS = `
 .xc-caltable th,.xc-caltable td{padding:2px 6px;border-bottom:1px solid var(--sb-line,#262d3a);text-align:right}
 .xc-caltable th:first-child,.xc-caltable td:first-child{text-align:left}
 .xc-caltable tr.xc-after td{color:#9fe3b0}
-`;
+#dk-pane-classification{overflow:hidden;gap:6px;padding:8px 8px 0}
+#dk-pane-classification [hidden]{display:none!important}
+.xc-tab-body{padding:0 2px 12px!important}
+.xc-walk{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+${SELECTION_CSS}`;
 
 function ensureStyle(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -606,45 +613,68 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     );
   };
 
-  // ---- geometry as SVG text (jev, d3): what the model reads, rendered and as text
+  // ---- the shape of the element as text: SVG markup (jev, d3) and the one-line numbers (every provider)
   const geoSec = el('div', 'xc-group');
   geoSec.style.cssText = 'display:flex;flex-direction:column;gap:6px';
-  const geoMode = add(pick('Geometry as text', GEOMETRY_TEXT_MODES.map((v) => ({ value: v, text: v === 'off' ? 'Off' : 'SVG in the state' })), () => d().geometryText, (v) => apply({ geometryText: v })));
+  const geoOn = add(check('Send shape as vector (SVG)', () => d().geometryText === 'svg', (v) => apply({ geometryText: v ? 'svg' : 'off' })));
   const geoCtx = add(check('Add the element in its bounding box', () => d().geometryContext, (v) => apply({ geometryContext: v })));
-  const geoNote = el('div', 'xt-note');
+  const geoExplain = el('div', 'xt-note', { 'data-role': 'geo-explain' });
   const geoLine = statusLine('');
   const geoViews = el('div', 'xc-thumbs xc-geo');
   const geoText = el('pre');
   geoText.style.cssText = 'max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-all;font-size:10px;margin:0';
   geoViews.hidden = true;
   geoText.hidden = true;
-  geoSec.append(geoMode.root, geoCtx.root, geoNote, geoLine, geoViews, geoText);
-  box.append(section('Geometry'), geoSec);
+  const vecOn = add(check('Send shape as numbers (one line)', () => d().geometryVector, (v) => apply({ geometryVector: v })));
+  const vecExplain = el('div', 'xt-note', { 'data-role': 'vec-explain' }, 'One line of numbers in the request: the box sides in metres (longest first), volume and surface, elongation and flatness, the axis against up, the direction in plan, the height above the storey and the number of openings. About 50 tokens. Every provider can use it.');
+  const vecLine = el('pre');
+  vecLine.setAttribute('data-role', 'vec-line');
+  vecLine.style.cssText = 'white-space:pre-wrap;word-break:break-word;font-size:11px;margin:0;color:#b9c4d2';
+  vecLine.hidden = true;
+  geoSec.append(geoOn.root, geoCtx.root, geoExplain, vecOn.root, vecExplain, geoLine, vecLine, geoViews, geoText);
+  box.append(section('Shape'), geoSec);
   let geoFor = '';
   const paintGeometry = (): void => {
-    const gs = svc.geometrySettings();
-    geoViews.hidden = !gs;
-    geoText.hidden = !gs;
-    geoLine.hidden = !gs;
-    if (!gs) { geoFor = ''; geoViews.replaceChildren(); geoText.textContent = ''; return; }
+    const p = d().provider;
+    const supports = p === 'jev' || p === 'd3';
+    const gs = { context: d().geometryContext, margin: d().imageMargin };
     const sel = app.selection[0];
-    const key = `${sel ?? ''}|${svc.modelName}|${gs.context}|${gs.margin}`;
+    const key = `${sel ?? ''}|${svc.modelName}|${gs.context}|${gs.margin}|${supports}|${d().geometryText}|${d().geometryVector}`;
     if (key === geoFor) return;
     geoFor = key;
-    if (sel === undefined) { geoViews.replaceChildren(); geoText.textContent = ''; geoLine.set('Select an element to see the geometry that the model reads.'); return; }
+    geoViews.hidden = false;
+    geoText.hidden = false;
+    geoLine.hidden = false;
+    vecLine.hidden = true;
+    if (sel === undefined) {
+      geoViews.replaceChildren(); geoText.textContent = '';
+      geoLine.set('Select an element to preview the shape that the model would read.');
+      geoLine.classList.remove('xc-err');
+      return;
+    }
+    const sent = supports && d().geometryText === 'svg';
+    const lines: string[] = [];
     try {
+      // The preview is made with the settings above even while the switch is off: it shows what turning it on would send.
       const set = svc.geometryOf(sel, gs);
       geoViews.replaceChildren(...set.views.map((v) => {
         const fig = el('figure');
-        const img = el('img', undefined, { alt: `Geometry of the selected element: ${v.name}`, src: `data:image/svg+xml;utf8,${encodeURIComponent(previewSvg(v.svg))}`, width: '180', height: '180' });
+        const img = el('img', undefined, { alt: `Shape of the selected element: ${v.name}`, src: `data:image/svg+xml;utf8,${encodeURIComponent(previewSvg(v.svg))}`, width: '180', height: '180' });
         img.style.cssText = 'background:#fff;object-fit:contain';
         fig.append(img, el('figcaption', undefined, undefined, v.name));
         return fig;
       }));
       geoText.textContent = `${set.legend}\n${set.svg}`;
-      geoLine.set(`The model reads about ${set.tokens} tokens of geometry (${set.neighbours} nearby element${set.neighbours === 1 ? '' : 's'}), once for every question. The text below is exactly what goes into the state. It is not saved anywhere.`);
+      lines.push(`SVG: about ${set.tokens} tokens for this element (${set.neighbours} nearby element${set.neighbours === 1 ? '' : 's'}), in every request${sent ? '' : '; not sent now'}. The text below is exactly what would go into the state. It is not saved anywhere.`);
       geoLine.classList.remove('xc-err');
-    } catch (e) { geoViews.replaceChildren(); geoText.textContent = ''; geoLine.set(e instanceof Error ? e.message : String(e)); geoLine.classList.add('xc-err'); }
+    } catch (e) { geoViews.replaceChildren(); geoText.textContent = ''; lines.push(e instanceof Error ? e.message : String(e)); geoLine.classList.add('xc-err'); }
+    try {
+      const v = svc.shapeOf(sel);
+      vecLine.hidden = v === '';
+      vecLine.textContent = v;
+      if (v) lines.push(`Numbers: about ${shapeTokens(v)} tokens${d().geometryVector ? '' : '; not sent now'}.`);
+    } catch { vecLine.textContent = ''; vecLine.hidden = true; }
+    geoLine.set(lines.join(' '));
   };
 
   // ---- schema
@@ -790,7 +820,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   const table = el('table', 'xt-table');
   const thead = el('thead');
   const hr = el('tr');
-  for (const h of ['Element', 'Disc.', 'Sub', 'Div.', 'Conf.', 'Top 2', 'Source', '']) hr.appendChild(el('th', undefined, undefined, h));
+  for (const h of ['Element', 'Disc.', 'Sub', 'Div.', 'Conf.', 'Top 2', 'Source', 'Edit']) hr.appendChild(el('th', undefined, undefined, h));
   thead.appendChild(hr);
   const tbody = el('tbody');
   table.append(thead, tbody);
@@ -1046,11 +1076,15 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     picSize.root.style.display = mode === 'off' ? 'none' : '';
     {
       const geoOk = p === 'jev' || p === 'd3';
-      geoSec.style.display = geoOk ? 'flex' : 'none';
-      geoSec.hidden = !geoOk;
-      geoNote.textContent = geoOk ? (d().geometryText === 'off' ? 'Geometry text is off: the model gets no shape as text.' : 'The shape goes into the state as SVG markup in metres: plan and elevation of the element, and its bounding box with the elements around it.') : '';
-      geoCtx.root.style.display = d().geometryText === 'off' ? 'none' : '';
-      if (geoOk) paintGeometry();
+      for (const i of Array.from(geoOn.root.querySelectorAll('input'))) (i as HTMLInputElement).disabled = !geoOk;
+      geoOn.root.title = geoOk ? '' : 'Only Jev and d3-edge read SVG. The decision and browser-chat providers have a short prompt: use the numbers.';
+      geoExplain.textContent = !geoOk
+        ? 'This provider has a short prompt and does not read SVG markup. Jev and d3-edge do. Use the numbers below.'
+        : d().geometryText === 'off'
+          ? 'Off: the model gets no outline. Turn it on to add SVG markup in metres (plan and elevation of the element, and optionally its bounding box with the elements around it) to the state. The preview shows what it would send.'
+          : 'The outline goes into the state as SVG markup in metres: plan and elevation of the element, and optionally its bounding box with the elements around it. It costs tokens in every request (a token estimate is shown below).';
+      geoCtx.root.style.display = geoOk && d().geometryText === 'svg' ? '' : 'none';
+      paintGeometry();
     }
     paintThumbs();
     paintCal();
@@ -1159,12 +1193,33 @@ function geoSource(app: ViewerApp): GeoSource {
   };
 }
 
+let voidIndex: { model: unknown; counts: Map<number, number> } | null = null;
+
+/** The numeric shape line of an element (geometryVector): box, mesh, storey elevation and the number of openings from the loaded model. */
+function shapeOfElement(app: ViewerApp, id: number): string {
+  const src = geoSource(app);
+  const bounds = src.bounds(id);
+  if (!bounds) return '';
+  const m = app.controller.model;
+  if (voidIndex?.model !== m) {
+    const counts = new Map<number, number>();
+    for (const [host] of m.relations.voids) counts.set(host, (counts.get(host) ?? 0) + 1);
+    voidIndex = { model: m, counts };
+  }
+  const e = m.elements[id];
+  const storey = e && e.storey !== null ? m.storeys.find((x) => x.id === e.storey) : undefined;
+  return shapeLine(describeShape({ bounds, mesh: src.mesh(id), storeyElevation: storey ? storey.elevation : null, openings: m.relations.voids.length ? voidIndex.counts.get(id) ?? 0 : null }));
+}
+
 // ---------------------------------------------------------------- plugin
 
 let svc: ClassifyService | null = null;
 let tint: Tint | null = null;
 let lastSelKey = '';
 let reviewWalk: ReviewWalk | null = null;
+let classTabHandle: RightTabHandle | null = null;
+/** The parts of the Classification tab once it is built (the walk lives in `walkBox`). */
+let tab: { walkBox: HTMLElement; setWalking(on: boolean): void } | null = null;
 
 /** The classify service of this page (the revision plugin reads results and the review log through it). Null before install. */
 export const classifyService = (): ClassifyService | null => svc;
@@ -1179,6 +1234,7 @@ export const classifyPlugin: AppPlugin = {
       // Pictures of an element for a model that reads images: drawn off screen from the geometry of the loaded model.
       thumbnails: (id, ts) => renderThumbs(thumbSource(app), id, ts),
       geometry: (id, gs) => buildGeometry(geoSource(app), id, gs),
+      shape: (id) => shapeOfElement(app, id),
     });
     svc = service;
     tint = new Tint(app, service);
@@ -1195,7 +1251,15 @@ export const classifyPlugin: AppPlugin = {
     };
     registerParamSection('classify', sectionApi);
 
-    const walk = new ReviewWalk(app, service, () => window.__xrayToolbar?.close());
+    const walkHost: WalkHost = {
+      mount: () => tab?.walkBox ?? null,
+      opened: () => {
+        classTabHandle?.show();
+        tab?.setWalking(true);
+      },
+      closed: () => tab?.setWalking(false),
+    };
+    const walk = new ReviewWalk(app, service, walkHost);
     reviewWalk = walk;
     const api: ClassifyApi = {
       classify: (target, opts) => service.classify(target, opts),
@@ -1284,9 +1348,53 @@ export const classifyPlugin: AppPlugin = {
 
     service.onChange(() => { if (t.on && !service.running) t.apply(); });
 
+    // The panel lives in the Classification tab of the right sidebar (not in a drawer). The tool keeps its id, its button and the
+    // `tool.classify` action: they open that tab.
+    classTabHandle = addRightSidebarTab({
+      id: 'classification',
+      label: 'Classification',
+      order: 20,
+      width: 420,
+      title: 'Classify elements by discipline, sub-discipline and MasterFormat division; the selected element and the review walk',
+      helpKey: 'Right sidebar/Classification tab',
+      mount(pane, ctx) {
+        ensureStyle();
+        const card = buildSelectionCard(app, service, () => void api.classify('selection'));
+        const box = el('div', 'xt-body xc-tab-body');
+        const walkBox = el('div', 'xc-walk');
+        walkBox.hidden = true;
+        pane.append(card.root, box, walkBox);
+        const cleanup = panel(box, app, service, t, api);
+        const refreshCard = (): void => { if (ctx.visible()) card.update(); };
+        const off = service.onChange(refreshCard);
+        document.addEventListener('xray-selection', refreshCard);
+        const offVis = ctx.onVisible((v) => { if (v) card.update(); });
+        card.update();
+        tab = {
+          walkBox,
+          setWalking(on) {
+            walkBox.hidden = !on;
+            card.root.hidden = on;
+            box.hidden = on;
+            if (!on) card.update();
+          },
+        };
+        return () => {
+          cleanup();
+          off();
+          offVis();
+          document.removeEventListener('xray-selection', refreshCard);
+          tab = null;
+        };
+      },
+    });
     registerTool({
-      id: 'classify', label: 'Classify', title: 'Label elements by discipline, sub-discipline and MasterFormat division', icon: ICONS.classify, order: 115, drawerWidth: 480,
-      panel: (box, a) => panel(box, a, service, t, api),
+      id: 'classify', label: 'Classify', title: 'Label elements by discipline, sub-discipline and MasterFormat division', icon: ICONS.classify, order: 115,
+      host: {
+        open: () => classTabHandle?.show(),
+        close: () => { if (classTabHandle?.visible()) window.__xrayRightSidebar?.close(); },
+        isOpen: () => classTabHandle?.visible() ?? false,
+      },
     });
     registerAction({ id: 'classify.selection', label: 'Classify: selection', group: 'Tools', keys: [], run: () => void api.classify('selection') });
     registerAction({ id: 'classify.all', label: 'Classify: all elements', group: 'Tools', keys: [], run: () => void api.classify('all') });

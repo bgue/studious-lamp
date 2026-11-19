@@ -12,6 +12,7 @@ A vertical icon strip at the left edge of the canvas (44 px, inside the stage, s
 | Tool | Drawer |
 | --- | --- |
 | BCF, Markup | moved: both live in the sidebar tab `Issues` ([issues.md](issues.md)); the actions `tool.bcf` and `tool.markup` and a boot config naming them still open it |
+| Classify | moved: the panel is the Classification tab of the right sidebar ([right-sidebar.md](right-sidebar.md), [classify.md](classify.md)); the button, the action `tool.classify`, `__xrayToolbar.open('classify')` and `boot.openTool` open that tab |
 | Open model | no drawer: runs the Open model button of the parameter panel |
 | X-ray | no drawer: toggles x-ray (same as key `X`), highlighted when on |
 | View modes | Behind-only and peelback toggles, front treatment, offset, front alpha, radius, slope, feather (the full set is in the View modes folder) |
@@ -27,7 +28,7 @@ The Cleanup drawer reads and writes the live rules (`window.__xrayCleanup.rules`
 - `toolbar.toggle` (key `t`): show or hide the strip. `tool.<id>` (no default key): open that tool; they appear in the command palette (Ctrl+Shift+K) and the search bar for the visible tools.
 - `window.__xrayToolbar = { open(id), close(), toggle(), tools() }`. `open` returns false for an unknown or hidden id; `tools()` lists the visible ids in order.
 - Packaged viewers (`tools/xray-pack`): `window.__xrayBoot.tools` is an ordered list of tool ids to show (anything else is hidden and gets no `tool.<id>` action); `openTool` opens one at start.
-- Plugins add tools with `registerTool` (src/tools/registry.ts). `drawerWidth` is an optional field.
+- Plugins add tools with `registerTool` (src/tools/registry.ts). `drawerWidth` is an optional field. A tool whose panel lives elsewhere sets `host: { open, close, isOpen }` instead of `panel` (the strip button, `tool.<id>`, `open(id)` and `openTool` call it, and the button shows `open` while `isOpen` is true); classify does this.
 
 ## Shared overlay
 
@@ -35,9 +36,9 @@ The Cleanup drawer reads and writes the live rules (`window.__xrayCleanup.rules`
 
 Reserved rects: `ov.reserved` lists, in canvas pixels, the parts of the view that chrome covers: the edge strips (status bar, top bar, tool strip and open drawer, phone rails), the gizmo box, the legends drawn on the overlay (`[data-legend]` groups and layers named `*legend`) and anything registered with `ov.reserve(key, rect | () => rect)` (null removes it). It is refreshed every frame, and a change re-runs the `onUpdate` callbacks. `ov.place(x, y, w, h, { gap, maxShift })` returns the nearest centre for a `w` x `h` label box that is clear of every reserved rect and inside the view (`moved` tells whether it moved; `null` when no spot is within `maxShift`). Every label on the overlay goes through it the same way: a measure label, a BCF callout or note box moves out with a dashed leader line back to its anchor; a penetration marker under the gizmo or a legend moves beside it with a leader line; a BCF pin whose point is covered is drawn beside the rect with a leader line, or as an edge marker when no spot is near. The pure maths is in `src/ui/reserved.ts` (`freeSpot`, `insetRects`, `underReserved`), tested in `tests/bcf-markup-fixes.test.ts`.
 
-## Sample Projects (parameter panel)
+## Sample Projects (Parameters tab)
 
-The right-hand panel (lil-gui, "X-ray parameters") starts with the **Open model** folder and, right under it, the **Sample Projects** folder. Its
+The Parameters tab of the right sidebar (lil-gui, "X-ray parameters"; [right-sidebar.md](right-sidebar.md)) starts with the **Open model** folder and, right under it, the **Sample Projects** folder. Its
 **Model** list has one entry per sample with a readable label: Building (Simple-Scene), FZK-Haus, Plumbing, Process plant, Synthetic 5k,
 Debris demo and Procedural. Models that you opened from files follow the samples. Choosing an entry loads it, and the list shows the model on screen.
 

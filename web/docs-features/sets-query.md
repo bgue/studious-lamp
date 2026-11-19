@@ -45,7 +45,7 @@ The list is a plain scrolling list of one-line rows with `content-visibility: au
 
 ## Properties context menu
 
-Right-click any row of the properties footer (Class, Name, Storey, Material, GlobalId and every property of the
+Right-click any row of the Properties tab of the right sidebar (Class, Name, Storey, Material, GlobalId and every property of the
 **Properties** list), or use the **⋯** button that shows on hover (always on touch screens):
 
 | Item | Query |

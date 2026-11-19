@@ -60,6 +60,8 @@ try {
   await waitForServer();
   browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  // The lil-gui panel is the Parameters tab of the right sidebar (the default tab is Properties): start on it, as the hover steps below point at its controls.
+  await page.addInitScript(() => { try { if (!localStorage.getItem('xray.dock')) localStorage.setItem('xray.dock', JSON.stringify({ collapsed: false, tab: 'parameters' })); } catch { /* ignore */ } });
   const warnings = [];
   const errors = [];
   page.on('console', (m) => {

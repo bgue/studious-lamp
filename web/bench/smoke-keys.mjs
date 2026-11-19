@@ -232,7 +232,9 @@ try {
   const blurred = await page.evaluate(() => document.activeElement === document.body);
   check('Escape clears then blurs the filter', blurred);
 
-  // lil-gui number fields still take typing.
+  // lil-gui number fields still take typing. (The panel is the Parameters tab of the right sidebar; the default tab is Properties.)
+  await page.evaluate(() => window.__xrayRightSidebar.open('parameters'));
+  await page.waitForTimeout(300);
   const numInput = page.locator('.lil-controller.lil-number input:visible').first();
   await numInput.click();
   const xr = await page.evaluate('window.__xray.app.settings.xray');

@@ -69,6 +69,11 @@ export function geometryHash(s: { geometryContext: boolean; imageMargin: number 
   return shortHash(`svg|${s.geometryContext ? `ctx${s.imageMargin}` : '-'}`);
 }
 
+/** The numeric shape line (geometryVector) goes into the state of every provider: part of the identity of a decision when it is on. */
+export function sendsShape(s: ClassifySettings): boolean {
+  return s.geometryVector === true;
+}
+
 /** Does this provider put SVG geometry into the state? Jev and d3-edge (either backend); the short-premise providers (decision, webllm) never do. */
 export function sendsGeometry(s: ClassifySettings): boolean {
   return s.geometryText === 'svg' && (s.provider === 'jev' || s.provider === 'd3');
@@ -130,6 +135,11 @@ export function createProvider(s: ClassifySettings, deps: ProviderDeps): Decisio
 
 /** Id of the provider and model, for the cache key and the messages: "jev:jev-1.13.0", "webllm:Qwen2.5-...", "mock", "rules". */
 export function providerId(s: ClassifySettings, o: { vision?: boolean } = {}): string {
+  const id = providerIdBase(s, o);
+  return sendsShape(s) && s.provider !== 'off' ? `${id}@v1` : id;
+}
+
+function providerIdBase(s: ClassifySettings, o: { vision?: boolean } = {}): string {
   switch (s.provider) {
     case 'jev':
       return `jev:${s.model}${sendsImages(s) ? `@i${imageHash(s)}` : ''}${sendsGeometry(s) ? `@g${geometryHash(s)}` : ''}`;

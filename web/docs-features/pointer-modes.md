@@ -32,7 +32,7 @@ uses bounding boxes, so a crossing box can pick an L-shaped element whose empty 
 occlusion: a box picks the elements behind the ones in front.
 
 The result goes through `app.selectWith(ids, how)` (`'replace' | 'add' | 'toggle'`, over `selectIds`), so the model tree,
-the properties panel and the status bar update as for a click.
+the Properties tab and the status bar update as for a click.
 
 ## Settings and persistence
 

@@ -42,10 +42,10 @@
       }
       body.sb-collapsed { --sb-w: var(--sb-rail); }
       :root { --dk-w: 300px; --dk-rail: 28px; }
-      body.dk-collapsed { --dk-w: var(--dk-rail); }
+      body.dk-collapsed #dock { --dk-w: var(--dk-rail) !important; }
       html, body { margin: 0; height: 100%; background: #e9edf2; overflow: hidden; }
 
-      /* Page layout: sidebar | stage (canvas) | dock (lil-gui parameter panel). */
+      /* Page layout: sidebar | stage (canvas) | dock (the right sidebar: Properties, Classification, Parameters tabs). */
       #app { display: flex; width: 100%; height: 100%; }
       #stage { position: relative; flex: 1 1 0; min-width: 0; height: 100%; overflow: hidden; }
       /* Absolutely positioned so the canvas's intrinsic size (its width/height attributes) never stretches the layout. */
@@ -146,8 +146,8 @@
       .sets-msg { color: var(--sb-dim); min-height: 14px; }
       .sets-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 6px 6px; }
 
-      /* Properties footer. */
-      .props { flex: 0 0 auto; border-top: 1px solid var(--sb-line); padding: 6px 8px 8px; min-width: 300px; background: #10141b; }
+      /* Properties (the Properties tab of the right sidebar). */
+      .props { flex: 0 0 auto; padding: 6px 8px 8px; min-width: 0; background: #10141b; }
       .props-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
       .props-title { font-weight: 600; color: var(--sb-dim); text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; }
       .props-empty { color: var(--sb-dim); padding: 4px 0; }
@@ -157,11 +157,11 @@
       .props-more { color: var(--sb-dim); margin-top: 3px; }
 
       /* Collapsed: a 28 px rail with only the toggle (and a vertical label). */
-      body.sb-collapsed .sb-tabs, body.sb-collapsed .sb-body, body.sb-collapsed .props { display: none; }
+      body.sb-collapsed .sb-tabs, body.sb-collapsed .sb-body { display: none; }
       body.sb-collapsed .sb-top { flex-direction: column; padding: 4px 3px; border-bottom: 0; }
       body.sb-collapsed .sb-rail-label { display: block; }
 
-      /* ------------------------------------------------------------------ right dock (lil-gui) */
+      /* ------------------------------------------------------------------ right sidebar (#dock) */
       #dock {
         flex: 0 0 var(--dk-w);
         width: var(--dk-w);
@@ -185,12 +185,25 @@
         background: transparent; border: 1px solid var(--sb-line); border-radius: 3px; cursor: pointer; font-size: 16px;
       }
       .dk-toggle:hover { background: var(--sb-hover); border-color: #3a4558; }
-      .dk-title { color: var(--sb-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .dk-tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+      .dk-tabs::-webkit-scrollbar { display: none; }
+      .dk-tab { flex: 0 0 auto; background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 3px 8px; cursor: pointer; color: var(--sb-dim); white-space: nowrap; }
+      .dk-tab:hover { color: var(--sb-fg); }
+      .dk-tab.active { color: var(--sb-fg); border-bottom-color: var(--sb-accent); }
+      .dk-badge { margin-left: 4px; padding: 0 5px; border-radius: 8px; background: var(--sb-sel); color: #fff; font-size: 10px; }
+      .dk-error { padding: 12px; color: #ff8f8f; }
       .dk-rail-label {
         display: none; writing-mode: vertical-rl; transform: rotate(180deg); align-self: center; margin-top: 10px;
         color: var(--sb-dim); cursor: pointer; letter-spacing: 0.05em; white-space: nowrap;
       }
-      .dk-body { flex: 1 1 auto; min-height: 0; min-width: 300px; display: flex; flex-direction: column; }
+      .dk-body { flex: 1 1 auto; min-height: 0; min-width: var(--dk-w, 300px); display: flex; flex-direction: column; }
+      .dk-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+      /* Properties tab: the list takes the height of the pane. */
+      .dk-pane .props { flex: 1 1 auto; }
+      .dk-pane .props-list-rows { max-height: none; }
+      .dk-pane .props-grid { grid-template-columns: 110px 1fr; }
+      /* Parameters tab: lil-gui fills the pane and scrolls inside. */
+      .dk-pane[data-pane="parameters"] { overflow: hidden; }
 
       /* lil-gui inside the dock: not fixed, fills the column, scrolls inside, sidebar colours. */
       #dock .lil-gui.lil-root {
@@ -210,7 +223,7 @@
         position: sticky; top: 0; z-index: 3; background: var(--title-background-color);
       }
 
-      body.dk-collapsed .dk-title, body.dk-collapsed .dk-body { display: none; }
+      body.dk-collapsed .dk-tabs, body.dk-collapsed .dk-body { display: none; }
       body.dk-collapsed .dk-top { flex-direction: column; padding: 4px 3px; border-bottom: 0; }
       body.dk-collapsed .dk-rail-label { display: block; }
 
@@ -222,13 +235,18 @@
         }
         body.sb-collapsed #sidebar { width: var(--sb-rail); }
         #stage { flex: 1 1 100%; width: 100%; }
-        .sb-body, .props { min-width: 0; }
-        .props { max-height: 38vh; overflow-y: auto; }
+        .sb-body { min-width: 0; }
+        /* The right sidebar: a 28 px rail when collapsed, a bottom sheet when open (the left sidebar and the sheet are never both open). */
         #dock {
-          position: absolute; right: 0; top: 0; bottom: 0; flex: none; width: min(var(--dk-w), 85vw); box-shadow: -2px 0 12px rgba(0, 0, 0, 0.35);
+          position: absolute; right: 0; top: 0; bottom: 0; flex: none; width: var(--dk-rail); box-shadow: -2px 0 12px rgba(0, 0, 0, 0.35);
         }
-        body.dk-collapsed #dock { width: var(--dk-rail); }
+        html body:not(.dk-collapsed) #dock {
+          top: auto; left: var(--sb-rail); right: 0; bottom: 22px; width: auto; height: min(58%, 440px); border-left: 0; border-top: 1px solid var(--sb-line);
+          border-radius: 10px 10px 0 0; box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
+        }
         .dk-body { min-width: 0; }
+        /* The gizmo (bottom right of the stage) rises above the open sheet instead of sitting under it. */
+        html body:not(.dk-collapsed) #xray-gizmo { bottom: calc(30px + min(58%, 440px)); }
       }
     </style>
   </head>
@@ -236,7 +254,7 @@
     <div id="app">
       <aside id="sidebar" aria-label="Model sidebar"></aside>
       <div id="stage"><canvas id="c"></canvas></div>
-      <aside id="dock" aria-label="X-ray parameters"></aside>
+      <aside id="dock" aria-label="Right sidebar: properties, classification and parameters"></aside>
     </div>
     <script type="module" src="/src/app.ts"></script>
   </body>

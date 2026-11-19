@@ -312,6 +312,8 @@ export function buildPremise(state: JsonObject, maxTokens = DEFAULT_PREMISE_TOKE
     const pn = text(parents[0]['name']);
     if (pc) parts.push(`Hosted in ${humanizeClass(pc)}${pn ? ` ${pn}` : ''}.`);
   }
+  const shape = text(state['shape']);
+  if (shape) parts.push(`Shape: ${shape}.`);
   if (state['building_context'] === true) parts.push('It is inside a building.');
   else if (state['building_context'] === false) parts.push('It is not inside a building.');
 

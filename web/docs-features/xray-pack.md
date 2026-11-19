@@ -26,8 +26,8 @@ IFC files are converted in node by the **same TypeScript reader the browser uses
 | `--title <text>` | Page title (default: the model name). |
 | `--name <name>` | Model name in the picker and params (default: basename of the first input). |
 | `--tools <ids>` | Comma-separated action-panel tool ids to show, in order. Reserved ids: `open, presets, xray, viewModes, imaging, section, measure, clearance, penetrations, bcf, pointcloud, xr, cleanup, largeModel`. Default: all. |
-| `--open-tool <id>` | Open this tool's drawer at start (must be in `--tools` when that is given). |
-| `--kiosk` | Start with the model tree and the parameter dock collapsed, and without the top bar. |
+| `--open-tool <id>` | Open this tool's drawer at start (must be in `--tools` when that is given). `classify` opens the Classification tab of the right sidebar (after `--kiosk` has folded the sidebars). |
+| `--kiosk` | Start with the model tree and the right sidebar collapsed, and without the top bar. |
 | `--no-topbar` | Hide the top bar (the four visualisation modes and the search host) without a kiosk page. Writes `topBar: false` into `__xrayBoot`. |
 | `--camera px,py,pz:tx,ty,tz` | Camera position and target in the viewer frame: metres, Y up, shifted by the sidecar's `originShift`. Easiest to copy from an exported params file (`camera.position`, `camera.target`). |
 | `--views <file.json>` | Saved views (`xray-views/1`, from the Views tab > Export) added to the Views tab of the page. Views without a name or camera are skipped with a warning; GlobalIds missing from the model are warned about. See [saved-views.md](saved-views.md). |
