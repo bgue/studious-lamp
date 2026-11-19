@@ -19,6 +19,9 @@ import { cleanedName } from '../ifcsave/clean';
 import type { CleanCandidate, CleanJob, CleanReport } from '../ifcsave/clean';
 import { RISK_LINES, keptGroups, totals } from '../ifcsave/cleanReport';
 import type { CleanedBlob } from '../ifcsave/saveWorker';
+import type { SimplifiedMesh } from '../ifcsave/meshRep';
+import type { CleanupPlan } from '../cleanup/plan';
+import { importIfc } from '../model/ifcImport';
 import { DEFAULT_SAVE_OPTIONS, UnsupportedSchemaError } from '../ifcsave/plan';
 import type { FileSavePlan, SaveExtra, SaveOptions } from '../ifcsave/plan';
 import { duplicatesOf, makeSource, sourcesOf, checkAttach } from '../ifcsave/source';
@@ -64,6 +67,10 @@ export interface CleanRequest {
   removeHostsAnyway?: boolean;
   /** Also remove elements the user hid by hand (default false: only what cleanup hid). */
   includeHandHidden?: boolean;
+  /** Experimental, needs `?experimental=simplifiedIfc`: replace the body of the elements cleanup simplified by their new meshes. */
+  withSimplified?: boolean;
+  /** Elements (express ids by file name) that keep their original body, whatever the plan says (used by the self-check re-run). */
+  skipSimplified?: Record<string, number[]>;
   /** Element ids (model indices) to remove instead of what cleanup hid (tests, scripts). */
   ids?: number[];
   target?: 'download' | 'none';
@@ -81,6 +88,8 @@ export interface CleanSummary {
   files: Array<{ name: string; source: string; bytes: number; sourceBytes: number; removed: number; cascaded: number; kept: number; linesDeleted: number; lines: number }>;
   /** Elements that were kept and marked, with the reason. */
   kept: Array<{ file: string; expressId: number; globalId: string; because: string }>;
+  /** With `withSimplified`: bodies replaced, elements that kept theirs (with the reason), and the self-check (re-open the output, compare bounds). */
+  geometry?: { applied: number; skipped: Array<{ file: string; expressId: number; reason: string }>; selfChecked: number; selfCheckFailed: number };
   mode: 'worker' | 'main';
   target: 'download' | 'file' | 'folder' | 'none';
   ms: number;
@@ -132,7 +141,16 @@ interface ClassifyLike {
   schema(): unknown;
   review?: { history(): Array<import('../classify/reviewLog').ReviewCommit> };
 }
+/** `?experimental=simplifiedIfc` (design 2.5, open question Q5): the simplified-geometry write-back stays off until the user asks for it. */
+export const simplifiedIfcEnabled = (): boolean => {
+  try { return new URLSearchParams(location.search).getAll('experimental').flatMap((v) => v.split(',')).includes('simplifiedIfc'); } catch { return false; }
+};
+/** The written bounds may differ from the viewer bounds by this much (metres) before an element keeps its original body. */
+const SELF_CHECK_TOL = 0.001;
+const SELF_CHECK_MAX_BYTES = 200 * 1024 * 1024;
+
 interface CleanupLike {
+  simplify?: { plan(strip?: boolean): CleanupPlan | null };
   hiddenByCleanup?(): number[];
   readonly lastReport: { matches: Array<{ id: number; globalId: string; rules: string[]; reasons: string[] }> } | null;
 }
@@ -373,6 +391,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
       options: { ...options, includeCleanupMarks: false },
       history: options.includeReviewers ? c?.review?.history() : undefined,
     });
+    const simp = req.withSimplified && simplifiedIfcEnabled() ? cleanup()?.simplify?.plan() ?? null : null;
     const byFile = new Map<string, CleanCandidate[]>();
     const names = new Map<string, Map<number, { name: string; ifcClass: string }>>();
     for (const id of ids) {
@@ -393,7 +412,18 @@ export const ifcSavePlugin: AppPlugin = (() => {
     for (const [file, candidates] of byFile) {
       const plan = plans.find((p) => p.fileName === file);
       const s = srcs.find((x) => x.fileName === file);
-      if (plan && s) jobs.push({ plan, blob: s.blob, candidates, removeHostsAnyway: req.removeHostsAnyway === true });
+      if (!plan || !s) continue;
+      const job: CleanJob = { plan, blob: s.blob, candidates, removeHostsAnyway: req.removeHostsAnyway === true };
+      if (simp) {
+        const meshes: SimplifiedMesh[] = [];
+        for (const r of simp.replacements) {
+          const e = model.elements[r.id];
+          if (!e || e.expressId === undefined || (e.file !== undefined ? e.file : plans.length === 1 ? plan.fileName : undefined) !== plan.fileName) continue;
+          meshes.push({ globalId: e.globalId, expressId: e.expressId, positions: r.mesh.positions, indices: r.mesh.indices });
+        }
+        job.simplified = { meshes, shift: [...model.originShift] as [number, number, number], skip: req.skipSimplified?.[file] ?? [] };
+      }
+      jobs.push(job);
     }
     return { jobs, options, names, missingSources, counts: cleanCounts(req) };
   }
@@ -421,9 +451,30 @@ export const ifcSavePlugin: AppPlugin = (() => {
     const run = startClean(b.jobs, schema(), b.options, 'write', req.onProgress, req.forceMainThread);
     running = run;
     try {
-      const { files, mode } = await run.promise;
+      let { files, mode } = await run.promise;
+      let selfChecked = 0;
+      let selfCheckFailed = 0;
+      if (req.withSimplified && simplifiedIfcEnabled()) {
+        const bad = await selfCheck(files);
+        selfChecked = bad.checked;
+        selfCheckFailed = bad.failed.size;
+        if (bad.failed.size > 0) {
+          // those elements keep their original body: write again without them
+          const skip: Record<string, number[]> = {};
+          for (const [f, ids] of bad.failed) skip[f] = [...ids, ...(req.skipSimplified?.[f] ?? [])];
+          const again = startClean(buildClean({ ...req, skipSimplified: skip }).jobs, schema(), b.options, 'write', req.onProgress, req.forceMainThread);
+          running = again;
+          ({ files, mode } = await again.promise);
+        }
+      }
       await writeBlobs(files.map((f) => ({ name: f.report.outName, blob: f.blob! })), target);
+      const geo = files.filter((f) => f.report.geometry);
       return {
+        ...(geo.length ? { geometry: {
+          applied: geo.reduce((a, f) => a + f.report.geometry!.applied.length, 0),
+          skipped: geo.flatMap((f) => f.report.geometry!.skipped.map((k) => ({ file: f.report.fileName, expressId: k.expressId, reason: k.reason }))),
+          selfChecked, selfCheckFailed,
+        } } : {}),
         files: files.map((f: CleanedBlob) => ({
           name: f.report.outName, source: f.report.fileName, bytes: f.bytes, sourceBytes: f.report.sourceBytes, removed: f.report.removed, cascaded: f.report.cascaded,
           kept: f.report.kept.length, linesDeleted: f.report.stats.linesDeleted, lines: f.lines,
@@ -436,11 +487,36 @@ export const ifcSavePlugin: AppPlugin = (() => {
     }
   }
 
+  /** Re-open each output with the importer and compare the bounds of every replaced element with what was meant (files up to 200 MB). */
+  async function selfCheck(files: CleanedBlob[]): Promise<{ checked: number; failed: Map<string, number[]> }> {
+    const failed = new Map<string, number[]>();
+    let checked = 0;
+    for (const f of files) {
+      const g = f.report.geometry;
+      if (!g || g.applied.length === 0 || !f.blob || f.blob.size > SELF_CHECK_MAX_BYTES) continue;
+      const res = await importIfc([{ name: f.report.outName, data: await f.blob.arrayBuffer() }], { edges: 'none', props: 'none', bvh: false });
+      const model = res.loaded.model;
+      const s = model.originShift;
+      const byId = new Map(model.elements.filter((e) => e.expressId !== undefined).map((e) => [e.expressId!, e.bounds] as const));
+      for (const a of g.applied) {
+        const b = byId.get(a.expressId);
+        checked++;
+        const got = b ? [b[0] + s[0], -b[5] + s[1], b[1] + s[2], b[3] + s[0], -b[2] + s[1], b[4] + s[2]] : null;
+        if (!got || got.some((v, i) => Math.abs(v - a.bounds[i]!) > SELF_CHECK_TOL)) {
+          let list = failed.get(f.report.fileName);
+          if (!list) failed.set(f.report.fileName, (list = []));
+          list.push(a.expressId);
+        }
+      }
+    }
+    return { checked, failed };
+  }
+
   class CleanDialog {
     private readonly back = el('div', 'xis-back', { hidden: '' });
     private readonly box = el('div', 'xis-box', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'xis-clean-title' });
     private body = el('div');
-    private opts = { withClassification: true, includeReviewers: false, removeHostsAnyway: false, includeHandHidden: false };
+    private opts = { withClassification: true, includeReviewers: false, removeHostsAnyway: false, includeHandHidden: false, withSimplified: false };
     private state: { kind: 'checking' } | { kind: 'ready'; plan: CleanPlanSummary; build: CleanBuild } | { kind: 'error'; message: string } = { kind: 'checking' };
     private message = '';
     private progress: { text: string; frac: number } | null = null;
@@ -461,7 +537,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
 
     show(): void {
       // every opening starts with the safe choices: nothing about reviewers or hand-hidden elements is remembered
-      this.opts = { withClassification: (classify()?.results().length ?? 0) > 0, includeReviewers: false, removeHostsAnyway: false, includeHandHidden: false };
+      this.opts = { withClassification: (classify()?.results().length ?? 0) > 0, includeReviewers: false, removeHostsAnyway: false, includeHandHidden: false, withSimplified: false };
       this.message = '';
       this.progress = null;
       this.back.hidden = false;
@@ -553,6 +629,16 @@ export const ifcSavePlugin: AppPlugin = (() => {
         lab.append(input, text);
         return lab;
       };
+      const nSimp = simplifiedIfcEnabled() ? cleanup()?.simplify?.plan()?.replacements.length ?? 0 : 0;
+      if (nSimp > 0) {
+        body.append(checkBox(`Replace the body of ${plural(nSimp, 'simplified element')} (experimental)`,
+          'The parametric geometry (extrusions, profiles) and per-item styles beyond the first, and type-shared geometry for that occurrence, are lost: the body becomes triangles. IFC2X3 files need about 5 lines per triangle. The output is re-opened and checked; an element whose bounds differ by more than 1 mm keeps its original body.',
+          this.opts.withSimplified, (v) => { this.opts.withSimplified = v; }));
+        for (const r of reports) if (r.geometry) {
+          body.append(el('p', 'xis-dim', undefined, `Bodies replaced: ${r.geometry.applied.length}. Kept as they were: ${r.geometry.skipped.length}${r.geometry.skipped.length ? ` (${[...new Set(r.geometry.skipped.map((k) => k.reason))].slice(0, 3).join('; ')})` : ''}.`));
+          if (r.schema === '2x3' && r.geometry.brepTriangles > 200000) body.append(el('p', 'xis-warn', undefined, `${plural(r.geometry.brepTriangles, 'triangle')} in an IFC2X3 file: the file grows a lot.`));
+        }
+      }
       body.append(
         checkBox('Also remove elements I hid by hand', counts.handHidden > 0 ? `${plural(counts.handHidden, 'element')} hidden by you, not by cleanup.` : 'You have not hidden anything by hand.', this.opts.includeHandHidden && counts.handHidden > 0, (v) => { this.opts.includeHandHidden = v; }, counts.handHidden === 0),
         checkBox('Remove walls even if a door or window stays', 'Off: such walls are kept and marked. On: the door or window then stands in no wall.', this.opts.removeHostsAnyway, (v) => { this.opts.removeHostsAnyway = v; }),
@@ -592,7 +678,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
         } }, target);
         this.progress = null;
         const total = s.files.reduce((a, f) => a + f.bytes, 0);
-        this.message = `Saved ${s.files.map((f) => f.name).join(', ')} (${mb(total)}, ${plural(s.files.reduce((a, f) => a + f.removed, 0), 'element')} removed, ${s.kept.length} kept and marked, ${(s.ms / 1000).toFixed(1)} s).`;
+        this.message = `Saved ${s.files.map((f) => f.name).join(', ')} (${mb(total)}, ${plural(s.files.reduce((a, f) => a + f.removed, 0), 'element')} removed, ${s.kept.length} kept and marked${s.geometry ? `, ${s.geometry.applied} bodies replaced, ${s.geometry.selfCheckFailed} failed the check` : ''}, ${(s.ms / 1000).toFixed(1)} s).`;
       } catch (e) {
         this.progress = null;
         if (e instanceof SaveCancelled) this.message = 'Save cancelled. Nothing was written.';

@@ -81,7 +81,7 @@ reads these back, so selection, the GlobalId and hover properties work. A glb ca
 sets, so the tree is grouped by class only.
 
 `Save cleaned copy...` (also `ifc.saveCleaned` in the command palette) saves a cleaned **IFC** instead: the original file without the
-elements cleanup hid, relations repaired. It is described in [Save IFC](ifc-save.md#saving-a-cleaned-copy).
+elements cleanup hid, relations repaired. It is described in [Save IFC](ifc-save.md#saving-a-cleaned-copy). Behind `?experimental=simplifiedIfc` it can also write the simplified meshes back as the bodies of their elements.
 
 ### CleanupPlan
 

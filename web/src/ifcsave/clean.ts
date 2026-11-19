@@ -5,6 +5,8 @@ import type { ClassificationSchema } from '../classify/types';
 import { emitAdditions } from './additions';
 import { writePatched } from './patch';
 import type { ElementSave, FileSavePlan, SaveOptions } from './plan';
+import { lengthScaleOf, planGeometry } from './meshRep';
+import type { GeometryPlan, SimplifiedMesh } from './meshRep';
 import { planRemoval } from './removal';
 import type { KeptElement, RemovalStats } from './removal';
 import type { SaveProgress } from './run';
@@ -27,6 +29,8 @@ export interface CleanJob {
   /** The elements to remove: what cleanup hid (and, when asked, what the user hid by hand). */
   candidates: CleanCandidate[];
   removeHostsAnyway: boolean;
+  /** T5b (experimental): replace the body of these elements by the mesh. `shift` is the model's `originShift`. */
+  simplified?: { meshes: SimplifiedMesh[]; shift: [number, number, number]; /** elements the self-check found out of place */ skip?: number[] };
   /** Plain Save IFC of a file whose Xray lines lost their markers (design 1.4): nothing is removed but the old lines, and no note is written. */
   plain?: boolean;
 }
@@ -49,6 +53,8 @@ export interface CleanReport {
   blockReplaced: boolean;
   /** Property sets and relations of Xray found without their markers (a file that went through another tool): removed. */
   foreignXrayLines: number;
+  /** T5b: bodies replaced by meshes, and the elements that kept their original body with the reason. */
+  geometry?: { applied: GeometryPlan['applied']; skipped: GeometryPlan['skipped']; brepTriangles: number; lengthScale: number };
 }
 
 export interface CleanedFile {
@@ -91,8 +97,20 @@ export async function runClean(
     const ix = indexStep(bytes, (d, t) => onProgress?.({ phase: 'index', file, done: i + d / t, total }));
     check();
     onProgress?.({ phase: 'plan', file, done: i, total });
+    // T5b: new bodies first, so the removal knows which old bodies let go and which styles the new lines refer to
     const baseId = ix.block ? ix.block.base : ix.maxId;
-    const rp = planRemoval(ix, bytes, j.candidates.map((c) => c.expressId), { removeHostsAnyway: j.removeHostsAnyway });
+    let geo: GeometryPlan | null = null;
+    let lengthScale = 1;
+    if (j.simplified && j.simplified.meshes.length > 0) {
+      lengthScale = lengthScaleOf(ix, bytes);
+      const removing = new Set(j.candidates.map((c) => c.expressId));
+      const meshes = j.simplified.meshes.filter((m) => !removing.has(m.expressId));
+      geo = planGeometry(ix, bytes, meshes, { shift: j.simplified.shift, lengthScale }, j.plan.family, baseId + 1, new Set(j.simplified.skip ?? []));
+    }
+    const rp = planRemoval(ix, bytes, j.candidates.map((c) => c.expressId), {
+      removeHostsAnyway: j.removeHostsAnyway,
+      ...(geo ? { detach: geo.detach, preRewrite: geo.rewrite, pin: geo.pin } : {}),
+    });
     const byId = new Map(j.candidates.map((c) => [c.expressId, c] as const));
     const kept = rp.kept.map((k) => {
       const c = byId.get(k.expressId);
@@ -102,6 +120,7 @@ export async function runClean(
       fileName: file, outName: cleanedName(file), sourceBytes: j.blob.size, schema: j.plan.family,
       asked: j.candidates.length, removed: rp.removed.length, cascaded: rp.cascaded.length, kept, stats: rp.stats, warnings: rp.warnings,
       blockReplaced: !!ix.block, foreignXrayLines: ix.ourNamedRows.length,
+      ...(geo ? { geometry: { applied: geo.applied, skipped: geo.skipped, brepTriangles: geo.brepTriangles, lengthScale } } : {}),
     };
     if (mode === 'plan') {
       out.push({ report, parts: [], bytes: 0, lines: 0 });
@@ -109,7 +128,9 @@ export async function runClean(
       continue;
     }
     // the block: classification of what stays, marks on what was kept
-    const base = baseId;
+    // new body lines come before the block: later saves replace the block and must not take them away
+    const base = geo ? geo.lastId : baseId;
+    const geoText = geo ? geo.lines.map((l) => `${l}\n`).join('') : '';
     const gone = new Set(rp.removed);
     const keptBy = new Map(rp.kept.map((k) => [k.expressId, k.because] as const));
     const elements: ElementSave[] = [];
@@ -132,7 +153,7 @@ export async function runClean(
     const add = emitAdditions(plan, schema, o, j.plain ? undefined : `removed=${rp.removed.length} kept=${rp.kept.length}`);
     check();
     onProgress?.({ phase: 'write', file, done: i, total });
-    const parts = writePatched(bytes, ix, rp, add.text);
+    const parts = writePatched(bytes, ix, rp, geoText + add.text);
     bytes = null;
     let size = 0;
     for (const p of parts) size += (p as Uint8Array).byteLength;

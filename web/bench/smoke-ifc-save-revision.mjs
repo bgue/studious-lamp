@@ -6,7 +6,8 @@
 //      screenshot bench/ifc-save-dialog.png.
 //   8. Cleaned copy: open Building-Architecture.ifc, run cleanup and hide the matches, Save cleaned copy (API, then the dialog), re-open
 //      the .cleaned.ifc: the elements cleanup hid are gone (except the ones kept and marked), every other element is still there.
-// Usage: SMOKE_PORT=5770 node bench/smoke-ifc-save-revision.mjs        (SMOKE_STEPS=8 runs only step 8)
+// Usage: SMOKE_PORT=5770 node bench/smoke-ifc-save-revision.mjs        (SMOKE_STEPS=8 runs only step 8;
+//   SMOKE_QUERY='&experimental=simplifiedIfc' adds the simplified-geometry check of ticket T5b to step 8)
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync } from 'node:fs';
@@ -52,7 +53,7 @@ try {
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
   // the native save dialog cannot be driven headless: the dialog falls back to a download
   await page.addInitScript(() => { delete window.showSaveFilePicker; delete window.showDirectoryPicker; });
-  await page.goto(`http://127.0.0.1:${port}/?model=building`);
+  await page.goto(`http://127.0.0.1:${port}/?model=building${process.env.SMOKE_QUERY ?? ''}`);
   await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });
   const startErr = await page.evaluate('window.__xrayError');
   if (startErr) throw new Error(`startup failed: ${startErr}`);
@@ -184,6 +185,18 @@ try {
   check('the dialog states what is removed and the risks', /Removed: \d/.test(ctext) && /Kept and marked instead/.test(ctext) && ctext.includes('Building-Architecture.cleaned.ifc'), ctext.slice(0, 200));
   await page.screenshot({ path: resolve(here, 'ifc-clean-dialog.png') });
   await cdlg.locator('button', { hasText: 'Close' }).click();
+  if (process.env.SMOKE_QUERY?.includes('simplifiedIfc')) {
+    const staged = await page.evaluate(async () => {
+      const o = window.__xrayCleanup.simplify.options;
+      o.decimate.mode = 'target ratio'; o.decimate.ratio = 0.5; o.decimate.minTriangles = 4;
+      await window.__xrayCleanup.simplify.preview('decimate');
+      window.__xrayCleanup.simplify.apply();
+      return window.__xrayCleanup.simplify.plan()?.replacements.length ?? 0;
+    });
+    const sres = await page.evaluate(() => window.__xrayIfcSave.saveCleaned({ target: 'none', withClassification: false, withSimplified: true }));
+    console.log('simplified:', staged, 'staged', JSON.stringify(sres.geometry));
+    check('T5b: bodies are replaced and the self-check passes', staged > 0 && sres.geometry && sres.geometry.applied > 0 && sres.geometry.selfChecked === sres.geometry.applied + 0 && sres.geometry.selfCheckFailed === 0, JSON.stringify(sres.geometry));
+  }
   const t0 = Date.now();
   const cdl = page.waitForEvent('download');
   const csum = await page.evaluate(() => window.__xrayIfcSave.saveCleaned({ withClassification: false }));

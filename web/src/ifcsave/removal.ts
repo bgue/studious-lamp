@@ -7,6 +7,12 @@ import type { StepIndex } from './stepIndex';
 export interface RemovalOptions {
   /** Remove a wall even when a door or window that stays stands in one of its openings (the filler then stands in no wall). */
   removeHostsAnyway: boolean;
+  /** Simplified geometry (T5b), rows: `[from, to]` means `from` no longer refers to `to` (the product definition shape drops its old body). */
+  detach?: ReadonlyArray<readonly [number, number]>;
+  /** Rows whose statement text is replaced before planning (the same product definition shapes, and layers that follow the new body). */
+  preRewrite?: ReadonlyMap<number, string>;
+  /** Rows that new lines refer to: never swept. */
+  pin?: Iterable<number>;
 }
 
 export interface KeptElement {
@@ -125,6 +131,16 @@ export function refIds(arg: string): number[] {
   return out;
 }
 
+/** Replace the top-level argument `i` of a statement; every other byte stays. */
+export function replaceArg(stmt: string, i: number, text: string): string {
+  const p = stmt.indexOf('(');
+  const q = p < 0 ? -1 : matchParen(stmt, p);
+  if (p < 0 || q < 0) return stmt;
+  const args = splitTop(stmt.slice(p + 1, q));
+  args[i] = text;
+  return `${stmt.slice(0, p + 1)}${args.join(',')}${stmt.slice(q)}`;
+}
+
 export interface Trimmed {
   text: string;
   /** A single-valued argument is one of the dropped ids. */
@@ -234,7 +250,15 @@ export function planRemoval(ix: StepIndex, bytes: Uint8Array, remove: readonly n
     while (p < end && bytes[p] !== 40) p++;
     return bytes[p + 1] === 39 && bytes[p + 24] === 39;
   };
+  const pinned = new Set<number>(o.pin ?? []);
+  const detachedFrom = new Map<number, Set<number>>(); // target row -> referrers that let go of it
+  for (const [from, to] of o.detach ?? []) {
+    let set = detachedFrom.get(to);
+    if (!set) detachedFrom.set(to, (set = new Set()));
+    set.add(from);
+  }
   const sweepable = (t: number): boolean => {
+    if (pinned.has(t)) return false;
     const name = ix.typeOf(t);
     if (KEEP.has(name) || SPATIAL.has(name) || name === '') return false;
     if (flags(t) & F_REL) return false;
@@ -251,7 +275,7 @@ export function planRemoval(ix: StepIndex, bytes: Uint8Array, remove: readonly n
     let c = 0;
     for (let k = ix.invStart[t]!; k < ix.invStart[t + 1]!; k++) {
       const r = ix.inv[k]!;
-      if (!inBlock(r) && !weakEdge(r, t)) c++;
+      if (!inBlock(r) && !weakEdge(r, t) && !detachedFrom.get(t)?.has(r)) c++;
     }
     strongCache.set(t, c);
     return c;
@@ -341,12 +365,17 @@ export function planRemoval(ix: StepIndex, bytes: Uint8Array, remove: readonly n
     const cause = new Int32Array(n).fill(-1);
     const queue: number[] = [];
     for (const [r, c] of D) { del[r] = 1; cause[r] = c; queue.push(r); }
-    const rewrite = new Map<number, string>();
+    const rewrite = new Map<number, string>(o.preRewrite ?? []);
     const dec = new Map<number, number>();
     const dangling: Array<{ cause: number; by: number; target: number }> = [];
     let relsDeleted = 0;
     let swept = 0;
     const dropped = (id: number): boolean => { const r = ix.rowOf(id); return r >= 0 && del[r] === 1; };
+    // a body that was let go of and has no other user goes first, with everything only it used
+    for (const [, to] of o.detach ?? []) {
+      if (del[to] || !sweepable(to) || strongCount(to) > 0) continue;
+      del[to] = 1; cause[to] = -1; swept++; queue.push(to);
+    }
     // Relations are edited once per round, after the queue is empty: a storey's relation that lists thousands of elements is parsed once,
     // not once per removed element.
     const pending = new Map<number, number>();
@@ -365,7 +394,7 @@ export function planRemoval(ix: StepIndex, bytes: Uint8Array, remove: readonly n
         }
         for (let k = ix.invStart[d]!; k < ix.invStart[d + 1]!; k++) {
           const r = ix.inv[k]!;
-          if (del[r]) continue;
+          if (del[r] || detachedFrom.get(d)?.has(r)) continue;
           const f = flags(r);
           if ((f & F_STYLED) && styledItem(r) === d) {
             del[r] = 1; cause[r] = cause[d]!; swept++; queue.push(r);
