@@ -60,6 +60,8 @@ try {
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 
   async function boot(pg = page) {
+    // sketches and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
+    await pg.evaluate(() => window.__xrayWork?.reset()).catch(() => undefined);
     await pg.goto(`http://127.0.0.1:${port}/?model=fzk-haus`);
     await pg.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
     const err = await pg.evaluate('window.__xrayError');
@@ -251,6 +253,28 @@ try {
   await page.click('#markup-float [data-view-mode="3d"]');
   await frames(3);
   check('Plan then 3D with no user section leaves no clip plane', (await live()).clips.length === 0);
+
+  // Undo: Plan changes the camera and the clip planes, and one undo takes both back (redo puts both again)
+  await page.waitForTimeout(2500); // the camera and planes of the step before must have settled (slow frames stretch the settle time)
+  await page.evaluate(() => window.__xrayUndo.clear());
+  const u0 = await live();
+  await page.click('#markup-float [data-view-mode=plan]');
+  await frames(4);
+  await page.waitForTimeout(2500);
+  const uList = await page.evaluate(() => window.__xrayUndo.list().undo.map((e) => `${e.kind}:${e.label}`));
+  check('Plan is one undo step, for the camera and the clip planes together', uList.length === 1 && uList[0].startsWith('view:') && /section/.test(uList[0]), uList.join(' | '));
+  const uPlan = await live();
+  await page.evaluate(() => window.__xrayUndo.undo());
+  await page.waitForTimeout(1500);
+  const u1 = await live();
+  check('one undo brings back the 3D camera and removes the Plan clip plane', uPlan.clips.length === 1 && u1.clips.length === 0 && near(u1.fov, u0.fov, 1e-6) && Math.hypot(u1.pos[0] - u0.pos[0], u1.pos[1] - u0.pos[1], u1.pos[2] - u0.pos[2]) < 1e-2, JSON.stringify({ fov: u1.fov, clips: u1.clips.length, planClips: uPlan.clips.length, d: Math.hypot(u1.pos[0] - u0.pos[0], u1.pos[1] - u0.pos[1], u1.pos[2] - u0.pos[2]) }));
+  await page.evaluate(() => window.__xrayUndo.redo());
+  await page.waitForTimeout(1500);
+  const u2 = await live();
+  check('redo puts Plan back: camera and clip plane in one step', u2.clips.length === 1 && near(u2.fov, uPlan.fov, 1e-6) && near(u2.clips[0].point[1], uPlan.clips[0].point[1], 1e-4), JSON.stringify({ fov: u2.fov, clips: u2.clips.length }));
+  await page.click('#markup-float [data-view-mode="3d"]');
+  await frames(4);
+  await page.waitForTimeout(900);
 
   // ------------------------------------------------------------------ part 3: raise, export, open again
   await page.evaluate(() => window.__xrayIssues.stopEditing());

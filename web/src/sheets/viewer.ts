@@ -87,6 +87,8 @@ export class SheetViewer {
   private readonly pageLbl: HTMLSpanElement;
   private readonly sketchSel: HTMLSelectElement;
   private readonly drawBtn: HTMLButtonElement;
+  private readonly raiseBtn: HTMLButtonElement;
+  private raising = false;
   private readonly ovl: HTMLCanvasElement;
   private readonly pstat: HTMLSpanElement;
   private readonly placeBtn: HTMLButtonElement;
@@ -156,7 +158,9 @@ export class SheetViewer {
       ctl.sketchToDraw(this.sheet.id);
       ctl.markup.setEditing(true);
     });
-    bar.append(back, this.title, pager, fit, this.sketchSel, this.drawBtn);
+    this.raiseBtn = el('button', '', { type: 'button', 'data-act': 'raise', title: 'Make an issue of the sketch you draw on: a snapshot of the sheet region, the PDF as a document reference, and the shapes', 'data-help-key': 'Sheet view/Raise as issue' }, 'Raise as issue');
+    this.raiseBtn.addEventListener('click', () => this.raiseOrOpen());
+    bar.append(back, this.title, pager, fit, this.sketchSel, this.drawBtn, this.raiseBtn);
     // Second row: where the sheet is in the model, and the overlay of the model on it.
     const bar2 = el('div', 'sv-bar sv-bar2', { 'data-sv': 'placebar' });
     this.pstat = el('span', 'sv-pstat', { 'data-sv': 'placement' });
@@ -386,6 +390,33 @@ export class SheetViewer {
     const s = this.ctl.markup.active;
     return s && this.sheet && s.frame?.kind === 'sheet' && s.frame.sheet === this.sheet.id ? s : null;
   }
+  /** "Raise as issue" for the active sketch of this sheet; "Open issue" when it already belongs to one. */
+  private updateRaise(set: MarkupSet | null): void {
+    const issues = window.__xrayIssues;
+    const ref = set ? issues?.issueOf(set.id) ?? null : null;
+    this.raiseBtn.textContent = ref ? 'Open issue' : 'Raise as issue';
+    this.raiseBtn.dataset['issue'] = ref?.topic ?? '';
+    this.raiseBtn.disabled = this.raising || !set || !!set.readonly || !issues;
+    this.raiseBtn.title = !set ? 'Pick or start a sketch on this sheet first' : set.readonly ? 'This sketch is read-only. Copy it to an editable sketch first.' : ref ? 'Open the issue this sketch belongs to' : 'Make an issue of the sketch you draw on: a snapshot of the sheet region, the PDF as a document reference, and the shapes';
+  }
+
+  private raiseOrOpen(): void {
+    const set = this.set;
+    const issues = window.__xrayIssues;
+    if (!set || !issues || set.readonly) return;
+    const ref = issues.issueOf(set.id);
+    if (ref) {
+      issues.openIssue(ref.topic, { apply: false });
+      return;
+    }
+    this.raising = true;
+    this.updateRaise(set);
+    void issues.raise(set.id).catch((e: unknown) => this.ctl.setStatus(e instanceof Error ? e.message : String(e))).finally(() => {
+      this.raising = false;
+      this.invalidate();
+    });
+  }
+
   private get tool(): ToolId {
     return this.ctl.markup.tool;
   }
@@ -765,6 +796,7 @@ export class SheetViewer {
     if (this.sketchSel.value !== (act?.id ?? '')) this.sketchSel.value = act?.id ?? '';
     this.drawBtn.setAttribute('aria-pressed', String(c.editing));
     this.drawBtn.textContent = c.editing ? 'Done' : 'Draw';
+    this.updateRaise(act);
     this.stage.classList.toggle('drawing', this.drawingTool);
     this.drawPlacement(sh);
     // Sketches.

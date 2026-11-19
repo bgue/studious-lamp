@@ -3,8 +3,8 @@
 // four labelled lines in the order Intent, Impact, Use, Ref. A second hover on "layer falloff" is screenshotted to
 // bench/help-tooltip-layer.png. Then it hovers the Peelback radius slider (bench/help-tooltip-peel.png) and a strip
 // button of the action panel (bench/help-tooltip-toolbar.png). Finally, for each of the models building, fzk-haus and
-// synth5k, it opens every tool drawer of the action panel once (window.__xrayToolbar.open), opens the keyboard dialogs
-// and the BCF topic dialog, and fails on any "[help] no help text" console warning.
+// synth5k, it opens every tool drawer of the action panel once (window.__xrayToolbar.open), opens the keyboard dialogs,
+// and fails on any "[help] no help text" console warning.
 // Usage: node bench/help-smoke.mjs [--out bench/help-tooltip.png] [--out-layer bench/help-tooltip-layer.png]
 //        [--out-peel bench/help-tooltip-peel.png] [--out-toolbar bench/help-tooltip-toolbar.png]
 import { spawn } from 'node:child_process';
@@ -299,16 +299,7 @@ try {
         const d = document.getElementById('xray-toolbar-drawer');
         return { open: !!d && !d.classList.contains('hidden'), title: d?.querySelector('.xt-title')?.textContent ?? '' };
       });
-      // Fill the dynamic parts of the drawer once: topics for BCF, a measurement, the analysis for penetrations.
-      if (id === 'bcf') {
-        await pg.evaluate(async () => { const b = window.__xrayBcf; if (b && b.topics.length === 0) { try { b.createTopic({ title: 'Help smoke topic', description: 'x', type: 'Issue', status: 'Open', priority: 'Normal', labels: ['a'], author: 'smoke', globalIds: [] }); await b.addComment(b.topics[0].guid, 'a comment', {}); } catch (e) { /* keep going */ } } });
-        await pg.waitForTimeout(300);
-        await pg.evaluate(() => { const t = document.querySelector('[data-topic]'); if (t) t.click(); });
-        await pg.waitForTimeout(300);
-        await pg.evaluate(() => document.querySelector('.bcf-btn[data-act="new"]')?.click());
-        await pg.waitForTimeout(300);
-        await pg.evaluate(() => [...document.querySelectorAll('.bcf-modal .bcf-btn')].find((b) => b.textContent === 'Cancel')?.click());
-      }
+      // Fill the dynamic parts of the drawer once: a measurement, the presets editor.
       if (id === 'measure') {
         await pg.evaluate(() => { const m = window.__xrayMeasure; if (m) { m.click([0, 0, 0], 0); m.click([1, 0, 0], 0); } });
         await pg.waitForTimeout(300);

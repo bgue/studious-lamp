@@ -136,7 +136,14 @@ export class SheetsController {
   // ---------------------------------------------------------------- start: the saved sheets
 
   /** Read the saved sheets and their sketches (no PDF library is loaded for this). */
-  async init(): Promise<void> {
+  init(): Promise<void> {
+    this.initDone = this.readSaved();
+    return this.initDone;
+  }
+  /** Resolves when the saved sheets and their sketches are in the session. */
+  initDone: Promise<void> = Promise.resolve();
+
+  private async readSaved(): Promise<void> {
     const meta = await this.store.init();
     if (meta) {
       for (const raw of meta.sets) {

@@ -52,6 +52,8 @@ try {
     page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
   };
   const boot = async (page, model) => {
+    // sketches and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
+    await page.evaluate(() => window.__xrayWork?.reset()).catch(() => undefined);
     await page.goto(`http://127.0.0.1:${port}/?model=${model}`);
     await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 300000 });
     const err = await page.evaluate('window.__xrayError');

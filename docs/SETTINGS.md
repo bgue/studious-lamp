@@ -61,11 +61,13 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Issues panel/Segments](#issues-panelsegments)
 - [Issues panel/Phone sheet](#issues-panelphone-sheet)
 - [Drawing toolbar](#drawing-toolbar)
+- [Issues panel/Clear everything](#issues-panelclear-everything)
 - [Sheet view](#sheet-view)
 - [Sheet view/Back to model](#sheet-viewback-to-model)
 - [Sheet view/Fit](#sheet-viewfit)
 - [Sheet view/Sketch](#sheet-viewsketch)
 - [Sheet view/Draw](#sheet-viewdraw)
+- [Sheet view/Raise as issue](#sheet-viewraise-as-issue)
 - [Sheet view/Drawing toolbar](#sheet-viewdrawing-toolbar)
 - [Sheet view/Place in model](#sheet-viewplace-in-model)
 - [Sheet view/Model overlay](#sheet-viewmodel-overlay)
@@ -761,6 +763,12 @@ Impact follows the same sentence rules and adds these:
 | --- | --- | --- | --- | --- |
 | *Folder: Drawing toolbar* | The bar floats over the view while you draw on a sketch. It holds the tools, the colours, the line weights and Done. | This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done. | Pick a tool. Drag on the view. Press Done when the drawing is ready. | Report: Appendix J, Coordination tools |
 
+## Issues panel/Clear everything
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Issues panel/Clear everything* | The button deletes the sketches and the issues of the open model, and the copy this browser keeps. Sketches on sheets stay. | Click twice and your marks and your team tasks for this building are gone for good. Other buildings keep theirs. | Click the button. Click again within 8 seconds to confirm. | Report: Appendix J, Coordination tools |
+
 ## Sheet view
 
 | Setting | Intent | Impact | Use | Ref |
@@ -790,6 +798,12 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Sheet view/Draw* | The button shows the drawing tools and lets you draw on the page. | Click and a bar of tools appears. Your marks stay when the bar goes. | Click the button. Pick a tool. Drag on the page. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Raise as issue
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Raise as issue* | The button makes an issue of the sketch you draw on. The issue gets a snapshot of the sheet region and the PDF. When the sketch already has an issue, the button opens that issue. | Click and your marks on the drawing go to your team as a task that they can follow. | Pick a sketch from the list. Click the button. | Report: Appendix J, Coordination tools |
 
 ## Sheet view/Drawing toolbar
 

@@ -609,6 +609,30 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     return item;
   }
 
+  /** "Clear all sketches and issues for this model": two clicks, the second names what goes. Not on the Sheets segment. */
+  const CLEAR_ARM_MS = 8000;
+  let clearArmedAt = 0; // kept here, not on the button: the panel is drawn again on every change
+  function clearAll(): HTMLElement | null {
+    if (!c.work || c.segment === 'sheets') return null;
+    const n = c.work.counts();
+    if (!n.sketches && !n.issues) return null;
+    const label = 'Clear all sketches and issues for this model';
+    const armed = Date.now() - clearArmedAt < CLEAR_ARM_MS;
+    const b = act(button(armed ? `Click again to delete ${n.sketches} sketch${n.sketches === 1 ? '' : 'es'} and ${n.issues} issue${n.issues === 1 ? '' : 's'}` : label, () => undefined, { title: 'Delete the 3D sketches and the issues of this model, here and in the copy this browser keeps. Sheet sketches stay.' }), 'clear-all');
+    b.setAttribute('data-help-key', 'Issues panel/Clear everything');
+    b.addEventListener('click', () => {
+      if (Date.now() - clearArmedAt < CLEAR_ARM_MS) {
+        clearArmedAt = 0;
+        void c.work?.clear().then(() => c.emit());
+      } else {
+        clearArmedAt = Date.now();
+        c.emit();
+        setTimeout(() => c.emit(), CLEAR_ARM_MS + 100);
+      }
+    });
+    return row(b);
+  }
+
   // ---------------------------------------------------------------- render
 
   const render = (): void => {
@@ -632,6 +656,8 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     else if (sketch) kids.push(...sketchDetail(sketch));
     else kids.push(...(c.segment === 'issues' ? issuesList() : sketchesList()));
     for (const k of kids) root.appendChild(k);
+    const clear = clearAll();
+    if (clear) root.appendChild(clear);
     root.appendChild(el('div', 'is-status', { role: 'status', 'data-issues-status': '' }, statusText()));
     const au = input('is-in', { type: 'text', placeholder: 'Your name (author of sketches and comments)', 'aria-label': 'Author', 'data-keep': 'author' }, mk.author);
     au.addEventListener('change', () => silently(() => mk.setAuthor(au.value)));

@@ -6,6 +6,9 @@
 // What it records (by watching, not by hooks, so a key, a button, a preset or a script is seen the same way):
 //   - camera: when the camera has not moved for SETTLE_MS, one entry for the whole move (a wheel gesture, an orbit drag, a
 //     cube click, home, fit, a saved view). Undo eases the camera back (a snap with "smooth moves" off).
+//   - section: when the clip planes of the renderer change (a handle drag, the 3D · Plan · Section switch, a BCF viewpoint applied or
+//     cleared) and have been still for SETTLE_MS, one entry. If the camera moved in the same step, it is the same entry: undo
+//     puts back camera and planes together. The section controls of the panel that make planes belong here, not to the settings watch.
 //   - selection: every change of the selection set, the box select included.
 //   - settings: every change of a control of the parameter panel (lil-gui), before to after. A slider drag is one entry.
 // What it ignores: what its own undo and redo apply, and everything for QUIET_MS after a model is installed (a model load,
@@ -22,11 +25,22 @@ import { UndoStack } from '../undo/stack';
 import type { UndoEntry } from '../undo/stack';
 import { describeViewChange, easeInOut, mixViewPose, viewPoseEqual } from '../undo/viewPose';
 import type { ViewPose } from '../undo/viewPose';
+import { ClipWatch, applyClip, composeStep, readClipState } from '../undo/clipWatch';
+import type { ClipChange, ClipState } from '../undo/clipWatch';
+import { cloneSection } from '../section/config';
+import { bcfController } from './bcf';
 
 export interface ViewEntry extends UndoEntry {
   kind: 'view';
   before: ViewPose;
   after: ViewPose;
+  /** The clip planes changed in the same step (the 3D · Plan · Section switch, a BCF viewpoint). */
+  clip?: ClipChange;
+}
+export interface SectionEntry extends UndoEntry {
+  kind: 'section';
+  before: ClipState;
+  after: ClipState;
 }
 export interface SelectionEntry extends UndoEntry {
   kind: 'selection';
@@ -42,7 +56,7 @@ export interface SettingEntry extends UndoEntry {
   kind: 'setting';
   changes: SettingChange[];
 }
-export type Entry = ViewEntry | SelectionEntry | SettingEntry;
+export type Entry = ViewEntry | SectionEntry | SelectionEntry | SettingEntry;
 
 export interface UndoApi {
   undo(): boolean;
@@ -94,10 +108,14 @@ let committed: ViewPose | null = null; // the last settled view
 let lastSeen: ViewPose | null = null;
 let lastMoveAt = 0;
 let moving = false;
+/** Frames left in which the clip planes are only re-read (after an undo the section tool pushes its planes on the next frame). */
+let clipHold = 0;
 let ease: { from: ViewPose; to: ViewPose; start: number; lastPos: [number, number, number] } | null = null;
 // Selection watch.
 let selRef: Set<number> | null = null;
 let selCommitted: number[] = [];
+// Section watch.
+const clipWatch = new ClipWatch();
 // Settings watch.
 const seen = new Map<Controller, unknown>();
 let lastPoll = 0;
@@ -143,11 +161,18 @@ function controllers(app: ViewerApp): Controller[] {
   return (app.panel?.controllersRecursive() ?? []) as Controller[];
 }
 
+/** The controls of the Section folder that make clip planes: the section watch records those (with the box corners), as one step. */
+const SECTION_PLANE_CONTROLS = ['enabled', 'margin', 'axis', 'offset', 'flip', 'caps', 'capColor'];
+function isSectionPlaneControl(c: Controller): boolean {
+  return (c.parent as unknown as { _title?: string } | undefined)?._title === 'Section' && SECTION_PLANE_CONTROLS.includes(c.property);
+}
+
 /** Controls whose value is a setting: not buttons, not read-only status lines, not the model picker. */
 function watched(c: Controller): boolean {
   const v = c.getValue();
   if (typeof v === 'function') return false;
   if (c.property === 'model') return false;
+  if (isSectionPlaneControl(c)) return false;
   return !(c as unknown as { _disabled?: boolean })._disabled;
 }
 
@@ -161,8 +186,14 @@ function baselineSettings(app: ViewerApp): void {
   for (const c of controllers(app)) if (watched(c)) seen.set(c, c.getValue());
 }
 
+function readClip(app: ViewerApp): ClipState {
+  const sec = window.__xraySection;
+  return readClipState(app.renderer.getClipPlanes(), sec?.config ?? null, (sec?.foreignPlanes() ?? 0) > 0);
+}
+
 function baseline(app: ViewerApp): void {
   committed = lastSeen = readPose(app);
+  clipWatch.baseline(readClip(app), app.renderer.clipVersion);
   moving = false;
   selRef = app.controller.selection;
   selCommitted = [...selRef];
@@ -175,15 +206,33 @@ function now(): number {
   return performance.now();
 }
 
-function commitView(app: ViewerApp, t: number): void {
+/** Camera and clip planes have been still: record what changed as one entry. */
+function commitChanges(app: ViewerApp, t: number): void {
   const pose = readPose(app);
   moving = false;
   lastSeen = pose;
   // A drift under 0.3 % of the distance (the tail of an orbit's damping) is not a step to undo; `committed` stays put, so
   // drift that adds up still becomes an entry once it is big enough.
-  if (!committed || viewPoseEqual(committed, pose, NEGLIGIBLE)) return;
-  stack.push({ kind: 'view', label: describeViewChange(committed, pose), at: t, before: committed, after: pose });
-  committed = pose;
+  const cam = committed && !viewPoseEqual(committed, pose, NEGLIGIBLE) ? committed : null;
+  const clip = clipWatch.settle(() => readClip(app));
+  const step = composeStep(cam ? { before: cam, after: pose, label: describeViewChange(cam, pose) } : null, clip);
+  if (step) stack.push({ ...step, at: t });
+  if (cam) committed = pose;
+}
+
+function settleFor(app: ViewerApp): number {
+  return Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MS, app.stats.frameMs * 2.5));
+}
+
+/** See what moved since the last look: the camera, and the clip planes of the renderer. */
+function detect(app: ViewerApp, t: number): void {
+  const pose = readPose(app);
+  if (lastSeen && !viewPoseEqual(lastSeen, pose)) {
+    lastSeen = pose;
+    lastMoveAt = t;
+    moving = true;
+  }
+  clipWatch.observe(() => readClip(app), app.renderer.clipVersion, t);
 }
 
 function watchView(app: ViewerApp, t: number): void {
@@ -193,11 +242,9 @@ function watchView(app: ViewerApp, t: number): void {
     committed = lastSeen = pose;
     return;
   }
-  if (!viewPoseEqual(lastSeen, pose)) {
-    lastSeen = pose;
-    lastMoveAt = t;
-    moving = true;
-  } else if (moving && t - lastMoveAt >= Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MS, app.stats.frameMs * 2.5))) commitView(app, t);
+  detect(app, t);
+  const last = Math.max(moving ? lastMoveAt : -Infinity, clipWatch.lastChangeAt ?? -Infinity);
+  if ((moving || clipWatch.changing) && t - last >= settleFor(app)) commitChanges(app, t);
 }
 
 function watchSelection(app: ViewerApp, t: number): void {
@@ -242,8 +289,9 @@ function watchSettings(app: ViewerApp, t: number): void {
 function flush(app: ViewerApp): void {
   const t = now();
   if (ease) endEase(app);
-  if (moving) commitView(app, t);
-  else watchView(app, t);
+  const wasMoving = moving;
+  detect(app, t);
+  if (wasMoving || clipWatch.changing) commitChanges(app, t);
   watchSelection(app, t);
   watchSettings(app, t);
 }
@@ -320,8 +368,32 @@ function applySetting(app: ViewerApp, e: SettingEntry, dir: 'before' | 'after'):
   quietUntil = Math.max(quietUntil, now() + 250); // a control that moves another one is not a new change
 }
 
+/** Put the clip planes (and the section tool's settings) back to a state. */
+function putClip(app: ViewerApp, state: ClipState): void {
+  const sec = window.__xraySection;
+  const r = app.renderer;
+  applyClip(
+    {
+      ...(sec ? { setConfig: (cfg) => { sec.set(cloneSection(cfg)); } } : {}),
+      wantsPlanes: (cfg) => cfg.box.enabled || cfg.plane.enabled,
+      setPlanes: (planes, cap) => r.setClipPlanes(planes, { cap, ...(sec ? { capColor: sec.config.capColor } : {}) }),
+    },
+    state,
+  );
+  // Planes that are not the section tool's came from a viewpoint or the Plan and Section switch: a viewpoint that is applied keeps
+  // them as its own (so that Clear viewpoint still removes them).
+  if (state.foreign) bcfController()?.reclaimClip();
+  clipWatch.baseline(readClip(app), r.clipVersion);
+  clipHold = 3;
+  baselineSettings(app);
+  quietUntil = Math.max(quietUntil, now() + 250); // the section tool pushes its planes on the next frame: not a new change
+}
+
 function apply(app: ViewerApp, e: Entry, dir: 'before' | 'after'): void {
-  if (e.kind === 'view') startEase(app, dir === 'before' ? e.before : e.after);
+  if (e.kind === 'view') {
+    startEase(app, dir === 'before' ? e.before : e.after);
+    if (e.clip) putClip(app, dir === 'before' ? e.clip.before : e.clip.after);
+  } else if (e.kind === 'section') putClip(app, dir === 'before' ? e.before : e.after);
   else if (e.kind === 'selection') setSelection(app, dir === 'before' ? e.before : e.after);
   else applySetting(app, e, dir);
 }
@@ -440,6 +512,7 @@ export const undoPlugin: AppPlugin = {
   onModel(app) {
     stack.clear();
     ease = null;
+    clipHold = 0;
     quietUntil = now() + QUIET_MS;
     baseline(app);
   },
@@ -451,6 +524,10 @@ export const undoPlugin: AppPlugin = {
     if (clock < quietUntil) {
       baseline(app); // loading: what changes now is the starting state
       return moved;
+    }
+    if (clipHold > 0) {
+      clipHold--;
+      clipWatch.baseline(readClip(app), app.renderer.clipVersion);
     }
     watchView(app, clock);
     watchSelection(app, clock);

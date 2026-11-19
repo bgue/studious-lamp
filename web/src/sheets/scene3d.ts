@@ -1,9 +1,10 @@
 // A placed sheet in the 3D view: the PDF page as a textured quad at its level, and the sketches drawn on a placed sheet, drawn on the
 // SVG overlay with the attached-markup layout of the 3D sketches (src/markup/layout.ts). The quad is a plain mesh of the scene
 // with no raycast, so picks (which walk the per-element BVHs), measurements and the classification never see it; it does not write
-// depth, so section caps, the x-ray modes and the OIT composite draw as they did. Docs: docs-features/sheets.md ("In 3D").
+// depth, so section caps, the x-ray modes and the OIT composite draw as they did. The section planes of the renderer cut the quad
+// too (the material's own clipping planes, copied from the renderer when its plane version changes). Docs: docs-features/sheets.md ("In 3D").
 
-import { BufferGeometry, CanvasTexture, DoubleSide, Float32BufferAttribute, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, SRGBColorSpace } from 'three';
+import { BufferGeometry, CanvasTexture, DoubleSide, Float32BufferAttribute, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, Plane, SRGBColorSpace, Vector3 } from 'three';
 import type { Camera } from 'three';
 import type { ViewerApp } from '../app';
 import { renderOps } from '../bcf/pins';
@@ -30,6 +31,8 @@ interface Quad {
   /** The texture is the sharp one (drawn when the camera got close). */
   sharp: boolean;
   building: boolean;
+  /** The renderer's clipVersion the material's clipping planes were copied at. */
+  clipVersion: number;
 }
 
 const BASE_PX = 2048;
@@ -145,12 +148,25 @@ export class SheetScene3D {
     mesh.renderOrder = 2;
     mesh.frustumCulled = false;
     mesh.raycast = () => {}; // never a pick, a measurement or a classification target
-    const q: Quad = { mesh, tex, key, sharp: false, building: false };
-    mesh.onBeforeRender = (_r, _s, cam) => this.near(q, sheet.id, cam);
+    const q: Quad = { mesh, tex, key, sharp: false, building: false, clipVersion: -1 };
+    // The material's own clipping planes need this switch; it changes nothing for materials that set none.
+    this.app.renderer.renderer.localClippingEnabled = true;
+    this.clip(q);
+    mesh.onBeforeRender = (_r, _s, cam) => { this.clip(q); this.near(q, sheet.id, cam); };
     this.quads.set(sheet.id, q);
     this.app.renderer.scene.add(mesh);
     this.app.renderer.markDirty();
     this.ctl.emit();
+  }
+
+  /** Give the quad's material the section planes in force (the renderer's), when they changed since it last looked. */
+  private clip(q: Quad): void {
+    const r = this.app.renderer;
+    if (q.clipVersion === r.clipVersion) return;
+    q.clipVersion = r.clipVersion;
+    const planes = r.getClipPlanes();
+    // A renderer plane keeps the side its normal points to: a point is kept when n . p + w >= 0, which is a three.js Plane (n, w).
+    this.material(q).clippingPlanes = planes ? planes.map((p) => new Plane(new Vector3(p.normal[0], p.normal[1], p.normal[2]), -(p.normal[0] * p.point[0] + p.normal[1] * p.point[1] + p.normal[2] * p.point[2]))) : null;
   }
 
   /** The camera came close: draw the page again at a higher resolution (once; cheap to ask, it only starts when close). */
@@ -173,7 +189,7 @@ export class SheetScene3D {
   }
 
   /** For scripts and tests: the quad of a sheet, where it is (IFC elevation of its corners) and how it is drawn. */
-  state(sheetId: string): { exists: boolean; elevation?: number; opacity?: number; sharp?: boolean; corners?: Vec3[]; pickable?: boolean; inScene?: boolean } {
+  state(sheetId: string): { exists: boolean; elevation?: number; opacity?: number; sharp?: boolean; corners?: Vec3[]; pickable?: boolean; inScene?: boolean; clipPlanes?: number; depthWrite?: boolean } {
     const q = this.quads.get(sheetId);
     if (!q) return { exists: false };
     const pos = q.mesh.geometry.getAttribute('position');
@@ -183,6 +199,7 @@ export class SheetScene3D {
     return {
       exists: true, elevation: corners[0]![2], opacity: this.material(q).opacity, sharp: q.sharp, corners,
       pickable: q.mesh.raycast.toString().replace(/\s/g, '') !== '()=>{}', inScene: q.mesh.parent === this.app.renderer.scene,
+      clipPlanes: this.material(q).clippingPlanes?.length ?? 0, depthWrite: this.material(q).depthWrite,
     };
   }
 

@@ -1,6 +1,6 @@
 # Undo and redo: view, selection and settings
 
-One session-only stack for three kinds of change. `Ctrl+Z` (or `Cmd+Z`) undoes, `Ctrl+Shift+Z` and `Ctrl+Y` redo, and the
+One session-only stack for four kinds of change. `Ctrl+Z` (or `Cmd+Z`) undoes, `Ctrl+Shift+Z` and `Ctrl+Y` redo, and the
 Undo and Redo buttons under the view cube do the same. A button is disabled when there is nothing to undo or redo; its tooltip
 and label name the step: "Undo zoom", "Undo selection", "Undo edgeAlpha". The stack is not saved, not in the params, a share
 link, a saved view or a preset, and is cleared when a model is installed.
@@ -8,6 +8,7 @@ link, a saved view or a preset, and is cleared when a model is installed.
 | Kind | Recorded | Undo |
 | --- | --- | --- |
 | Camera view | When the camera has been still for 400 ms (longer on slow frames, up to 1 s). A whole wheel gesture, an orbit drag with its damping, a cube click, Home, fit or frame, a view preset recall or a saved view is one entry. Named `zoom`, `pan`, `orbit`, `projection` or `view`. Drift under 0.3 % of the distance is not an entry. | Eases the camera back (240 ms), or snaps when "smooth moves" is off. Switches the orthographic approximation back if the entry changed it. |
+| Section (clip planes) | When the renderer's clip planes (or the section tool's settings behind them) change and stay still for the same settle time. A section handle drag is one entry. The 3D · Plan · Section switch of a sketch (`src/issues/derivedSwitch.ts`) and applying or clearing a BCF viewpoint's planes are one entry each; when the camera moved in the same step (the switch and a viewpoint move it) camera and planes are **one** entry ("orbit and section"). Named `section on`, `section off`, `section move`. The section controls of the parameter panel that make planes (box, margin, plane, axis, offset, flip, caps, cap colour) are not settings entries: the section entry holds them with the box corners, so one change is one step. | Puts the planes back: planes the section tool makes go back to the tool through its settings, any other planes (a viewpoint's, a switch's, none) go on the renderer as they were. The camera eases back in the same step. |
 | Selection | Every change of the selection set, a box select included. | Selects the previous set (an empty set clears). |
 | Setting | Every change of a control of the parameter panel, before to after, named for the control. A slider drag is one entry (changes of one control less than 600 ms apart merge, and a drag that ends where it started leaves no entry). Several controls changing together (a preset) are one entry, "N settings". | Sets each control back through its own change handler, so the picture follows. |
 
@@ -54,4 +55,4 @@ the view you left.
 
 - `src/undo/stack.ts` (the stack: coalescing, cap, redo, self-applied changes), `src/undo/viewPose.ts` (poses, the move name,
   easing), `src/plugins/undo.ts` (watchers, apply, keys, API), the buttons in `src/plugins/gizmo.ts`.
-- Tests: `tests/undo-stack.test.ts`. Smoke test: `SMOKE_PORT=5701 node bench/smoke-pointer-undo.mjs`.
+- `src/undo/clipWatch.ts` (clip states, the settle machine, joining camera and planes, putting a state back). Tests: `tests/undo-stack.test.ts`, `tests/undo-clip.test.ts`. Smoke test: `SMOKE_PORT=5701 node bench/smoke-pointer-undo.mjs`.
