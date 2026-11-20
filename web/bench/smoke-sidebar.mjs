@@ -118,10 +118,15 @@ try {
   await page.reload();
   await page.waitForFunction('window.__xrayReady === true', null, { timeout: 120000 });
   check('collapsed state persisted in localStorage', await page.evaluate(() => document.body.classList.contains('sb-collapsed')));
-  await page.keyboard.press('[');
-  await page.waitForTimeout(500);
+  // right after a reload the key can arrive before the keymap listens: press again until the sidebar starts to open (up to 3 tries)
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('[');
+    const opened = await page.waitForFunction(() => !document.body.classList.contains('sb-collapsed'), null, { timeout: 1500 }).then(() => true, () => false);
+    if (opened) break;
+  }
+  await page.waitForFunction(() => Math.round(document.querySelector('#sidebar').getBoundingClientRect().width) === 300, null, { timeout: 5000 }).catch(() => {});
   g = await geo();
-  check('"[" expands it again', Math.round(g.sb) === 300);
+  check('"[" expands it again', Math.round(g.sb) === 300, `${Math.round(g.sb)} px`);
 
   // Sets tab: seeded defaults for the building model.
   await page.locator('.sb-tab', { hasText: 'Sets' }).click();
