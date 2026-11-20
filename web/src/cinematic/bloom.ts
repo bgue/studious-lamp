@@ -23,7 +23,8 @@ export interface BloomSettings {
   scale: number;
 }
 
-export const DEFAULT_BLOOM: BloomSettings = { strength: 0.7, radius: 0.45, boost: 1.0, scale: 0.5 };
+// strength 0.175: a quarter of the earlier 0.7, which washed the focus out; it is also the most the panel allows (BLOOM_MAX)
+export const DEFAULT_BLOOM: BloomSettings = { strength: 0.175, radius: 0.45, boost: 1.0, scale: 0.5 };
 
 export class SelectiveBloom {
   readonly settings: BloomSettings = { ...DEFAULT_BLOOM };

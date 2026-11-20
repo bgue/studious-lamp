@@ -3,18 +3,21 @@
 import { Box3, Sphere, Vector3 } from 'three';
 import type { PerspectiveCamera } from 'three';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { framing } from '../cinematic/flyto';
 
 /**
  * Move the camera along its current view direction so the box fills the view, and aim the orbit target at the
- * box centre. Immediate (no animation). `padding` > 1 leaves a margin.
+ * box centre. Immediate (no animation). `padding` > 1 leaves a margin; without one the framing controls apply (margin and closest
+ * distance, Cinematic > Camera fly-to), like the animated fly-to.
  */
-export function fitBox(camera: PerspectiveCamera, controls: OrbitControls, box: Box3, padding = 1.2): void {
+export function fitBox(camera: PerspectiveCamera, controls: OrbitControls, box: Box3, padding?: number): void {
   if (box.isEmpty()) return;
   const sphere = box.getBoundingSphere(new Sphere());
   const r = Math.max(sphere.radius, 0.05);
   const fov = (camera.fov * Math.PI) / 180;
   const fit = Math.min(fov, 2 * Math.atan(Math.tan(fov / 2) * camera.aspect));
-  const dist = (r / Math.sin(fit / 2)) * padding;
+  let dist = (r / Math.sin(fit / 2)) * (padding ?? framing.margin);
+  if (padding === undefined) dist = Math.max(dist, framing.minDistance);
   const dir = camera.position.clone().sub(controls.target);
   if (dir.lengthSq() < 1e-12) dir.set(0.7, 0.55, 0.85);
   dir.normalize();

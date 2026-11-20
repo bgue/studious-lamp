@@ -11,11 +11,12 @@ import type { AppPlugin, ViewerApp } from '../app';
 import type { ElementId } from '../types';
 import { Flight, DEFAULT_FLY_MS, computeFlyView } from '../cinematic/flyto';
 import type { FlyOptions, FlyView } from '../cinematic/flyto';
+import { FRAMING_LIMITS, framing } from '../cinematic/flyto';
 import { StaggerReveal, revealDelays } from '../cinematic/reveal';
 import { PolylinePath, buildRunPath } from '../cinematic/polyline';
 import { Tour, buildTourSteps } from '../cinematic/tour';
 import { SceneDressing, hexToRgb } from '../cinematic/dressing';
-import { SelectiveBloom } from '../cinematic/bloom';
+import { DEFAULT_BLOOM, SelectiveBloom } from '../cinematic/bloom';
 import { PostFx } from '../cinematic/post';
 import { PlaneSweep, DEFAULT_SWEEP_MS, DEFAULT_BAND_M, buildHold, projectionExtent, sweepNormal, sweepRangeFromExtent, usesStagger, usesSweep } from '../cinematic/sweep';
 import type { RevealMode } from '../cinematic/sweep';
@@ -50,6 +51,16 @@ import { DEFAULT_GLOW_SCOPE, GLOW_SCOPES, glowIds } from '../cinematic/glow';
 import type { GlowScope } from '../cinematic/glow';
 import { defaultSetsFor, globalIdsToIds, idsToGlobalIds, loadSets, unionBounds } from '../selectionSets';
 
+/** The strongest the focus halo (Focus bloom) goes: a quarter of the old default of 0.7, which was too strong. */
+export const BLOOM_MAX = DEFAULT_BLOOM.strength;
+/** Pulse of the halo and the edge glow: one slow breath, between PULSE_LOW and 1 of the set strength. */
+export const PULSE_PERIOD_MS = 2600;
+export const PULSE_LOW = 0.6;
+/** The pulse factor at time `now` (ms): 1 at the peak, PULSE_LOW at the trough, a smooth sine in between. */
+export function pulseFactor(now: number): number {
+  return PULSE_LOW + (1 - PULSE_LOW) * (0.5 + 0.5 * Math.cos((2 * Math.PI * now) / PULSE_PERIOD_MS));
+}
+
 export interface CinematicConfig {
   flyTo: boolean;
   flyMs: number;
@@ -61,6 +72,8 @@ export interface CinematicConfig {
   bloom: boolean;
   bloomStrength: number;
   bloomRadius: number;
+  /** The focus halo breathes gently (between about 60 % and 100 % of its strength). */
+  bloomPulse: boolean;
   autoOrbit: boolean;
   orbitSpeed: number;
   dollyPlaying: boolean;
@@ -71,6 +84,8 @@ export interface CinematicConfig {
   tourLoop: boolean;
   edgeGlow: boolean;
   glowStrength: number;
+  /** The edge glow breathes gently, like the halo's pulse. */
+  glowPulse: boolean;
   glowColor: string;
   /** Which elements glow: the focus, focus + host + near, or every visible element. Replaces the old `glowNear` switch. */
   glowScope: GlowScope;
@@ -98,8 +113,9 @@ export function defaultConfig(allOff = false, newOff = allOff): CinematicConfig 
     groundShadow: false,
     shadowStrength: 0.5,
     bloom: false,
-    bloomStrength: 0.7,
+    bloomStrength: BLOOM_MAX,
     bloomRadius: 0.45,
+    bloomPulse: false,
     autoOrbit: false,
     orbitSpeed: 8,
     dollyPlaying: false,
@@ -110,6 +126,7 @@ export function defaultConfig(allOff = false, newOff = allOff): CinematicConfig 
     tourLoop: false,
     edgeGlow: false,
     glowStrength: 0.45,
+    glowPulse: false,
     glowColor: '#ff7a1a',
     glowScope: DEFAULT_GLOW_SCOPE,
     glowAdditive: true,
@@ -129,6 +146,7 @@ export class Cinematic {
   readonly cfg: CinematicConfig;
   readonly dressing: SceneDressing;
   readonly bloom: SelectiveBloom;
+  private pulsedEdge = false;
   readonly stagger = new StaggerReveal();
   readonly tour: Tour;
   readonly post: PostFx;
@@ -804,7 +822,22 @@ export class Cinematic {
     if (this.dressing.enabled) this.dressing.updateFog();
     if (this.explodeTable) this.stepExplode(now);
     if (this.viz.active) this.viz.update(now);
+    dirty = this.stepPulse(now) || dirty;
     return dirty;
+  }
+
+  /** The halo and edge glow pulses: set this frame's strength; true while one runs (the frame must be drawn again). */
+  private stepPulse(now: number): boolean {
+    const c = this.cfg;
+    const halo = c.bloom && c.bloomPulse;
+    const edge = c.edgeGlow && c.glowPulse;
+    const f = halo || edge ? pulseFactor(now) : 1;
+    const base = Math.min(c.bloomStrength, BLOOM_MAX);
+    this.bloom.settings.strength = halo ? base * f : base;
+    if (edge) this.r.setEdgeGlowStrength(c.glowStrength * f);
+    else if (this.pulsedEdge) this.r.setEdgeGlowStrength(c.glowStrength);
+    this.pulsedEdge = edge;
+    return halo || edge;
   }
 
   // ------------------------------------------------------------------ turntable
@@ -1001,6 +1034,8 @@ export class Cinematic {
     const fly = f.addFolder('Camera fly-to');
     fly.add(cfg, 'flyTo').name('Fly to selection');
     fly.add(cfg, 'flyMs', 200, 3000, 50).name('Duration (ms)');
+    fly.add(framing, 'margin', ...FRAMING_LIMITS.margin).name('Framing margin');
+    fly.add(framing, 'minDistance', ...FRAMING_LIMITS.minDistance).name('Closest distance (m)');
     const actions = {
       frameFocus: () => this.flyToElements(this.focusIds()),
     };
@@ -1019,7 +1054,12 @@ export class Cinematic {
 
     const bl = f.addFolder('Focus bloom');
     bl.add(cfg, 'bloom').name('Selective bloom').onChange((v: boolean) => (v ? this.bloom.enable() : this.bloom.disable()));
-    bl.add(cfg, 'bloomStrength', 0, 3, 0.05).name('Strength').onChange((v: number) => (this.bloom.settings.strength = v));
+    const bs = bl.add(cfg, 'bloomStrength', 0, BLOOM_MAX, 0.005).name('Strength').onChange((v: number) => {
+      // a saved view or link from before the cap may carry a stronger value: hold it at the cap
+      if (v > BLOOM_MAX) { cfg.bloomStrength = BLOOM_MAX; bs.updateDisplay(); }
+      this.bloom.settings.strength = cfg.bloomStrength;
+    });
+    bl.add(cfg, 'bloomPulse').name('Subtle pulse');
     bl.add(cfg, 'bloomRadius', 0, 1, 0.01).name('Radius').onChange((v: number) => (this.bloom.settings.radius = v));
 
     const eg = f.addFolder('Edge glow');
@@ -1027,6 +1067,7 @@ export class Cinematic {
     eg.add(cfg, 'glowScope', [...GLOW_SCOPES]).name('glow scope').onChange(() => this.applyGlow());
     eg.add(cfg, 'glowAdditive').name('Additive').onChange(() => this.applyGlow());
     eg.add(cfg, 'glowStrength', 0, 2, 0.01).name('Strength').onChange(() => this.applyGlow());
+    eg.add(cfg, 'glowPulse').name('Subtle pulse').onChange(() => this.applyGlow());
     eg.addColor(cfg, 'glowColor').name('Colour').onChange(() => this.applyGlow());
 
     const sw = f.addFolder('Sweep reveal');

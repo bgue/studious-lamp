@@ -1015,6 +1015,18 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Increase the value for a slow and calm move. Decrease the value for a fast move.',
     'Report: Limitations and extensions',
   ),
+  'Camera fly-to/Framing margin': h(
+    'The slider sets how much room a fly to the selection leaves around it. At 1 the item just fills the view.',
+    'Move the slider right and the view stops further back, with more of the surroundings around the item.',
+    'Increase the value when the camera ends up too close. Decrease the value for a tight view of the item.',
+    'Report: Limitations and extensions',
+  ),
+  'Camera fly-to/Closest distance (m)': h(
+    'The slider sets the nearest the camera stops to a small item after a fly to the selection, in metres.',
+    'A small part such as a valve keeps the room around it in view instead of filling the screen.',
+    'Increase the value when small items still end up too close. Set it to 0 to let only the margin decide.',
+    'Report: Limitations and extensions',
+  ),
   'Camera fly-to/Fly to focus now': h(
     'The button moves the camera to the focus objects at once.',
     'Click and the view glides back to the selected item. Use it after you drift away.',
@@ -1063,8 +1075,14 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   'Focus bloom/Strength': h(
     'The slider sets the brightness of the bloom.',
-    'Move the slider right and the glow around the selected item gets brighter. Very high values wash out its colour.',
-    'Increase the value for a strong glow. Decrease the value if the focus colour washes out.',
+    'Move the slider right and the glow around the selected item gets brighter. The right end is a soft halo that keeps the colour.',
+    'Increase the value for a stronger halo. Decrease the value for a faint halo.',
+    'Report: Limitations and extensions',
+  ),
+  'Focus bloom/Subtle pulse': h(
+    'The box makes the halo around the selection breathe slowly.',
+    'The glow eases between a little over half and full strength about every 3 seconds. It draws the eye without flashing.',
+    'Tick it for a presentation or a screen left running. Clear it for a still picture.',
     'Report: Limitations and extensions',
   ),
   'Focus bloom/Radius': h(
@@ -1097,6 +1115,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'The slider sets the brightness of the edge glow.',
     'Move the slider right and the bright line gets bolder and brighter. Move it left and it almost disappears.',
     'Increase the value to make the outline stand out. Decrease the value for a quiet outline.',
+    'Report: Limitations and extensions',
+  ),
+  'Edge glow/Subtle pulse': h(
+    'The box makes the bright outline breathe slowly.',
+    'The outline eases between a little over half and full strength about every 3 seconds, in step with the halo.',
+    'Tick it to draw the eye to the outline. Clear it for a still outline.',
     'Report: Limitations and extensions',
   ),
   'Edge glow/Colour': h(

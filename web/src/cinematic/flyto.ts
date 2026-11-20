@@ -5,8 +5,21 @@ import { Box3, Sphere, Vector3 } from 'three';
 import { easeInOutCubic } from './easing';
 
 export const DEFAULT_FLY_MS = 900;
-/** Distance multiplier on top of the exact sphere fit. */
+/** Distance multiplier on top of the exact sphere fit (the fly-to default before the framing controls; explicit callers still pass it). */
 export const DEFAULT_FLY_MARGIN = 1.35;
+
+/**
+ * How close a fly to the selection frames it (Cinematic > Camera fly-to): `margin` times the distance at which the element exactly fills
+ * the view, and never nearer than `minDistance` metres, so a small part keeps some of its surroundings in view. Shared by the cinematic
+ * fly-to, the Frame selection key and the immediate fit used when fly-to is off.
+ */
+export interface Framing {
+  margin: number;
+  minDistance: number;
+}
+export const DEFAULT_FRAMING: Readonly<Framing> = { margin: 2.2, minDistance: 4 };
+export const FRAMING_LIMITS = { margin: [1, 6, 0.05], minDistance: [0, 30, 0.5] } as const;
+export const framing: Framing = { ...DEFAULT_FRAMING };
 const DEFAULT_DIRECTION = new Vector3(0.7, 0.55, 0.85).normalize();
 
 export interface FlyView {
@@ -27,6 +40,8 @@ export interface FlyOptions {
   margin?: number;
   /** Unit direction from the focus to the camera. Overrides the keep-direction rule. */
   direction?: Vector3;
+  /** Never nearer than this (m). Default: `framing.minDistance` when the margin is the framing one, else none. */
+  minDistance?: number;
   ease?: (t: number) => number;
 }
 
@@ -53,7 +68,10 @@ export function isBehindCamera(position: Vector3, target: Vector3, point: Vector
 export function computeFlyView(box: Box3, cam: FlyCamera, opts: FlyOptions = {}): FlyView {
   const sphere = box.getBoundingSphere(new Sphere());
   const centre = sphere.center.clone();
-  let dist = fitDistance(sphere.radius, cam.fovDeg, cam.aspect, opts.margin ?? DEFAULT_FLY_MARGIN);
+  // no margin given: the framing controls (margin and closest distance); an explicit margin (whole-model views, Tab) keeps its own
+  let dist = fitDistance(sphere.radius, cam.fovDeg, cam.aspect, opts.margin ?? framing.margin);
+  const floor = opts.minDistance ?? (opts.margin === undefined ? framing.minDistance : 0);
+  if (floor > 0) dist = Math.max(dist, floor);
   if (cam.minDistance !== undefined) dist = Math.max(dist, cam.minDistance * 1.01);
   if (cam.maxDistance !== undefined && cam.maxDistance > 0) dist = Math.min(dist, cam.maxDistance * 0.99);
 

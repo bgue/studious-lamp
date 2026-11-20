@@ -468,7 +468,7 @@ function zoomStep(app: ViewerApp, dir: 1 | -1): void {
 }
 
 function frameBox(app: ViewerApp, box: Box3): void {
-  moveToBox(app, box, { margin: 1.25 });
+  moveToBox(app, box); // the framing controls (Cinematic > Camera fly-to) decide how close
 }
 
 function toggleProjection(app: ViewerApp): void {

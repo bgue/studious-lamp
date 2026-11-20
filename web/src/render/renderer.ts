@@ -1090,6 +1090,12 @@ export class XrayRenderer {
    * Draw the edges of `ids` a second time, four times, offset by about a pixel in screen space, as a
    * cheap halo. Additive by default. Pass null to turn it off (the glow meshes are then not drawn).
    */
+  /** Change only the edge glow strength (the pulse calls this every frame; the elements and colour stay). */
+  setEdgeGlowStrength(strength: number): void {
+    this.shared.glowStrength!.value = strength;
+    this.markDirty();
+  }
+
   setEdgeGlow(ids: ReadonlySet<number> | null, color: [number, number, number] = [1, 0.6, 0.15], opts: { strength?: number; additive?: boolean } = {}): void {
     const on = ids !== null && ids.size > 0;
     if (on) {

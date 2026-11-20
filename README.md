@@ -145,6 +145,16 @@ banner over the canvas. The bar keeps the id `xray-overlay` (the message text `x
 **Edge glow** (Cinematic, `Edge glow` folder). A glowing outline whose `glow scope` is `focus` (default: the focus set), `near`
 (focus, host and near buckets) or `all` (every visible element). It follows the selection and the classification. Older
 parameter documents with `glowNear: true` load as `near`.
+`Subtle pulse` makes the outline breathe slowly (between 60 % and 100 % of its strength, a 2.6 s cycle).
+
+**Focus bloom** (Cinematic, `Focus bloom` folder). The soft halo around the focus (the Glow mode turns it on). Its strength goes
+up to 0.175, a quarter of the old default of 0.7, which washed the focus out; a saved view or link with a stronger value is held
+at 0.175. `Subtle pulse` makes the halo breathe like the edge glow, in step with it.
+
+**Camera fly-to framing** (Cinematic, `Camera fly-to` folder). How close a fly to the selection, and the Frame selection key, put
+the camera: `Framing margin` (default 2.2) times the distance at which the selection just fills the view, and never nearer than
+`Closest distance (m)` (default 4 m), so a small part keeps its surroundings in view. The same two values apply to the immediate
+fit used when fly-to is off. Whole-model views and Tab keep their own framing.
 
 - **X-ray** (key `X`). Switches the ghosting of occluders on and off. The settings are the report's: buffer, samples, alpha
   range, gamma, smoothing, occluder scope, layer weighting, far mode, tiers, pins and floors (see "Defaults" in `SPEC.md` and
