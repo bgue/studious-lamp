@@ -7,6 +7,8 @@ import { el } from '../ui/dom';
 import type { Assignment, AttributeKind } from '../schedule/types';
 import { ATTRIBUTES, ATTRIBUTE_LABEL } from './assignments';
 import type { Map4dController } from './controller';
+import { buildSchedulePanel } from './schedulePanel';
+import type { ScheduleController } from './scheduleController';
 import type { Target } from './targets';
 import { colourOf } from './values';
 
@@ -68,9 +70,9 @@ const btn = (text: string, key: string, onClick: () => void, cls = ''): HTMLButt
 const confText = (c: number | undefined): string => (c === undefined ? '' : c.toFixed(2));
 const lower = (a: AttributeKind): string => ATTRIBUTE_LABEL[a].toLowerCase();
 
-export interface PanelHandle { dispose(): void; render(): void; setAttribute(a: AttributeKind): void }
+export interface PanelHandle { dispose(): void; render(): void; setAttribute(a: AttributeKind): void; openSection(id: string): void }
 
-export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dController, ctx: { visible(): boolean; onVisible(cb: (v: boolean) => void): () => void }): PanelHandle {
+export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dController, sc: ScheduleController, ctx: { visible(): boolean; onVisible(cb: (v: boolean) => void): () => void }): PanelHandle {
   ensureStyle();
   const root = el('div', 'x4');
   pane.append(root);
@@ -309,6 +311,9 @@ export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dControl
     }
   }
 
+  // ---------------------------------------------------------------- the schedule workflow (Schedule, Configure, Link, Style, Play)
+  const sched = buildSchedulePanel(root, app, sc, c, ctx);
+
   // ---------------------------------------------------------------- Import / Export
   const io = section('Import / Export', 'io', false, 'Import and Export');
   const exportBtn = btn('Export JSON', 'Export assignments', () => {
@@ -414,8 +419,9 @@ export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dControl
   document.addEventListener('xray-selection', onSel);
   render();
   return {
-    render,
+    render: () => { render(); sched.render(); },
     setAttribute,
-    dispose() { off(); offVis(); document.removeEventListener('xray-selection', onSel); if (raf) cancelAnimationFrame(raf); root.remove(); },
+    openSection(id) { sched.open(id); },
+    dispose() { sched.dispose(); off(); offVis(); document.removeEventListener('xray-selection', onSel); if (raf) cancelAnimationFrame(raf); root.remove(); },
   };
 }

@@ -30,7 +30,7 @@ export interface SaveOptions {
   /** Write ReviewedBy and Comment (reviewer names and comments). Default false: no name leaves the viewer unless this is true. */
   includeReviewers: boolean;
   includeCleanupMarks: boolean;
-  /** Write Xray_4D (Location, Trade, Zone) for the elements that have accepted 4D assignments. Default false. */
+  /** Write Xray_4D (Location, Trade, Zone, ActivityIds) for the elements that have accepted 4D assignments. Default false. */
   includeFourD?: boolean;
   scope: 'all' | 'reviewed';
   /** Goes into the block comment. Default "dev". */
@@ -56,7 +56,7 @@ export interface IfcSourceInfo {
 export type RevisionStatus = 'new' | 'changed' | 'rematched' | 'unchanged';
 
 /** The accepted 4D values of one element. */
-export interface FourDValues { location?: string; trade?: string; zone?: string }
+export interface FourDValues { location?: string; trade?: string; zone?: string; /** Comma-separated task codes of the accepted build links (IfcText `ActivityIds`). */ activityIds?: string }
 
 export interface ElementSave {
   expressId: number;
@@ -124,7 +124,7 @@ export function planSave(
     const cleanup = o.includeCleanupMarks ? extra.cleanup?.get(e.globalId) : undefined;
     const revision = extra.revision?.get(e.globalId);
     const fd = o.includeFourD ? extra.fourD?.get(e.globalId) : undefined;
-    const fourD = fd && (fd.location || fd.trade || fd.zone) ? fd : undefined;
+    const fourD = fd && (fd.location || fd.trade || fd.zone || fd.activityIds) ? fd : undefined;
     // Revision state belongs to the review set, which exists only for an element with a result.
     if (!result && !cleanup && !fourD) continue;
     seen.add(key);

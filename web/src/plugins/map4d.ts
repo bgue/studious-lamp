@@ -15,9 +15,13 @@ import type { Coverage, SuggestSummary } from '../map4d/controller';
 import type { ElementValues } from '../map4d/assignments';
 import type { ImportOutcome } from '../map4d/linkio';
 import { buildMapPanel } from '../map4d/panel';
+import { ScheduleController } from '../map4d/scheduleController';
+import type { LinkSummary, PlayResult, ScheduleSummary } from '../map4d/scheduleController';
+import type { ParsedConfig } from '../map4d/scheduleConfig';
 import type { PanelHandle } from '../map4d/panel';
 import type { Target } from '../map4d/targets';
-import type { Assignment, AttributeKind } from '../schedule/types';
+import type { Assignment, AttributeKind, FourDConfig, FourDLinks, FourDPlan, ReviewStatus } from '../schedule/types';
+import type { LinkReport } from '../schedule/report';
 import { addRightSidebarTab } from './rightSidebar';
 import type { RightTabHandle } from './rightSidebar';
 
@@ -45,8 +49,50 @@ export interface Map4dApi {
   open(): void;
 }
 
+/** window.__xray4dSchedule: the schedule workflow of the 4D tab (src/map4d/scheduleController.ts), for scripts and smoke tests. */
+export interface Schedule4dApi {
+  /** Read an XER file (text, or bytes). A file with several projects waits for chooseProject (summary().pendingProjects). */
+  load(input: string | Uint8Array, name?: string, project?: string): { ok: boolean; message: string };
+  chooseProject(shortName: string): { ok: boolean; message: string };
+  /** The schedule's summary, or null; `pendingProjects` lists the projects of a file that waits for a choice. */
+  summary(): (ScheduleSummary & { pendingProjects?: string[] }) | { pendingProjects: string[] } | null;
+  config(): FourDConfig;
+  setConfig(c: FourDConfig): void;
+  loadConfig(text: string): ParsedConfig;
+  exportConfig(): string;
+  /** Run the linker with the accepted assignments of the mapping tool and the earlier decisions. */
+  link(): LinkSummary | { error: string };
+  links(): FourDLinks | null;
+  report(): LinkReport | null;
+  reportHtml(): string | null;
+  decide(linkId: string, status: ReviewStatus): boolean;
+  exportLinks(): string | null;
+  importLinks(text: string): { links: number; assignments: number; problems: string[]; otherSchedule: boolean };
+  /** Build the plan (registered as plan name `4d:<model>`). */
+  plan(): FourDPlan | { error: string };
+  play(from?: number): Promise<PlayResult>;
+  stop(): void;
+  /** Jump to a schedule date (plan time, ms). */
+  seekDate(planMs: number): Promise<boolean>;
+  record(): Promise<PlayResult>;
+  /** GlobalId -> comma-separated task codes of the accepted build links (what Save IFC writes as Xray_4D.ActivityIds). */
+  activityIds(): ReadonlyMap<string, string>;
+  /** FZK-Haus 4D: load the model, the sample schedule and configuration, link, build the plan. */
+  loadSample(): Promise<PlayResult>;
+  /** Open the 4D tab (and a section of it: schedule, configure, link, style, play). */
+  open(section?: string): void;
+  ready(): Promise<void>;
+  flush(): Promise<boolean>;
+  reset(): void;
+  /** True while the film plays. */
+  readonly playing: boolean;
+  /** The note about what the film cannot do in this build (no director). */
+  readonly note: string;
+}
+
 declare global {
   interface Window {
+    __xray4dSchedule?: Schedule4dApi;
     __xray4dMap?: Map4dApi;
   }
 }
@@ -55,11 +101,14 @@ export const map4dPlugin: AppPlugin = (() => {
   let ctl: Map4dController | null = null;
   let tab: RightTabHandle | null = null;
   let panel: PanelHandle | null = null;
+  let sched: ScheduleController | null = null;
   return {
     name: 'map4d',
     install(app) {
       const c = new Map4dController(app);
       ctl = c;
+      const sc = new ScheduleController(app, c);
+      sched = sc;
       const api: Map4dApi = {
         values: () => ({ location: c.valueList('location').map((v) => v.name), trade: c.valueList('trade').map((v) => v.name), zone: c.valueList('zone').map((v) => v.name) }),
         assign: (attr, value, target) => c.assign(attr, value, target),
@@ -82,6 +131,36 @@ export const map4dPlugin: AppPlugin = (() => {
         open: () => tab?.show(),
       };
       window.__xray4dMap = api;
+      const open = (id?: string): void => { tab?.show(); if (id) panel?.openSection(id); };
+      window.__xray4dSchedule = {
+        load: (input, name = 'schedule.xer', project) => sc.loadXer(input, name, project),
+        chooseProject: (n) => sc.chooseProject(n),
+        summary: () => { const s = sc.summary(); const p = sc.pendingProjects?.map((x) => x.shortName); return s ? { ...s, ...(p ? { pendingProjects: p } : {}) } : p ? { pendingProjects: p } : null; },
+        config: () => JSON.parse(JSON.stringify(sc.config)) as FourDConfig,
+        setConfig: (cfg) => sc.setConfig(cfg),
+        loadConfig: (t) => sc.loadConfigText(t),
+        exportConfig: () => sc.exportConfigText(),
+        link: () => sc.link(),
+        links: () => (sc.links ? (JSON.parse(JSON.stringify(sc.links)) as FourDLinks) : null),
+        report: () => sc.report,
+        reportHtml: () => sc.reportHtml(),
+        decide: (id, status) => sc.decide(id, status),
+        exportLinks: () => sc.exportLinksText(),
+        importLinks: (t) => sc.importLinksText(t),
+        plan: () => sc.buildPlan(),
+        play: (from) => sc.play(from),
+        stop: () => sc.stopPlay(),
+        seekDate: (ms) => sc.seekDate(ms),
+        record: () => sc.record(),
+        activityIds: () => sc.activityIds(),
+        loadSample: async () => { open('play'); const r = await sc.loadSample(); panel?.render(); return r; },
+        open,
+        ready: () => sc.ready(),
+        flush: () => sc.flush(),
+        reset: () => sc.reset(),
+        get playing() { return sc.playing; },
+        get note() { return sc.note; },
+      };
       tab = addRightSidebarTab({
         id: '4d',
         label: '4D',
@@ -90,7 +169,7 @@ export const map4dPlugin: AppPlugin = (() => {
         title: 'Assign a location, trade and zone to elements so a schedule can be linked to the model',
         helpKey: 'Right sidebar/4D tab',
         mount(pane, ctx) {
-          panel = buildMapPanel(pane, app, c, ctx);
+          panel = buildMapPanel(pane, app, c, sc, ctx);
           return () => { panel?.dispose(); panel = null; };
         },
       });
@@ -100,6 +179,6 @@ export const map4dPlugin: AppPlugin = (() => {
         run: () => tab?.show(),
       });
     },
-    onModel() { ctl?.onModel(); panel?.render(); },
+    onModel() { ctl?.onModel(); sched?.onModel(); panel?.render(); },
   };
 })();

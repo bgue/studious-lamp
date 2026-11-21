@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { SAMPLE_PROJECTS, UNAVAILABLE_HINT, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu } from '../src/samples';
+import { SAMPLE_PROJECTS, SAMPLE_WORKFLOWS, UNAVAILABLE_HINT, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu, workflowOf } from '../src/samples';
 import type { BundleContents } from '../src/samples';
 
 const read = (p: string): string => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
@@ -55,7 +55,9 @@ describe('sample projects: availability', () => {
 describe('sample projects: the menu', () => {
   it('lists the samples in order with their labels when served', () => {
     const menu = sampleMenu(null);
-    expect(menu.map((e) => e.value)).toEqual(OLD_MODEL_NAMES);
+    // the workflow sample FZK-Haus 4D sits right after FZK-Haus; every other entry is a model name, in the old order
+    expect(menu.map((e) => e.value)).toEqual(['building', 'fzk-haus', 'fzk-haus-4d', 'plumbing', 'process-plant', 'synth5k', 'debris-demo', 'procedural']);
+    expect(menu.filter((e) => !workflowOf(e.value)).map((e) => e.value)).toEqual(OLD_MODEL_NAMES);
     expect(menu.every((e) => e.available)).toBe(true);
     expect(menu.find((e) => e.value === 'fzk-haus')!.label).toBe('FZK-Haus');
   });
@@ -81,6 +83,34 @@ describe('sample projects: the menu', () => {
     const opts = menuOptions(menu);
     expect(Object.keys(opts).length).toBe(menu.length);
     expect(opts['FZK-Haus']).toBe('fzk-haus');
+  });
+});
+
+describe('sample projects: the FZK-Haus 4D entry', () => {
+  it('is labelled FZK-Haus 4D, names the sample it opens, and is not a model name', () => {
+    expect(SAMPLE_WORKFLOWS).toEqual([{ value: 'fzk-haus-4d', label: 'FZK-Haus 4D', model: 'fzk-haus' }]);
+    expect(sampleMenu(null).find((e) => e.value === 'fzk-haus-4d')!.label).toBe('FZK-Haus 4D');
+    expect(menuOptions(sampleMenu(null))['FZK-Haus 4D']).toBe('fzk-haus-4d');
+    expect(SAMPLE_PROJECTS.some((s) => s.name === 'fzk-haus-4d')).toBe(false);
+    expect(SAMPLE_PROJECTS.some((s) => s.name === workflowOf('fzk-haus-4d')!.model)).toBe(true);
+    expect(workflowOf('fzk-haus')).toBeUndefined();
+  });
+
+  it('is available wherever FZK-Haus is, so the single file has it', () => {
+    expect(sampleAvailable('fzk-haus-4d', null)).toBe(true);
+    expect(sampleAvailable('fzk-haus-4d', SINGLE)).toBe(true);
+    expect(sampleMenu(SINGLE).find((e) => e.value === 'fzk-haus-4d')!.label).toBe('FZK-Haus 4D');
+    const without: BundleContents = { models: ['building'], ifc: [] };
+    expect(sampleAvailable('fzk-haus-4d', without)).toBe(false);
+    expect(sampleMenu(without).find((e) => e.value === 'fzk-haus-4d')!.label).toBe(`FZK-Haus 4D (${UNAVAILABLE_HINT})`);
+  });
+
+  it('has its two small files in the bundle as strings (the single file has no public folder)', () => {
+    const src = read('../src/map4d/sampleFiles.ts');
+    expect(src).toContain("fzk-haus.xer?raw");
+    expect(src).toContain("fzk-haus.4d.json?raw");
+    expect(read('../public/samples/fzk-haus.xer').length).toBeLessThan(64 * 1024);
+    expect(read('../src/map4d/scheduleController.ts')).toMatch(/import\('\.\/sampleFiles'\)/);
   });
 });
 

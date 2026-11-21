@@ -312,6 +312,20 @@ function calendarOf(r: Row, issues: Issues): ScheduleCalendar {
 
 // ---------------------------------------------------------------- the parser
 
+/** The projects of an XER file (short name, data date), for choosing one before `parseXer`. */
+export function listXerProjects(input: string | Uint8Array): ScheduleProject[] {
+  const { text } = decodeXer(input);
+  const issues = new Issues();
+  const tables = readTables(text, issues);
+  return (tables.get('PROJECT')?.rows ?? []).map((r) => {
+    const p: ScheduleProject = { id: v(r, 'proj_id'), shortName: v(r, 'proj_short_name') };
+    if (v(r, 'proj_name')) p.name = v(r, 'proj_name');
+    const dd = isoDate(v(r, 'last_recalc_date'), issues, `project ${p.shortName} last_recalc_date`);
+    if (dd) p.dataDate = dd;
+    return p;
+  });
+}
+
 /**
  * Parses a P6 XER export. `project` picks one project by short name when the file holds several; with one project it
  * is used as is. Throws for a file that is not an XER, for a file with no PROJECT table, and for a project choice that

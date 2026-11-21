@@ -290,8 +290,31 @@ export const fileLoaderPlugin: AppPlugin = (() => {
     for (let i = 2; ; i++) if (!taken.has(`${name} (${i})`)) return `${name} (${i})`;
   };
 
+  /** An .xer or a .4d.json dropped or picked: the schedule workflow of the 4D tab reads it. */
+  async function openSchedule(files: File[]): Promise<void> {
+    const api = window.__xray4dSchedule;
+    if (!api) { fail('This build has no 4D tab'); return; }
+    api.open('schedule');
+    for (const f of files) {
+      if (/\.xer$/i.test(f.name)) {
+        const r = api.load(new Uint8Array(await f.arrayBuffer()), f.name);
+        setStatus(r.message);
+      } else {
+        const r = api.loadConfig(await f.text());
+        setStatus(r.config ? `Read the 4D configuration ${f.name}` : r.problems[0] ?? 'Not a 4D configuration');
+      }
+    }
+  }
+
   async function openFiles(files: File[]): Promise<void> {
     if (!app) return;
+    // a P6 schedule (.xer) and a 4D configuration (.4d.json) go to the 4D tab; the other files open as a model
+    const sched = files.filter((f) => /\.xer$/i.test(f.name) || /\.4d\.json$/i.test(f.name));
+    if (sched.length > 0) {
+      void openSchedule(sched);
+      files = files.filter((f) => !sched.includes(f));
+      if (files.length === 0) return;
+    }
     if (loading) {
       setStatus('Still loading; press Cancel load first');
       return;

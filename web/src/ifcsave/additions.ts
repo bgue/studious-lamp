@@ -70,7 +70,7 @@ export interface ElementProps {
   review: PropSpec[];
   /** `Xray_Cleanup`. */
   cleanup: PropSpec[];
-  /** `Xray_4D`: Location, Trade, Zone. */
+  /** `Xray_4D`: Location, Trade, Zone, ActivityIds. */
   fourD: PropSpec[];
 }
 
@@ -139,6 +139,7 @@ export function elementProps(e: ElementSave, schema: ClassificationSchema, famil
   if (e.fourD && o.includeFourD) {
     const f = e.fourD;
     for (const [name, v] of [['Location', f.location], ['Trade', f.trade], ['Zone', f.zone]] as const) if (v) out.fourD.push({ name, type: 'IfcLabel', value: v });
+    if (f.activityIds) out.fourD.push({ name: 'ActivityIds', type: 'IfcText', value: f.activityIds });
   }
   return out;
 }
