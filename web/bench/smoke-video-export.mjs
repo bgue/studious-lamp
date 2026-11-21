@@ -348,6 +348,36 @@ async function main(browser) {
     await pc.close();
   }
 
+  // ---------------------------------------------------------------- the real HUD layer in the video (phase 2 layer: progress bar at the bottom)
+  {
+    const { ctx: hc, page: hp } = await openPage(browser, { label: 'real-hud' });
+    await makeFly(hp);
+    const frameAt = async (hud) => {
+      await hp.evaluate((h) => window.__xrayRecord.flythrough({ size: '320x180', fps: 24, hud: h }, { download: false }), hud);
+      return hp.evaluate(async () => {
+        const mb = await import('/node_modules/mediabunny/dist/bundles/mediabunny.mjs');
+        const input = new mb.Input({ source: new mb.BlobSource(window.__xrayRecord.lastBlob()), formats: mb.ALL_FORMATS });
+        const track = await input.getPrimaryVideoTrack();
+        const w = await new mb.CanvasSink(track, {}).getCanvas(1.0);
+        const c = w.canvas;
+        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        return { w: c.width, h: c.height, data: Array.from(d) };
+      });
+    };
+    const withHud = await frameAt(true);
+    const noHud = await frameAt(false);
+    let bottom = 0, top = 0;
+    for (let y = 0; y < withHud.h; y++) for (let x = 0; x < withHud.w; x++) {
+      const i = (y * withHud.w + x) * 4;
+      const diff = Math.abs(withHud.data[i] - noHud.data[i]) + Math.abs(withHud.data[i + 1] - noHud.data[i + 1]) + Math.abs(withHud.data[i + 2] - noHud.data[i + 2]);
+      if (diff > 60) (y >= withHud.h - 24 ? bottom++ : top++);
+    }
+    check('real HUD layer: the progress bar and time are in the video frame (pixels differ near the bottom) and the HUD switch removes them', bottom > 50, `bottom ${bottom} differing pixels, elsewhere ${top}`);
+    const clean = await hp.evaluate(() => ({ drawn: window.__xrayFlythrough.hudState().drawn }));
+    check('real HUD layer: the on-screen overlay is clear after the export', clean.drawn === false, JSON.stringify(clean));
+    await hc.close();
+  }
+
   // ---------------------------------------------------------------- fallbacks
   {
     const { ctx: c2, page: p2 } = await openPage(browser, { label: 'no-webcodecs', init: 'delete window.VideoEncoder;' });

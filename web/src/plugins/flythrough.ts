@@ -434,7 +434,9 @@ class FlythroughController {
       if (this.player.paused) this.host.applyFades();
       this.panel?.tick();
       // After the tick: the camera of this frame is what the overlay projects against.
-      if (this.player.playing) this.hudOverlay?.draw(this.player.time, this.player.duration);
+      // (Not during a video export: the exporter draws the layer itself, at the video size.)
+      if (this.player.playing && !this.exporting) this.hudOverlay?.draw(this.player.time, this.player.duration);
+      else if (this.exporting) this.hudOverlay?.clear();
       else this.hudOverlay?.clear();
       return true;
     }
