@@ -145,20 +145,36 @@ try {
     const snap = () => page.evaluate(() => {
       const a = window.__xray.app;
       const r = a.renderer;
-      const cap = document.querySelector('.fl-caption');
-      const fs = window.__xrayFlythrough?.state?.() ?? {};
-      return { t: fs.time ?? 0, playing: !!fs.playing, cam: [r.camera.position.x, r.camera.position.y, r.camera.position.z], hidden: a.settings.overrides.userHides.size, cap: !!cap && !cap.hidden, glow: window.__cinematic.cfg.glowStrength };
+      const fl = window.__xrayFlythrough;
+      const fs = fl?.state?.() ?? {};
+      const hs = fl?.hudState?.() ?? { last: null, drawn: false, pixelRatio: 1 };
+      const last = hs.last;
+      const o = document.querySelector('canvas.xray-hud');
+      // Pixels of the overlay canvas inside a rectangle of the HUD description (CSS pixels): is anything drawn there?
+      const px = (rect) => {
+        if (!o || !rect) return false;
+        const d = hs.pixelRatio;
+        const data = o.getContext('2d').getImageData(Math.max(0, Math.floor(rect.x * d)), Math.max(0, Math.floor(rect.y * d)), Math.max(1, Math.ceil(rect.w * d)), Math.max(1, Math.ceil(rect.h * d))).data;
+        for (let i = 3; i < data.length; i += 4) if (data[i] > 0) return true;
+        return false;
+      };
+      return { t: fs.time ?? 0, playing: !!fs.playing, cam: [r.camera.position.x, r.camera.position.y, r.camera.position.z], hidden: a.settings.overrides.userHides.size, cap: !!last?.caption, capPx: last?.caption ? px(last.caption.rect) : false, labels: last?.labels.length ?? 0, labelPx: last?.labels.length ? px(last.labels[0].rect) : false, hover: !!last?.hover, hoverPx: last?.hover ? px(last.hover.rect) : false, prog: last?.progress?.fraction ?? null, drawn: hs.drawn, glow: window.__cinematic.cfg.glowStrength };
     });
     const until = async (pred, ms = 180000) => { const t0 = Date.now(); let s = await snap(); while (!pred(s) && Date.now() - t0 < ms) { await page.waitForTimeout(150); s = await snap(); } return s; };
     const keepText = await page.evaluate(() => window.__xrayScript.text());
     const before = await snap();
-    const script = 'fly to class IfcPump over 1 second\ntogether\n  caption "Pumps" for 1 second\n  set cinematic.glowStrength to 1.2 over 1 second\n  hide where class = IfcSlab fading over 1 second\nend together\nwait 1';
+    const script = 'fly to class IfcPump over 1 second\ntogether\n  caption "Pumps" "Four of them" for 1 second\n  set cinematic.glowStrength to 1.2 over 1 second\n  hide where class = IfcSlab fading over 1 second\nend together\nlabel class IfcPump with name, class, storey for 1.5 seconds\nhover class IfcPump for 1.5 seconds\nwait 1';
     const run = await page.evaluate((t) => window.__xrayScript.run(t), script);
     const mid = await until((s) => s.t >= 0.7);
     const moved = Math.hypot(mid.cam[0] - before.cam[0], mid.cam[1] - before.cam[1], mid.cam[2] - before.cam[2]);
     check('real player: the script plays and the camera flies to the pumps', run.ok && moved > 1, `${moved.toFixed(1)} m at t=${mid.t.toFixed(2)}`);
     const capS = await until((s) => s.t >= 1.3);
     check('real player: the caption shows during its time and the setting blends', capS.cap && capS.glow > before.glow && capS.glow < 1.2, JSON.stringify({ cap: capS.cap, glow: capS.glow, t: capS.t }));
+    check('HUD: the caption is drawn on the overlay canvas (pixels in its box) and the progress bar runs', capS.capPx && capS.drawn && capS.prog > 0, JSON.stringify({ capPx: capS.capPx, drawn: capS.drawn, prog: capS.prog }));
+    const labS = await until((s) => s.labels > 0 || s.t >= 3.6 || !s.playing);
+    check('HUD: the label cue pins tags to the pumps and draws them (pixels in the first tag)', labS.labels > 0 && labS.labelPx, JSON.stringify({ labels: labS.labels, px: labS.labelPx, t: labS.t }));
+    const hovS = await until((s) => (s.hover && s.hoverPx) || s.t >= 5.2 || !s.playing);
+    check('HUD: the hover cue draws the card of the first pump (pixels in the card)', hovS.hover && hovS.hoverPx, JSON.stringify({ hover: hovS.hover, px: hovS.hoverPx, t: hovS.t }));
     const hid = await until((s) => s.t >= 2.2 || !s.playing);
     check('real player: the slabs are hidden once their fade is over', hid.hidden > 100, `${hid.hidden} hidden at t=${hid.t.toFixed(2)}`);
     const end = await until((s) => !s.playing);
@@ -166,6 +182,14 @@ try {
     const back = await snap();
     const home = Math.hypot(back.cam[0] - before.cam[0], back.cam[1] - before.cam[1], back.cam[2] - before.cam[2]);
     check('real player: at the end the camera, the hidden elements, the setting and the caption are put back', !end.playing && home < 0.05 && back.hidden === before.hidden && back.glow === before.glow && !back.cap, JSON.stringify({ home, hidden: back.hidden, glow: back.glow, cap: back.cap }));
+    const clear = await page.evaluate(() => {
+      const o = document.querySelector('canvas.xray-hud');
+      const d = o.getContext('2d').getImageData(0, 0, Math.max(1, o.width), Math.max(1, o.height)).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+      return { n, display: getComputedStyle(o).display, noDomCaption: !document.querySelector('.fl-caption'), pe: getComputedStyle(o).pointerEvents };
+    });
+    check('HUD: after the end the overlay canvas is clear and hidden, it takes no pointer input and there is no DOM caption', clear.n === 0 && clear.display === 'none' && clear.noDomCaption && clear.pe === 'none', JSON.stringify(clear));
     await page.evaluate((t) => window.__xrayScript.setText(t), keepText); // run(text) put its script in the editor
   }
 

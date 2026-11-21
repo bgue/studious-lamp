@@ -5,6 +5,9 @@
 import { el, esc } from '../ui/dom';
 import type { FlyKeyframe, FlyThrough, Timing } from '../anim/flythrough';
 import type { KeyframePatch } from '../anim/store';
+import { DEFAULT_LABEL_FIELDS, parseFieldList } from '../anim/hud/fields';
+import type { HudSettings } from '../anim/hud/settings';
+import { LABEL_SIZE_MAX, LABEL_SIZE_MIN } from '../anim/hud/settings';
 
 export interface FlyState {
   playing: boolean;
@@ -38,6 +41,8 @@ export interface FlyHost {
   removeKeyframe(index: number): void;
   move(from: number, to: number): void;
   setOptions(o: Partial<Pick<FlyThrough, 'timing' | 'speed' | 'segmentS' | 'lookAtSelection' | 'loop'>>): void;
+  hud(): HudSettings;
+  setHud(patch: Partial<HudSettings>): void;
   play(fromIndex?: number): void;
   pause(): void;
   resume(): void;
@@ -140,6 +145,7 @@ export class FlythroughPanel {
   private readonly speedLbl: HTMLLabelElement;
   private readonly lookChk: HTMLInputElement;
   private readonly loopChk: HTMLInputElement;
+  private readonly hudEls: { progress: HTMLInputElement; compass: HTMLInputElement; scaleBar: HTMLInputElement; labelSize: HTMLInputElement; captionPosition: HTMLSelectElement };
   private readonly savedSel: HTMLSelectElement;
   private readonly fileInput: HTMLInputElement;
   private head: HTMLDivElement | null = null;
@@ -215,12 +221,38 @@ export class FlythroughPanel {
     const row4 = el('div', 'fl-row');
     row4.append(this.timingSel, this.speedLbl, lookLbl, loopLbl);
 
+    // Row 5: the on-screen display (HUD).
+    const chk = (label: string, help: string): { input: HTMLInputElement; label: HTMLLabelElement } => {
+      const input = el('input', '', { type: 'checkbox', ...hk(help) });
+      const l = el('label', '', { ...hk(help) });
+      l.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:11px;color:var(--sb-dim)';
+      l.append(input, label);
+      return { input, label: l };
+    };
+    const hp = chk('Progress bar', 'Fly-through progress bar');
+    const hc = chk('Compass', 'Fly-through compass');
+    const hs = chk('Scale bar', 'Fly-through scale bar');
+    const hsize = el('input', 'inp num', { type: 'number', min: String(LABEL_SIZE_MIN), max: String(LABEL_SIZE_MAX), step: '1', 'aria-label': 'Label font size in pixels', ...hk('Fly-through label size') });
+    hsize.style.width = '50px';
+    const hsizeL = el('label', '', { ...hk('Fly-through label size') });
+    hsizeL.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:11px;color:var(--sb-dim)';
+    hsizeL.append('Label size', hsize, 'px');
+    const hpos = el('select', 'inp', { 'aria-label': 'Where captions show', ...hk('Fly-through caption position') });
+    hpos.append(el('option', '', { value: 'bottom' }, 'Captions at bottom'), el('option', '', { value: 'top' }, 'Captions at top'));
+    this.hudEls = { progress: hp.input, compass: hc.input, scaleBar: hs.input, labelSize: hsize, captionPosition: hpos };
+    const hudHead = el('div', 'fl-sub', {}, 'On-screen display');
+    hudHead.style.cssText = 'font-size:11px;color:var(--sb-dim);margin-top:2px';
+    const row5 = el('div', 'fl-row');
+    row5.append(hp.label, hc.label, hs.label);
+    const row6 = el('div', 'fl-row');
+    row6.append(hsizeL, hpos);
+
     this.msg = el('div', 'fl-msg', { 'aria-live': 'polite' });
     this.cards = el('div', 'fl-cards', { role: 'list', 'aria-label': 'Keyframes' });
     this.edit = el('div', 'fl-edit');
     this.fileInput = el('input', '', { type: 'file', accept: 'application/json,.json' });
     this.fileInput.style.display = 'none';
-    this.body.append(row1, row2, this.bar, row3, row3b, row4, this.msg, this.cards, this.edit, this.fileInput);
+    this.body.append(row1, row2, this.bar, row3, row3b, row4, hudHead, row5, row6, this.msg, this.cards, this.edit, this.fileInput);
 
     this.wire(newBtn, menuBtn, addBtn, fromViews, fromSets);
   }
@@ -283,6 +315,16 @@ export class FlythroughPanel {
     });
     this.lookChk.addEventListener('change', () => h.setOptions({ lookAtSelection: this.lookChk.checked }));
     this.loopChk.addEventListener('change', () => h.setOptions({ loop: this.loopChk.checked }));
+    const he = this.hudEls;
+    he.progress.addEventListener('change', () => h.setHud({ progress: he.progress.checked }));
+    he.compass.addEventListener('change', () => h.setHud({ compass: he.compass.checked }));
+    he.scaleBar.addEventListener('change', () => h.setHud({ scaleBar: he.scaleBar.checked }));
+    he.labelSize.addEventListener('change', () => {
+      const v = Number(he.labelSize.value);
+      if (Number.isFinite(v)) h.setHud({ labelSize: v });
+      else this.render();
+    });
+    he.captionPosition.addEventListener('change', () => h.setHud({ captionPosition: he.captionPosition.value === 'top' ? 'top' : 'bottom' }));
     this.fileInput.addEventListener('change', () => {
       const f = this.fileInput.files?.[0];
       if (f) h.importFile(f);
@@ -479,6 +521,12 @@ export class FlythroughPanel {
     (this.speedLbl.querySelector('.fl-unit') as HTMLElement).textContent = secs ? 's' : 'm/s';
     this.lookChk.checked = f?.lookAtSelection === true;
     this.loopChk.checked = f?.loop === true;
+    const hud = h.hud();
+    this.hudEls.progress.checked = hud.progress;
+    this.hudEls.compass.checked = hud.compass;
+    this.hudEls.scaleBar.checked = hud.scaleBar;
+    if (document.activeElement !== this.hudEls.labelSize) this.hudEls.labelSize.value = String(hud.labelSize);
+    this.hudEls.captionPosition.value = hud.captionPosition;
 
     // Saved views to add.
     const saved = h.savedViews();
@@ -620,7 +668,21 @@ export class FlythroughPanel {
     const capX = el('textarea', 'inp', { placeholder: 'Caption text', 'aria-label': 'Caption text', rows: '2', ...hk('Fly-through caption text') });
     this.editEls['capTitle'] = capT;
     this.editEls['capText'] = capX;
-    this.edit.append(rowN, rowB, rowT, rowE, capT, capX);
+    const lab = el('input', '', { type: 'checkbox', ...hk('Fly-through label selection') });
+    this.editEls['labels'] = lab;
+    const labL = el('label', '', { ...hk('Fly-through label selection') });
+    labL.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:11px;color:var(--sb-dim)';
+    labL.append(lab, 'Label selection');
+    const labF = el('input', 'inp fl-grow', { type: 'text', placeholder: DEFAULT_LABEL_FIELDS.join(', '), 'aria-label': 'Label fields', ...hk('Fly-through label fields') });
+    this.editEls['labelFields'] = labF;
+    const hov = el('input', '', { type: 'checkbox', ...hk('Fly-through hover card') });
+    this.editEls['hover'] = hov;
+    const hovL = el('label', '', { ...hk('Fly-through hover card') });
+    hovL.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:11px;color:var(--sb-dim)';
+    hovL.append(hov, 'Hover card');
+    const rowL = el('div', 'fl-row');
+    rowL.append(labL, labF, hovL);
+    this.edit.append(rowN, rowB, rowT, rowE, capT, capX, rowL);
 
     const num = (key: string): number | null => {
       const v = (this.editEls[key] as HTMLInputElement).value.trim();
@@ -639,6 +701,12 @@ export class FlythroughPanel {
     const cap = (): void => h.update(i, { caption: { title: capT.value, text: capX.value } });
     capT.addEventListener('change', cap);
     capX.addEventListener('change', cap);
+    const labelPatch = (): void => h.update(i, { labels: lab.checked ? { fields: parseFieldList(labF.value) } : null });
+    lab.addEventListener('change', labelPatch);
+    labF.addEventListener('change', () => {
+      if (lab.checked) labelPatch();
+    });
+    hov.addEventListener('change', () => h.update(i, { hover: hov.checked }));
     this.syncEdit(k);
   }
 
@@ -658,7 +726,18 @@ export class FlythroughPanel {
     set('switchAt', k.switchAt);
     set('capTitle', k.caption?.title ?? '');
     set('capText', k.caption?.text ?? '');
+    set('labels', !!k.labels);
+    set('labelFields', k.labels && k.labels.fields.join(', ') !== DEFAULT_LABEL_FIELDS.join(', ') ? k.labels.fields.join(', ') : '');
+    set('hover', k.hover === true);
     const first = this.selected === 0;
+    const noSel = k.view.selection.length === 0;
+    for (const key of ['labels', 'labelFields', 'hover']) {
+      const e = this.editEls[key];
+      if (e) {
+        (e as HTMLInputElement).disabled = noSel;
+        e.title = noSel ? 'This keyframe has no selection. Select elements, then press Update.' : '';
+      }
+    }
     for (const key of ['travel', 'fade', 'fadeFraction']) {
       const e = this.editEls[key];
       if (e) (e as HTMLInputElement).disabled = first;

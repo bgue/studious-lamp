@@ -593,6 +593,10 @@ class Parser {
         const title = parseStr(c, 'the caption text');
         let text: Str | undefined;
         const n = c.peek();
+        // `over` and `ease` belong to moves; a caption only lasts `for N`. Say so instead of reading them as caption text.
+        if (n && n.type === 'word' && ['over', 'ease', 'fading'].includes(n.text.toLowerCase())) {
+          throw new ScriptError(`A caption does not take \`${n.text}\`.`, n.line, n.col, n.end, 'Write `for N seconds` to say how long the caption shows.');
+        }
         if (n && (n.type === 'string' || (n.type === 'word' && n.text.toLowerCase() !== 'for'))) text = parseStr(c, 'the caption text');
         const o = parseOptions(c, ['for']);
         return { kind: 'caption', title, ...(text ? { text } : {}), ...(o.for ? { for: o.for } : {}), ...lineSpan() };

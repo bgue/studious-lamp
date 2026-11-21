@@ -16,6 +16,9 @@ end together
 select nothing
 ```
 
+**See also:** the [formal grammar](animation-script-grammar.md) (EBNF, limits, timing rules) and the
+[guide for coordinators](animation-script-guide.md) (first steps, recipes, reading the errors).
+
 ## How time works
 
 - Statements run in order. **Each starts when the one before it has ended.**
@@ -53,8 +56,8 @@ select nothing
 
 - `select <elements> | select nothing`: Select elements, or clear the selection. Instant.
 - `caption "Title" ["More text"] [for N seconds]`: Show a caption. Lasts 3 seconds unless told, and the next statement waits for it.
-- `label <elements> with <field>, <field> [for N seconds]`: Pin labels to the elements. Fields: name, class, storey, or a property as "Pset_X.Prop". Lasts 3 seconds.
-- `hover <elements> [for N seconds]`: Show the hover highlight on the elements. Lasts 2 seconds unless told.
+- `label <elements> with <field>, <field> [for N seconds]`: Pin a tag to each element (at most 12 show, with "+N more"). Fields: name, class, storey, material, globalid, type, or a property as "Pset_X.Prop". Lasts 3 seconds.
+- `hover <elements> [for N seconds]`: Show the hover card of the first element, near it with a leader line. Lasts 2 seconds unless told.
 
 ### Timing and variables
 
@@ -111,6 +114,10 @@ the cue.
 Every cue has `line`, the line of the script, which the editor highlights while the cue plays. Elements stay references (a query, a set
 name, GlobalIds, the selection) for the player to resolve when playback starts. Only `repeat for each element` needs the model while
 compiling: it expands to one pass per element, with `it` as `{ globalIds: [id] }`. Without a model it is an error.
+
+## The HUD
+
+Captions, labels and the hover card are drawn by the HUD layer over the view, not by the player: see [Fly-through, The HUD](flythrough.md#the-hud) for how they look (fade in and out over 0.3 s, word wrap, safe margins, no overlapping tags). The progress bar (chapter marks at the start of each caption and label), the compass and the scale bar come from the HUD settings in the **Fly-through** section of the Views tab (**On-screen display**); they apply to scripts too and are stored with the model's fly-throughs, not in the script.
 
 ## The Script tab
 

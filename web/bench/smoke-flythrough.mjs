@@ -8,8 +8,10 @@
 //   - the score player takes a hand-written score with every cue kind (param, preset, camera frame by query, visibility, select);
 //   - migration of the old `xray.flythrough.<modelName>` keyframes into "Imported", persistence under the identity key,
 //     keyframes from selection sets, window.__cinematic.keys / record, a recording;
-//   - the phone layout (cards wrap, no horizontal scroll).
-// Screenshots: bench/flythrough-panel.png, flythrough-play.png, flythrough-phone.png. No console errors.
+//   - the HUD (src/anim/hud): the caption, the labels, the hover card, the progress bar, the compass and the scale bar are drawn into the
+//     overlay canvas (checked by pixels where each one sits, cleared after the end); the keyframe editor options and the HUD settings;
+//   - the phone layout (cards wrap, no horizontal scroll) and the HUD on a phone (caption inside the safe margins).
+// Screenshots: bench/flythrough-panel.png, flythrough-play.png, flythrough-phone.png, flythrough-phone-hud.png. No console errors.
 // Usage: SMOKE_PORT=5800 XRAY_VITE_CACHE_DIR=/tmp/xray-ft-cache node bench/smoke-flythrough.mjs        (SMOKE_REUSE=1 uses a server already on that port)
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -249,6 +251,42 @@ async function main(browser) {
   check('editor: rename and the caption survive', await page.evaluate(() => { const k = window.__xrayFlythrough.keyframes()[1]; return k.name === 'The window' && k.caption?.title === 'The window' && k.hold === 1; }));
   await page.evaluate(() => window.__xrayFlythrough.update(1, { name: 'Window' }));
 
+  // HUD options of a keyframe (labels, hover card) and the HUD settings, through the panel.
+  const sel1 = await page.evaluate(() => window.__xray.app.selection.length);
+  await page.evaluate(() => { const f = window.__xrayFlythrough; f.update(1, { labels: { fields: ['name', 'class', 'storey'] }, hover: true }); });
+  const hudOpts = await page.evaluate(() => {
+    const f = window.__xrayFlythrough;
+    const k = f.keyframes()[1];
+    const sc = f.compile();
+    return { labels: k.labels, hover: k.hover, sel: k.selection, cues: sc.cues.filter((c) => c.kind === 'label' || c.kind === 'hover').map((c) => [c.kind, c.at, c.dur, c.fields ?? null, c.elements.globalIds?.length]) };
+  });
+  check('keyframe options: label the selection and the hover card compile to label and hover cues', hudOpts.sel > 0 && hudOpts.cues.length === 2 && hudOpts.cues.some((c) => c[0] === 'label' && c[3].join() === 'name,class,storey' && c[4] === hudOpts.sel) && hudOpts.cues.some((c) => c[0] === 'hover' && c[4] === 1), JSON.stringify(hudOpts));
+  await page.evaluate(() => document.querySelectorAll('.fl-card .fl-shot')[0].click());
+  await page.evaluate(() => document.querySelectorAll('.fl-card .fl-shot')[1].click());
+  await sleep(page, 400);
+  const ui = await page.evaluate(() => {
+    const q = (k) => document.querySelector(`.fl-edit input[data-help-key="Sidebar/Fly-through ${k}"]`);
+    return { lab: q('label selection')?.checked, hov: q('hover card')?.checked, fields: q('label fields')?.value, disabled: q('label selection')?.disabled };
+  });
+  check('the keyframe editor shows the label and hover options of the keyframe', ui.lab === true && ui.hov === true && ui.disabled === false, JSON.stringify(ui));
+  await page.locator('.fl-edit input[data-help-key="Sidebar/Fly-through label fields"]').fill('name, "Pset_WallCommon.FireRating"');
+  await page.locator('.fl-edit input[data-help-key="Sidebar/Fly-through label fields"]').press('Tab');
+  await sleep(page, 300);
+  check('typing the label fields stores them (quotes dropped)', await page.evaluate(() => window.__xrayFlythrough.keyframes()[1].labels.fields.join('|')) === 'name|Pset_WallCommon.FireRating');
+  await page.evaluate(() => window.__xrayFlythrough.update(1, { labels: { fields: ['name', 'class', 'storey'] } }));
+  const hudUi = await page.evaluate(() => {
+    const q = (k) => document.querySelector(`.fl input[data-help-key="Sidebar/Fly-through ${k}"]`);
+    return { prog: q('progress bar')?.checked, comp: q('compass')?.checked, scale: q('scale bar')?.checked, size: q('label size')?.value, pos: document.querySelector('.fl select[data-help-key="Sidebar/Fly-through caption position"]')?.value };
+  });
+  check('HUD settings in the panel: progress bar on, compass and scale bar off, label size 12, captions at the bottom', hudUi.prog === true && hudUi.comp === false && hudUi.scale === false && hudUi.size === '12' && hudUi.pos === 'bottom', JSON.stringify(hudUi));
+  await page.locator('.fl input[data-help-key="Sidebar/Fly-through compass"]').check();
+  await page.locator('.fl input[data-help-key="Sidebar/Fly-through scale bar"]').check();
+  await page.locator('.fl input[data-help-key="Sidebar/Fly-through label size"]').fill('14');
+  await page.locator('.fl input[data-help-key="Sidebar/Fly-through label size"]').press('Tab');
+  await sleep(page, 300);
+  const hudSet = await page.evaluate(() => ({ hud: window.__xrayFlythrough.hud(), stored: Object.entries(localStorage).filter(([k]) => k.startsWith('xray.flythroughs.')).map(([, v]) => JSON.parse(v).hud) }));
+  check('HUD settings change through the panel and are stored with the fly-throughs', hudSet.hud.compass && hudSet.hud.scaleBar && hudSet.hud.labelSize === 14 && hudSet.stored[0]?.compass === true, JSON.stringify(hudSet));
+
   // ---------------------------------------------------------------- playback
   await page.evaluate(() => {
     const app = window.__xray.app;
@@ -269,7 +307,14 @@ async function main(browser) {
     const app = window.__xray.app;
     const r = app.renderer;
     const els = app.controller.model.elements;
-    const log = { cams: [], sel: [], alpha0: [], alpha1: [], caption: [], overlay: [], playing: [], t: [] };
+    const log = { cams: [], sel: [], alpha0: [], alpha1: [], caption: [], overlay: [], playing: [], t: [], hud: [] };
+    const pixels = (rect) => {
+      const o = document.querySelector('canvas.xray-hud');
+      const d = f.hudState().pixelRatio;
+      const data = o.getContext('2d').getImageData(Math.max(0, Math.floor(rect.x * d)), Math.max(0, Math.floor(rect.y * d)), Math.max(1, Math.ceil(rect.w * d)), Math.max(1, Math.ceil(rect.h * d))).data;
+      for (let i = 3; i < data.length; i += 4) if (data[i] > 0) return true;
+      return false;
+    };
     const sleep = (ms) => new Promise((x) => setTimeout(x, ms));
     const ok = f.play();
     const t0 = performance.now();
@@ -280,7 +325,10 @@ async function main(browser) {
       log.sel.push([s.time, app.selection.slice()]);
       log.alpha0.push([s.time, r.state.alpha[0], r.state.flags[0]]);
       log.alpha1.push([s.time, r.state.alpha[2]]);
-      log.caption.push([s.time, document.querySelector('.fl-caption') && !document.querySelector('.fl-caption').hidden ? document.querySelector('.fl-caption .fl-cap-title').textContent : '']);
+      const hs = f.hudState();
+      const last = hs.last;
+      log.caption.push([s.time, last?.caption ? last.caption.title : '']);
+      if (last) log.hud.push({ t: s.time, drawn: hs.drawn, capPx: last.caption ? pixels(last.caption.rect) : null, labels: last.labels.length, labelPx: last.labels.length ? pixels(last.labels[0].rect) : null, hover: !!last.hover, hoverPx: last.hover ? pixels(last.hover.rect) : null, prog: last.progress ? [last.progress.fraction, last.progress.chapters.length, pixels(last.progress.rect)] : null, compass: !!last.compass, scale: !!last.scale });
       log.overlay.push(f.pathVisible);
       await sleep(60);
     }
@@ -297,11 +345,25 @@ async function main(browser) {
   check('play: an element that gets hidden fades (its alpha is between 0 and 1 during the fade)', mid0.length > 0, `${mid0.length} samples, e.g. ${mid0[0]?.map((x) => +x.toFixed?.(2) ?? x)}`);
   check('play: a caption shows during the hold', L.caption.some(([t, c]) => c === 'The window'), `${L.caption.filter(([, c]) => c).length} samples`);
   check('play: the path overlay is off during playback', L.overlay.every((v) => v === false));
+  const H = L.hud;
+  check('HUD: the caption is drawn on the overlay canvas (pixels where its box is)', H.some((h) => h.capPx === true), `${H.filter((h) => h.capPx).length} samples`);
+  check('HUD: the labels are drawn (a tag per selected element) with pixels', H.some((h) => h.labels > 0 && h.labelPx === true), `max ${Math.max(...H.map((h) => h.labels))} labels`);
+  check('HUD: the hover card is drawn with pixels', H.some((h) => h.hover && h.hoverPx === true));
+  check('HUD: the progress bar grows with the clock, has chapter marks (3 keyframes) and pixels', H.every((h) => h.prog) && H.at(-1).prog[0] > H[0].prog[0] && H.some((h) => h.prog[1] === 3) && H.every((h) => h.prog[2] === true), JSON.stringify(H.slice(-1)[0]?.prog));
+  check('HUD: the compass and the scale bar show when switched on', H.some((h) => h.compass && h.scale));
   await waitIdle(page);
   const post = await page.evaluate(() => {
     const app = window.__xray.app;
-    return { cam: window.__xrayViews.camera(), sel: app.selection.slice(), hides: [...app.controller.settings.overrides.userHides], caption: document.querySelector('.fl-caption') ? !document.querySelector('.fl-caption').hidden : false };
+    return { cam: window.__xrayViews.camera(), sel: app.selection.slice(), hides: [...app.controller.settings.overrides.userHides], caption: window.__xrayFlythrough.hudState().drawn };
   });
+  const clear = await page.evaluate(() => {
+    const o = document.querySelector('canvas.xray-hud');
+    const d = o.getContext('2d').getImageData(0, 0, Math.max(1, o.width), Math.max(1, o.height)).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+    return { n, shown: getComputedStyle(o).display, noDom: !document.querySelector('.fl-caption') };
+  });
+  check('HUD: the overlay is clear after the end (no pixel left, canvas hidden, no DOM caption)', clear.n === 0 && clear.shown === 'none' && clear.noDom, JSON.stringify(clear));
   check('restore after the end: camera, selection and hides as before play', dist(post.cam.position, pre.cam.position) < 1e-3 && dist(post.cam.target, pre.cam.target) < 1e-3 && JSON.stringify(post.sel) === JSON.stringify(pre.sel) && JSON.stringify(post.hides) === JSON.stringify(pre.hides) && !post.caption, `dp ${dist(post.cam.position, pre.cam.position).toExponential(1)} sel ${post.sel} hides ${post.hides}`);
   await sleep(page, 600);
   check('the path overlay is back after playback', await page.evaluate(() => window.__xrayFlythrough.pathVisible));
@@ -378,7 +440,7 @@ async function main(browser) {
     const samples = [];
     const t0 = performance.now();
     while (p.playing && performance.now() - t0 < 120000) {
-      samples.push({ t: p.time, a: app.settings.sightlines.alphaMax, f: app.display.inFront, sel: app.selection.length, hides: app.controller.settings.overrides.userHides.size, cap: !!document.querySelector('.fl-caption') && !document.querySelector('.fl-caption').hidden, active: window.__xrayPresets.active() });
+      samples.push({ t: p.time, a: app.settings.sightlines.alphaMax, f: app.display.inFront, sel: app.selection.length, hides: app.controller.settings.overrides.userHides.size, cap: !!window.__xrayFlythrough.hudState().last?.caption, active: window.__xrayPresets.active() });
       await sleep(80);
     }
     const after = { cam: window.__xrayViews.camera(), alphaMax: app.settings.sightlines.alphaMax, inFront: app.display.inFront, hides: app.controller.settings.overrides.userHides.size, sel: app.selection.length };
@@ -389,7 +451,7 @@ async function main(browser) {
   const blend = S.filter((s) => s.t > 0.1 && s.t < 1.9 && s.a < sp.before.alphaMax - 0.01 && s.a > 0.2 + 0.01);
   check('score: a number param blends (alphaMax between its start and 0.2 during the cue), a boolean switches at the end', blend.length > 0 && S.filter((s) => s.t < 1.9).every((s) => s.f === sp.before.inFront), `${blend.length} samples in between, from ${sp.before.alphaMax}; e.g. ${blend[0]?.a?.toFixed(2)}`);
   check('score: select by query, isolate by query, caption, preset', S.some((s) => s.sel > 0) && S.some((s) => s.hides > 40) && S.some((s) => s.cap) && S.some((s) => s.active === sp.presetId), `sel ${Math.max(...S.map((s) => s.sel))} hides ${Math.max(...S.map((s) => s.hides))} preset ${sp.presetId} active ${[...new Set(S.map((s) => s.active))]}`);
-  check('score: unknown and phase 2 cue kinds are skipped, onEnd runs, everything is restored', sp.ok && sp.ended.length === 1 && Math.abs(sp.after.alphaMax - sp.before.alphaMax) < 1e-9 && sp.after.inFront === sp.before.inFront && sp.after.hides === sp.before.hides && sp.after.sel === sp.before.sel && dist(sp.after.cam.position, sp.before.cam.position) < 1e-3, JSON.stringify({ before: sp.before.alphaMax, after: sp.after.alphaMax }));
+  check('score: unknown cue kinds are skipped, onEnd runs, everything is restored', sp.ok && sp.ended.length === 1 && Math.abs(sp.after.alphaMax - sp.before.alphaMax) < 1e-9 && sp.after.inFront === sp.before.inFront && sp.after.hides === sp.before.hides && sp.after.sel === sp.before.sel && dist(sp.after.cam.position, sp.before.cam.position) < 1e-3, JSON.stringify({ before: sp.before.alphaMax, after: sp.after.alphaMax }));
 
   // ---------------------------------------------------------------- selection sets, cinematic proxies, recording
   const sets = await page.evaluate(() => {
@@ -445,6 +507,33 @@ async function main(browser) {
     check('phone: the cards wrap onto several rows, no horizontal scroll', lay.rows >= 2 && lay.scroll <= lay.client + 1 && lay.pageScroll <= lay.inner + 1, JSON.stringify(lay));
     await pp.evaluate(() => document.querySelector('.fl').scrollIntoView());
     await shot(pp, 'flythrough-phone.png');
+    // The HUD on a phone: a long caption wraps inside the safe margins, the labels stay inside the frame.
+    const ph = await pp.evaluate(async () => {
+      const f = window.__xrayFlythrough;
+      const app = window.__xray.app;
+      app.selectIds([20, 21, 22]);
+      await new Promise((r) => setTimeout(r, 800));
+      f.add({ name: 'Talk' });
+      const i = f.keyframes().length - 1;
+      f.update(i, { hold: 4, caption: { title: 'A phone caption', text: 'A long line of explanation that has to wrap on a narrow screen and stay inside the safe margins.' }, labels: { fields: ['name', 'class'] }, hover: true });
+      f.setHud({ compass: true, scaleBar: true });
+      return { i, arrive: f.timing().arrive[i] };
+    });
+    await pp.evaluate((a) => window.__xrayFlythrough.play({ from: a + 0.5 }), ph.arrive);
+    await pp.waitForFunction(() => window.__xrayFlythrough.state().time >= 0.3 + window.__xrayFlythrough.timing().arrive.at(-1), null, { timeout: 120000, polling: 200 });
+    const phud = await pp.evaluate(() => {
+      const f = window.__xrayFlythrough;
+      const hs = f.hudState();
+      const o = document.querySelector('canvas.xray-hud');
+      const px = (r) => { const d = o.getContext('2d').getImageData(Math.floor(r.x * hs.pixelRatio), Math.floor(r.y * hs.pixelRatio), Math.ceil(r.w * hs.pixelRatio), Math.ceil(r.h * hs.pixelRatio)).data; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) return true; return false; };
+      const c = hs.last?.caption;
+      const r = o.getBoundingClientRect();
+      return { w: hs.width, h: hs.height, cap: c ? { x: c.rect.x, right: c.rect.x + c.rect.w, bottom: c.rect.y + c.rect.h, px: px(c.rect) } : null, labels: hs.last?.labels.length ?? 0, labelsInside: (hs.last?.labels ?? []).every((l) => l.rect.x >= 0 && l.rect.x + l.rect.w <= hs.width && l.rect.y >= 0 && l.rect.y + l.rect.h <= hs.height), canvas: [Math.round(r.width), Math.round(r.height)], inner: [window.innerWidth, window.innerHeight], hover: !!hs.last?.hover, compass: !!hs.last?.compass };
+    });
+    check('phone HUD: the caption wraps inside the safe margins and is drawn; labels stay in the frame', phud.cap && phud.cap.x >= 12 && phud.w - phud.cap.right >= 12 && phud.cap.bottom <= phud.h - 12 && phud.cap.px && phud.labels > 0 && phud.labelsInside && phud.compass, JSON.stringify(phud));
+    check('phone HUD: the overlay canvas covers the viewer canvas', Math.abs(phud.canvas[0] - phud.w) <= 1 && phud.canvas[0] <= phud.inner[0] + 1, JSON.stringify(phud));
+    await shot(pp, 'flythrough-phone-hud.png');
+    await pp.evaluate(() => window.__xrayFlythrough.stop());
     await pc.close();
   }
 }

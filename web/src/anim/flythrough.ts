@@ -15,6 +15,9 @@ import { sanitizeView } from '../views/model';
 import type { Cue, Score, SwitchAt, CameraPose, V3, ElementRef } from './score';
 import { SCORE_SCHEMA, scoreEnd } from './score';
 import { Spline3 } from './spline';
+import { DEFAULT_LABEL_FIELDS, MAX_LABEL_FIELDS } from './hud/fields';
+import { sanitizeHud } from './hud/settings';
+import type { HudSettings } from './hud/settings';
 import type { P3 } from './spline';
 
 export const FLYTHROUGHS_SCHEMA = 'xray-flythroughs/1';
@@ -33,6 +36,12 @@ export const MAX_KEYFRAMES = 200;
 export interface FlyCaption {
   title?: string;
   text?: string;
+}
+
+/** "Label the selection" of a keyframe: a tag per selected element with these fields (name, class, storey, material, globalid,
+ *  type or a property key). */
+export interface FlyLabels {
+  fields: string[];
 }
 
 export interface FlyKeyframe {
@@ -55,6 +64,10 @@ export interface FlyKeyframe {
   /** Where in the travel the discrete changes happen (settings, projection, explode, hides without fade). */
   switchAt: SwitchAt;
   caption?: FlyCaption;
+  /** Tag each element of the keyframe's selection while the camera stays here (as long as the caption: the hold, else 2.5 s). */
+  labels?: FlyLabels;
+  /** Show the hover card of the first selected element while the camera stays here. */
+  hover?: boolean;
 }
 
 export interface FlyThrough {
@@ -75,6 +88,8 @@ export interface FlyDoc {
   flythroughs: FlyThrough[];
   /** Id of the one shown in the timeline. */
   active: string | null;
+  /** What the HUD shows besides captions and labels (progress bar, compass, scale bar, label size, caption position). */
+  hud?: HudSettings;
 }
 
 // ---------------------------------------------------------------- ids, defaults
@@ -315,6 +330,14 @@ export function compileFlyThrough(ft: FlyThrough, ctx: CompileContext = {}): Sco
       if (c.text?.trim()) cue.text = c.text;
       cues.push(cue);
     }
+
+    // Labels and the hover card of the selection, for as long as a caption would show.
+    const sel = k.view.selection;
+    if (sel.length > 0 && (k.labels || k.hover)) {
+      const dur = k.hold > 0 ? k.hold : DEFAULT_CAPTION_S;
+      if (k.labels) cues.push({ kind: 'label', at: arrive, dur, elements: { globalIds: [...sel] }, fields: k.labels.fields.length ? [...k.labels.fields] : [...DEFAULT_LABEL_FIELDS], label });
+      if (k.hover) cues.push({ kind: 'hover', at: arrive, dur, elements: { globalIds: [sel[0]!] }, label });
+    }
   });
 
   score.cues = cues;
@@ -436,7 +459,27 @@ function parseKeyframe(raw: unknown): FlyKeyframe | null {
     if (typeof x === 'string' && x) cap.text = x;
     if (cap.title || cap.text) k.caption = cap;
   }
+  const lb = o['labels'];
+  if (lb && typeof lb === 'object') {
+    const f = (lb as { fields?: unknown }).fields;
+    k.labels = { fields: cleanFields(f) };
+  }
+  if (o['hover'] === true) k.hover = true;
   return k;
+}
+
+/** Label field names from stored data: strings, trimmed, no duplicates, at most 8; empty means the defaults. */
+export function cleanFields(raw: unknown): string[] {
+  const out: string[] = [];
+  if (Array.isArray(raw)) {
+    for (const f of raw) {
+      if (typeof f !== 'string') continue;
+      const t = f.trim();
+      if (t && t.length <= 80 && !out.includes(t)) out.push(t);
+      if (out.length >= MAX_LABEL_FIELDS) break;
+    }
+  }
+  return out.length ? out : [...DEFAULT_LABEL_FIELDS];
 }
 
 export function parseFlyThrough(raw: unknown): FlyThrough | null {
@@ -473,7 +516,9 @@ export function parseFlyDoc(text: string | null | undefined): FlyDoc | null {
   if (!list) return null;
   const flythroughs = list.map(parseFlyThrough).filter((f): f is FlyThrough => f !== null);
   const active = typeof o['active'] === 'string' && flythroughs.some((f) => f.id === o['active']) ? (o['active'] as string) : (flythroughs[0]?.id ?? null);
-  return { schema: FLYTHROUGHS_SCHEMA, flythroughs, active };
+  const doc: FlyDoc = { schema: FLYTHROUGHS_SCHEMA, flythroughs, active };
+  if (o['hud'] !== undefined) doc.hud = sanitizeHud(o['hud']);
+  return doc;
 }
 
 export function serializeFlyDoc(doc: FlyDoc, withThumbs = true): string {

@@ -1,7 +1,8 @@
 // The viewer side of the score player: starts a runner for each cue kind of src/anim/score.ts, keeps what a restore needs and
 // puts it back. See src/anim/player.ts for the clock. Cue kinds: cameraPath, camera (pose, frame, view, orbitDeg), param, preset,
-// view, visibility (fades the alpha of the elements that appear or disappear), select, caption. label and hover are phase 2 and
-// are skipped; so is any cue kind this player does not know.
+// view, visibility (fades the alpha of the elements that appear or disappear), select. caption, label and hover are drawn by the
+// HUD layer (src/anim/hud), which gets the score from begin(); their runners here only report the cue start. Any cue kind this
+// player does not know is skipped.
 
 import { Box3, Vector3 } from 'three';
 import type { ViewerApp } from '../app';
@@ -25,7 +26,7 @@ import { blendNumbers, diffParams, easeValue, getAt, nest, pathKeys, switchPoint
 import type { Keys } from './blend';
 import type { CameraPose, Cue, ElementRef, Score, V3, ViewState } from './score';
 import type { CueRunner, PlayerHost } from './player';
-import { hideCaption, showCaption } from './caption';
+import { getHudLayer } from './hud';
 
 const PARAM_APPLY_MS = 50;
 
@@ -83,7 +84,6 @@ export class ViewerScoreHost implements PlayerHost {
   private forceParams = false;
   private groups = new Set<FadeGroup>();
   private sightlinesDirty = false;
-  private captionOwner: Cue | null = null;
   private camSetup = false;
   readonly warned = new Set<string>();
 
@@ -121,6 +121,7 @@ export class ViewerScoreHost implements PlayerHost {
     this.forceParams = false;
     this.camSetup = false;
     this.pathSpans = [];
+    getHudLayer()?.setScore?.(score);
     score.cues.forEach((c, i) => {
       if (c.kind === 'cameraPath') this.pathSpans.push([c.at, c.at + c.dur]);
       this.prewarm(c, i);
@@ -140,8 +141,7 @@ export class ViewerScoreHost implements PlayerHost {
     this.groups.clear();
     this.forceParams = true;
     this.flushParams(Infinity);
-    hideCaption();
-    this.captionOwner = null;
+    getHudLayer()?.setScore?.(null);
     const cin = getCinematic();
     if (cin) {
       cin.externalCamera = false;
@@ -156,8 +156,7 @@ export class ViewerScoreHost implements PlayerHost {
     this.forceParams = false;
     this.sightlinesDirty = false;
     this.snap = null;
-    hideCaption();
-    this.captionOwner = null;
+    getHudLayer()?.setScore?.(null);
     const cin = getCinematic();
     if (cin) {
       cin.externalCamera = false;
@@ -231,6 +230,7 @@ export class ViewerScoreHost implements PlayerHost {
       pre(c.hide, 'hide');
       pre(c.isolate, 'isolate');
     } else if (c.kind === 'select') pre(c.elements, 'elements');
+    else if (c.kind === 'label' || c.kind === 'hover') pre(c.elements, 'elements');
     else if (c.kind === 'camera') {
       if ('frame' in c.to) pre(c.to.frame, 'frame');
       if ('orbitDeg' in c.to) pre(c.to.about, 'about');
@@ -659,20 +659,9 @@ export class ViewerScoreHost implements PlayerHost {
     };
   }
 
-  private captionRunner(cue: Extract<Cue, { kind: 'caption' }>): CueRunner {
-    return {
-      update: (raw) => {
-        if (raw < 1) {
-          if (this.captionOwner !== cue) {
-            this.captionOwner = cue;
-            showCaption(cue.title, cue.text);
-          }
-        } else if (this.captionOwner === cue) {
-          this.captionOwner = null;
-          hideCaption();
-        }
-      },
-    };
+  /** Captions, labels and the hover card are drawn by the HUD layer from the score; the runner only lets the player report the cue. */
+  private hudRunner(): CueRunner {
+    return { update: () => undefined };
   }
 
   // ---------------------------------------------------------------- cue dispatch
@@ -694,9 +683,11 @@ export class ViewerScoreHost implements PlayerHost {
       case 'select':
         return this.selectRunner(cue, index);
       case 'caption':
-        return this.captionRunner(cue);
+      case 'label':
+      case 'hover':
+        return this.hudRunner();
       default:
-        return null; // label, hover (phase 2) and cue kinds from a newer score format
+        return null; // cue kinds from a newer score format
     }
   }
 }

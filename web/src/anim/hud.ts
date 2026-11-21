@@ -5,7 +5,7 @@
 //
 // Contract between the HUD work (phase 2) and the video export work (phase 3). Change it ADDITIVELY only.
 
-import type { V3 } from './score';
+import type { Score, V3 } from './score';
 
 export interface HudFrame {
   /** Seconds into the score (the player's clock, also when the exporter steps frame by frame). */
@@ -28,6 +28,9 @@ export interface HudLayer {
   draw(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, frame: HudFrame): void;
   /** True when the layer has something to draw at `t` (the exporter skips compositing otherwise). */
   active(t: number): boolean;
+  /** Additive (phase 2): the score the layer draws its cues from. The score player's host calls it with the score when playback
+   *  begins (also after a seek) and with null when it ends. A video exporter that plays the score through the player gets it for free. */
+  setScore?(score: Score | null): void;
 }
 
 let layer: HudLayer | null = null;
