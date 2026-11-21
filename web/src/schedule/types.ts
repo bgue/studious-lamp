@@ -179,7 +179,7 @@ export interface FourDConfig {
   /** Trade value -> an element query used when the model has no trade attribute (criteria language). */
   tradeQueries?: Record<string, string>;
   /** Per-activity overrides by activity ID. */
-  activities?: Record<string, { query?: string; globalIds?: string[]; split?: SplitRule }>;
+  activities?: Record<string, { query?: string; globalIds?: string[]; split?: SplitRule; /** 'remove': the activity demolishes the elements it matches (default 'build'). Added by the linker. */ role?: 'build' | 'remove' }>;
   /** Split rule by trade value ('*' = default). */
   split?: Record<string, SplitRule>;
   style: FourDStyle;

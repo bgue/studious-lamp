@@ -319,6 +319,25 @@ A, B and E can start in parallel.
 4. Temporary works: not in the models yet; out of scope for now (the `removed` state stays for demolition).
 5. Write-back **yes**, for reloading later: `Xray_4D` properties and `IfcTask` + `IfcTaskTime` + `IfcRelAssignsToProcess`.
 
+## 10a. Linking and planning: where the build differs from the design
+
+Built in `web/src/schedule/{model,attrs,link,planTime,plan,report}.ts`; usage in `web/docs-features/4d-linking.md`.
+
+- **No `map.yaml` file format yet.** The mapping is `FourDConfig` (JSON): `values`, `tradeQueries`, `activities`, `split`. A zone given as a box
+  or a selection set (3.1, `areas`) is not supported; a zone is an IfcZone, a property or an assignment.
+- **Explicit beats inferred.** Manual, native, property and override links outrank the attribute rule in the specificity order, and an activity that
+  names its elements (any of those) does not also infer elements from its attributes. A tied activity gets no suggestion.
+- **Remove role** is `config.activities[code].role = 'remove'` (additive field of `FourDConfig`); links of role remove come from it or from prior links.
+- **Prior links.** `linkSchedule` takes earlier `ActivityLink`s: accepted ones are kept and win, the rest are passed through, and a rejected or
+  proposed one stops a new suggestion for its activity.
+- **Variance.** Compared against the baseline, else the target dates (early dates are the forecast). `behind` and `ahead` exist in the variance
+  view only, at the data date: `behind` from the planned finish until done, `ahead` from the actual finish until the planned finish. The design lists
+  `behind` under the actual view; the actual view here shows plain active / complete.
+- **Splits** divide calendar time, not working time; the time map then spends no screen time on the weekend between two slices.
+- **Time map.** Seconds strictly increase; plan time is flat across a milestone hold (two knots with the same plan time). Non-working days weigh
+  0.02 h so the map stays invertible. `daysPerSecond` wins over `length` when both are set (the default style has a length).
+- **Unplanned elements** (no accepted link, not existing) have no timeline; the player ghosts them.
+
 ## 11. Earlier open questions
 
 1. A real XER (even a trimmed one) and its model: how do your schedules describe location and trade (activity codes?
