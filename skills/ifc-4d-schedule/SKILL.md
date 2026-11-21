@@ -71,6 +71,11 @@ summary on stdout and never overwrites its input.
      `at milestone`, `focus active`). These need the plan built in the viewer or by `xray-4d plan` from the same
      schedule.
 
+   For a whole film with automatic camera work (shots, explode on multi-storey work, section boxes at interior work,
+   milestone beats, each decision explained), use the X-ray CLI's director when the xray-ref repo is at hand:
+   `xray-4d plan …` then `xray-4d script build.4d.json --model model.ifc --name NAME -o film.xrayanim --notes notes.txt`.
+   `anim_write.py` is for parts of the build you select.
+
    You may edit the script afterwards, for example to add `explode storeys` at a milestone, `orbit`, or `mode cutaway`
    for interior work. **Always** run `node xrayanim_check.mjs` on the result and fix every error before handing it
    over. The user plays it in the viewer's Script tab or renders it with `xray-4d render`.

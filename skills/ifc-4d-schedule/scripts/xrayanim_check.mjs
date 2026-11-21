@@ -494,6 +494,20 @@ function lexLine(text, line) {
 			i++;
 			continue;
 		}
+		if (c === "#") {
+			const cm = /^#[0-9a-fA-F]{6}(?![A-Za-z0-9_])/.exec(text.slice(i));
+			if (cm) {
+				toks.push({
+					type: "colour",
+					text: cm[0].toLowerCase(),
+					line,
+					col: i + 1,
+					end: i + 1 + cm[0].length
+				});
+				i += cm[0].length;
+				continue;
+			}
+		}
 		if (c === "#" || c === "-" && text[i + 1] === "-") break;
 		const start = i;
 		if (OPEN_QUOTES.has(c)) {
@@ -617,7 +631,38 @@ var STATEMENT_WORDS = [
 	"together",
 	"repeat",
 	"put",
+	"schedule",
+	"at",
+	"tint",
+	"explode",
+	"collapse",
+	"focus",
+	"section",
 	"end"
+];
+/** The colour words of `tint` and their colours (#rrggbb). */
+var COLOUR_NAMES = {
+	red: "#e53935",
+	orange: "#fb8c00",
+	yellow: "#fdd835",
+	green: "#43a047",
+	teal: "#00897b",
+	cyan: "#00acc1",
+	blue: "#1e88e5",
+	indigo: "#3949ab",
+	purple: "#8e24aa",
+	magenta: "#d81b60",
+	pink: "#f48fb1",
+	brown: "#6d4c41",
+	grey: "#9e9e9e",
+	gray: "#9e9e9e",
+	white: "#ffffff",
+	black: "#212121"
+};
+var TINT_OFF = [
+	"off",
+	"none",
+	"clear"
 ];
 var MODE_WORDS = [
 	"ghost",
@@ -634,8 +679,14 @@ var STOP_WORDS = /* @__PURE__ */ new Set([
 	"fading",
 	"for",
 	"with",
-	"about"
+	"about",
+	"by"
 ]);
+var SCHEDULE_VIEWS = [
+	"planned",
+	"actual",
+	"variance"
+];
 var SECOND_UNITS = /* @__PURE__ */ new Set([
 	"s",
 	"sec",
@@ -868,7 +919,8 @@ var OPTION_USAGE = {
 	ease: "ease in, ease out, ease in out or ease linear",
 	margin: "margin N",
 	fading: "fading over N seconds",
-	for: "for N seconds"
+	for: "for N seconds",
+	by: "by N"
 };
 function parseEase(c) {
 	const t = c.peek();
@@ -910,6 +962,7 @@ function parseOptions(c, allowed) {
 		c.i++;
 		if (w === "ease") o.ease = parseEase(c);
 		else if (w === "margin") o.margin = parseExpr(c);
+		else if (w === "by") o.by = parseExpr(c);
 		else if (w === "fading") {
 			c.eatWord("over");
 			o.fading = parseQuantity(c, SECOND_UNITS);
@@ -981,11 +1034,36 @@ function buildQuery(toks) {
 		starts
 	};
 }
-function parseWhere(c, kw) {
+var isColourTok = (t) => !!t && (t.type === "colour" || t.type === "word" && (t.text.toLowerCase() in COLOUR_NAMES || TINT_OFF.includes(t.text.toLowerCase())));
+function parseWhere(c, kw, endColour = false) {
 	const toks = [];
 	let depth = 0;
 	while (!c.atEnd) {
 		const t = c.peek();
+		if (endColour && depth <= 0 && toks.length > 0 && isColourTok(t)) {
+			const prev = toks[toks.length - 1];
+			const n = c.peek(1);
+			if (!(prev.type === "punct" && [
+				"=",
+				"==",
+				"!=",
+				"<>",
+				"<",
+				"<=",
+				">",
+				">=",
+				"(",
+				","
+			].includes(prev.text) || prev.type === "word" && [
+				"like",
+				"between",
+				"and",
+				"or",
+				"not",
+				"in",
+				"is"
+			].includes(prev.text.toLowerCase())) && (!n || lowerWord(n) === "fading")) break;
+		}
 		if (t.type === "punct" && t.text === "(") depth++;
 		else if (t.type === "punct" && t.text === ")") depth--;
 		else if (depth <= 0 && t.type === "word" && STOP_WORDS.has(t.text.toLowerCase())) break;
@@ -1013,7 +1091,7 @@ function parseWhere(c, kw) {
 		...span(tspan(kw), tspan(toks[toks.length - 1]))
 	};
 }
-var ELEMENT_HELP = "Write `where <criteria>`, `class IfcPump`, `set \"Name\"`, `the selection`, `everything`, `it` or `elements \"id\", \"id\"`.";
+var ELEMENT_HELP = "Write `where <criteria>`, `class IfcPump`, `set \"Name\"`, `the selection`, `everything`, `it`, `elements \"id\", \"id\"`, or `active`, `completed`, `critical`.";
 var ELEMENT_WORDS = [
 	"where",
 	"class",
@@ -1022,16 +1100,28 @@ var ELEMENT_WORDS = [
 	"selection",
 	"everything",
 	"it",
-	"elements"
+	"elements",
+	"active",
+	"completed",
+	"critical"
 ];
-function parseElements(c) {
+function parseElements(c, endColour = false) {
 	const t = c.peek();
 	if (!t) throw c.failEnd("Expected which elements.", ELEMENT_HELP);
 	const w = lowerWord(t);
 	if (t.type === "word") switch (w) {
 		case "where":
 			c.i++;
-			return parseWhere(c, t);
+			return parseWhere(c, t, endColour);
+		case "active":
+		case "completed":
+		case "critical":
+			c.i++;
+			return {
+				k: "schedule",
+				set: w,
+				...tspan(t)
+			};
 		case "class":
 		case "classes": {
 			c.i++;
@@ -1391,6 +1481,181 @@ var Parser = class {
 					...lineSpan()
 				};
 			}
+			case "schedule": {
+				const n = c.peek();
+				if (!n || n.type !== "string") throw c.fail(`Expected the name of a 4D plan in double quotes after \`schedule\`, found ${describe(n)}.`, "For example: schedule \"Tower A\" over 90 seconds.");
+				c.i++;
+				const out = {
+					kind: "schedule",
+					plan: {
+						v: n.text,
+						...tspan(n)
+					},
+					...lineSpan()
+				};
+				const textOpt = (what) => {
+					const v = c.peek();
+					if (!v || v.type !== "string") throw c.fail(`Expected a date in double quotes after \`${what}\`, found ${describe(v)}.`, `For example: ${what} "2027-03-01".`);
+					c.i++;
+					return {
+						v: v.text,
+						...tspan(v)
+					};
+				};
+				while (!c.atEnd) {
+					const o = c.peek();
+					const w = lowerWord(o);
+					if (o.type !== "word" || ![
+						"view",
+						"from",
+						"to",
+						"over"
+					].includes(w)) {
+						const dym = o.type === "word" ? didYouMean(o.text, [
+							"view",
+							"from",
+							"to",
+							"over"
+						]) : "";
+						throw c.fail(`I did not expect ${describe(o)} here.`, `${dym ? `${dym} ` : ""}A schedule statement can end with \`view planned|actual|variance\`, \`from "date"\`, \`to "date"\` and \`over N seconds\`.`);
+					}
+					if (out[w] !== void 0) throw c.fail(`\`${w}\` is given twice in this statement.`);
+					c.i++;
+					if (w === "view") {
+						const v = c.peek();
+						const vw = lowerWord(v);
+						if (!v || v.type !== "word" || !SCHEDULE_VIEWS.includes(vw)) throw c.fail(`Expected \`planned\`, \`actual\` or \`variance\` after \`view\`, found ${describe(v)}.`, v?.type === "word" ? didYouMean(v.text, SCHEDULE_VIEWS) : void 0);
+						c.i++;
+						out.view = vw;
+					} else if (w === "from") out.from = textOpt("from");
+					else if (w === "to") out.to = textOpt("to");
+					else out.over = parseQuantity(c, SECOND_UNITS);
+				}
+				return out;
+			}
+			case "at": {
+				const k = c.peek();
+				const kw = lowerWord(k);
+				if (!k || kw !== "date" && kw !== "milestone") throw c.fail(`Expected \`date\` or \`milestone\` after \`at\`, found ${describe(k)}.`, k?.type === "word" ? didYouMean(k.text, ["date", "milestone"]) || "For example: at date \"2027-03-01\", or at milestone \"Roof complete\"." : "For example: at date \"2027-03-01\", or at milestone \"Roof complete\".");
+				c.i++;
+				const v = c.peek();
+				if (!v || v.type !== "string") throw c.fail(`Expected the ${kw} in double quotes, found ${describe(v)}.`, kw === "date" ? "Write the date in double quotes, like at date \"2027-03-01\"." : "Write the milestone name in double quotes, like at milestone \"Roof complete\".");
+				c.i++;
+				endOfStatement(c, [], `An \`at ${kw}\` line holds only the ${kw}; the statements that start then follow below it.`);
+				return {
+					kind: "at",
+					what: kw,
+					value: {
+						v: v.text,
+						...tspan(v)
+					},
+					...lineSpan()
+				};
+			}
+			case "tint": {
+				const target = parseElements(c, true);
+				const col = c.peek();
+				let colour;
+				if (col && col.type === "colour") {
+					c.i++;
+					colour = {
+						v: col.text,
+						...tspan(col)
+					};
+				} else if (col && col.type === "string") {
+					c.i++;
+					colour = {
+						v: col.text,
+						...tspan(col)
+					};
+				} else if (col && col.type === "word" && TINT_OFF.includes(col.text.toLowerCase())) {
+					c.i++;
+					colour = null;
+				} else if (col && col.type === "word") {
+					c.i++;
+					colour = {
+						v: col.text,
+						...tspan(col)
+					};
+				} else throw c.fail(`Expected a colour after the elements, found ${describe(col)}.`, `A colour is #rrggbb or a name (${Object.keys(COLOUR_NAMES).slice(0, 6).join(", ")}, ...); \`off\` takes the tint away.`);
+				const o = parseOptions(c, ["fading"]);
+				return {
+					kind: "tint",
+					target,
+					colour,
+					...o.fading ? { fading: o.fading } : {},
+					...lineSpan()
+				};
+			}
+			case "explode": {
+				const m = c.peek();
+				const mw = lowerWord(m);
+				if (!m || mw !== "storeys" && mw !== "radial") throw c.fail(`Expected \`storeys\` or \`radial\` after \`explode\`, found ${describe(m)}.`, m?.type === "word" ? didYouMean(m.text, ["storeys", "radial"]) || "For example: explode storeys by 1.5 over 2 seconds." : "For example: explode storeys by 1.5 over 2 seconds.");
+				c.i++;
+				const o = parseOptions(c, ["by", "over"]);
+				return {
+					kind: "explode",
+					mode: mw,
+					...o.by ? { by: o.by } : {},
+					...o.over ? { over: o.over } : {},
+					...lineSpan()
+				};
+			}
+			case "collapse": {
+				const o = parseOptions(c, ["over"]);
+				return {
+					kind: "collapse",
+					...o.over ? { over: o.over } : {},
+					...lineSpan()
+				};
+			}
+			case "focus": {
+				if (c.word() === "nothing" || c.word() === "none") {
+					c.i++;
+					endOfStatement(c, [], "`focus nothing` takes nothing after it.");
+					return {
+						kind: "focus",
+						target: null,
+						...lineSpan()
+					};
+				}
+				const target = parseElements(c);
+				endOfStatement(c, [], "A focus statement is `focus <elements>` or `focus nothing`.");
+				return {
+					kind: "focus",
+					target,
+					...lineSpan()
+				};
+			}
+			case "section": {
+				if (!c.eatWord("box")) throw c.fail(`Expected \`box\` after \`section\`, found ${describe(c.peek())}.`, "For example: section box around storey \"Level 3\" over 1.5 seconds, or section box off.");
+				if (c.eatWord("off")) {
+					const o = parseOptions(c, ["over"]);
+					return {
+						kind: "section",
+						around: null,
+						...o.over ? { over: o.over } : {},
+						...lineSpan()
+					};
+				}
+				if (!c.eatWord("around")) throw c.fail(`Expected \`around\` or \`off\` after \`section box\`, found ${describe(c.peek())}.`, "For example: section box around active, or section box off.");
+				let around;
+				if (c.word() === "storey" && c.peek(1)?.type === "string") {
+					c.i++;
+					const n = c.next();
+					around = { storey: {
+						v: n.text,
+						...tspan(n)
+					} };
+				} else around = parseElements(c);
+				const o = parseOptions(c, ["over"]);
+				return {
+					kind: "section",
+					around,
+					...o.over ? { over: o.over } : {},
+					...lineSpan()
+				};
+			}
 			case "together":
 				endOfStatement(c, [], "`together` stands alone on its line; the statements follow below it.");
 				if (depth >= 8) throw new ScriptError(`Blocks are nested more than 8 deep.`, sl.line, t0.col, t0.end, "Flatten the script.");
@@ -1460,6 +1725,54 @@ function parseScript(source) {
 		errors
 	};
 }
+// src/anim/fourd/plans.ts
+var plans = /* @__PURE__ */ new Map();
+function getPlan(name) {
+	return plans.get(name) ?? null;
+}
+new Map([
+	"future",
+	"existing",
+	"active",
+	"complete",
+	"removed",
+	"behind",
+	"ahead"
+].map((s, i) => [s, i]));
+/** The plan's time map; for a plan without one, a unit map of the window (plan window -> 0..1 s). */
+function mapOf(plan) {
+	if (plan.timeMap && plan.timeMap.length >= 2) return plan.timeMap;
+	if (plan.timeMap && plan.timeMap.length === 1) return [plan.timeMap[0], [plan.timeMap[0][0], plan.timeMap[0][1] + 1]];
+	return [[plan.window.from, 0], [plan.window.to, 1]];
+}
+/** Total video seconds the time map spans (last second minus first). */
+function mapSpan(plan) {
+	const m = mapOf(plan);
+	return m[m.length - 1][1] - m[0][1];
+}
+/** Video seconds (from the start of the map) at plan time `ms`: the inverse of planTimeAt; the first second of a hold. */
+function secondsAtPlan(plan, ms) {
+	const m = mapOf(plan);
+	const s0 = m[0][1];
+	if (ms <= m[0][0]) return 0;
+	const last = m[m.length - 1];
+	if (ms >= last[0]) {
+		for (const pt of m) if (pt[0] >= last[0]) return pt[1] - s0;
+		return last[1] - s0;
+	}
+	let lo = 0;
+	let hi = m.length - 1;
+	while (lo < hi) {
+		const mid = lo + hi + 1 >> 1;
+		if (m[mid][0] <= ms) lo = mid;
+		else hi = mid - 1;
+	}
+	if (m[lo][0] === ms) while (lo > 0 && m[lo - 1][0] === m[lo][0]) lo--;
+	const a = m[lo];
+	const b = m[Math.min(lo + 1, m.length - 1)];
+	const dp = b[0] - a[0];
+	return (dp > 0 ? a[1] + (ms - a[0]) / dp * (b[1] - a[1]) : a[1]) - s0;
+}
 // src/anim/script/compiler.ts
 var LIMITS = {
 	maxIterations: 500,
@@ -1473,7 +1786,10 @@ var DEFAULT_SECONDS = {
 	orbit: 3,
 	caption: 3,
 	label: 3,
-	hover: 2
+	hover: 2,
+	explode: 2,
+	collapse: 2,
+	section: 1.5
 };
 /** The top-bar modes and the built-in preset each applies (mirrors MODES in src/ui/topBar.ts; a test keeps them in step). */
 var MODE_PRESETS = {
@@ -1490,7 +1806,10 @@ var LABEL_FIELDS = [
 	"storey",
 	"material",
 	"globalid",
-	"type"
+	"type",
+	"activity",
+	"percent",
+	"finish"
 ];
 var RESERVED = /* @__PURE__ */ new Set([
 	...STATEMENT_WORDS,
@@ -1515,8 +1834,37 @@ var RESERVED = /* @__PURE__ */ new Set([
 	"on",
 	"off",
 	"yes",
-	"no"
+	"no",
+	"active",
+	"completed",
+	"critical",
+	"date",
+	"milestone",
+	"box",
+	"storey",
+	"storeys",
+	"radial",
+	"by",
+	"from",
+	"around"
 ]);
+/** Plan time (ms, local read as UTC) of an ISO date `YYYY-MM-DD`, with an optional `THH:MM[:SS]` (or a space); null when it is not a real date. */
+function parsePlanDate(text) {
+	const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(text.trim());
+	if (!m) return null;
+	const [y, mo, d, h, mi, se] = [
+		m[1],
+		m[2],
+		m[3],
+		m[4] ?? "0",
+		m[5] ?? "0",
+		m[6] ?? "0"
+	].map(Number);
+	const ms = Date.UTC(y, mo - 1, d, h, mi, se);
+	const back = new Date(ms);
+	if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d || h > 23 || mi > 59 || se > 59) return null;
+	return ms;
+}
 var Abort = class extends Error {};
 var Compiler = class {
 	opts;
@@ -1526,6 +1874,7 @@ var Compiler = class {
 	seen = /* @__PURE__ */ new Set();
 	env = /* @__PURE__ */ new Map();
 	ctx = null;
+	running = null;
 	steps = 0;
 	warnedParams = false;
 	lim;
@@ -1626,7 +1975,31 @@ var Compiler = class {
 			case "it":
 				if (!this.ctx) throw this.err("`it` has no meaning here.", e, "Use `it` inside `repeat for each`.");
 				return this.ctx.kind === "set" ? { set: this.ctx.name } : { globalIds: [this.ctx.gid] };
+			case "schedule": return { schedule: e.set };
 		}
+	}
+	plan(name, at) {
+		const found = (this.opts.plans ?? getPlan)(name);
+		if (found) return found;
+		const known = this.opts.planNames?.();
+		const near = known ? nearest(name, known) : [];
+		throw this.err(`There is no 4D plan named "${name}".`, at, near.length ? `Did you mean ${near.map((n) => `"${n}"`).join(" or ")}?` : known && known.length ? `The plans are ${known.slice(0, 6).map((n) => `"${n}"`).join(", ")}.` : "Load the 4D plan first (the 4D tools of the viewer, or the plan file of xray-4d), then run the script again.");
+	}
+	/** Video second (script time) at which the running schedule reaches plan time `ms`. */
+	timeAtPlan(r, ms) {
+		const span = mapSpan(r.plan);
+		return span > 0 ? r.t0 + secondsAtPlan(r.plan, ms) * r.dur / span : r.t0;
+	}
+	needSchedule(s, what) {
+		if (!this.running) throw this.err(`\`${what}\` needs a running schedule: there is no \`schedule\` statement before it.`, s, "Start the plan first: schedule \"Plan name\" over 90 seconds.");
+		return this.running;
+	}
+	colour(c) {
+		const t = c.v.trim().toLowerCase();
+		if (/^#[0-9a-f]{6}$/.test(t)) return t;
+		const named = COLOUR_NAMES[t];
+		if (named) return named;
+		throw this.err(`I do not know the colour "${c.v}".`, c, `${didYouMean(c.v, Object.keys(COLOUR_NAMES))} Write #rrggbb (like #e53935) or one of ${Object.keys(COLOUR_NAMES).join(", ")}.`.trim());
 	}
 	emit(cue, at) {
 		if (cue.at + cue.dur > this.lim.maxDuration) {
@@ -1842,6 +2215,111 @@ var Compiler = class {
 				if (RESERVED.has(key)) throw this.err(`\`${s.name}\` is a word of the language and cannot be a name.`, s.nameSpan, "Choose another name, like pause or gap.");
 				this.env.set(key, this.num(s.value));
 				return t;
+			}
+			case "schedule": {
+				const plan = this.plan(s.plan.v, s.plan);
+				const span = mapSpan(plan);
+				const dur = this.secs(s.over, span > 0 ? span : 1, "The time");
+				for (const d of [s.from, s.to]) if (d && parsePlanDate(d.v) === null) throw this.err(`"${d.v}" is not a date.`, d, "Write dates as \"YYYY-MM-DD\", like \"2027-03-01\".");
+				this.running = {
+					t0: t,
+					dur,
+					plan
+				};
+				this.emit({
+					kind: "schedule4d",
+					at: t,
+					dur,
+					plan: { name: s.plan.v },
+					...s.view ? { view: s.view } : {},
+					...s.from ? { from: s.from.v } : {},
+					...s.to ? { to: s.to.v } : {}
+				}, s);
+				return t;
+			}
+			case "at": {
+				const r = this.needSchedule(s, `at ${s.what}`);
+				let ms;
+				if (s.what === "date") {
+					const p = parsePlanDate(s.value.v);
+					if (p === null) throw this.err(`"${s.value.v}" is not a date.`, s.value, "Write it as \"YYYY-MM-DD\", like \"2027-03-01\", or with a time, \"2027-03-01T10:30\".");
+					ms = p;
+					const { from: wFrom, to: wTo } = r.plan.window;
+					if (ms < wFrom || ms > wTo) {
+						const iso = (x) => new Date(x).toISOString().slice(0, 10);
+						this.warn(`The date ${s.value.v} is outside the plan (${iso(wFrom)} to ${iso(wTo)}); it counts as the nearest end.`, s.value);
+					}
+				} else {
+					const names = r.plan.milestones.map((m) => m.name);
+					const key = s.value.v.trim().toLowerCase();
+					const hit = r.plan.milestones.find((m) => m.name === s.value.v) ?? r.plan.milestones.find((m) => m.name.toLowerCase() === key);
+					if (!hit) {
+						const near = nearest(s.value.v, names);
+						throw this.err(`The plan has no milestone named "${s.value.v}".`, s.value, near.length ? `Did you mean ${near.map((n) => `"${n}"`).join(" or ")}?` : names.length ? `The milestones are ${names.slice(0, 6).map((n) => `"${n}"`).join(", ")}.` : "This plan has no milestones.");
+					}
+					ms = hit.at;
+				}
+				return this.timeAtPlan(r, ms);
+			}
+			case "tint": {
+				const dur = this.secs(s.fading, 0, "The fading time");
+				const colour = s.colour ? this.colour(s.colour) : null;
+				this.emit({
+					kind: "tint",
+					at: t,
+					dur,
+					ease: "inOut",
+					elements: this.ref(s.target),
+					colour
+				}, s);
+				return t + dur;
+			}
+			case "explode": {
+				const dur = this.secs(s.over, DEFAULT_SECONDS.explode, "The time");
+				let factor;
+				if (s.by) {
+					factor = this.num(s.by);
+					if (!(factor > 0) || factor > 10) throw this.err(`The explode factor ${fmt(factor)} is outside 0 to 10.`, s.by, "By is how far the storeys move apart: 1 is the normal gap, 2 twice that.");
+				}
+				this.emit({
+					kind: "explode",
+					at: t,
+					dur,
+					ease: "inOut",
+					mode: s.mode,
+					...factor !== void 0 ? { factor } : {}
+				}, s);
+				return t + dur;
+			}
+			case "collapse": {
+				const dur = this.secs(s.over, DEFAULT_SECONDS.collapse, "The time");
+				this.emit({
+					kind: "collapse",
+					at: t,
+					dur,
+					ease: "inOut"
+				}, s);
+				return t + dur;
+			}
+			case "focus":
+				this.emit({
+					kind: "focus",
+					at: t,
+					dur: 0,
+					elements: s.target ? this.ref(s.target) : null
+				}, s);
+				return t;
+			case "section": {
+				const dur = this.secs(s.over, DEFAULT_SECONDS.section, "The time");
+				const around = s.around === null ? null : "storey" in s.around ? { storey: s.around.storey.v } : this.ref(s.around);
+				this.emit({
+					kind: "sectionBox",
+					at: t,
+					dur,
+					ease: "inOut",
+					around
+				}, s);
+				return t + dur;
 			}
 			case "together": {
 				if (s.body.length === 0) this.warn("This `together` block is empty.", s);
