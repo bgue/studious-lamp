@@ -103,7 +103,15 @@ export type Cue =
   /** Play a 4D plan over the cue: plan time maps to the cue through plan.timeMap (scaled to the cue's dur). Each frame the player
    *  sets every planned element's visibility, alpha (fades), tint (trade colour while active) and glow from its state at that
    *  plan time; the HUD reads the date and progress. `plan` inline, or by name from the 4D store. */
-  | (CueBase & { kind: 'schedule4d'; plan: import('../schedule/types').FourDPlan | { name: string } })
+  | (CueBase & {
+      kind: 'schedule4d';
+      plan: import('../schedule/types').FourDPlan | { name: string };
+      /** Additive (script statement `schedule "plan" view .. from .. to ..`): a view and a window (ISO dates) for the host to rebuild the
+       *  plan with, when it can; a player that does not rebuild plays the plan as it is. */
+      view?: 'planned' | 'actual' | 'variance';
+      from?: string;
+      to?: string;
+    })
   /** Tint elements with a colour (#rrggbb), fading over the cue; null removes the tint. */
   | (CueBase & { kind: 'tint'; elements: ElementRef; colour: string | null })
   /** Explode by storey or radially (the cinematic explode), eased over the cue; factor default 1. */

@@ -14,3 +14,7 @@ export { buildWorkSchedule } from '../../src/ifcsave/workSchedule';
 export { writeWorkSchedule, workScheduleSkipReason } from '../../src/ifcsave/writeWorkSchedule';
 export { readNativeTasks } from '../../src/ifcsave/nativeTasks';
 export type { FourDConfig, FourDLinks, FourDPlan, FourDStyle } from '../../src/schedule/types';
+// The 4D director and the script generator (xray-4d script), and the script compiler for the self-check.
+export { directFourD } from '../../src/schedule/director';
+export { scriptFromPlan } from '../../src/schedule/directorScript';
+export { compileScript } from '../../src/anim/script/compiler';

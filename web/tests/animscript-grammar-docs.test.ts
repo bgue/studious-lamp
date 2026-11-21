@@ -10,6 +10,7 @@ import { STATEMENT_WORDS, MODE_WORDS, MAX_NESTING } from '../src/anim/script/par
 import { MAX_SOURCE_CHARS, MAX_SOURCE_LINES } from '../src/anim/script/lexer';
 import { KEYWORDS as QUERY_KEYWORDS } from '../src/query/lexer';
 import { WEB } from './revision-helpers';
+import { DOCS_PLANS } from './director-helpers';
 
 const GRAMMAR = 'docs-features/animation-script-grammar.md';
 const GUIDE = 'docs-features/animation-script-guide.md';
@@ -33,7 +34,7 @@ function ebnfText(text: string): string {
 
 // Example compile options: a fake model with three elements and two selection sets. Without a model `repeat for each`
 // cannot run, so the examples are compiled against these names. Setting paths are not checked (a warning, not an error).
-const FAKE_MODEL: CompileOptions = { resolve: () => ['g1', 'g2', 'g3'], setNames: () => ['Pumps', 'Walls'] };
+const FAKE_MODEL: CompileOptions = { resolve: () => ['g1', 'g2', 'g3'], setNames: () => ['Pumps', 'Walls'], plans: DOCS_PLANS };
 
 describe('animation script docs: every example compiles', () => {
   for (const page of [GRAMMAR, GUIDE]) {
@@ -69,6 +70,8 @@ const PARSER_WORDS = [
   'linear', 'out', 'inout', 'inoutsine', 's', 'sec', 'secs', 'second', 'seconds', 'degree', 'degrees', 'deg',
   'where', 'class', 'classes', 'set', 'sets', 'the', 'selection', 'everything', 'it', 'elements', 'element', 'nothing', 'none',
   'index', 'true', 'false', 'on', 'off', 'yes', 'no', 'end', 'together',
+  // 4D
+  'date', 'milestone', 'around', 'storey', 'storeys', 'radial', 'box', 'by', 'from', 'active', 'completed', 'critical', 'planned', 'actual', 'variance',
 ];
 
 describe('animation script grammar: keywords and limits', () => {

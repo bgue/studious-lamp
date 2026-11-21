@@ -476,7 +476,79 @@ repeat for each element in where class = IfcWall and storey = "Level 1"
 end repeat
 ```
 
-## 12. Summary
+## 12. 4D films: following a construction schedule
+
+A 4D plan (`xray-4d plan`, or the 4D tools of the viewer) says when every element is built. The `schedule` statement plays it; the
+statements that come with it direct the film: where the camera goes, when the building explodes, which floor is cut open. You can
+write this by hand, or let the director write it (`xray-4d script build.4d.json -o film.xrayanim`) and edit the result.
+
+Three things work differently from the rest of the language:
+
+- `schedule "Plan name" over 120 seconds` starts the plan and **does not wait**: the statements after it start with it.
+- `at date "2027-03-01"` and `at milestone "Frame complete"` put the statements after them **at that moment of the schedule**. They
+  do not wait for the lines above, so the blocks of a film may overlap. The compiler turns the date into seconds with the plan's
+  time map, so the plan must be known by name when the script is compiled. An unknown plan or milestone, or a text that is not a
+  date, is an error with its line and column.
+- `active`, `completed` and `critical` are element words: the elements of the running schedule that are being built, are done, or
+  are on the critical path *at that moment* (`fly to active`, `focus active`, `tint critical red`).
+
+The other 4D statements: `tint <elements> <colour> [fading over N]`, `explode storeys|radial [by N] [over N]`,
+`collapse [over N]`, `focus <elements>`, `section box around <elements>|storey "Name" [over N]` and `section box off [over N]`.
+See the [grammar](animation-script-grammar.md#31-the-4d-statements).
+
+### 12.1 A calm film: title, a look inside, the frame complete
+
+The plan is called "Tower A". The film opens wide with a title, shows the structure going up with the active work in focus, and
+opens the building out when the frame is complete.
+
+```xrayanim
+-- A calm 4D film of Tower A
+schedule "Tower A" view planned from "2026-09-01" to "2028-05-30" over 120 seconds
+together
+  fly to everything over 3 seconds
+  caption "Tower A" "Planned 2026-09-01 to 2028-05-30" for 3 seconds
+end together
+at date "2027-01-18"
+  fly to active over 3 seconds margin 2
+  label active with activity, percent for 5 seconds
+at milestone "Frame complete"
+  together
+    focus everything
+    explode storeys by 1.5 over 2 seconds
+    caption "Frame complete" "The structure is up" for 3 seconds
+  end together
+at date "2027-06-20"
+  orbit 60 degrees over 6 seconds ease linear
+  collapse over 2 seconds
+  focus active
+```
+
+### 12.2 One floor at a time: section box and the critical path
+
+During the fit-out the film goes into one floor with a section box, tints the critical work and opens the box again when the
+work leaves the floor.
+
+```xrayanim
+-- Fit-out of level 3, then the whole building again
+schedule "Tower A" over 120 seconds
+at date "2027-11-02"
+  section box around storey "Level 3" over 1.5 seconds
+  fly to active over 2 seconds
+at date "2027-11-20"
+  tint critical #e53935 fading over 1 seconds
+  label critical with activity, finish for 4 seconds
+at milestone "Envelope closed"
+  caption "Envelope closed" "Fit-out starts inside" for 3 seconds
+at date "2028-02-10"
+  tint critical off fading over 1 seconds
+  section box off over 1 seconds
+  fly to everything over 3 seconds
+```
+
+If the plan is missing, the first line is the error: `There is no 4D plan named "Tower A"`, with the names of the plans that are
+loaded. A date outside the plan is a warning and counts as the nearest end of it.
+
+## 13. Summary
 
 - A line is one step. Lines run one after another unless they are in a `together` block.
 - Name the elements with `class`, `where`, `set` or `everything`.
@@ -484,3 +556,4 @@ end repeat
 - Show and hide with fades. Caption and label to explain.
 - Loops (`repeat`) do the same thing many times. Variables (`put`) keep numbers under names.
 - When it does not run, read the first message in the Problems list. Its line number is where to look.
+- A 4D plan plays with `schedule`; `at date` and `at milestone` place the statements on the schedule's clock (chapter 12).

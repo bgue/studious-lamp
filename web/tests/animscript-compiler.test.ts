@@ -3,6 +3,7 @@ import { compileScript, DEFAULT_SECONDS, LIMITS, MODE_PRESETS } from '../src/ani
 import type { CompileOptions } from '../src/anim/script/compiler';
 import { runScript, NO_PLAYER_MESSAGE } from '../src/anim/script/runner';
 import { EXAMPLES } from '../src/anim/script/examples';
+import { fakePlan } from './director-helpers';
 import { MODES } from '../src/ui/topBar';
 import { SCORE_SCHEMA, scoreEnd } from '../src/anim/score';
 import type { Cue, PlayOptions, Score, ScorePlayerApi } from '../src/anim/score';
@@ -292,7 +293,8 @@ describe('compiler: checks against the app', () => {
 });
 
 describe('compiler: the examples', () => {
-  const opts: CompileOptions = { resolve: () => ['a', 'b', 'c', 'd'], setNames: () => ['Pumps', 'Walls'], paramPaths: ['cinematic.glowStrength'], presets: [{ id: 'coordination', name: 'Coordination' }] };
+  const demo = fakePlan({ window: { from: Date.UTC(2027, 0, 4), to: Date.UTC(2027, 3, 1) }, timeMap: [[Date.UTC(2027, 0, 4), 0], [Date.UTC(2027, 3, 1), 40]], milestones: [] });
+  const opts: CompileOptions = { plans: (n) => (n === 'Demo' ? demo : null), resolve: () => ['a', 'b', 'c', 'd'], setNames: () => ['Pumps', 'Walls'], paramPaths: ['cinematic.glowStrength'], presets: [{ id: 'coordination', name: 'Coordination' }] };
   for (const e of EXAMPLES) {
     it(`${e.id} compiles without errors or warnings`, () => {
       const r = compileScript(e.text, opts);
@@ -302,7 +304,7 @@ describe('compiler: the examples', () => {
       expect(scoreEnd(r.score!.cues)).toBeLessThanOrEqual(r.score!.duration);
     });
   }
-  it('there are 3 or 4 of them with unique ids', () => {
+  it('there are 3 to 5 of them with unique ids', () => {
     expect(EXAMPLES.length).toBeGreaterThanOrEqual(3);
     expect(new Set(EXAMPLES.map((x) => x.id)).size).toBe(EXAMPLES.length);
   });

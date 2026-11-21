@@ -11,6 +11,7 @@ import { existsSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { makeCommands } from './xray-4d/commands.mjs';
+import { makeScriptCommand } from './xray-4d/script.mjs';
 
 export const EXIT_OK = 0;
 export const EXIT_ERROR = 1;
@@ -44,7 +45,7 @@ export function newestMtime(path) {
 
 /** The bundled parser: rebuilt when missing or older than src/schedule or the entry. Returns its path. */
 export async function ensureBundle() {
-  const sources = [join(webRoot, 'src', 'schedule'), join(bundleDir, 'entry.ts')];
+  const sources = [join(webRoot, 'src', 'schedule'), join(webRoot, 'src', 'anim'), join(bundleDir, 'entry.ts')];
   const built = existsSync(bundleFile) ? statSync(bundleFile).mtimeMs : 0;
   if (built > 0 && built >= Math.max(...sources.map(newestMtime))) return bundleFile;
   const { build } = await import('vite');
@@ -286,15 +287,7 @@ export const COMMANDS = {
     run: inspect,
   },
   ...makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_INPUT, parseArgs }),
-  script: {
-    summary: 'coming: a camera-directed .xrayanim script from a plan (written by another piece of the build)',
-    usage: 'xray-4d script <build.4d.json> [--style calm|dynamic] -o build.xrayanim   (not available yet)',
-    options: {},
-    optionHelp: ['  not available yet'],
-    run: async () => {
-      throw usage('script is coming: not available in this build');
-    },
-  },
+  script: makeScriptCommand({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_INPUT, webRoot }),
 };
 
 const TOP_HELP = `xray-4d: 4D construction animation from a Primavera P6 schedule
