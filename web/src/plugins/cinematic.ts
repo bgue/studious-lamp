@@ -592,6 +592,8 @@ export class Cinematic {
     this.cancelFlight();
     const fly = window.__xrayFlythrough;
     if (!fly) return false;
+    // A script that sets the old `cfg.fly.segmentS` gets equal seconds per move on the active fly-through.
+    if (this.cfg.fly.segmentS !== DEFAULT_SEGMENT_S) fly.setOptions({ timing: 'seconds', segmentS: this.cfg.fly.segmentS });
     return fly.play(onEnd ? { onEnd } : {});
   }
 
