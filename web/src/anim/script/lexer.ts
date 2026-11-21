@@ -2,7 +2,7 @@
 //
 // The language is line based: one statement per line. A comment starts with `--` or `#` and runs to the end of the line.
 // Strings are in double quotes (curly quotes from a pasted text work too); a quote doubled inside a string stands for itself.
-// A number may carry the unit `s` right after it (`2s`). Words are letters, digits and underscores, joined by dots
+// A number may carry a seconds unit right after it (`2s`, `2sec`, `2seconds`). Words are letters, digits and underscores, joined by dots
 // (`xray.alphaMax`, `Pset_WallCommon.IsExternal`).
 
 import { ScriptError } from './diagnostics';
@@ -42,11 +42,11 @@ export const MAX_SOURCE_CHARS = 200_000;
 export const MAX_SOURCE_LINES = 5000;
 
 const isWordStart = (c: string): boolean => /[A-Za-z_À-￿]/.test(c);
-const isWordPart = (c: string): boolean => /[A-Za-z0-9_À-￿]/.test(c);
+const isWordPart = (c: string): boolean => /[A-Za-z0-9_À-￿]/.test(c) && !/[\u2007\u202F]/.test(c); // the no-break spaces in that range are spaces
 const isDigit = (c: string): boolean => c >= '0' && c <= '9';
 const OPEN_QUOTES = new Set(['"', '“', '”', '„']);
 const CLOSE_QUOTES = new Set(['"', '”', '“']);
-const NBSP = /[   ]/;
+const NBSP = /[\u00A0\u2007\u202F]/; // no-break spaces pasted from documents count as spaces
 
 /** Split a text into lines of tokens. Lines with a lexical error are left out; the errors are collected. */
 export function lexScript(source: string): LexResult {
@@ -112,7 +112,7 @@ export function lexLine(text: string, line: number): Tok[] | ScriptError {
       if (i < n && isWordPart(text[i]!)) {
         const wm = /^[A-Za-z_]+[A-Za-z0-9_]*/.exec(text.slice(i));
         const word = wm ? wm[0] : text[i]!;
-        if (word.toLowerCase() === 's' || word.toLowerCase() === 'sec') {
+        if (['s', 'sec', 'secs', 'second', 'seconds'].includes(word.toLowerCase())) {
           tok.unit = 's';
           i += word.length;
           tok.end = i + 1;

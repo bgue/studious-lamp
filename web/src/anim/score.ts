@@ -83,7 +83,7 @@ export type Cue =
     })
   /** One camera move (scripts: fly to, orbit, view). */
   | (CueBase & { kind: 'camera'; to: CameraTo })
-  /** One setting by its params path (the paths of docs/SETTINGS.md, e.g. `xray.alphaMax`, `cinematic.glowStrength`). */
+  /** One setting by its params path (the paths of docs/SETTINGS.md, e.g. `sightlines.alphaMax`, `cinematic.glowStrength`). */
   | (CueBase & { kind: 'param'; path: string; to: number | boolean | string | number[] })
   /** Apply a preset or a top-bar mode by id (switches at `switchAt`). */
   | (CueBase & { kind: 'preset'; id: string })

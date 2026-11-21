@@ -394,6 +394,9 @@ class Compiler {
       }
       items = ids.map((gid) => ({ kind: 'element' as const, gid }));
     }
+    if (s.each === 'set' && items.length > this.lim.maxIterations) {
+      throw this.err(`There are ${items.length} selection sets; a loop can run at most ${this.lim.maxIterations} times.`, s.target ?? s, 'Delete sets you do not need, or loop over elements with `where` instead.');
+    }
     if (items.length === 0) this.warn(s.each === 'set' ? 'There are no selection sets, so the loop does not run.' : 'No element matches, so the loop does not run.', s.target ?? s);
     const savedCtx = this.ctx;
     const savedIndex = this.env.get('index');

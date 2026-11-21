@@ -28,7 +28,7 @@ CloseQuote    ::= '"' | '“' | '”'
 (* Numbers. A number may be followed directly by the unit s or sec (any case). No other letter may follow it. *)
 Number        ::= ( Digits ( "." Digits? )? | "." Digits ) GluedUnit?
 Digits        ::= [0-9]+
-GluedUnit     ::= [sS] | [sS][eE][cC]                              /* "2s", "2sec"; "2secs" and "2second" are errors */
+GluedUnit     ::= "s" | "sec" | "secs" | "second" | "seconds"      /* glued to the number: "2s", "2sec", "2seconds" (any case) */
 
 (* Words. Letters, digits and underscores; segments joined by single dots (xray names, Pset_X.Prop). *)
 Word          ::= WordStart WordChar* ( "." WordChar+ )*
@@ -49,7 +49,7 @@ Lexical notes:
 - A line with a lexical error is dropped as a whole. The other lines still parse.
 - The lexer has a limit on the whole source and on the number of lines (section 10).
 - Keywords are ordinary words to the lexer. The parser decides what they mean at their place in a statement.
-- Only ASCII space and tab separate tokens. A no-break space (U+00A0) is rejected as an unexpected character.
+- Space, tab and the no-break spaces U+00A0, U+2007 and U+202F separate tokens.
 
 ## 2. Statements and lines
 
@@ -314,9 +314,11 @@ mode solid
 
 These are facts about the language as it stands, found while writing this page. They are not changes to the code.
 
-- `2secs`, `2second` and `2seconds` (glued to the number) are rejected. The spaced forms `2 secs`, `2 second` and `2 seconds` are accepted.
+- A seconds unit may be glued to the number in any spelling (`2s`, `2sec`, `2secs`, `2second`, `2seconds`) or written after a space.
 - `repeat N time` (the singular) is accepted, and so is `repeat for each elements in ...`.
 - A boolean word (`on`, `off`, `yes`, `no`, `true`, `false`) is a boolean only when it is alone. In a list such as `set a to on, 2` it is a name.
 - The compiler accepts `label` fields `material`, `globalid` and `type`, which the parser's comment does not list.
 - `set` paths and preset names are only checked when the model is loaded. Without a model the compiler gives a warning and accepts them.
-- A no-break space (U+00A0) is rejected. The lexer's intention was to skip it, but its character class holds only ASCII spaces.
+- A no-break space (U+00A0, U+2007, U+202F), as pasted from a document, counts as a space.
+- `caption` lasts `for N`; `over`, `ease` or `fading` after a caption is an error that says so.
+- A loop over selection sets has the same cap as a loop over elements (500).
