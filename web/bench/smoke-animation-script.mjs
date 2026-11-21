@@ -137,6 +137,38 @@ try {
   if (!hasPlayer) check('Run says the player is not available, cleanly', /not available/.test(st.status) && !st.running, st.status);
   else check('Run plays through the real player', st.running || /Finished|Playing/.test(st.status), st.status);
 
+  // ---- a script on the real player (after the merge with the fly-through work). Times are score time: a software renderer draws
+  // slowly and the player then plays slower than real time, so the checks wait on the player's clock, not on the wall clock.
+  if (hasPlayer) {
+    await page.evaluate(() => window.__xrayScript.stop());
+    await page.waitForTimeout(400);
+    const snap = () => page.evaluate(() => {
+      const a = window.__xray.app;
+      const r = a.renderer;
+      const cap = document.querySelector('.fl-caption');
+      const fs = window.__xrayFlythrough?.state?.() ?? {};
+      return { t: fs.time ?? 0, playing: !!fs.playing, cam: [r.camera.position.x, r.camera.position.y, r.camera.position.z], hidden: a.settings.overrides.userHides.size, cap: !!cap && !cap.hidden, glow: window.__cinematic.cfg.glowStrength };
+    });
+    const until = async (pred, ms = 180000) => { const t0 = Date.now(); let s = await snap(); while (!pred(s) && Date.now() - t0 < ms) { await page.waitForTimeout(150); s = await snap(); } return s; };
+    const keepText = await page.evaluate(() => window.__xrayScript.text());
+    const before = await snap();
+    const script = 'fly to class IfcPump over 1 second\ntogether\n  caption "Pumps" for 1 second\n  set cinematic.glowStrength to 1.2 over 1 second\n  hide where class = IfcSlab fading over 1 second\nend together\nwait 1';
+    const run = await page.evaluate((t) => window.__xrayScript.run(t), script);
+    const mid = await until((s) => s.t >= 0.7);
+    const moved = Math.hypot(mid.cam[0] - before.cam[0], mid.cam[1] - before.cam[1], mid.cam[2] - before.cam[2]);
+    check('real player: the script plays and the camera flies to the pumps', run.ok && moved > 1, `${moved.toFixed(1)} m at t=${mid.t.toFixed(2)}`);
+    const capS = await until((s) => s.t >= 1.3);
+    check('real player: the caption shows during its time and the setting blends', capS.cap && capS.glow > before.glow && capS.glow < 1.2, JSON.stringify({ cap: capS.cap, glow: capS.glow, t: capS.t }));
+    const hid = await until((s) => s.t >= 2.2 || !s.playing);
+    check('real player: the slabs are hidden once their fade is over', hid.hidden > 100, `${hid.hidden} hidden at t=${hid.t.toFixed(2)}`);
+    const end = await until((s) => !s.playing);
+    await page.waitForTimeout(500);
+    const back = await snap();
+    const home = Math.hypot(back.cam[0] - before.cam[0], back.cam[1] - before.cam[1], back.cam[2] - before.cam[2]);
+    check('real player: at the end the camera, the hidden elements, the setting and the caption are put back', !end.playing && home < 0.05 && back.hidden === before.hidden && back.glow === before.glow && !back.cap, JSON.stringify({ home, hidden: back.hidden, glow: back.glow, cap: back.cap }));
+    await page.evaluate((t) => window.__xrayScript.setText(t), keepText); // run(text) put its script in the editor
+  }
+
   // ---- the line highlight with a fake player
   await page.evaluate(async () => {
     const m = await import('/src/anim/score.ts');
