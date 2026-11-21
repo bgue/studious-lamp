@@ -257,13 +257,25 @@ export const ifcSavePlugin: AppPlugin = (() => {
     const model = app?.loaded?.model;
     if (!model) return [];
     const c = classify();
-    return planOf({
+    const plans = planOf({
       model, sources: sources(), results: c?.results() ?? [], schema: schema(), options: o,
       history: o.includeReviewers ? c?.review?.history() : undefined,
       cleanup: o.includeCleanupMarks ? ownedCleanup() : undefined,
       revision: revisionStates(),
       fourD: o.includeFourD ? fourDMap() : undefined,
     });
+    // With 4D included, each file also gets the IfcWorkSchedule of the 4D tab's accepted links (the entities `xray-4d link
+    // --write-ifc` writes), so a viewer save carries the schedule too and never drops one written earlier.
+    const ws = o.includeFourD ? (window as unknown as { __xray4dSchedule?: { workSchedule?(ids: ReadonlyMap<string, number>): import('../ifcsave/workSchedule').WorkScheduleSave | null } }).__xray4dSchedule?.workSchedule : undefined;
+    if (ws) {
+      for (const p of plans) {
+        const ids = new Map<string, number>();
+        for (const e of model.elements) if (e.expressId !== undefined && (e.file === p.fileName || (plans.length === 1 && e.file === undefined))) ids.set(e.globalId, e.expressId);
+        const save = ws(ids);
+        if (save && save.tasks.length) p.workSchedule = save;
+      }
+    }
+    return plans;
   };
 
   const summarise = (plans: FileSavePlan[], o: SaveOptions): PlanSummary => ({

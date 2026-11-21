@@ -14,6 +14,8 @@ export interface HudElement {
   material?: string;
   globalId: string;
   props?: Readonly<Record<string, PropValue>>;
+  /** The activity the element is in while a 4D schedule plays (label fields activity, percent, finish). */
+  schedule?: { code: string; name: string; percent: number; finish: number };
 }
 
 export const DEFAULT_LABEL_FIELDS: readonly string[] = ['name', 'class', 'storey'];
@@ -54,6 +56,15 @@ export function fieldText(el: HudElement, field: string): string {
       return (el.material ?? '').trim();
     case 'globalid':
       return el.globalId;
+    case 'activity':
+      return el.schedule ? `${el.schedule.code} ${el.schedule.name}` : '';
+    case 'percent':
+      return el.schedule ? `${el.schedule.percent} % done` : '';
+    case 'finish': {
+      if (!el.schedule) return '';
+      const d = new Date(el.schedule.finish);
+      return `finishes ${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    }
     case 'type': {
       const v = prop(el, 'Attr.PredefinedType') ?? prop(el, 'Attr.ObjectType');
       return v === undefined ? '' : formatValue(v);
@@ -72,7 +83,7 @@ export function labelLines(el: HudElement, fields: readonly string[]): string[] 
   for (const f of list) {
     const v = fieldText(el, f);
     if (!v) continue;
-    const builtin = ['name', 'class', 'storey', 'material', 'globalid'].includes(f.toLowerCase());
+    const builtin = ['name', 'class', 'storey', 'material', 'globalid', 'activity', 'percent', 'finish'].includes(f.toLowerCase());
     lines.push(builtin ? v : f.toLowerCase() === 'type' ? `Type: ${v}` : `${propLabel(f)}: ${v}`);
   }
   if (lines.length === 0) lines.push(el.name?.trim() || el.ifcClass);

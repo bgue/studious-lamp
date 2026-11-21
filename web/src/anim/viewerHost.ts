@@ -4,6 +4,7 @@
 // HUD layer (src/anim/hud), which gets the score from begin(); their runners here only report the cue start. Any cue kind this
 // player does not know is skipped.
 
+import { setLiveSchedule } from './fourd/liveTask';
 import { Box3, Vector3 } from 'three';
 import type { ViewerApp } from '../app';
 import type { ElementId } from '../types';
@@ -148,6 +149,7 @@ export class ViewerScoreHost implements PlayerHost {
     this.camSetup = false;
     this.pathSpans = [];
     this.schedule = null;
+    setLiveSchedule(null);
     this.fourdSightDirty = false;
     this.planIds.clear();
     this.sink.begin();
@@ -189,6 +191,7 @@ export class ViewerScoreHost implements PlayerHost {
     this.snap = null;
     this.schedule?.abandon();
     this.schedule = null;
+    setLiveSchedule(null);
     this.sink.abandon();
     this.explode4d.abandon();
     this.section4d.abandon();
@@ -206,6 +209,7 @@ export class ViewerScoreHost implements PlayerHost {
     // 4D first: hides, alphas, tints, glow, explode offsets and the section box go back before the saved state is applied.
     if (this.schedule) this.schedule.restore();
     this.schedule = null;
+    setLiveSchedule(null);
     this.sink.reset();
     this.explode4d.clear();
     this.section4d.restore();
@@ -762,6 +766,7 @@ export class ViewerScoreHost implements PlayerHost {
     }
     const runner = new Schedule4dRunner({ plan, ids: this.idsOfPlan(plan), sink: this.sink, cueDur: cue.dur });
     this.schedule = runner;
+    setLiveSchedule(runner);
     return runner;
   }
 

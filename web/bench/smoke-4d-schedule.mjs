@@ -313,6 +313,8 @@ try {
   await page.waitForFunction(() => /Saved AC20/.test(document.querySelector('.xis-box')?.textContent ?? ''));
   await dlg.locator('button', { hasText: 'Close' }).click();
   const codes = await page.evaluate(() => [...new Set([...window.__xray4dSchedule.activityIds().values()].flatMap((v) => v.split(',')))].sort());
+  const wsTasks = (out.match(/=IFCTASK\(/g) ?? []).length;
+  check('the saved file holds the work schedule: IfcWorkSchedule "Xray 4D" with a task per linked activity and IfcRelAssignsToProduct', /IFCWORKSCHEDULE\('[^']+',[^,]*,'Xray 4D'/.test(out) && wsTasks >= codes.length && /IFCRELASSIGNSTOPRODUCT\(/.test(out), `${wsTasks} tasks for ${codes.length} linked activities`);
 
   // 11. the stored work comes back after a reload
   await page.evaluate(async () => { await window.__xray4dSchedule.flush(); await window.__xray4dMap.flush(); });
@@ -330,7 +332,7 @@ try {
   const reopened = await openFile(page, outPath, 'the saved file');
   const hasProps = await page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => e.props && typeof e.props['Xray_4D.ActivityIds'] === 'string').length);
   check('the saved model reopens with ActivityIds in the element properties', reopened.n === opened.n && hasProps === accepted, `${hasProps} elements`);
-  await page.evaluate(async (b64) => { window.__xray4dSchedule.reset(); }, '');
+  await page.evaluate(async () => { window.__xray4dSchedule.reset(); await window.__xray4dSchedule.ready(); });
   const rl = await page.evaluate(async (xer) => {
     const bytes = Uint8Array.from(atob(xer), (c) => c.charCodeAt(0));
     window.__xray4dSchedule.load(bytes, 'fzk-haus.xer');
@@ -339,7 +341,8 @@ try {
     const l = window.__xray4dSchedule.links().links.filter((x) => x.status === 'accepted');
     return { r, sources: [...new Set(l.map((x) => x.source))], n: l.length, codes: [...new Set(l.map((x) => x.activity))].sort() };
   }, readFileSync(XER).toString('base64'));
-  check('with no configuration, linking the saved file restores the accepted links with source property', JSON.stringify(rl.sources) === '["property"]' && rl.r.elements.linked === opened.n && JSON.stringify(rl.codes) === JSON.stringify(codes), JSON.stringify({ sources: rl.sources, n: rl.n, linked: rl.r.elements?.linked }));
+  // the saved file carries both the IfcTask links (native) and ActivityIds (property); native is the stronger tier
+  check('with no configuration, linking the saved file restores the accepted links from the file (native IfcTask links)', rl.sources.length > 0 && rl.sources.every((x) => x === 'native' || x === 'property') && rl.sources.includes('native') && rl.r.elements.linked === opened.n && JSON.stringify(rl.codes) === JSON.stringify(codes), JSON.stringify({ sources: rl.sources, n: rl.n, linked: rl.r.elements?.linked }));
   await ctx.close();
 
   // ---------------------------------------------------------------- the sample menu entry, on the served app

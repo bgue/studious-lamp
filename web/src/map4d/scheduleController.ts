@@ -21,6 +21,10 @@ import { formatDate } from '../schedule/planTime';
 import { buildReport, renderReportHtml } from '../schedule/report';
 import type { LinkReport } from '../schedule/report';
 import { listXerProjects, parseXer } from '../schedule/xer';
+import { buildWorkSchedule } from '../ifcsave/workSchedule';
+import { readNativeTasks } from '../ifcsave/nativeTasks';
+import { sourcesOf } from '../ifcsave/source';
+import type { WorkScheduleSave } from '../ifcsave/workSchedule';
 import type { ActivityLink, FourDConfig, FourDLinks, FourDPlan, FourDStyle, Schedule, ScheduleProject, TaskType } from '../schedule/types';
 import { colourOf } from './values';
 import type { Map4dController } from './controller';
@@ -89,7 +93,8 @@ export class ScheduleController {
 
   constructor(private readonly app: ViewerApp, readonly map: Map4dController) {}
 
-  ready(): Promise<void> { return this.ready_; }
+  ready(): Promise<void> { return Promise.all([this.ready_, this.nativeReady]).then(() => undefined); }
+  private nativeReady: Promise<void> = Promise.resolve();
   onChange(cb: () => void): () => void { this.listeners.add(cb); return () => this.listeners.delete(cb); }
   private emit(): void { for (const l of [...this.listeners]) l(); }
 
@@ -105,7 +110,9 @@ export class ScheduleController {
     this.config = emptyConfig();
     this.modelCache = null; this.note = '';
     this.key = null;
+    this.native = null;
     if (!this.app.loaded) { this.emit(); return; }
+    this.nativeReady = this.readNative(my);
     this.key = identityKey(loadedIdentity(this.app as never));
     this.ready_ = (async () => {
       const rec = await this.store.get(this.key!);
@@ -221,6 +228,25 @@ export class ScheduleController {
 
   // ------------------------------------------------------------ linking
 
+  /** IfcTask assignments already in the model's IFC files (e.g. written by `xray-4d link --write-ifc`): GlobalId -> task codes. */
+  native: Map<string, string[]> | null = null;
+
+  private async readNative(token: number): Promise<void> {
+    const loaded = this.app.loaded;
+    const srcs = loaded ? sourcesOf.get(loaded) ?? [] : [];
+    if (!loaded || !srcs.length) return;
+    const out = new Map<string, string[]>();
+    try {
+      for (const src of srcs) {
+        const ids = new Map<number, string>();
+        for (const e of loaded.model.elements) if (e.expressId !== undefined && (e.file === src.fileName || (srcs.length === 1 && e.file === undefined))) ids.set(e.expressId, e.globalId);
+        const text = new TextDecoder('latin1').decode(new Uint8Array(await src.blob.arrayBuffer()));
+        for (const [g, codes] of readNativeTasks(text, ids).native) out.set(g, [...(out.get(g) ?? []), ...codes]);
+      }
+    } catch { return; }
+    if (token === this.token && out.size) { this.native = out; this.emit(); }
+  }
+
   /** Run the linker with the accepted assignments of the mapping tool and the decisions made earlier. */
   link(): LinkSummary | { error: string } {
     const schedule = this.schedule;
@@ -229,7 +255,7 @@ export class ScheduleController {
     if (!model) return { error: 'Open a model first.' };
     const warnings: string[] = [];
     this.links = linkSchedule(schedule, model, this.config, this.map.assignments, {
-      priorLinks: decisionLinks(this.links), idProperty: ACTIVITY_IDS_PROPERTY, createdAt: new Date().toISOString(), scheduleFileName: this.fileName, modelFileName: model.name, onWarning: (m) => warnings.push(m),
+      priorLinks: decisionLinks(this.links), idProperty: ACTIVITY_IDS_PROPERTY, ...(this.native ? { native: this.native } : {}), createdAt: new Date().toISOString(), scheduleFileName: this.fileName, modelFileName: model.name, onWarning: (m) => warnings.push(m),
     });
     this.plan = null;
     this.refreshReport();
@@ -336,6 +362,13 @@ export class ScheduleController {
 
   /** GlobalId -> comma-separated task codes of the accepted build links: `Xray_4D.ActivityIds` in the saved IFC. */
   activityIds(): Map<string, string> { return activityIdsMap(this.links?.links); }
+
+  /** The IfcWorkSchedule to write into one IFC file (the same entities `xray-4d link --write-ifc` writes): tasks of the accepted links
+   *  with the plan's view dates (or the planned dates), their elements and logic. `expressIds`: GlobalId -> express id in that file. */
+  workSchedule(expressIds: ReadonlyMap<string, number>): WorkScheduleSave | null {
+    if (!this.schedule || !this.links) return null;
+    return buildWorkSchedule({ schedule: this.schedule, links: this.links, expressIds, plan: this.plan ?? undefined, view: this.config.style.view }).save;
+  }
 
   acceptedLinks(): ActivityLink[] { return (this.links?.links ?? []).filter((l) => l.status === 'accepted'); }
 

@@ -137,6 +137,26 @@ export class Schedule4dRunner implements CueRunner {
     this.sink.setFocus(this.idsIn('active'));
   }
 
+  private byModelId: Map<number, number> | null = null;
+
+  /** The activity an element is in at the current plan time (for HUD label fields activity / percent / finish), or null. */
+  taskInfo(modelId: number): { code: string; name: string; percent: number; finish: number } | null {
+    if (!this.byModelId) {
+      this.byModelId = new Map();
+      for (let e = 0; e < this.evaluator.n; e++) if (this.ids[e]! >= 0) this.byModelId.set(this.ids[e]!, e);
+    }
+    const e = this.byModelId.get(modelId);
+    if (e === undefined) return null;
+    const iv = this.evaluator.idx[e]!;
+    const list = this.plan.elements[e]!.intervals;
+    const it = iv >= 0 ? list[iv] : list[0];
+    const task = it ? this.tasks.get(it.task) : undefined;
+    if (!task) return null;
+    const span = Math.max(1, task.end - task.start);
+    const pct = Math.round(Math.min(1, Math.max(0, ((Number.isFinite(this.planTime) ? this.planTime : task.start) - task.start) / span)) * 100);
+    return { code: task.code, name: task.name, percent: pct, finish: task.end };
+  }
+
   /** Model element ids by state group (the dynamic element references of the score). */
   idsIn(set: ScheduleSet): number[] {
     const out: number[] = [];

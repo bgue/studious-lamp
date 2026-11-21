@@ -77,6 +77,8 @@ export interface Schedule4dApi {
   record(): Promise<PlayResult>;
   /** GlobalId -> comma-separated task codes of the accepted build links (what Save IFC writes as Xray_4D.ActivityIds). */
   activityIds(): ReadonlyMap<string, string>;
+  /** The IfcWorkSchedule for one IFC file (GlobalId -> express id of that file), or null without a schedule and links. */
+  workSchedule(expressIds: ReadonlyMap<string, number>): import('../ifcsave/workSchedule').WorkScheduleSave | null;
   /** FZK-Haus 4D: load the model, the sample schedule and configuration, link, build the plan. */
   loadSample(): Promise<PlayResult>;
   /** Open the 4D tab (and a section of it: schedule, configure, link, style, play). */
@@ -153,6 +155,7 @@ export const map4dPlugin: AppPlugin = (() => {
         seekDate: (ms) => sc.seekDate(ms),
         record: () => sc.record(),
         activityIds: () => sc.activityIds(),
+        workSchedule: (ids) => sc.workSchedule(ids),
         loadSample: async () => { open('play'); const r = await sc.loadSample(); panel?.render(); return r; },
         open,
         ready: () => sc.ready(),

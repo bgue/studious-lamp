@@ -1,5 +1,6 @@
 // The HudSource of the viewer: element data from the loaded model, the camera and the north of the project.
 
+import { getLiveSchedule } from '../fourd/liveTask';
 import type { ViewerApp } from '../../app';
 import { cardRows, parsePatterns, subtitleOf } from '../../ui/hoverCard';
 import type { CardContent } from '../../ui/hoverCard';
@@ -37,7 +38,8 @@ export function appHudSource(app: ViewerApp, resolve: (ref: ElementRef, key: str
       const e = m.elements[id];
       if (!e) return null;
       const storey = e.storey === null ? undefined : m.storeys.find((s) => s.id === e.storey)?.name;
-      return { ...(e.name !== undefined ? { name: e.name } : {}), ifcClass: e.ifcClass, ...(storey !== undefined ? { storey } : {}), ...(e.material !== undefined ? { material: e.material } : {}), globalId: e.globalId, ...(e.props ? { props: e.props } : {}) };
+      const sched = getLiveSchedule()?.taskInfo(id) ?? undefined;
+      return { ...(e.name !== undefined ? { name: e.name } : {}), ifcClass: e.ifcClass, ...(storey !== undefined ? { storey } : {}), ...(e.material !== undefined ? { material: e.material } : {}), globalId: e.globalId, ...(e.props ? { props: e.props } : {}), ...(sched ? { schedule: sched } : {}) };
     },
     bounds: (id) => app.controller.model.elements[id]?.bounds ?? null,
     card: (id) => hoverCardContent(app, id),
