@@ -576,8 +576,16 @@ export const flythroughPlugin: AppPlugin = {
     c.overlay = new PathOverlay(app.renderer.scene, () => app.renderer.markDirty());
     c.hudLayer = new ScoreHudLayer(appHudSource(app, (ref, key) => c.host.resolveRef(ref, key)), () => c.store.hud);
     setHudLayer(c.hudLayer);
-    // the HUD keeps clear of the chrome over the canvas (tool strip, status bar, top bar): the shared overlay's insets
-    c.hudOverlay = new HudOverlay(app.canvas, c.hudLayer, () => app.renderer.camera, () => getOverlay(app).insets);
+    // The HUD keeps clear of the chrome over the canvas (tool strip, status bar, top bar): the shared overlay's insets. A side that
+    // covers more than 35 % of the view is a sheet floating over it (a phone sidebar), which the HUD sits under: not an edge to avoid.
+    const hudInsets = (): { top: number; right: number; bottom: number; left: number } => {
+      const ins = getOverlay(app).insets;
+      const w = app.canvas.clientWidth || 1;
+      const h = app.canvas.clientHeight || 1;
+      const cap = (v: number, d: number): number => (v > d * 0.35 ? 0 : v);
+      return { top: cap(ins.top, h), bottom: cap(ins.bottom, h), left: cap(ins.left, w), right: cap(ins.right, w) };
+    };
+    c.hudOverlay = new HudOverlay(app.canvas, c.hudLayer, () => app.renderer.camera, hudInsets);
 
     const host: FlyHost = {
       list: () => c.store.list,
