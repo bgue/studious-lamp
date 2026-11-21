@@ -35,7 +35,8 @@ export function sanitizeOptions(v: unknown, base: ExportOptions = DEFAULT_OPTION
   const out: ExportOptions = { ...base };
   // A listed size, or a custom WxH (scripts and tests: 16 to 16384 pixels per side).
   if (typeof o['size'] === 'string' && (SIZE_CHOICES.some((s) => s.id === o['size']) || customSize(o['size']))) out.size = o['size'] as SizeChoice;
-  if (typeof o['fps'] === 'number' && (FPS_CHOICES as readonly number[]).includes(o['fps'])) out.fps = o['fps'];
+  // A listed rate, or any whole rate from 1 to 120 (scripts, the xray-4d CLI and tests).
+  if (typeof o['fps'] === 'number' && ((FPS_CHOICES as readonly number[]).includes(o['fps']) || (Number.isInteger(o['fps']) && o['fps'] >= 1 && o['fps'] <= 120))) out.fps = o['fps'];
   if (typeof o['quality'] === 'string' && QUALITIES.includes(o['quality'] as Quality)) out.quality = o['quality'] as Quality;
   if (typeof o['format'] === 'string' && FORMATS.includes(o['format'] as VideoFormat)) out.format = o['format'] as VideoFormat;
   if (typeof o['hud'] === 'boolean') out.hud = o['hud'];

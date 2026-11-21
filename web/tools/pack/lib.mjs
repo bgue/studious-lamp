@@ -48,7 +48,9 @@ Options:
   --open-view <name>      saved view (name, id or 1-based number) opened at start; needs --views
   --flythroughs <file.json>  fly-throughs (xray-flythroughs/1, from the Views tab > Fly-through > Export) added to the Views tab
   --scripts <a.xrayanim,b.xrayanim>  animation scripts (text files, from the Script tab > Export) added to the Script tab
-  --autoplay <flythrough:Name|script:Name>  play this fly-through or script at start (a kiosk film); needs --flythroughs or --scripts
+  --plans <a.4d.json,b.4d.json>  4D plans (xray-4d-plan/1, from xray-4d plan), registered by file name without .4d.json
+  --autoplay <flythrough:Name|script:Name|plan:Name>  play this fly-through, script or 4D plan at start (a kiosk film); needs --flythroughs, --scripts or --plans.
+                          With plan:, the first --scripts file adds its cues (camera, captions) to the plan's film
   --loop                  with --autoplay: play it again and again
   --ifc-reader            also embed the in-browser IFC reader (adds about 1.2 MB)
   --samples               also embed the sample models (building, fzk-haus, plumbing)
@@ -62,7 +64,7 @@ Exit codes: 0 ok, 1 usage error, 2 input error.
 const VALUE_OPTIONS = {
   '-o': 'out', '--out': 'out', '--params': 'params', '--preset': 'preset', '--select': 'select', '--title': 'title',
   '--name': 'name', '--tools': 'tools', '--open-tool': 'openTool', '--camera': 'camera', '--views': 'views',
-  '--open-view': 'openView', '--flythroughs': 'flythroughs', '--scripts': 'scripts', '--autoplay': 'autoplay',
+  '--open-view': 'openView', '--flythroughs': 'flythroughs', '--scripts': 'scripts', '--autoplay': 'autoplay', '--plans': 'plans',
 };
 const FLAG_OPTIONS = {
   '--kiosk': 'kiosk', '--no-topbar': 'noTopBar', '--ifc-reader': 'ifcReader', '--samples': 'samples', '--force': 'force', '--quiet': 'quiet',
@@ -123,7 +125,7 @@ export function parseArgs(argv) {
   const options = {
     out: undefined, params: undefined, preset: undefined, select: undefined, title: undefined, name: undefined,
     tools: undefined, openTool: undefined, camera: undefined, views: undefined, openView: undefined,
-    flythroughs: undefined, scripts: undefined, autoplay: undefined, loop: false,
+    flythroughs: undefined, scripts: undefined, plans: undefined, autoplay: undefined, loop: false,
     kiosk: false, noTopBar: false, ifcReader: false, samples: false, force: false, quiet: false,
   };
   const inputs = [];
@@ -189,8 +191,13 @@ export function parseArgs(argv) {
     options.scripts = parseList(options.scripts);
     if (options.scripts.length === 0) throw new PackError('--scripts needs at least one file');
   }
+  if (options.plans !== undefined) {
+    options.plans = parseList(options.plans);
+    if (options.plans.length === 0) throw new PackError('--plans needs at least one file');
+  }
   if (options.autoplay !== undefined) {
     options.autoplay = parseAutoplay(options.autoplay);
+    if (options.autoplay.kind === 'plan' && options.plans === undefined) throw new PackError('--autoplay plan:... needs --plans <files>');
     if (options.autoplay.kind === 'flythrough' && options.flythroughs === undefined) throw new PackError('--autoplay flythrough:... needs --flythroughs <file.json>');
     if (options.autoplay.kind === 'script' && options.scripts === undefined) throw new PackError('--autoplay script:... needs --scripts <files>');
   }
@@ -200,8 +207,8 @@ export function parseArgs(argv) {
 
 /** "flythrough:Tour" or "script:Walk around" -> { kind, name }. */
 export function parseAutoplay(text) {
-  const m = /^(flythrough|script)\s*:\s*(.+)$/i.exec(String(text).trim());
-  if (!m || m[2].trim() === '') throw new PackError(`--autoplay: expected flythrough:<name> or script:<name>, got "${text}"`);
+  const m = /^(flythrough|script|plan)\s*:\s*(.+)$/i.exec(String(text).trim());
+  if (!m || m[2].trim() === '') throw new PackError(`--autoplay: expected flythrough:<name>, script:<name> or plan:<name>, got "${text}"`);
   return { kind: m[1].toLowerCase(), name: m[2].trim() };
 }
 
@@ -228,6 +235,33 @@ export function checkFlythroughs(doc, autoplay) {
     throw new PackError(`--autoplay flythrough:${autoplay.name} is not in the fly-through file (${names.slice(0, 8).join(', ')})`, EXIT_INPUT);
   }
   return { doc: { ...doc, flythroughs: list }, names, warnings };
+}
+
+/** Plan name of a file: the base name without .4d.json or .json. */
+export function planNameOf(path) {
+  return String(path).split(/[\\/]/).pop().replace(/\.4d\.json$|\.json$/i, '').trim() || 'plan';
+}
+
+/**
+ * Check --plans documents: `files` is a list of { path, doc } (parsed JSON). Returns { plans: { name: doc }, names }; throws PackError(2) for a
+ * document that is not xray-4d-plan/1, a duplicate name, or an autoplay name that is not among them.
+ */
+export function checkPlans(files, autoplay) {
+  const plans = {};
+  for (const f of files) {
+    const d = f.doc;
+    if (!d || typeof d !== 'object' || d.schema !== 'xray-4d-plan/1' || !Array.isArray(d.elements) || !Array.isArray(d.timeMap)) {
+      throw new PackError(`--plans ${f.path}: not a 4D plan (schema ${d && typeof d === 'object' ? d.schema ?? 'missing' : 'missing'}; expected xray-4d-plan/1)`, EXIT_INPUT);
+    }
+    const name = planNameOf(f.path);
+    if (plans[name]) throw new PackError(`--plans: two files are named "${name}"`, EXIT_INPUT);
+    plans[name] = d;
+  }
+  const names = Object.keys(plans);
+  if (autoplay && autoplay.kind === 'plan' && !names.some((n) => n.toLowerCase() === autoplay.name.toLowerCase())) {
+    throw new PackError(`--autoplay plan:${autoplay.name} is not among the plan files (${names.slice(0, 8).join(', ')})`, EXIT_INPUT);
+  }
+  return { plans, names };
 }
 
 /** Script name of a file: the base name without .xrayanim or .txt. */
@@ -328,7 +362,12 @@ export function buildBoot(model, options = {}, params, views, extras = {}) {
   if (options.openView && views !== undefined) boot.openView = options.openView;
   if (extras.flythroughs !== undefined) boot.flythroughs = extras.flythroughs;
   if (extras.scripts !== undefined) boot.scripts = extras.scripts;
-  if (options.autoplay) boot.autoplay = { [options.autoplay.kind]: options.autoplay.name, ...(options.loop ? { loop: true } : {}) };
+  if (extras.plans !== undefined) boot.plans = extras.plans;
+  if (options.autoplay) {
+    boot.autoplay = { [options.autoplay.kind]: options.autoplay.name, ...(options.loop ? { loop: true } : {}) };
+    // a plan film takes the cues of the first script (camera moves, captions)
+    if (options.autoplay.kind === 'plan' && extras.scripts && extras.scripts.length) boot.autoplay.script = extras.scripts[0].name;
+  }
   return boot;
 }
 

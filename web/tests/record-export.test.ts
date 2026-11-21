@@ -301,8 +301,9 @@ describe('frame loop', () => {
 describe('export options', () => {
   it('keeps good fields and drops bad ones', () => {
     expect(sanitizeOptions({ size: '3840x2160', fps: 60, quality: 'high', format: 'webm', hud: false, name: 'x' })).toEqual({ size: '3840x2160', fps: 60, quality: 'high', format: 'webm', hud: false, name: 'x' });
-    expect(sanitizeOptions({ size: '1x1', fps: 25, quality: 'ultra', format: 'avi', hud: 'yes' })).toEqual(DEFAULT_OPTIONS);
+    expect(sanitizeOptions({ size: '1x1', fps: 500, quality: 'ultra', format: 'avi', hud: 'yes' })).toEqual(DEFAULT_OPTIONS);
     expect(sanitizeOptions(null)).toEqual(DEFAULT_OPTIONS);
+    expect(sanitizeOptions({ fps: 12 }).fps).toBe(12); // any whole rate 1 to 120 (scripts, the xray-4d CLI)
   });
   it('makes a safe file name', () => {
     expect(fileBase('Tour: level 1/2')).toBe('Tour-level-1-2');

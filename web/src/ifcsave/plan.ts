@@ -5,6 +5,7 @@ import type { ClassificationSchema, ClassifyResult } from '../classify/types';
 import type { SceneModel } from '../types';
 import { familyOf } from './families';
 import type { SchemaFamily } from './families';
+import type { WorkScheduleSave } from './workSchedule';
 
 export type { SchemaFamily };
 
@@ -77,6 +78,10 @@ export interface FileSavePlan {
   ownerHistoryId: number | null;
   existingClassifications: IfcSourceInfo['classifications'];
   elements: ElementSave[];
+  /** 4D write-back (additive): the IfcWorkSchedule with its tasks, written as the last section of the block (IFC4 / IFC4X3; ignored for IFC2X3). */
+  workSchedule?: WorkScheduleSave;
+  /** Lines of an earlier block that stay (written first, ids up to `lastId`; `base` is then that block's base). Used by the 4D write-back to keep other sets. */
+  preserved?: { lines: string[]; lastId: number };
 }
 
 export interface SaveExtra {

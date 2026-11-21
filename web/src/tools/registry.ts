@@ -95,7 +95,9 @@ export interface XrayBoot {
   /** Animation scripts (name and text) added to the Script tab; a name that exists is kept (plugins/boot.ts). */
   scripts?: Array<{ name: string; text: string }>;
   /** Play a fly-through or a script by name when the page starts (a kiosk film); `loop` plays it again and again. */
-  autoplay?: { flythrough?: string; script?: string; loop?: boolean };
+  autoplay?: { flythrough?: string; script?: string; plan?: string; loop?: boolean };
+  /** 4D plans (`xray-4d-plan/1` documents) by name, registered at start (anim/fourd/plans.ts); `autoplay.plan` plays one as a film, with `autoplay.script`'s cues when given. */
+  plans?: Record<string, unknown>;
 }
 
 declare global {
