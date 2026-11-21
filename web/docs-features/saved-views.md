@@ -77,4 +77,4 @@ node tools/xray-pack.mjs model.ifc -o review.html --views views.json --open-view
 - Thumbnails are captured from the canvas at save time (with whatever the ghost animation shows at that frame); a view imported from a file without thumbnails shows "no picture" until you update it.
 - Views are per browser and per model name: the same model opened from a file under another name has its own list (export and import to move them).
 - A shared link carries the params as differences from the receiver's factory state: a page with a different `xray.config.json` or different plugins can show a slightly different look.
-- Playing loops until stopped; the transition is the 400 ms gizmo turn, not a cinematic fly-through.
+- Playing loops until stopped; the transition is the 400 ms gizmo turn. For a smooth camera path with timing, holds and fades, use the **Fly-through** section below the list (see `flythrough.md`): its keyframes are copies of saved-view states (**From views** builds one per saved view).

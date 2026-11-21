@@ -36,20 +36,11 @@ import {
   unionCentre,
 } from '../cinematic/explode';
 import type { ExplodeMode, ExplodeSource, ExplodeTable } from '../cinematic/explode';
-import {
-  CanvasRecorder,
-  DEFAULT_SEGMENT_S,
-  FlyPlayer,
-  downloadBlob,
-  flythroughKey,
-  parseKeyframes,
-  serializeKeyframes,
-} from '../cinematic/flythrough';
-import type { Keyframe, KeyframeToggles, Recording } from '../cinematic/flythrough';
+import { CanvasRecorder, DEFAULT_SEGMENT_S, downloadBlob } from '../cinematic/flythrough';
+import type { Keyframe, Recording } from '../cinematic/flythrough';
 import { collectSamples, occluderSet } from '../algo';
 import { DEFAULT_GLOW_SCOPE, GLOW_SCOPES, glowIds } from '../cinematic/glow';
 import type { GlowScope } from '../cinematic/glow';
-import { defaultSetsFor, globalIdsToIds, idsToGlobalIds, loadSets, unionBounds } from '../selectionSets';
 
 /** The strongest the focus halo (Focus bloom) goes: a quarter of the old default of 0.7, which was too strong. */
 export const BLOOM_MAX = DEFAULT_BLOOM.strength;
@@ -153,8 +144,10 @@ export class Cinematic {
   readonly planeSweep = new PlaneSweep();
   readonly viz: SightlineViz;
   readonly explodeAnim = new ExplodeAnim();
-  /** Fly-through keyframes (persisted per model in localStorage). */
-  keys: Keyframe[] = [];
+  /**
+   * True while a score plays (src/anim): the player owns the camera, so a selection does not fly there.
+   */
+  externalCamera = false;
   /** The last finished recording, for scripts. */
   lastRecording: Recording | null = null;
 
@@ -178,14 +171,8 @@ export class Cinematic {
   private explodeTable: ExplodeTable | null = null;
   private explodeDirty = false;
   private explodeButton: { name(n: string): unknown } | null = null;
-  private player: FlyPlayer | null = null;
-  private playEnd: (() => void) | null = null;
   private readonly recorder = new CanvasRecorder();
   private recordTimer: ReturnType<typeof setTimeout> | null = null;
-  private keyInfo = { keyframes: '0' };
-  private keyInfoCtl: { updateDisplay(): unknown } | null = null;
-  private readonly camPos = new Vector3();
-  private readonly camTgt = new Vector3();
 
   constructor(private readonly app: ViewerApp, allOff: boolean, newOff = allOff) {
     this.cfg = defaultConfig(allOff, newOff);
@@ -335,7 +322,6 @@ export class Cinematic {
     if (this.cfg.dressing && bounds) this.dressing.enable(bounds);
     this.applyGlow();
     this.applyGrade();
-    this.loadKeys();
   }
 
   onStatic(): void {
@@ -355,7 +341,7 @@ export class Cinematic {
     const staggerOn = this.cfg.reveal && (!this.cfg.sweep.enabled || usesStagger(mode));
     if (reveal && staggerOn) this.beginReveal();
     if (reveal && sweepOn) this.beginSweep();
-    if (this.cfg.flyTo && selChanged && key !== '' && !this.suppressFly) this.flyToElements(this.focusIds());
+    if (this.cfg.flyTo && selChanged && key !== '' && !this.suppressFly && !this.externalCamera) this.flyToElements(this.focusIds());
     if (selChanged && this.explodeTable) this.collapse();
     if (selChanged && key !== '' && this.cfg.sightlines.autoOnSelect) this.showSightlines();
     this.applyGlow();
@@ -565,214 +551,83 @@ export class Cinematic {
     return d > 1e-3 ? d : null;
   }
 
-  currentToggles(): KeyframeToggles {
-    const c = this.cfg;
-    return {
-      reveal: c.reveal,
-      sweep: c.sweep.enabled,
-      depthGrade: c.grade.enabled,
-      bloom: c.bloom,
-      edgeGlow: c.edgeGlow,
-      ao: this.post.settings.ao,
-      vignette: this.post.settings.vignette,
-    };
-  }
-
-  /** Apply stored toggles the way the GUI does (config, side effects, GUI refresh). */
-  applyToggles(t: KeyframeToggles): void {
-    const c = this.cfg;
-    if (t.reveal !== undefined) c.reveal = t.reveal;
-    if (t.sweep !== undefined) c.sweep.enabled = t.sweep;
-    if (t.depthGrade !== undefined) {
-      c.grade.enabled = t.depthGrade;
-      this.applyGrade();
-    }
-    if (t.bloom !== undefined && t.bloom !== c.bloom) {
-      c.bloom = t.bloom;
-      if (t.bloom) this.bloom.enable();
-      else this.bloom.disable();
-    }
-    if (t.edgeGlow !== undefined) {
-      c.edgeGlow = t.edgeGlow;
-      this.applyGlow();
-    }
-    if (t.ao !== undefined) this.post.settings.ao = t.ao;
-    if (t.vignette !== undefined) this.post.settings.vignette = t.vignette;
-    this.post.sync();
-    this.gui?.controllersRecursive().forEach((ctl) => ctl.updateDisplay());
-  }
-
-  private storage(): Storage | null {
-    try {
-      return window.localStorage;
-    } catch {
-      return null;
-    }
-  }
-
-  private refreshKeyInfo(): void {
-    this.keyInfo.keyframes = `${this.keys.length}`;
-    this.keyInfoCtl?.updateDisplay();
-  }
-
-  private saveKeys(): void {
-    this.refreshKeyInfo();
-    try {
-      this.storage()?.setItem(flythroughKey(this.app.modelName), serializeKeyframes(this.app.modelName, this.keys, this.cfg.fly.segmentS));
-    } catch {
-      /* quota or private mode: keep the keyframes in memory */
-    }
-  }
-
-  private loadKeys(): void {
-    let raw: string | null = null;
-    try {
-      raw = this.storage()?.getItem(flythroughKey(this.app.modelName)) ?? null;
-    } catch {
-      raw = null;
-    }
-    this.keys = parseKeyframes(raw) ?? [];
-    this.refreshKeyInfo();
-  }
-
-  addKeyframe(): Keyframe | null {
-    const m = this.app.loaded?.model;
-    if (!m) return null;
-    const { camera, controls } = this.r;
-    const k: Keyframe = {
-      position: camera.position.toArray() as [number, number, number],
-      target: controls.target.toArray() as [number, number, number],
-      selection: idsToGlobalIds(m, this.app.selection),
-      toggles: this.currentToggles(),
-      name: `Keyframe ${this.keys.length + 1}`,
-    };
-    this.keys.push(k);
-    this.saveKeys();
-    return k;
-  }
-
-  clearKeys(): void {
-    this.keys = [];
-    this.saveKeys();
-  }
-
-  removeLastKey(): void {
-    this.keys.pop();
-    this.saveKeys();
-  }
-
-  exportJson(): string {
-    return serializeKeyframes(this.app.modelName, this.keys, this.cfg.fly.segmentS);
-  }
-
-  /** Replace the keyframes with the ones in `text` (export file or bare array). Returns false for invalid input. */
-  importJson(text: string): boolean {
-    const keys = parseKeyframes(text);
-    if (!keys) return false;
-    this.keys = keys;
-    this.saveKeys();
-    return true;
-  }
-
-  /** One keyframe per stored selection set (xray.sets.<model>), the camera framed on the set with the fly-to fit maths. */
-  loadFromSets(): number {
-    const app = this.app;
-    const model = app.loaded?.model;
-    if (!model) return 0;
-    const stored = (() => {
-      try {
-        const st = this.storage();
-        return st ? loadSets(st, app.modelName) : null;
-      } catch {
-        return null;
-      }
-    })();
-    const sets = stored && stored.length > 0 ? stored : defaultSetsFor(model, app.modelName);
-    const { camera, controls } = this.r;
-    const keys: Keyframe[] = [];
-    for (const set of sets) {
-      const ids = globalIdsToIds(model, set.globalIds);
-      const ub = unionBounds(model, ids);
-      if (!ub) continue;
-      const view = computeFlyView(
-        new Box3(new Vector3(ub[0], ub[1], ub[2]), new Vector3(ub[3], ub[4], ub[5])),
-        { position: camera.position, target: controls.target, fovDeg: camera.fov, aspect: camera.aspect, minDistance: controls.minDistance, maxDistance: controls.maxDistance },
-      );
-      keys.push({
-        position: view.position.toArray() as [number, number, number],
-        target: view.target.toArray() as [number, number, number],
-        selection: [...set.globalIds],
-        toggles: this.currentToggles(),
-        name: set.name,
-      });
-    }
-    if (keys.length === 0) {
-      this.note('No selection sets to build keyframes from.');
-      return 0;
-    }
-    this.keys = keys;
-    this.saveKeys();
-    return keys.length;
-  }
-
-  get playing(): boolean {
-    return this.player !== null;
-  }
-
-  /** Play the keyframes: Catmull-Rom through positions and targets, selection and toggles switching at each keyframe. */
-  play(onEnd?: () => void): boolean {
-    if (this.keys.length === 0) {
-      this.note('Fly-through: add keyframes first.');
-      return false;
-    }
-    this.stopTour();
-    this.stopDolly();
-    this.cancelFlight();
-    this.stopPlayback();
-    this.player = new FlyPlayer(this.keys, this.cfg.fly.segmentS * 1000);
-    this.playEnd = onEnd ?? null;
-    this.post.setPlaying(true);
-    return true;
-  }
-
-  stopPlayback(): void {
-    if (!this.player) return;
-    this.player = null;
-    this.post.setPlaying(false);
-    const cb = this.playEnd;
-    this.playEnd = null;
-    cb?.();
-  }
-
-  private applyKeyframe(k: Keyframe): void {
-    const m = this.app.loaded?.model;
-    if (!m) return;
-    this.applyToggles(k.toggles);
-    const ids = globalIdsToIds(m, k.selection);
-    const key = [...ids].sort((a, b) => a - b).join(',');
-    if (key === this.selKey()) return;
-    // The fly-through owns the camera: the usual fly-to is off while it plays.
+  /** Run `fn` (a selection change) without the fly-to that a selection starts. */
+  quietly(fn: () => void): void {
     this.suppressFly = true;
     try {
-      if (ids.length > 0) this.app.selectIds(ids);
-      else this.app.clearSelection();
+      fn();
     } finally {
       this.suppressFly = false;
     }
   }
 
-  private stepPlayback(now: number): void {
-    const p = this.player;
-    if (!p) return;
-    const { camera, controls } = this.r;
-    const s = p.sample(now, this.camPos, this.camTgt);
-    camera.position.copy(this.camPos);
-    controls.target.copy(this.camTgt);
-    for (const i of p.reached(s)) {
-      const k = this.keys[i];
-      if (k) this.applyKeyframe(k);
+  /** Bring the effects in line with the config after settings were applied from a score or a saved view. */
+  refreshFromConfig(): void {
+    const c = this.cfg;
+    if (c.bloom !== this.bloom.enabled) {
+      if (c.bloom) this.bloom.enable();
+      else this.bloom.disable();
     }
-    if (s.done) this.stopPlayback();
+    this.applyGlow();
+    this.applyGrade();
+    this.post.sync();
+    this.gui?.controllersRecursive().forEach((ctl) => ctl.updateDisplay());
+  }
+
+  // The fly-through lives in the Views tab (src/plugins/flythrough.ts). These calls keep the old scripting names working.
+
+  /** The keyframes of the active fly-through in the old shape (camera, selection, name). Read only. */
+  get keys(): Keyframe[] {
+    return window.__xrayFlythrough?.legacyKeys() ?? [];
+  }
+
+  get playing(): boolean {
+    return window.__xrayFlythrough?.state().playing === true;
+  }
+
+  /** Play the active fly-through. */
+  play(onEnd?: () => void): boolean {
+    this.stopTour();
+    this.stopDolly();
+    this.cancelFlight();
+    const fly = window.__xrayFlythrough;
+    if (!fly) return false;
+    // A script that sets the old `cfg.fly.segmentS` gets equal seconds per move on the active fly-through.
+    if (this.cfg.fly.segmentS !== DEFAULT_SEGMENT_S) fly.setOptions({ timing: 'seconds', segmentS: this.cfg.fly.segmentS });
+    return fly.play(onEnd ? { onEnd } : {});
+  }
+
+  stopPlayback(): void {
+    window.__xrayFlythrough?.stop();
+  }
+
+  addKeyframe(): Keyframe | null {
+    const fly = window.__xrayFlythrough;
+    if (!fly) return null;
+    fly.add();
+    return this.keys[this.keys.length - 1] ?? null;
+  }
+
+  clearKeys(): void {
+    window.__xrayFlythrough?.clear();
+  }
+
+  removeLastKey(): void {
+    const n = this.keys.length;
+    if (n > 0) window.__xrayFlythrough?.remove(n - 1);
+  }
+
+  exportJson(): string {
+    return window.__xrayFlythrough?.exportJson() ?? '{}';
+  }
+
+  importJson(text: string): boolean {
+    return window.__xrayFlythrough?.importJson(text).ok === true;
+  }
+
+  /** One keyframe per stored selection set. */
+  loadFromSets(): number {
+    return window.__xrayFlythrough?.buildFromSets() ?? 0;
   }
 
   /** Play while recording the canvas (MediaRecorder, 30 fps, webm vp9 else vp8) and download fly-through.webm at the end. */
@@ -815,7 +670,7 @@ export class Cinematic {
       this.r.setSweepPlane(this.planeSweep.normal, this.planeSweep.offsetAt(now));
       if (this.planeSweep.doneAt(now)) this.endSweep();
     }
-    if (this.player) this.stepPlayback(now);
+    if (this.externalCamera) this.cancelFlight();
     else if (this.flight) this.stepFlight(now);
     else if (this.cfg.dollyPlaying || this.dollyScrub) dirty = this.stepDolly(dt) || dirty;
     else if (this.cfg.autoOrbit) this.stepOrbit(now, dt);
@@ -977,22 +832,7 @@ export class Cinematic {
     this.cancelFlight();
     if (this.cfg.dollyPlaying) this.pauseDolly();
     if (this.tour.running) this.stopTour();
-    if (this.player) this.stopPlayback();
-  }
-
-  private pickImport(): void {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      void file.text().then((t) => {
-        if (!this.importJson(t)) this.note('Import: not a fly-through JSON file.');
-        else this.note(`Imported ${this.keys.length} keyframes.`);
-      });
-    };
-    input.click();
+    window.__xrayFlythrough?.userStop();
   }
 
   // ------------------------------------------------------------------ install
@@ -1114,16 +954,9 @@ export class Cinematic {
     ex.close();
 
     const ft = f.addFolder('Fly-through');
-    this.keyInfoCtl = ft.add(this.keyInfo, 'keyframes').name('Keyframes').disable() as never;
-    ft.add({ add: () => void this.addKeyframe() }, 'add').name('Add keyframe');
-    ft.add({ rm: () => this.removeLastKey() }, 'rm').name('Remove last');
-    ft.add({ clear: () => this.clearKeys() }, 'clear').name('Clear');
-    ft.add({ sets: () => void this.loadFromSets() }, 'sets').name('Load from selection sets');
-    ft.add(cfg.fly, 'segmentS', 0.5, 10, 0.1).name('Seconds per segment');
+    ft.add({ open: () => window.__xrayFlythrough?.openTab() }, 'open').name('Open the Views tab');
     ft.add({ play: () => (this.playing ? this.stopPlayback() : void this.play()) }, 'play').name('Play / stop');
     ft.add({ rec: () => void this.record() }, 'rec').name('Record (webm download)');
-    ft.add({ exp: () => downloadBlob(new Blob([this.exportJson()], { type: 'application/json' }), `fly-through-${this.app.modelName}.json`) }, 'exp').name('Export JSON');
-    ft.add({ imp: () => this.pickImport() }, 'imp').name('Import JSON');
     ft.add(ps, 'dof').name('Depth of field (playback)').onChange(() => this.post.sync());
     ft.add(ps, 'dofAperture', 0, 1, 0.01).name('Aperture');
     ft.add(ps, 'motionBlur', 0, 0.9, 0.01).name('Motion blur (playback)').onChange(() => this.post.sync());

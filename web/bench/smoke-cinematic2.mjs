@@ -220,7 +220,8 @@ try {
     app.renderer.camera.position.fromArray(v.p);
     app.renderer.controls.update();
     cin.addKeyframe();
-    const stored = localStorage.getItem('xray.flythrough.' + app.modelName);
+    // the fly-through lives in the Views tab now: stored as xray.flythroughs.<identity key>
+    const stored = Object.entries(localStorage).find(([k]) => k.startsWith('xray.flythroughs.'))?.[1] ?? null;
     const json = cin.exportJson();
     cin.importJson(json);
     cin.cfg.fly.segmentS = 4;
@@ -229,7 +230,7 @@ try {
     cin.post.sync();
     cin.play();
     await sleep(1800);
-    return { keys: cin.keys.length, persisted: !!stored && JSON.parse(stored).keyframes.length, playing: cin.playing };
+    return { keys: cin.keys.length, persisted: !!stored && JSON.parse(stored).flythroughs[0].keyframes.length, playing: cin.playing };
   });
   await page.screenshot({ path: resolve(here, 'smoke-cin2-dof.png') });
   console.log('fly-through:', JSON.stringify(fly));

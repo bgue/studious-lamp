@@ -36,7 +36,7 @@ const UI_KEY = 'xray.views.ui';
 export const DWELL_CHOICES = [2000, 4000, 6000, 10000];
 const STYLE_ID = 'xray-views-style';
 const CSS = `
-.vw { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.vw { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 .vw-top { padding: 6px; display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
 .vw-top .row { display: flex; gap: 6px; align-items: center; }
 .vw-top .row .inp { flex: 1 1 auto; min-width: 0; }
@@ -47,7 +47,7 @@ const CSS = `
 .vw-filter { display: flex; align-items: center; gap: 6px; padding: 0 6px 4px; flex: 0 0 auto; }
 .vw-filter .inp { flex: 1 1 auto; min-width: 0; }
 .vw-filter-info { color: var(--sb-dim); white-space: nowrap; font-size: 11px; }
-.vw-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 4px 6px; }
+.vw-list { flex: 1 1 auto; min-height: 96px; overflow-y: auto; padding: 0 4px 6px; }
 .vw-row { position: relative; display: flex; align-items: center; gap: 2px; height: 26px; padding: 0 2px; border-radius: 3px; }
 .vw-row:hover, .vw-row:focus-within { background: var(--sb-hover); }
 .vw-row.active::before, .vw-card.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: var(--sb-accent); border-radius: 1px; z-index: 1; }
@@ -246,6 +246,11 @@ export class ViewsPanel {
       const t = e.target as HTMLElement;
       if (t.classList.contains('vw-rename') && this.editing >= 0) this.finishRename(t as HTMLInputElement, true);
     });
+  }
+
+  /** Add a section below the list (the fly-through of src/plugins/flythrough.ts). */
+  addSection(node: HTMLElement): void {
+    this.root.append(node);
   }
 
   say(text: string): void {

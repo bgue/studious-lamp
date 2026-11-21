@@ -74,7 +74,13 @@ interface CueBase {
 export type Cue =
   /** A smooth camera path through poses (the keyframe editor): centripetal Catmull-Rom, `times` are absolute seconds per pose
    *  (constant speed or per segment is decided by the compiler), pauses are repeated times. */
-  | (CueBase & { kind: 'cameraPath'; poses: CameraPose[]; times: number[] })
+  | (CueBase & {
+      kind: 'cameraPath';
+      poses: CameraPose[];
+      times: number[];
+      /** Additive: per pose, false switches the ease off at that stop (a hold, the first or the last pose). Default: eases. */
+      easeAt?: boolean[];
+    })
   /** One camera move (scripts: fly to, orbit, view). */
   | (CueBase & { kind: 'camera'; to: CameraTo })
   /** One setting by its params path (the paths of docs/SETTINGS.md, e.g. `xray.alphaMax`, `cinematic.glowStrength`). */
