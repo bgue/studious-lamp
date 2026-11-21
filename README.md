@@ -21,6 +21,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - Cinematic effects: fly-to, tour, sweep and reveal, exploded storeys, bloom, edge glow, depth grading.
   - Fly-through: keyframes that are saved-view states plus timing (constant speed, holds, ease, fades, captions), edited in a timeline in the Views tab and played by one score player, with a 3D camera-path overlay and webm recording ([flythrough.md](web/docs-features/flythrough.md)).
   - Animation scripts: a short English-like script (`fly to class IfcPump over 3 seconds`, `hide class IfcSlab fading over 2 seconds`, captions, loops over elements and sets) that animates the camera, settings, visibility and selection, written in the Script tab with live error messages and examples ([animation-script.md](web/docs-features/animation-script.md)).
+  - Animation script grammar and coordinator guide: [grammar](web/docs-features/animation-script-grammar.md), [guide](web/docs-features/animation-script-guide.md).
   - Presets: thirteen named looks on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
   - Top bar: four visualisation modes (Ghost, Radiograph, Glow, Cutaway, keys `Shift+1` to `Shift+4`) that apply built-in presets, and a host for the search bar ([topbar.md](web/docs-features/topbar.md)).
 - **Coordination**

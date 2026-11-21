@@ -16,6 +16,9 @@ end together
 select nothing
 ```
 
+**See also:** the [formal grammar](animation-script-grammar.md) (EBNF, limits, timing rules) and the
+[guide for coordinators](animation-script-guide.md) (first steps, recipes, reading the errors).
+
 ## How time works
 
 - Statements run in order. **Each starts when the one before it has ended.**
