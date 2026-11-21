@@ -16,7 +16,7 @@ source: lexical rules, lines, statements, elements, values and expressions, bloc
 ```ebnf
 (* The lexer reads one line at a time. A line is split at EOL. Tokens never span lines. *)
 Script        ::= ( Statement? EOL )* Statement?                    /* blank and comment-only lines may stand anywhere */
-Token         ::= String | Number | Word | Punct                    /* a statement is a sequence of tokens; WS and Comment may stand between them */
+Token         ::= String | Number | Word | Colour | Punct           /* a statement is a sequence of tokens; WS and Comment may stand between them */
 
 (* Strings. A double quote, or a curly quote, opens; a double quote, or a closing curly quote, closes.
    Two double quotes inside a string stand for one double quote. *)
@@ -34,6 +34,10 @@ GluedUnit     ::= "s" | "sec" | "secs" | "second" | "seconds"      /* glued to t
 Word          ::= WordStart WordChar* ( "." WordChar+ )*
 WordStart     ::= [A-Za-z_] | [#xC0-#xFFFF]
 WordChar      ::= [A-Za-z0-9_] | [#xC0-#xFFFF]
+
+(* Colours (for tint). A hash and exactly six hex digits, not followed by a letter, digit or underscore. Any other hash starts a comment. *)
+Colour        ::= "#" Hex Hex Hex Hex Hex Hex
+Hex           ::= [0-9a-fA-F]
 
 (* Punctuation. Two-character operators are read before one-character ones. *)
 Punct         ::= "==" | "!=" | "<>" | "<=" | ">=" | "=" | "<" | ">"
@@ -65,6 +69,7 @@ ForEach       ::= "repeat" "for" "each" ( "element" | "elements" ) "in" Elements
 (* One-line statements. *)
 Simple        ::= Fly | FlyView | Orbit | SetStmt | ModeStmt | ApplyStmt
                 | Visibility | SelectStmt | Caption | Label | Hover | Wait | Put
+                | Schedule | At | Tint | Explode | Collapse | Focus | Section          /* the 4D statements, section 3.1 */
 
 (* A closing line holds nothing after its block word. Any other "end" line is an error. *)
 ```
@@ -127,6 +132,61 @@ Notes on the simple statements:
 - `Field` in `label` may be a word or a string. The compiler knows the names `name`, `class`, `storey`, `material`,
   `globalid` and `type` (any case), and any `"Set.Prop"` with a dot.
 
+## 3.1 The 4D statements
+
+The 4D statements play a 4D plan (`FourDPlan`, `web/src/schedule/types.ts`) and direct the film on top of it. A plan is found by
+name when the script is compiled (the `plans` option of `compileScript`; the viewer gives the plans it has loaded).
+
+```ebnf
+(* schedule starts the plan; the cue is a schedule4d cue over the given time. View, from and to are recorded in the cue
+   for the host to rebuild the plan with. Without over: the plan's own film length. *)
+Schedule      ::= "schedule" String ( ViewOpt | FromOpt | ToOpt | OverOpt )*
+ViewOpt       ::= "view" ( "planned" | "actual" | "variance" )
+FromOpt       ::= "from" String                                    /* "YYYY-MM-DD" */
+ToOpt         ::= "to" String
+
+(* at puts the statements after it at that moment of the running schedule. The date is "YYYY-MM-DD", or with a time
+   "YYYY-MM-DDTHH:MM" or "YYYY-MM-DDTHH:MM:SS"; the milestone is a name of the plan (any case). *)
+At            ::= "at" ( "date" | "milestone" ) String
+
+Tint          ::= "tint" Elements ( Colour | ColourName | String | "off" | "none" | "clear" ) FadingOpt?
+ColourName    ::= "red" | "orange" | "yellow" | "green" | "teal" | "cyan" | "blue" | "indigo" | "purple" | "magenta"
+                | "pink" | "brown" | "grey" | "gray" | "white" | "black"
+
+Explode       ::= "explode" ( "storeys" | "radial" ) ( ByOpt | OverOpt )*
+ByOpt         ::= "by" Expr                                        /* the factor, 0 to 10 */
+Collapse      ::= "collapse" OverOpt?
+Focus         ::= "focus" ( "nothing" | "none" | Elements )
+Section       ::= "section" "box" ( "off" OverOpt?
+                                  | "around" ( "storey" String | Elements ) OverOpt? )
+```
+
+Notes on the 4D statements:
+
+- `schedule` does not wait: the statements after it start together with it, and the script lasts at least as long as the schedule.
+  The last `schedule` before an `at` is the running one. `at` before any `schedule` is an error.
+- `at date` and `at milestone` do not wait for the statements before them either: they put the next statements at that
+  moment of the schedule, so the blocks of a directed film may overlap. The moment is computed through the plan's time map
+  (plan time to video seconds), scaled to the `over` time of the schedule. A date outside the plan counts as its nearest end and
+  gives a warning. An unknown plan, an unknown milestone and a text that is not a date are errors with line and column.
+- A time inside a hold of the time map (the pause at a milestone) cannot be named by a date; `at milestone "name"` is the first
+  second of the hold, and a `wait` after it reaches the rest of it.
+- In `tint where class = IfcWall red` the last word is the colour. Put a value that looks like a colour in double quotes.
+- Example (the plan "Tower A" of the tests has the milestone "Frame complete"):
+
+```xrayanim
+schedule "Tower A" view planned over 120 seconds
+at date "2027-03-01"
+  explode storeys by 1.5 over 2 seconds
+at milestone "Frame complete"
+  caption "Frame complete" for 2 seconds
+at date "2027-09-01"
+  collapse over 2 seconds
+```
+
+- `focus active` sets the x-ray focus to the active elements (the schedule runner already does this while a schedule runs, so the
+  statement is for moments where the focus was changed); `focus nothing` gives it back to the selection.
+
 ## 4. Expressions and text
 
 ```ebnf
@@ -156,10 +216,11 @@ Elements      ::= "where" Criteria
                 | "everything"
                 | "it"
                 | "elements" String ( "," String )*
+                | "active" | "completed" | "critical"                /* 4D: states of the running schedule */
 ClassName     ::= Word | String
 
 (* A criteria is the words and signs after where, up to the first stop word at parenthesis depth 0.
-   Stop words: over ease margin fading for with about. The signs + * / & are not allowed. The text must parse
+   Stop words: over ease margin fading for with about by. The signs + * / & are not allowed. The text must parse
    as a query (section 8). *)
 Criteria      ::= CriteriaToken+
 ```
@@ -176,9 +237,12 @@ LoopVar       ::= "it" | "index"
 (* Words that may not be used as names with put (the compiler's RESERVED list). *)
 ReservedName  ::= "fly" | "orbit" | "set" | "mode" | "apply" | "show" | "hide" | "isolate" | "select"
                 | "caption" | "label" | "hover" | "wait" | "together" | "repeat" | "put" | "end"
+                | "schedule" | "at" | "tint" | "explode" | "collapse" | "focus" | "section"
                 | "it" | "index" | "over" | "ease" | "margin" | "fading" | "for" | "with" | "about"
                 | "to" | "into" | "times" | "where" | "class" | "everything" | "selection"
                 | "true" | "false" | "on" | "off" | "yes" | "no"
+                | "active" | "completed" | "critical" | "date" | "milestone" | "box" | "storey" | "storeys"
+                | "radial" | "by" | "from" | "around"
 ```
 
 ## 7. Blocks in the script
@@ -245,7 +309,8 @@ The keywords the language knows. Each one appears in the grammar above as a quot
 
 | Group | Words |
 | --- | --- |
-| Statements | `fly`, `orbit`, `set`, `mode`, `apply`, `show`, `hide`, `isolate`, `select`, `caption`, `label`, `hover`, `wait`, `together`, `repeat`, `put`, `end` |
+| Statements | `fly`, `orbit`, `set`, `mode`, `apply`, `show`, `hide`, `isolate`, `select`, `caption`, `label`, `hover`, `wait`, `together`, `repeat`, `put`, `schedule`, `at`, `tint`, `explode`, `collapse`, `focus`, `section`, `end` |
+| 4D words | `date`, `milestone`, `around`, `box`, `storey`, `storeys`, `radial`, `by`, `from`, `planned`, `actual`, `variance`, `active`, `completed`, `critical` |
 | Modes | `ghost`, `solid`, `radiograph`, `glow`, `cutaway` |
 | Options and connectors | `to`, `view`, `preset`, `over`, `ease`, `margin`, `fading`, `for`, `with`, `about`, `into`, `times`, `time`, `in`, `each` |
 | Ease | `linear`, `in`, `out`, `inout`, `inoutsine` |
@@ -277,7 +342,8 @@ Values from the code. A limit that is exceeded gives an error (or, for a loop co
 
 ## 11. Timing
 
-Statements run in order. **Each statement starts when the one before it has ended.** A `together` block starts all its
+Statements run in order. **Each statement starts when the one before it has ended.** (`schedule` and the `at` statements are the
+exceptions: section 3.1.) A `together` block starts all its
 statements at its own start time and lasts as long as its longest statement. A `repeat` runs its body again, one pass after
 another. The start of the script is time 0.
 
@@ -297,6 +363,12 @@ another. The start of the script is time 0.
 | `together` | the longest statement in it | | |
 | `repeat` | the body, once per pass | | |
 | `repeat for each` | the body, once per element or set | | An empty list lasts 0 seconds and gives a warning. |
+| `schedule "plan"` | nothing (it does not wait) | the plan's film length | The schedule4d cue lasts `over N`; the next statement starts with it. |
+| `at date`, `at milestone` | nothing | | Sets the start of the statements after it to that moment of the schedule, even when that is before the end of earlier ones. |
+| `tint` | `fading over N` seconds | 0 (instant) | |
+| `explode`, `collapse` | `over N` seconds | 2 seconds | Eased `inout`. |
+| `section box` | `over N` seconds | 1.5 seconds | Eased `inout`. |
+| `focus` | nothing | 0 | Instant. |
 
 Example of timing. `together` runs the fly and the caption from the same moment, and the wait after it starts at 3 seconds:
 
@@ -322,3 +394,5 @@ These are facts about the language as it stands, found while writing this page. 
 - A no-break space (U+00A0, U+2007, U+202F), as pasted from a document, counts as a space.
 - `caption` lasts `for N`; `over`, `ease` or `fading` after a caption is an error that says so.
 - A loop over selection sets has the same cap as a loop over elements (500).
+- The label fields `activity`, `percent` and `finish` are for 4D: the HUD fills them from the activity of the element in the running schedule.
+- `explode`, `collapse` and `section box` need the viewer's 4D cue runners (`src/anim/fourd/viewerTargets.ts`); a player without them skips the cues.

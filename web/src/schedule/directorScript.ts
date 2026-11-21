@@ -1,0 +1,169 @@
+// A directed film as a readable script: `scriptFromPlan` turns the cues of the 4D director (src/schedule/director.ts) into an editable
+// `.xrayanim` text: the `schedule` statement, then one `at date` (or `at milestone`) block for every moment the director acts, with the
+// director's notes as comments. Compiling the text with the plan (compileScript with `plans`) gives cues equivalent to the director's:
+// same kinds, same parameters, times within a few milliseconds. Pure: no DOM, no clock.
+
+import type { Cue } from '../anim/score';
+import { mapSpan, planTimeAt, secondsAtPlan } from '../anim/fourd/timeline';
+import type { DirectorResult } from './director';
+import type { FourDPlan } from './types';
+
+export interface ScriptFromPlanOptions {
+  /** The name the plan is registered under (the `schedule "name"` of the script). */
+  planName: string;
+  /** Video second at which the schedule cue starts and its length, as given to the director (defaults: 0 and the time map's span). */
+  start?: number;
+  duration?: number;
+  /** Comment lines for the top of the file (without the `--`). */
+  header?: string[];
+  /** Put the director's notes in as comments (default true). */
+  notes?: boolean;
+}
+
+const DAY = 86400000;
+const fmtN = (n: number): string => String(Math.round(n * 1000) / 1000);
+const q = (s: string): string => `"${s.replace(/"/g, '""')}"`;
+const secs = (n: number): string => `${fmtN(n)} seconds`;
+const isWord = (s: string): boolean => /^[A-Za-z_][A-Za-z0-9_]*$/.test(s) && s.toLowerCase() !== 'for';
+
+type Ref = Extract<Cue, { kind: 'tint' }>['elements'];
+
+/** The script words for an element reference; null when the language cannot say it. */
+function elementsText(ref: Ref): string | null {
+  if ('all' in ref) return 'everything';
+  if ('globalIds' in ref) return ref.globalIds.length > 0 ? `elements ${ref.globalIds.map(q).join(', ')}` : null;
+  if ('set' in ref) return `set ${q(ref.set)}`;
+  if ('selection' in ref) return 'the selection';
+  if ('schedule' in ref) return ref.schedule === 'future' ? null : ref.schedule;
+  // a query: the script writes text values in double quotes
+  const one = /^class = '([^']*)'$/.exec(ref.query);
+  if (one) return `class ${one[1]}`;
+  return `where ${ref.query.replace(/'((?:[^']|'')*)'/g, (_m, v: string) => q(v.replace(/''/g, "'")))}`;
+}
+
+const easeText = (e: string | undefined): string => (e && e !== 'inOut' ? ` ease ${e === 'linear' ? 'linear' : e}` : '');
+
+/** One cue as a statement; null when the language has no statement for it. */
+function statement(c: Cue): string | null {
+  switch (c.kind) {
+    case 'camera': {
+      const to = c.to;
+      if ('frame' in to) {
+        const e = elementsText(to.frame);
+        if (e === null) return null;
+        return `fly to ${e} over ${secs(c.dur)}${easeText(c.ease)}${to.margin !== undefined ? ` margin ${fmtN(to.margin)}` : ''}`;
+      }
+      if ('orbitDeg' in to) {
+        const about = to.about ? elementsText(to.about) : '';
+        if (about === null) return null;
+        return `orbit ${fmtN(to.orbitDeg)} degrees${about ? ` about ${about}` : ''} over ${secs(c.dur)}${easeText(c.ease)}`;
+      }
+      if ('view' in to) return `fly to view ${q(to.view)} over ${secs(c.dur)}${easeText(c.ease)}`;
+      return null;
+    }
+    case 'caption':
+      return `caption ${q(c.title ?? '')}${c.text !== undefined ? ` ${q(c.text)}` : ''} for ${secs(c.dur)}`;
+    case 'label': {
+      const e = elementsText(c.elements);
+      return e === null ? null : `label ${e} with ${c.fields.map((f) => (isWord(f) ? f : q(f))).join(', ')} for ${secs(c.dur)}`;
+    }
+    case 'explode':
+      return `explode ${c.mode}${c.factor !== undefined ? ` by ${fmtN(c.factor)}` : ''} over ${secs(c.dur)}`;
+    case 'collapse':
+      return `collapse over ${secs(c.dur)}`;
+    case 'focus': {
+      if (c.elements === null) return 'focus nothing';
+      const e = elementsText(c.elements);
+      return e === null ? null : `focus ${e}`;
+    }
+    case 'sectionBox': {
+      if (c.around === null) return `section box off over ${secs(c.dur)}`;
+      if ('storey' in c.around) return `section box around storey ${q(c.around.storey)} over ${secs(c.dur)}`;
+      const e = elementsText(c.around);
+      return e === null ? null : `section box around ${e} over ${secs(c.dur)}`;
+    }
+    case 'tint': {
+      const e = elementsText(c.elements);
+      if (e === null) return null;
+      return `tint ${e} ${c.colour === null ? 'off' : c.colour}${c.dur > 0 ? ` fading over ${secs(c.dur)}` : ''}`;
+    }
+    default:
+      return null;
+  }
+}
+
+/** The text of the script for a plan and what the director made of it. */
+export function scriptFromPlan(plan: FourDPlan, result: DirectorResult, opts: ScriptFromPlanOptions): string {
+  const span = mapSpan(plan);
+  const dur = opts.duration ?? span;
+  const t0 = opts.start ?? 0;
+  const lines: string[] = [];
+  for (const h of opts.header ?? ['generated by xray-4d (the 4D director); edit freely']) lines.push(`-- ${h}`);
+  const style = plan.style;
+  const iso = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
+  lines.push(`schedule ${q(opts.planName)} view ${style.view} from ${q(iso(plan.window.from))} to ${q(iso(plan.window.to))} over ${secs(dur)}`);
+
+  // plan time <-> script time of the running schedule, as the compiler computes them
+  const rel = (ms: number): number => (span > 0 ? (secondsAtPlan(plan, ms) * dur) / span : 0);
+  const planAt = (t: number): number => planTimeAt(plan, Math.min(1, Math.max(0, t / dur)));
+  const milestoneKey = (n: string): string => n.toLowerCase();
+  const milestoneAnchor = (ms: number): string | null => {
+    const m = plan.milestones.find((x) => Math.abs(x.at - ms) < 1000);
+    if (!m) return null;
+    const first = plan.milestones.find((x) => x.name === m.name) ?? m;
+    const firstCi = plan.milestones.find((x) => milestoneKey(x.name) === milestoneKey(m.name));
+    return first === m && firstCi === m ? `at milestone ${q(m.name)}` : null;
+  };
+  /** The anchor line for script time `t` (relative to the schedule start) and the seconds to wait after it. */
+  const anchor = (t: number): { line: string; wait: number } => {
+    const ms = planAt(t);
+    const back = rel(ms);
+    const wait = Math.abs(back - t) > 0.0005 ? t - back : 0; // inside a hold of the time map: wait from its first second
+    const m = milestoneAnchor(ms);
+    if (m) return { line: m, wait };
+    const target = back;
+    for (const [unit, cut] of [[DAY, 10], [60000, 16], [1000, 19]] as const) {
+      const rounded = Math.round(ms / unit) * unit;
+      if (unit === 1000 || Math.abs(rel(rounded) - target) <= 0.004) return { line: `at date ${q(new Date(rounded).toISOString().slice(0, cut))}`, wait };
+    }
+    return { line: `at date ${q(iso(ms))}`, wait };
+  };
+
+  // group the cues by their start
+  const groups: Array<{ t: number; cues: Cue[] }> = [];
+  for (const c of result.cues) {
+    const t = Math.round((c.at - t0) * 1000) / 1000;
+    const last = groups[groups.length - 1];
+    if (last && Math.abs(last.t - t) < 0.0005) last.cues.push(c);
+    else groups.push({ t, cues: [c] });
+  }
+  const noteList = (opts.notes ?? true) ? result.notes.map((text, i) => ({ t: (result.noteTimes[i] ?? 0) - t0, text })) : [];
+  let ni = 0;
+  const flushNotes = (upTo: number): void => {
+    while (ni < noteList.length && noteList[ni]!.t <= upTo + 0.0005) lines.push(`-- ${noteList[ni++]!.text}`);
+  };
+  groups.forEach((g, gi) => {
+    flushNotes(g.t);
+    const stmts: string[] = [];
+    for (const c of g.cues) {
+      const s = statement(c);
+      if (s === null) lines.push(`-- (a ${c.kind} cue at ${fmtN(c.at)} s that the script language cannot say was left out)`);
+      else stmts.push(s);
+    }
+    if (stmts.length === 0) return;
+    if (!(gi === 0 && g.t < 0.0005)) {
+      const a = anchor(g.t);
+      lines.push(a.line);
+      if (a.wait > 0.0005) lines.push(`  wait ${secs(a.wait)}`);
+    }
+    const pad = gi === 0 && g.t < 0.0005 ? '' : '  ';
+    if (stmts.length === 1) lines.push(`${pad}${stmts[0]}`);
+    else {
+      lines.push(`${pad}together`);
+      for (const s of stmts) lines.push(`${pad}  ${s}`);
+      lines.push(`${pad}end together`);
+    }
+  });
+  flushNotes(Infinity);
+  return `${lines.join('\n')}\n`;
+}

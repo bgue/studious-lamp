@@ -13,11 +13,11 @@ export interface HlPiece {
 }
 
 const KEYWORDS = new Set<string>(STATEMENT_WORDS);
-const OPTIONS = new Set(['to', 'over', 'ease', 'margin', 'fading', 'for', 'with', 'about', 'into', 'times', 'preset', 'view', 'each', 'in', 'seconds', 'second', 'degrees', 'degree', 'linear', 'out', 'in', 'sets', 'nothing']);
-const ELEMENTS = new Set(['where', 'class', 'classes', 'everything', 'selection', 'the', 'it', 'elements', 'element']);
+const OPTIONS = new Set(['date', 'milestone', 'around', 'by', 'from', 'box', 'storey', 'storeys', 'radial', 'planned', 'actual', 'variance', 'to', 'over', 'ease', 'margin', 'fading', 'for', 'with', 'about', 'into', 'times', 'preset', 'view', 'each', 'in', 'seconds', 'second', 'degrees', 'degree', 'linear', 'out', 'in', 'sets', 'nothing']);
+const ELEMENTS = new Set(['active', 'completed', 'critical', 'where', 'class', 'classes', 'everything', 'selection', 'the', 'it', 'elements', 'element']);
 const COND = new Set(['and', 'or', 'not', 'like', 'between', 'is', 'null', 'true', 'false', 'on', 'off']);
 
-const RE = /(--.*|#.*)|("(?:[^"]|"")*"?|“[^”]*”?)|(\d+\.?\d*|\.\d+)|([A-Za-z_][A-Za-z0-9_.]*)|([=<>!+\-*/&(),]+)|(\s+)|(.)/gy;
+const RE = /(--.*|#(?![0-9a-fA-F]{6}(?![A-Za-z0-9_])).*)|(#[0-9a-fA-F]{6}(?![A-Za-z0-9_]))|("(?:[^"]|"")*"?|“[^”]*”?)|(\d+\.?\d*|\.\d+)|([A-Za-z_][A-Za-z0-9_.]*)|([=<>!+\-*/&(),]+)|(\s+)|(.)/gy;
 
 /** Pieces of one line. `first` marks the statement word: it is the first word of the line. */
 export function highlightLine(text: string): HlPiece[] {
@@ -28,12 +28,15 @@ export function highlightLine(text: string): HlPiece[] {
     const s = m[0];
     if (m[1] !== undefined) out.push({ text: s, cls: 'com' });
     else if (m[2] !== undefined) {
-      out.push({ text: s, cls: 'str' });
-      first = false;
-    } else if (m[3] !== undefined) {
       out.push({ text: s, cls: 'num' });
       first = false;
+    } else if (m[3] !== undefined) {
+      out.push({ text: s, cls: 'str' });
+      first = false;
     } else if (m[4] !== undefined) {
+      out.push({ text: s, cls: 'num' });
+      first = false;
+    } else if (m[5] !== undefined) {
       const w = s.toLowerCase();
       let cls: HlClass = '';
       if (first && KEYWORDS.has(w)) cls = 'kw';
@@ -42,7 +45,7 @@ export function highlightLine(text: string): HlPiece[] {
       else if (COND.has(w)) cls = 'op';
       out.push({ text: s, cls });
       first = false;
-    } else if (m[5] !== undefined) {
+    } else if (m[6] !== undefined) {
       out.push({ text: s, cls: 'op' });
       first = false;
     } else out.push({ text: s, cls: '' });

@@ -3,3 +3,8 @@
 export { parseXer, decodeXer, parseCalendarData } from '../../src/schedule/xer';
 export { calendarDate, isWorking, workingIntervals, workingMinutesBetween, addWorkingMinutes } from '../../src/schedule/calendar';
 export type { Schedule, ScheduleTask, ScheduleCalendar, ScheduleWbs } from '../../src/schedule/types';
+// The 4D director and the script generator (xray-4d script), the model adapter it needs, and the script compiler for the self-check.
+export { directFourD } from '../../src/schedule/director';
+export { scriptFromPlan } from '../../src/schedule/directorScript';
+export { fromSidecar } from '../../src/schedule/model';
+export { compileScript } from '../../src/anim/script/compiler';

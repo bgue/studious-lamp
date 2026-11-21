@@ -4,7 +4,7 @@
 
 export interface StatementHelp {
   id: string;
-  group: 'Camera' | 'Look' | 'Visibility' | 'Selection and notes' | 'Timing and variables';
+  group: 'Camera' | 'Look' | 'Visibility' | 'Selection and notes' | 'Timing and variables' | '4D schedule';
   /** The statement as written; `[ ]` marks what may be left out. */
   syntax: string;
   /** One line: what it does and how long it lasts. */
@@ -32,6 +32,15 @@ export const STATEMENT_HELP: readonly StatementHelp[] = [
   { id: 'forEachElement', group: 'Timing and variables', syntax: 'repeat for each element in <elements> ... end repeat', summary: 'Run the statements once for each element. `it` is the element. At most 500 elements.', example: 'repeat for each element in class IfcPump\n  fly to it over 2 seconds\nend repeat' },
   { id: 'forEachSet', group: 'Timing and variables', syntax: 'repeat for each set in sets ... end repeat', summary: 'Run the statements once for each stored selection set. `it` is the set.', example: 'repeat for each set in sets\n  select it\n  caption it for 2 seconds\nend repeat' },
   { id: 'put', group: 'Timing and variables', syntax: 'put <number> into <name>', summary: 'Keep a number under a name. Use the name wherever a number goes. Signs: + - * / and ( ).', example: 'put 2 * 1.5 into pause' },
+  { id: 'schedule', group: '4D schedule', syntax: 'schedule "<plan>" [view planned|actual|variance] [from "<date>"] [to "<date>"] [over N seconds]', summary: 'Play a 4D plan by name over a time (default: the plan\'s film length). It runs in the background: the statements after it start with it. View, from and to go to the cue for the host to rebuild the plan with.', example: 'schedule "Tower A" view actual from "2026-09-01" to "2028-05-30" over 120 seconds' },
+  { id: 'atDate', group: '4D schedule', syntax: 'at date "<YYYY-MM-DD[THH:MM]>"', summary: 'The statements after it start when the running schedule reaches that date, whether or not the ones before have ended.', example: 'at date "2027-01-18"' },
+  { id: 'atMilestone', group: '4D schedule', syntax: 'at milestone "<name>"', summary: 'The statements after it start when the running schedule reaches that milestone.', example: 'at milestone "Envelope closed"' },
+  { id: 'tint', group: '4D schedule', syntax: 'tint <elements> <#rrggbb|colour name|off> [fading over N seconds]', summary: 'Colour elements, with a fade or at once; `off` takes the tint away. Names: red, orange, yellow, green, teal, cyan, blue, indigo, purple, magenta, pink, brown, grey, white, black.', example: 'tint critical #e53935 fading over 1 seconds' },
+  { id: 'explode', group: '4D schedule', syntax: 'explode storeys|radial [by N] [over N seconds]', summary: 'Move the storeys apart (or push every element out from the centre). By is the factor (default 1). Lasts 2 seconds unless told.', example: 'explode storeys by 1.5 over 2 seconds' },
+  { id: 'collapse', group: '4D schedule', syntax: 'collapse [over N seconds]', summary: 'Bring an exploded building back together. Lasts 2 seconds unless told.', example: 'collapse over 2 seconds' },
+  { id: 'focus', group: '4D schedule', syntax: 'focus <elements>   |   focus nothing', summary: 'Set the x-ray focus: what stands in front of these elements ghosts. `focus active` follows the active work of the schedule; `focus nothing` gives the focus back to the selection. Instant.', example: 'focus active' },
+  { id: 'section', group: '4D schedule', syntax: 'section box around <elements>|storey "<name>" [over N seconds]', summary: 'Clip the model to a box around the elements or a storey. Lasts 1.5 seconds unless told.', example: 'section box around storey "Level 3" over 1.5 seconds' },
+  { id: 'sectionOff', group: '4D schedule', syntax: 'section box off [over N seconds]', summary: 'Take the section box away, opening it out over the time.', example: 'section box off over 1 seconds' },
 ];
 
 /** What `<elements>` can be. */
@@ -43,6 +52,7 @@ export const ELEMENT_HELP: readonly { syntax: string; summary: string; example: 
   { syntax: 'everything', summary: 'All elements.', example: 'everything' },
   { syntax: 'it', summary: 'The current element or set inside `repeat for each`.', example: 'it' },
   { syntax: 'elements "id", "id"', summary: 'Elements by GlobalId.', example: 'elements "2O2Fr$t4X7Zf8NOew3FLOH"' },
+  { syntax: 'active | completed | critical', summary: '4D: the elements of the running schedule that are being built, are done, or are being built on the critical path, at that moment.', example: 'active' },
 ];
 
 /** The rules of timing, for the reference. */
@@ -51,6 +61,7 @@ export const TIMING_NOTES: readonly string[] = [
   'Fly, orbit, set, fading, caption, label, hover and wait last their time. Mode, apply, select and plain show or hide are instant.',
   'Use `together` to run statements side by side, for example a camera move with a caption.',
   'Keywords ignore case. Comments start with -- or #. One statement per line. Text goes in "double quotes".',
+  '`schedule` does not wait: the statements after it start with it. `at date` and `at milestone` put the statements after them at that moment of the schedule (through the plan\'s time map), whether or not the ones before have ended. Explode, collapse and section box last their `over` time; tint lasts its `fading` time.',
   'A script runs at most one hour, makes at most 5000 cues and loops at most 500 times.',
 ];
 

@@ -84,4 +84,29 @@ end together
 mode solid
 `,
   },
+  {
+    id: 'film4d',
+    title: 'A 4D film: follow the work',
+    about: 'Play a 4D plan, follow the active work, explode the storeys when it spreads, clip to one storey (needs a plan named "Demo").',
+    text: `-- A 4D film. It needs the 4D plan "Demo" (the demo plan of the 4D tools); change the name and the dates to yours.
+schedule "Demo" over 40 seconds
+together
+  fly to everything over 3 seconds
+  caption "Construction sequence" "Follow the work as it is built" for 3 seconds
+end together
+at date "2027-01-20"
+  fly to active over 2 seconds margin 2
+  label active with activity, percent for 4 seconds
+at date "2027-02-01"
+  explode storeys by 1.5 over 2 seconds
+at date "2027-02-12"
+  collapse over 2 seconds
+at date "2027-02-18"
+  section box around storey "Level 2" over 1.5 seconds
+  focus active
+at date "2027-03-01"
+  section box off over 1 seconds
+  tint critical red fading over 1 seconds
+`,
+  },
 ];

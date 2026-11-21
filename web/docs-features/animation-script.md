@@ -1,6 +1,7 @@
 # Animation script
 
-A short text that animates the model: camera moves, settings, showing and hiding elements with fades, selection and captions.
+A short text that animates the model: camera moves, settings, showing and hiding elements with fades, selection and captions, and,
+for a 4D plan, the schedule with its explode, section box and tint.
 Write it in the **Script** tab of the right sidebar (`src/plugins/animScript.ts`, `src/anim/scriptPanel.ts`). The language is plain
 English in the style of HyperTalk, small and strict. It compiles to a **score** (`src/anim/score.ts`), the timeline format that the
 score player plays, so a script plays, records and restores the view the same way as a fly-through of the Views tab.
@@ -29,6 +30,8 @@ select nothing
 - `together` starts every statement inside at the same moment; the block lasts as long as its longest statement.
 - Keywords ignore case. A comment starts with `--` or `#` and runs to the end of the line. One statement per line; indentation is free.
   Text goes in "double quotes". A number may carry `s`, `sec`, `second` or `seconds` (`2s`, `2 seconds`).
+- 4D: `schedule` does not wait, and `at date` / `at milestone` put the statements after them at that moment of the plan's clock, even
+  before the end of earlier ones (see the [grammar](animation-script-grammar.md#31-the-4d-statements) and chapter 12 of the guide).
 - Limits: a script runs at most 1 hour, makes at most 5000 cues, runs a loop at most 500 times and at most 20000 statements in all.
 
 ## Statements
@@ -67,6 +70,18 @@ select nothing
 - `repeat for each element in <elements> ... end repeat`: Run the statements once for each element. `it` is the element. At most 500 elements.
 - `repeat for each set in sets ... end repeat`: Run the statements once for each stored selection set. `it` is the set.
 - `put <number> into <name>`: Keep a number under a name. Use the name wherever a number goes. Signs: + - * / and ( ).
+
+### 4D schedule
+
+- `schedule "<plan>" [view planned|actual|variance] [from "<date>"] [to "<date>"] [over N seconds]`: Play a 4D plan by name over a time (default: the plan's film length). It runs in the background: the statements after it start with it. View, from and to go to the cue for the host to rebuild the plan with.
+- `at date "<YYYY-MM-DD[THH:MM]>"`: The statements after it start when the running schedule reaches that date, whether or not the ones before have ended.
+- `at milestone "<name>"`: The statements after it start when the running schedule reaches that milestone.
+- `tint <elements> <#rrggbb|colour name|off> [fading over N seconds]`: Colour elements, with a fade or at once; `off` takes the tint away. Names: red, orange, yellow, green, teal, cyan, blue, indigo, purple, magenta, pink, brown, grey, white, black.
+- `explode storeys|radial [by N] [over N seconds]`: Move the storeys apart (or push every element out from the centre). By is the factor (default 1). Lasts 2 seconds unless told.
+- `collapse [over N seconds]`: Bring an exploded building back together. Lasts 2 seconds unless told.
+- `focus <elements> | focus nothing`: Set the x-ray focus: what stands in front of these elements ghosts. `focus active` follows the active work of the schedule; `focus nothing` gives the focus back to the selection. Instant.
+- `section box around <elements>|storey "<name>" [over N seconds]`: Clip the model to a box around the elements or a storey. Lasts 1.5 seconds unless told.
+- `section box off [over N seconds]`: Take the section box away, opening it out over the time.
 <!-- statements:end -->
 
 `ease` takes `in`, `out`, `in out` or `linear`; the default is `in out` for camera moves and for numbers that blend.
@@ -81,6 +96,7 @@ Wherever a statement says `<elements>`:
 - `class IfcPump` or `class IfcPump, IfcValve`: shorthand for the elements of those classes.
 - `set "Name"`: the members of a stored selection set ([sets-query.md](sets-query.md)).
 - `the selection`, `everything`, `it`, `elements "gid1", "gid2"` (by GlobalId).
+- `active`, `completed`, `critical`: 4D, the elements of the running schedule in that state at that moment.
 
 ### Variables and numbers
 
@@ -110,6 +126,12 @@ the cue.
 | `caption` | `caption` with `title` and `text` |
 | `label` | `label` with `elements` and `fields` |
 | `hover` | `hover` with `elements` |
+| `schedule "plan" ...` | `schedule4d` with `plan: { name }`, the `over` time, and `view`, `from`, `to` when given (for the host to rebuild the plan with) |
+| `at date` / `at milestone` | no cue: sets the time of the statements after it, through the plan's time map |
+| `tint <elements> <colour>` | `tint` with `elements`, `colour` (`#rrggbb`, null for `off`), `dur` the fading time |
+| `explode` / `collapse` | `explode` with `mode` and `factor`, `collapse`; 2 seconds, `inOut` |
+| `focus` | `focus` with `elements` (or null) |
+| `section box ...` | `sectionBox` with `around` (elements, `{ storey }` or null); 1.5 seconds, `inOut` |
 
 Every cue has `line`, the line of the script, which the editor highlights while the cue plays. Elements stay references (a query, a set
 name, GlobalIds, the selection) for the player to resolve when playback starts. Only `repeat for each element` needs the model while
@@ -156,4 +178,4 @@ window.__xrayScript.state();         // { errors, playingLine, status, running, 
 
 The pure modules are in `src/anim/script/`: `lexer.ts`, `parser.ts` (syntax tree with line and column), `compiler.ts` (tree to score),
 `scriptHelp.ts` (this reference), `examples.ts`, `highlight.ts`, `runner.ts`. They use no DOM, no storage and no network, and no `eval`.
-`compileScript(text, options)` takes optional `resolve` (query to GlobalIds), `setNames`, `paramPaths`, `presets` and `views` from the app.
+`compileScript(text, options)` takes optional `resolve` (query to GlobalIds), `setNames`, `paramPaths`, `presets`, `views` and `plans` (4D plan by name; default: the registry of `src/anim/fourd/plans.ts`) from the app.

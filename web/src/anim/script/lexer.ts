@@ -2,12 +2,13 @@
 //
 // The language is line based: one statement per line. A comment starts with `--` or `#` and runs to the end of the line.
 // Strings are in double quotes (curly quotes from a pasted text work too); a quote doubled inside a string stands for itself.
-// A number may carry a seconds unit right after it (`2s`, `2sec`, `2seconds`). Words are letters, digits and underscores, joined by dots
+// A number may carry a seconds unit right after it (`2s`, `2sec`, `2seconds`). A `#` followed by exactly six hex digits is a colour
+// (`#e53935`, for `tint`); any other `#` starts a comment. Words are letters, digits and underscores, joined by dots
 // (`xray.alphaMax`, `Pset_WallCommon.IsExternal`).
 
 import { ScriptError } from './diagnostics';
 
-export type TokType = 'word' | 'string' | 'number' | 'punct';
+export type TokType = 'word' | 'string' | 'number' | 'punct' | 'colour';
 
 export interface Tok {
   type: TokType;
@@ -80,6 +81,14 @@ export function lexLine(text: string, line: number): Tok[] | ScriptError {
     if (c === ' ' || c === '\t' || NBSP.test(c)) {
       i++;
       continue;
+    }
+    if (c === '#') {
+      const cm = /^#[0-9a-fA-F]{6}(?![A-Za-z0-9_])/.exec(text.slice(i));
+      if (cm) {
+        toks.push({ type: 'colour', text: cm[0].toLowerCase(), line, col: i + 1, end: i + 1 + cm[0].length });
+        i += cm[0].length;
+        continue;
+      }
     }
     if (c === '#' || (c === '-' && text[i + 1] === '-')) break; // a comment
     const start = i;

@@ -19,8 +19,15 @@
 //   repeat for each element in <elements> ... end repeat            `it` is the element
 //   repeat for each set in sets ... end repeat                      `it` is the set name
 //   put <number expression> into <name>
+//   schedule "plan" [view planned|actual|variance] [from "date"] [to "date"] [over N [seconds]]     4D: plays a plan
+//   at date "YYYY-MM-DD[THH:MM]"   |   at milestone "name"                    4D: the next statements start at that moment of the schedule
+//   tint <elements> <#rrggbb|colour name|off> [fading over N [seconds]]
+//   explode storeys|radial [by N] [over N [seconds]]   |   collapse [over N [seconds]]
+//   focus <elements>   |   focus nothing
+//   section box around <elements> [over N [seconds]]   |   section box around storey "Name" [over N]   |   section box off [over N]
 //
 //   <elements> := where <criteria> | class A[, B] | set "Name" | the selection | everything | it | elements "gid", "gid"
+//                 | active | completed | critical            (the 4D states of the running schedule)
 //   <criteria> := the criteria query language of src/query; text values may be bare words or double quoted
 //
 // parseScript never throws: it returns the tree of the lines that are fine and the errors of the others.
@@ -31,17 +38,24 @@ import { ScriptError, didYouMean } from './diagnostics';
 import type { ScriptDiagnostic } from './diagnostics';
 import { lexScript, lowerWord } from './lexer';
 import type { SourceLine, Tok } from './lexer';
-import type { Ease, Elements, Num, Program, Span, Stmt, Str, StrPart, Value } from './ast';
+import type { Ease, Elements, Num, Program, Span, Stmt, Str, StrPart, Text, Value } from './ast';
 
 export * from './ast';
 
 /** The statement words, in the order of the reference. */
-export const STATEMENT_WORDS = ['fly', 'orbit', 'set', 'mode', 'apply', 'show', 'hide', 'isolate', 'select', 'caption', 'label', 'hover', 'wait', 'together', 'repeat', 'put', 'end'] as const;
+export const STATEMENT_WORDS = ['fly', 'orbit', 'set', 'mode', 'apply', 'show', 'hide', 'isolate', 'select', 'caption', 'label', 'hover', 'wait', 'together', 'repeat', 'put', 'schedule', 'at', 'tint', 'explode', 'collapse', 'focus', 'section', 'end'] as const;
+/** The colour words of `tint` and their colours (#rrggbb). */
+export const COLOUR_NAMES: Readonly<Record<string, string>> = {
+  red: '#e53935', orange: '#fb8c00', yellow: '#fdd835', green: '#43a047', teal: '#00897b', cyan: '#00acc1', blue: '#1e88e5', indigo: '#3949ab',
+  purple: '#8e24aa', magenta: '#d81b60', pink: '#f48fb1', brown: '#6d4c41', grey: '#9e9e9e', gray: '#9e9e9e', white: '#ffffff', black: '#212121',
+};
+const TINT_OFF = ['off', 'none', 'clear'];
 export const MODE_WORDS = ['ghost', 'solid', 'radiograph', 'glow', 'cutaway'] as const;
 export const MAX_NESTING = 8;
 
 /** Words that end a `where` clause (the start of an option) and cannot be a bare column or value there. */
-const STOP_WORDS = new Set(['over', 'ease', 'margin', 'fading', 'for', 'with', 'about']);
+const STOP_WORDS = new Set(['over', 'ease', 'margin', 'fading', 'for', 'with', 'about', 'by']);
+const SCHEDULE_VIEWS = ['planned', 'actual', 'variance'] as const;
 const SECOND_UNITS = new Set(['s', 'sec', 'secs', 'second', 'seconds']);
 const DEGREE_UNITS = new Set(['degree', 'degrees', 'deg']);
 const QUERY_KEYWORDS = new Set(['AND', 'OR', 'NOT', 'LIKE', 'IN', 'BETWEEN', 'IS', 'NULL', 'TRUE', 'FALSE']);
@@ -206,8 +220,9 @@ function parseStr(c: Cursor, what: string): Str {
 
 // ---------------------------------------------------------------- options
 
-type OptionKey = 'over' | 'ease' | 'margin' | 'fading' | 'for';
+type OptionKey = 'over' | 'ease' | 'margin' | 'fading' | 'for' | 'by';
 interface Options {
+  by?: Num;
   over?: Num;
   ease?: Ease;
   margin?: Num;
@@ -221,6 +236,7 @@ const OPTION_USAGE: Record<OptionKey, string> = {
   margin: 'margin N',
   fading: 'fading over N seconds',
   for: 'for N seconds',
+  by: 'by N',
 };
 
 function parseEase(c: Cursor): Ease {
@@ -260,6 +276,7 @@ function parseOptions(c: Cursor, allowed: OptionKey[]): Options {
     c.i++;
     if (w === 'ease') o.ease = parseEase(c);
     else if (w === 'margin') o.margin = parseExpr(c);
+    else if (w === 'by') o.by = parseExpr(c);
     else if (w === 'fading') {
       c.eatWord('over');
       o.fading = parseQuantity(c, SECOND_UNITS);
@@ -329,11 +346,20 @@ export function buildQuery(toks: readonly Tok[]): { text: string; starts: number
   return { text, starts };
 }
 
-function parseWhere(c: Cursor, kw: Tok): Elements {
+const isColourTok = (t: Tok | undefined): boolean => !!t && (t.type === 'colour' || (t.type === 'word' && (t.text.toLowerCase() in COLOUR_NAMES || TINT_OFF.includes(t.text.toLowerCase()))));
+
+function parseWhere(c: Cursor, kw: Tok, endColour = false): Elements {
   const toks: Tok[] = [];
   let depth = 0;
   while (!c.atEnd) {
     const t = c.peek()!;
+    if (endColour && depth <= 0 && toks.length > 0 && isColourTok(t)) {
+      // `tint where class = IfcWall red`: the colour is the last word (or comes before `fading`), unless a value is due
+      const prev = toks[toks.length - 1]!;
+      const n = c.peek(1);
+      const valueDue = (prev.type === 'punct' && ['=', '==', '!=', '<>', '<', '<=', '>', '>=', '(', ','].includes(prev.text)) || (prev.type === 'word' && ['like', 'between', 'and', 'or', 'not', 'in', 'is'].includes(prev.text.toLowerCase()));
+      if (!valueDue && (!n || lowerWord(n) === 'fading')) break;
+    }
     if (t.type === 'punct' && t.text === '(') depth++;
     else if (t.type === 'punct' && t.text === ')') depth--;
     else if (depth <= 0 && t.type === 'word' && STOP_WORDS.has(t.text.toLowerCase())) break;
@@ -362,10 +388,10 @@ function parseWhere(c: Cursor, kw: Tok): Elements {
   return { k: 'query', query: text, ...span(tspan(kw), tspan(toks[toks.length - 1]!)) };
 }
 
-const ELEMENT_HELP = 'Write `where <criteria>`, `class IfcPump`, `set "Name"`, `the selection`, `everything`, `it` or `elements "id", "id"`.';
-const ELEMENT_WORDS = ['where', 'class', 'set', 'the', 'selection', 'everything', 'it', 'elements'];
+const ELEMENT_HELP = 'Write `where <criteria>`, `class IfcPump`, `set "Name"`, `the selection`, `everything`, `it`, `elements "id", "id"`, or `active`, `completed`, `critical`.';
+const ELEMENT_WORDS = ['where', 'class', 'set', 'the', 'selection', 'everything', 'it', 'elements', 'active', 'completed', 'critical'];
 
-function parseElements(c: Cursor): Elements {
+function parseElements(c: Cursor, endColour = false): Elements {
   const t = c.peek();
   if (!t) throw c.failEnd('Expected which elements.', ELEMENT_HELP);
   const w = lowerWord(t);
@@ -373,7 +399,12 @@ function parseElements(c: Cursor): Elements {
     switch (w) {
       case 'where':
         c.i++;
-        return parseWhere(c, t);
+        return parseWhere(c, t, endColour);
+      case 'active':
+      case 'completed':
+      case 'critical':
+        c.i++;
+        return { k: 'schedule', set: w, ...tspan(t) };
       case 'class':
       case 'classes': {
         c.i++;
@@ -634,6 +665,107 @@ class Parser {
         c.i++;
         endOfStatement(c, [], 'A put statement is `put <number> into <name>`.');
         return { kind: 'put', value, name: n.text, nameSpan: tspan(n), ...lineSpan() };
+      }
+      case 'schedule': {
+        const n = c.peek();
+        if (!n || n.type !== 'string') throw c.fail(`Expected the name of a 4D plan in double quotes after \`schedule\`, found ${describe(n)}.`, 'For example: schedule "Tower A" over 90 seconds.');
+        c.i++;
+        const out: Extract<Stmt, { kind: 'schedule' }> = { kind: 'schedule', plan: { v: n.text, ...tspan(n) }, ...lineSpan() };
+        const textOpt = (what: string): Text => {
+          const v = c.peek();
+          if (!v || v.type !== 'string') throw c.fail(`Expected a date in double quotes after \`${what}\`, found ${describe(v)}.`, `For example: ${what} "2027-03-01".`);
+          c.i++;
+          return { v: v.text, ...tspan(v) };
+        };
+        while (!c.atEnd) {
+          const o = c.peek()!;
+          const w = lowerWord(o);
+          if (o.type !== 'word' || !['view', 'from', 'to', 'over'].includes(w)) {
+            const dym = o.type === 'word' ? didYouMean(o.text, ['view', 'from', 'to', 'over']) : '';
+            throw c.fail(`I did not expect ${describe(o)} here.`, `${dym ? `${dym} ` : ''}A schedule statement can end with \`view planned|actual|variance\`, \`from "date"\`, \`to "date"\` and \`over N seconds\`.`);
+          }
+          if ((out as unknown as Record<string, unknown>)[w] !== undefined) throw c.fail(`\`${w}\` is given twice in this statement.`);
+          c.i++;
+          if (w === 'view') {
+            const v = c.peek();
+            const vw = lowerWord(v);
+            if (!v || v.type !== 'word' || !(SCHEDULE_VIEWS as readonly string[]).includes(vw)) throw c.fail(`Expected \`planned\`, \`actual\` or \`variance\` after \`view\`, found ${describe(v)}.`, v?.type === 'word' ? didYouMean(v.text, SCHEDULE_VIEWS) : undefined);
+            c.i++;
+            out.view = vw as 'planned' | 'actual' | 'variance';
+          } else if (w === 'from') out.from = textOpt('from');
+          else if (w === 'to') out.to = textOpt('to');
+          else out.over = parseQuantity(c, SECOND_UNITS);
+        }
+        return out;
+      }
+      case 'at': {
+        const k = c.peek();
+        const kw = lowerWord(k);
+        if (!k || (kw !== 'date' && kw !== 'milestone')) throw c.fail(`Expected \`date\` or \`milestone\` after \`at\`, found ${describe(k)}.`, k?.type === 'word' ? didYouMean(k.text, ['date', 'milestone']) || 'For example: at date "2027-03-01", or at milestone "Roof complete".' : 'For example: at date "2027-03-01", or at milestone "Roof complete".');
+        c.i++;
+        const v = c.peek();
+        if (!v || v.type !== 'string') throw c.fail(`Expected the ${kw} in double quotes, found ${describe(v)}.`, kw === 'date' ? 'Write the date in double quotes, like at date "2027-03-01".' : 'Write the milestone name in double quotes, like at milestone "Roof complete".');
+        c.i++;
+        endOfStatement(c, [], `An \`at ${kw}\` line holds only the ${kw}; the statements that start then follow below it.`);
+        return { kind: 'at', what: kw, value: { v: v.text, ...tspan(v) }, ...lineSpan() };
+      }
+      case 'tint': {
+        const target = parseElements(c, true);
+        const col = c.peek();
+        let colour: Text | null;
+        if (col && col.type === 'colour') {
+          c.i++;
+          colour = { v: col.text, ...tspan(col) };
+        } else if (col && col.type === 'string') {
+          c.i++;
+          colour = { v: col.text, ...tspan(col) };
+        } else if (col && col.type === 'word' && TINT_OFF.includes(col.text.toLowerCase())) {
+          c.i++;
+          colour = null;
+        } else if (col && col.type === 'word') {
+          c.i++;
+          colour = { v: col.text, ...tspan(col) };
+        } else throw c.fail(`Expected a colour after the elements, found ${describe(col)}.`, `A colour is #rrggbb or a name (${Object.keys(COLOUR_NAMES).slice(0, 6).join(', ')}, ...); \`off\` takes the tint away.`);
+        const o = parseOptions(c, ['fading']);
+        return { kind: 'tint', target, colour, ...(o.fading ? { fading: o.fading } : {}), ...lineSpan() };
+      }
+      case 'explode': {
+        const m = c.peek();
+        const mw = lowerWord(m);
+        if (!m || (mw !== 'storeys' && mw !== 'radial')) throw c.fail(`Expected \`storeys\` or \`radial\` after \`explode\`, found ${describe(m)}.`, m?.type === 'word' ? didYouMean(m.text, ['storeys', 'radial']) || 'For example: explode storeys by 1.5 over 2 seconds.' : 'For example: explode storeys by 1.5 over 2 seconds.');
+        c.i++;
+        const o = parseOptions(c, ['by', 'over']);
+        return { kind: 'explode', mode: mw, ...(o.by ? { by: o.by } : {}), ...(o.over ? { over: o.over } : {}), ...lineSpan() };
+      }
+      case 'collapse': {
+        const o = parseOptions(c, ['over']);
+        return { kind: 'collapse', ...(o.over ? { over: o.over } : {}), ...lineSpan() };
+      }
+      case 'focus': {
+        if (c.word() === 'nothing' || c.word() === 'none') {
+          c.i++;
+          endOfStatement(c, [], '`focus nothing` takes nothing after it.');
+          return { kind: 'focus', target: null, ...lineSpan() };
+        }
+        const target = parseElements(c);
+        endOfStatement(c, [], 'A focus statement is `focus <elements>` or `focus nothing`.');
+        return { kind: 'focus', target, ...lineSpan() };
+      }
+      case 'section': {
+        if (!c.eatWord('box')) throw c.fail(`Expected \`box\` after \`section\`, found ${describe(c.peek())}.`, 'For example: section box around storey "Level 3" over 1.5 seconds, or section box off.');
+        if (c.eatWord('off')) {
+          const o = parseOptions(c, ['over']);
+          return { kind: 'section', around: null, ...(o.over ? { over: o.over } : {}), ...lineSpan() };
+        }
+        if (!c.eatWord('around')) throw c.fail(`Expected \`around\` or \`off\` after \`section box\`, found ${describe(c.peek())}.`, 'For example: section box around active, or section box off.');
+        let around: Elements | { storey: Text };
+        if (c.word() === 'storey' && c.peek(1)?.type === 'string') {
+          c.i++;
+          const n = c.next();
+          around = { storey: { v: n.text, ...tspan(n) } };
+        } else around = parseElements(c);
+        const o = parseOptions(c, ['over']);
+        return { kind: 'section', around, ...(o.over ? { over: o.over } : {}), ...lineSpan() };
       }
       case 'together': {
         endOfStatement(c, [], '`together` stands alone on its line; the statements follow below it.');

@@ -34,7 +34,12 @@ export type Elements = Span &
     | { k: 'everything' }
     | { k: 'it' }
     | { k: 'gids'; ids: string[] }
+    /** 4D: the elements in this state of the running schedule (`active`, `completed`, `critical`). */
+    | { k: 'schedule'; set: 'active' | 'completed' | 'critical' }
   );
+
+/** A text of the 4D statements with where it stands (a plan name, a date, a milestone, a storey, a colour). */
+export type Text = Span & { v: string };
 
 export type Value =
   | (Span & { k: 'bool'; v: boolean })
@@ -62,7 +67,19 @@ export type Stmt =
   | (Base & { kind: 'together'; body: Stmt[] })
   | (Base & { kind: 'repeat'; times: Num; body: Stmt[] })
   | (Base & { kind: 'forEach'; each: 'element' | 'set'; target?: Elements; body: Stmt[] })
-  | (Base & { kind: 'put'; value: Num; name: string; nameSpan: Span });
+  | (Base & { kind: 'put'; value: Num; name: string; nameSpan: Span })
+  // ---- 4D
+  /** `schedule "plan" [view V] [from "date"] [to "date"] [over N]`: plays the plan; the statements after it start together with it. */
+  | (Base & { kind: 'schedule'; plan: Text; view?: 'planned' | 'actual' | 'variance'; from?: Text; to?: Text; over?: Num })
+  /** `at date "YYYY-MM-DD"` / `at milestone "name"`: the statements after it start at that moment of the running schedule. */
+  | (Base & { kind: 'at'; what: 'date' | 'milestone'; value: Text })
+  /** `tint <elements> <colour> [fading over N]`; colour null = `off`. */
+  | (Base & { kind: 'tint'; target: Elements; colour: Text | null; fading?: Num })
+  | (Base & { kind: 'explode'; mode: 'storeys' | 'radial'; by?: Num; over?: Num })
+  | (Base & { kind: 'collapse'; over?: Num })
+  | (Base & { kind: 'focus'; target: Elements | null })
+  /** `section box around <elements>|storey "name" [over N]`, or `section box off [over N]` (around null). */
+  | (Base & { kind: 'section'; around: Elements | { storey: Text } | null; over?: Num });
 
 export type StmtKind = Stmt['kind'];
 
