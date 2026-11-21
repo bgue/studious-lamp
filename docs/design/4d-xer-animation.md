@@ -317,7 +317,10 @@ A, B and E can start in parallel.
 2. View configurable, default **planned**; unbuilt elements configurable **hidden or ghosted**.
 3. Film style configurable, including a **short lookahead** (e.g. six weeks from the data date, the past shown built).
 4. Temporary works: not in the models yet; out of scope for now (the `removed` state stays for demolition).
-5. Write-back **yes**, for reloading later: `Xray_4D` properties and `IfcTask` + `IfcTaskTime` + `IfcRelAssignsToProcess`.
+5. Write-back **yes**, for reloading later: `Xray_4D` properties and `IfcWorkSchedule` + `IfcTask` + `IfcTaskTime` +
+   `IfcRelAssignsToProduct` for built elements (task outputs) / `IfcRelAssignsToProcess` for removed ones (inputs) +
+   `IfcRelSequence`. The full mapping is in `skills/ifc-4d-schedule/reference/ifc-mapping.md`, shared by the viewer, the
+   CLI and the agent skill (which writes links into an IFC through an IFC MCP server or IfcOpenShell).
 
 ## 10a. Linking and planning: where the build differs from the design
 
