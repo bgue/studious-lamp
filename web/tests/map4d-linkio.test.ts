@@ -46,12 +46,14 @@ describe('export as a LinkML LinkDataset', () => {
   const r = exportDataset(input);
   it('uses only the schema fields, with valid patterns, enums and required fields', () => {
     expect(validate(r.dataset as unknown as Record<string, unknown>)).toEqual([]);
-    expect(Object.keys(r.dataset).sort()).toEqual(['assignments', 'created_at', 'id', 'model', 'model_elements', 'schedule', 'tool']);
+    expect(Object.keys(r.dataset).sort()).toEqual(['assignments', 'created_at', 'id', 'model', 'model_elements', 'tool']);
   });
-  it('writes a clearly marked placeholder schedule (the schema requires one)', () => {
-    expect(r.dataset.schedule).toEqual(PLACEHOLDER_SCHEDULE);
-    expect(r.dataset.schedule.project).toContain('no schedule');
-    expect(r.dataset.schedule.source_hash).toMatch(/^0{64}$/);
+  it('leaves the schedule out of a mapping-only export (optional in the schema)', () => {
+    expect(r.dataset.schedule).toBeUndefined();
+  });
+  it('still reads an earlier export that carries the placeholder schedule', () => {
+    const old = { ...r.dataset, schedule: { ...PLACEHOLDER_SCHEDULE } };
+    expect(validate(old as unknown as Record<string, unknown>)).toEqual([]);
   });
   it('leaves reviewed_by out by default and keeps it on opt-in; skips rows without a GlobalId', () => {
     expect(r.json).not.toContain('Alice Reviewer');

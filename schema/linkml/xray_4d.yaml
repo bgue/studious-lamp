@@ -200,9 +200,11 @@ slots:
     inlined: true
     required: true
   schedule:
+    description: >-
+      The schedule the links belong to. Absent in a mapping-only dataset (element assignments made before any schedule is
+      linked); required in practice as soon as the dataset holds activities or links.
     range: ScheduleRef
     inlined: true
-    required: true
 
   activities:
     range: Activity

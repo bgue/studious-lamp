@@ -262,7 +262,8 @@ export interface LinkTie { element: string; candidates: string[] }
 export interface FourDLinks {
   id: string;
   model: LinkModelRef;
-  schedule: LinkScheduleRef;
+  /** Absent in a mapping-only dataset (assignments before any schedule is linked). */
+  schedule?: LinkScheduleRef;
   created_at?: string;
   tool?: string;
   activities?: LinkActivity[];

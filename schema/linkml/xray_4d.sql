@@ -3,7 +3,7 @@
 --     * Slot: created_at
 --     * Slot: tool Description: The program and version that wrote the dataset (xray-4d 1.0, viewer 25, an MCP server name).
 --     * Slot: model_identity_key
---     * Slot: schedule_source_hash
+--     * Slot: schedule_source_hash Description: The schedule the links belong to. Absent in a mapping-only dataset (element assignments made before any schedule is linked); required in practice as soon as the dataset holds activities or links.
 -- # Class: ModelRef Description: The IFC model the elements belong to.
 --     * Slot: identity_key Description: The viewer's model identity key (file names and sizes, or a content hash), the same in every tool.
 --     * Slot: name
@@ -110,7 +110,7 @@ CREATE TABLE "LinkDataset" (
 	created_at DATETIME,
 	tool TEXT,
 	model_identity_key TEXT NOT NULL,
-	schedule_source_hash TEXT NOT NULL,
+	schedule_source_hash TEXT,
 	PRIMARY KEY (id),
 	FOREIGN KEY(model_identity_key) REFERENCES "ModelRef" (identity_key),
 	FOREIGN KEY(schedule_source_hash) REFERENCES "ScheduleRef" (source_hash)

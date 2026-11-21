@@ -1,6 +1,6 @@
 // Export and import of the assignments as a LinkML `LinkDataset` (schema/linkml/xray_4d.yaml, JSON form): `model`, `model_elements` and
-// `assignments` only. The schema requires `schedule`; a mapping-only export has no schedule yet, so it carries a clearly marked
-// placeholder (`PLACEHOLDER_SCHEDULE`: project "(no schedule yet)", an all-zero source_hash). A reader that links activities replaces it.
+// `assignments` only. A mapping-only export has no schedule yet, so it leaves `schedule` out (optional in the schema). Files written
+// by earlier versions carry a placeholder schedule (`PLACEHOLDER_SCHEDULE`); reading treats it as no schedule.
 // `reviewed_by` is personal data: the export leaves it out unless `includeReviewers` is set. Pure. Tested in tests/map4d-linkio.test.ts.
 
 import type { Assignment, AttributeKind, FourDLinks, LinkElement, LinkModelRef, LinkSource, ReviewStatus } from '../schedule/types';
@@ -78,7 +78,6 @@ export function exportDataset(i: ExportInput): ExportResult {
   const dataset: FourDLinks = {
     id: i.id ?? `map-${now.replace(/[^0-9]/g, '').slice(0, 14)}`,
     model: i.model,
-    schedule: { ...PLACEHOLDER_SCHEDULE },
     created_at: now,
     tool: TOOL_NAME,
     model_elements,

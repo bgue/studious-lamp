@@ -99,7 +99,7 @@ describe('links output validates against the LinkML JSON schema', () => {
   it('every object uses only schema fields, snake_case, with schema enum values', () => {
     only(out, 'LinkDataset');
     only(out.model, 'ModelRef');
-    only(out.schedule, 'ScheduleRef');
+    only(out.schedule!, 'ScheduleRef'); // the linker always writes the schedule (optional only for mapping-only datasets)
     out.activities!.forEach((a) => only(a, 'Activity'));
     out.model_elements!.forEach((e) => only(e, 'Element'));
     out.assignments!.forEach((a) => only(a, 'Assignment'));

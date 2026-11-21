@@ -407,7 +407,15 @@
                     ]
                 },
                 "schedule": {
-                    "$ref": "#/$defs/ScheduleRef"
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/ScheduleRef"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The schedule the links belong to. Absent in a mapping-only dataset (element assignments made before any schedule is linked); required in practice as soon as the dataset holds activities or links."
                 },
                 "ties": {
                     "items": {
@@ -448,8 +456,7 @@
             },
             "required": [
                 "id",
-                "model",
-                "schedule"
+                "model"
             ],
             "title": "LinkDataset",
             "type": "object"
@@ -663,7 +670,15 @@
             ]
         },
         "schedule": {
-            "$ref": "#/$defs/ScheduleRef"
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/ScheduleRef"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "The schedule the links belong to. Absent in a mapping-only dataset (element assignments made before any schedule is linked); required in practice as soon as the dataset holds activities or links."
         },
         "ties": {
             "items": {
@@ -704,8 +719,7 @@
     },
     "required": [
         "id",
-        "model",
-        "schedule"
+        "model"
     ],
     "title": "xray_4d",
     "type": "object",
