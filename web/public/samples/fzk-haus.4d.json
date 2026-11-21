@@ -1,0 +1,89 @@
+{
+  "schema": "xray-4d-config/1",
+  "schedule": {
+    "project": "FZK-HAUS",
+    "location": [
+      {
+        "code": "Level"
+      }
+    ],
+    "trade": [
+      {
+        "code": "Trade"
+      }
+    ]
+  },
+  "model": {
+    "location": [
+      {
+        "property": "Xray_4D.Location"
+      },
+      {
+        "storey": true
+      }
+    ],
+    "trade": [
+      {
+        "property": "Xray_4D.Trade"
+      }
+    ]
+  },
+  "values": {
+    "location": {
+      "EG": "Erdgeschoss",
+      "DG": "Dachgeschoss"
+    }
+  },
+  "tradeQueries": {
+    "CONC-SLAB": "class = 'IfcSlab' and name in ('Bodenplatte', 'Slab-033')",
+    "CONC-BEAM": "class = 'IfcBeam' and name like 'Unterzug%'",
+    "MASON-EXT": "class = 'IfcWallStandardCase' and name like 'Wand-Ext%'",
+    "MASON-INT": "class = 'IfcWallStandardCase' and name like 'Wand-Int%'",
+    "TIMBER-STRUCT": "class = 'IfcBeam' and (name like 'Pfette%' or name = 'First')",
+    "TIMBER-RAFTER": "class = 'IfcMember' and name like 'Sparren%'",
+    "ROOF-DECK": "class = 'IfcSlab' and name like 'Dach%'",
+    "WINDOWS": "class = 'IfcWindow'",
+    "DOORS-EXT": "class = 'IfcDoor' and name in ('Haustuer', 'Terrassentuer')",
+    "DOORS-INT": "class = 'IfcDoor' and name like 'Innentuer%'",
+    "STAIRS": "class = 'IfcStair'",
+    "RAILINGS": "class = 'IfcRailing'"
+  },
+  "split": {
+    "MASON-EXT": "sweep_x",
+    "MASON-INT": "sweep_x",
+    "TIMBER-RAFTER": "sweep_x",
+    "WINDOWS": "sweep_x",
+    "*": "none"
+  },
+  "style": {
+    "view": "planned",
+    "unbuilt": "hidden",
+    "window": {
+      "kind": "all"
+    },
+    "length": 90,
+    "pace": "warp",
+    "camera": "director",
+    "explode": "auto",
+    "xrayFocus": true,
+    "sectionBox": "auto",
+    "labels": 3,
+    "criticalFloatHours": 0,
+    "colours": {
+      "CONC-SLAB": "#9aa5b1",
+      "CONC-BEAM": "#7f8c99",
+      "MASON-EXT": "#d9824a",
+      "MASON-INT": "#e3a671",
+      "TIMBER-STRUCT": "#a0703c",
+      "TIMBER-RAFTER": "#c08a4a",
+      "ROOF-DECK": "#6b4f3a",
+      "WINDOWS": "#4aa3df",
+      "DOORS-EXT": "#2f7fb5",
+      "DOORS-INT": "#79b8e0",
+      "STAIRS": "#8e6bbf",
+      "RAILINGS": "#b39ddb"
+    },
+    "captions": true,
+    "milestoneHold": 1.5
+  }
+}
