@@ -11,6 +11,10 @@ import type { ParamsApp } from '../ui/params';
 import type { ElementId } from '../types';
 import { openBootView } from './views';
 import { getScorePlayer } from '../anim/score';
+import type { Score } from '../anim/score';
+import { getPlan, registerPlan } from '../anim/fourd/plans';
+import { planFilm } from '../anim/fourd/film';
+import type { FourDPlan } from '../schedule/types';
 
 /** XrayBoot plus the camera that xray-pack's --camera writes (viewer frame, Y up, origin-shifted). */
 type BootWithCamera = XrayBoot & { camera?: { position: [number, number, number]; target: [number, number, number] } };
@@ -36,6 +40,28 @@ interface ScriptApiLike {
   load(name: string): string | null;
   compile(text: string): { score: import('../anim/score').Score | null };
 }
+/** The film score of a registered 4D plan, with the cues of a script text when it compiles; null when the plan is unknown. */
+export function filmScore(name: string, scriptText?: string | null, loop = false): { score: Score | null; warning?: string } {
+  const plan = getPlan(name);
+  if (!plan) return { score: null, warning: `4D plan "${name}" is not registered` };
+  let script: Score | null = null;
+  let warning: string | undefined;
+  if (scriptText) {
+    const c = animWin().__xrayScript?.compile(scriptText);
+    if (c?.score) script = c.score;
+    else warning = 'the script has errors or the script runtime is not available: the plan plays without it';
+  }
+  return { score: planFilm(plan, name, script, loop), ...(warning ? { warning } : {}) };
+}
+
+declare global {
+  interface Window {
+    /** Film score of a registered plan (+ script text): used by `xray-4d render`. */
+    __xray4dFilm?: typeof filmScore;
+  }
+}
+if (typeof window !== 'undefined') window.__xray4dFilm = filmScore;
+
 const animWin = (): { __xrayFlythrough?: FlyApiLike; __xrayScript?: ScriptApiLike } => window as unknown as { __xrayFlythrough?: FlyApiLike; __xrayScript?: ScriptApiLike };
 
 /**
@@ -60,9 +86,26 @@ export function applyBootAnimation(boot: XrayBoot): (() => boolean) | null {
       if (!w.__xrayScript.save(sc.name, sc.text)) warn(`script "${sc.name}" could not be stored`);
     }
   }
+  if (boot.plans) {
+    for (const [name, plan] of Object.entries(boot.plans)) {
+      if (plan && (plan as FourDPlan).schema === 'xray-4d-plan/1') registerPlan(name, plan as FourDPlan);
+      else warn(`4D plan "${name}" is not an xray-4d-plan/1 document`);
+    }
+  }
   const ap = boot.autoplay;
   if (!ap) return null;
   const loop = ap.loop === true;
+  if (typeof ap.plan === 'string') {
+    const name = ap.plan;
+    const scriptText = typeof ap.script === 'string' ? boot.scripts?.find((x) => x.name.toLowerCase() === ap.script!.toLowerCase())?.text ?? null : null;
+    return () => {
+      const f = filmScore(name, scriptText, loop);
+      if (f.warning) warn(`autoplay: ${f.warning}`);
+      const ok = !!f.score && getScorePlayer()?.play(f.score) === true;
+      if (!ok) warn(`autoplay: 4D plan "${name}" could not start`);
+      return ok;
+    };
+  }
   if (typeof ap.flythrough === 'string') {
     const name = ap.flythrough;
     return () => {

@@ -11,3 +11,6 @@ declare module 'node:path' {
   export function join(...parts: string[]): string;
 }
 declare const process: { env: Record<string, string | undefined> };
+declare module 'node:module' {
+  export function createRequire(url: string | URL): (id: string) => any;
+}

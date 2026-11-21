@@ -6,10 +6,11 @@
 // The schedule parser is TypeScript (src/schedule). It is bundled for node on first use into tools/xray-4d/schedule.bundle.mjs
 // (vite ssr, the same way tools/pack/convert.mjs bundles the IFC reader) and rebuilt when src/schedule is newer.
 // Exit codes: 0 ok, 1 unexpected internal error, 2 usage, 3 input (missing, unreadable or not an XER file, or a project
-// choice that cannot be made).
+// choice that cannot be made), 4 link coverage below --min-coverage, 5 render failure.
 import { existsSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { makeCommands } from './xray-4d/commands.mjs';
 
 export const EXIT_OK = 0;
 export const EXIT_ERROR = 1;
@@ -84,6 +85,13 @@ export function parseArgs(argv, spec) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
+    if (a === '-o') {
+      if (!spec['--out']) throw usage('unknown option -o');
+      const v = argv[++i];
+      if (v === undefined) throw usage('-o needs a value');
+      out.out = v;
+      continue;
+    }
     if (!a.startsWith('--')) {
       out._.push(a);
       continue;
@@ -277,6 +285,16 @@ export const COMMANDS = {
     ],
     run: inspect,
   },
+  ...makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_INPUT, parseArgs }),
+  script: {
+    summary: 'coming: a camera-directed .xrayanim script from a plan (written by another piece of the build)',
+    usage: 'xray-4d script <build.4d.json> [--style calm|dynamic] -o build.xrayanim   (not available yet)',
+    options: {},
+    optionHelp: ['  not available yet'],
+    run: async () => {
+      throw usage('script is coming: not available in this build');
+    },
+  },
 };
 
 const TOP_HELP = `xray-4d: 4D construction animation from a Primavera P6 schedule
@@ -287,7 +305,7 @@ Commands:
 ${Object.entries(COMMANDS).map(([name, c]) => `  ${name.padEnd(9)} ${c.summary}`).join('\n')}
 
 Run "xray-4d <command> --help" for a command's options.
-Exit codes: 0 ok, 1 internal error, 2 usage, 3 input.`;
+Exit codes: 0 ok, 1 internal error, 2 usage, 3 input, 4 link coverage below --min-coverage, 5 render failure.`;
 
 function commandHelp(name) {
   const c = COMMANDS[name];

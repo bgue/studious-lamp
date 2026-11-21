@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  EXIT_INPUT, EXIT_USAGE, HELP, PackError, buildBoot, checkFlythroughs, checkScripts, checkViews, defaultModelName, injectTemplate, parseSelect, toBase64, unknownTools,
+  EXIT_INPUT, EXIT_USAGE, HELP, PackError, buildBoot, checkFlythroughs, checkPlans, checkScripts, checkViews, defaultModelName, injectTemplate, parseSelect, toBase64, unknownTools,
 } from './pack/lib.mjs';
 import { convertIfcFiles, newestMtime } from './pack/convert.mjs';
 
@@ -147,6 +147,10 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
     const checked = checkScripts(scriptFiles, options.autoplay);
     extras.scripts = checked.scripts;
   }
+  if (options.plans !== undefined) {
+    const docs = options.plans.map((p) => ({ path: p, doc: loadJson(p, '--plans') }));
+    extras.plans = checkPlans(docs, options.autoplay).plans;
+  }
   const odd = unknownTools(options.tools);
   if (odd.length) warn(`--tools: unknown tool id${odd.length > 1 ? 's' : ''} ${odd.join(', ')} (known: see src/tools/registry.ts)`);
 
@@ -168,7 +172,7 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, html);
   const dt = performance.now() - t0;
-  log(`wrote ${options.out}: ${fmtMB(Buffer.byteLength(html))}, model "${name}"${elements ? `, ${elements.length} elements` : ''}${views ? `, ${views.length} saved view${views.length > 1 ? 's' : ''}` : ''}${extras.flythroughs ? `, ${extras.flythroughs.flythroughs.length} fly-through${extras.flythroughs.flythroughs.length > 1 ? 's' : ''}` : ''}${extras.scripts ? `, ${extras.scripts.length} script${extras.scripts.length > 1 ? 's' : ''}` : ''}${options.autoplay ? `, autoplay ${options.autoplay.kind}:${options.autoplay.name}${options.loop ? ' (loop)' : ''}` : ''}${options.ifcReader ? ', with IFC reader' : ''}, ${fmtMs(dt)}`);
+  log(`wrote ${options.out}: ${fmtMB(Buffer.byteLength(html))}, model "${name}"${elements ? `, ${elements.length} elements` : ''}${views ? `, ${views.length} saved view${views.length > 1 ? 's' : ''}` : ''}${extras.flythroughs ? `, ${extras.flythroughs.flythroughs.length} fly-through${extras.flythroughs.flythroughs.length > 1 ? 's' : ''}` : ''}${extras.scripts ? `, ${extras.scripts.length} script${extras.scripts.length > 1 ? 's' : ''}` : ''}${extras.plans ? `, ${Object.keys(extras.plans).length} 4D plan${Object.keys(extras.plans).length > 1 ? 's' : ''}` : ''}${options.autoplay ? `, autoplay ${options.autoplay.kind}:${options.autoplay.name}${options.loop ? ' (loop)' : ''}` : ''}${options.ifcReader ? ', with IFC reader' : ''}, ${fmtMs(dt)}`);
   return 0;
 }
 

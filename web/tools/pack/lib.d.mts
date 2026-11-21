@@ -24,7 +24,8 @@ export interface PackOptions {
   openView: string | undefined;
   flythroughs: string | undefined;
   scripts: string[] | undefined;
-  autoplay: { kind: 'flythrough' | 'script'; name: string } | undefined;
+  plans: string[] | undefined;
+  autoplay: { kind: 'flythrough' | 'script' | 'plan'; name: string } | undefined;
   loop: boolean;
   kiosk: boolean;
   noTopBar: boolean;

@@ -7,6 +7,7 @@ import { classificationLine, classificationReferenceLine, dateType, ownerHistory
 import type { PropSpec, SchemaFamily } from './families';
 import { xrayGuid } from './ifcGuid';
 import { XRAY_DEFAULTS } from './plan';
+import { emitWorkSchedule, workScheduleSupported } from './workSchedule';
 import type { ElementSave, FileSavePlan, SaveOptions } from './plan';
 
 export const BLOCK_FORMAT = 'xray-ifc-additions/1';
@@ -167,7 +168,7 @@ const sameEdition = (a: string | null, b: string): boolean => !a || !b || b === 
 export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, o: SaveOptions, note?: string): Additions {
   const f = plan.family;
   const lines: string[] = [];
-  let next = plan.base;
+  let next = plan.preserved ? Math.max(plan.base, plan.preserved.lastId) : plan.base;
   const alloc = (): number => ++next;
 
   // ---- collect references
@@ -216,7 +217,10 @@ export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, 
     groups.push(...m.values());
   }
 
-  if (!orderedRefs.length && !groups.length && !note) return { text: '', lines: 0, lastId: plan.base };
+  const work = plan.workSchedule && workScheduleSupported(f) && plan.workSchedule.tasks.length > 0 ? plan.workSchedule : null;
+  if (!orderedRefs.length && !groups.length && !note && !work && !plan.preserved?.lines.length) return { text: '', lines: 0, lastId: plan.base };
+
+  if (plan.preserved) lines.push(...plan.preserved.lines);
 
   // ---- owner history
   let owner: number | null = plan.ownerHistoryId;
@@ -276,13 +280,22 @@ export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, 
     lines.push(relDefinesByPropertiesLine(f, relId, xrayGuid('reldef', `${g.setName}|${sortedGuids}`), owner, XRAY_DEFAULTS.relPropertiesName, g.members.map((m) => m.expressId), psetId));
   }
 
+  // ---- the 4D work schedule: the last section, between its own markers so a later write can replace just this part
+  if (work) {
+    const w = emitWorkSchedule(work, next + 1);
+    lines.push(...w.lines);
+    next = w.lastId;
+  }
+
   // ---- markers
   const tool = `xray-viewer/${(o.toolVersion ?? 'dev').replace(/[^A-Za-z0-9._+-]/g, '_')}`;
-  const begin = `/* ${MARKER_BEGIN} ${BLOCK_FORMAT} base=${plan.base} lines=${lines.length} tool=${tool}${note ? ` ${note.replace(/[^A-Za-z0-9._=+ -]/g, '_')}` : ''} */\n`;
+  const begin = `/* ${MARKER_BEGIN} ${BLOCK_FORMAT} base=${plan.base} lines=${entityCount(lines)} tool=${tool}${note ? ` ${note.replace(/[^A-Za-z0-9._=+ -]/g, '_')}` : ''} */\n`;
   const body = begin + lines.map((l) => l + '\n').join('');
   const bytes = body.length; // ASCII only: every non-ASCII character is escaped in the lines
-  return { text: `${body}/* ${MARKER_END} bytes=${bytes} */\n`, lines: lines.length, lastId: next };
+  return { text: `${body}/* ${MARKER_END} bytes=${bytes} */\n`, lines: entityCount(lines), lastId: next };
 }
+
+const entityCount = (ls: readonly string[]): number => ls.reduce((n, l) => n + (l.startsWith('#') ? 1 : 0), 0);
 
 /** Identity of a property (name, type, value). Cheaper than the step text; the text is built once per distinct property. */
 const propKey = (p: PropSpec): string => `${p.name}|${p.type}|${p.value}`;
