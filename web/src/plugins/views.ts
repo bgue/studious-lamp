@@ -741,3 +741,8 @@ export function openBootView(key: string): boolean {
   c.restore(i, false);
   return true;
 }
+
+/** The panel of the Views tab, for plugins that add a section to it (the fly-through). Null on a page without the sidebar. */
+export function viewsPanel(): ViewsPanel | null {
+  return ctl?.panel ?? null;
+}

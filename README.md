@@ -18,7 +18,8 @@ plugins (see "Development"), so every feature below is a separate module with it
   - Imaging looks: radiograph and MRI slice, chosen with `Render style` at the top of the X-ray panel ([imaging.md](web/docs-features/imaging.md)).
   - Optional map under the model (satellite or street map, off by default; sends the project location to the tile server when on) ([map.md](web/docs-features/map.md)).
   - Section box and section plane with caps ([section.md](web/docs-features/section.md)).
-  - Cinematic effects: fly-to, flythrough, tour, sweep and reveal, exploded storeys, bloom, edge glow, depth grading.
+  - Cinematic effects: fly-to, tour, sweep and reveal, exploded storeys, bloom, edge glow, depth grading.
+  - Fly-through: keyframes that are saved-view states plus timing (constant speed, holds, ease, fades, captions), edited in a timeline in the Views tab and played by one score player, with a 3D camera-path overlay and webm recording ([flythrough.md](web/docs-features/flythrough.md)).
   - Presets: thirteen named looks on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
   - Top bar: four visualisation modes (Ghost, Radiograph, Glow, Cutaway, keys `Shift+1` to `Shift+4`) that apply built-in presets, and a host for the search bar ([topbar.md](web/docs-features/topbar.md)).
 - **Coordination**
