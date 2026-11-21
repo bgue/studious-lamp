@@ -11,6 +11,7 @@
 //     into an overlay canvas while a score plays. Its settings live in the fly-through document (store.hud).
 //   - window.__xrayFlythrough for scripts and smoke tests; window.__cinematic.play / record / keys keep working.
 
+import { getOverlay } from '../ui/overlay';
 import { Box3, Vector3 } from 'three';
 import type { AppPlugin, ViewerApp } from '../app';
 import { registerAction, getAction } from '../input/actions';
@@ -575,7 +576,8 @@ export const flythroughPlugin: AppPlugin = {
     c.overlay = new PathOverlay(app.renderer.scene, () => app.renderer.markDirty());
     c.hudLayer = new ScoreHudLayer(appHudSource(app, (ref, key) => c.host.resolveRef(ref, key)), () => c.store.hud);
     setHudLayer(c.hudLayer);
-    c.hudOverlay = new HudOverlay(app.canvas, c.hudLayer, () => app.renderer.camera);
+    // the HUD keeps clear of the chrome over the canvas (tool strip, status bar, top bar): the shared overlay's insets
+    c.hudOverlay = new HudOverlay(app.canvas, c.hudLayer, () => app.renderer.camera, () => getOverlay(app).insets);
 
     const host: FlyHost = {
       list: () => c.store.list,

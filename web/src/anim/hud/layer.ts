@@ -321,10 +321,11 @@ export class ScoreHudLayer implements HudLayer {
         ctx.font = font(11);
         const w = ctx.measureText(text).width + 10;
         ctx.fillStyle = 'rgba(12, 16, 22, 0.6)';
-        rr(ctx, W - w - 6, H - 24, w, 15, 4);
+        // bottom left: the bottom right is where the gizmo and the pointer buttons sit
+        rr(ctx, 6, H - 24, w, 15, 4);
         ctx.fill();
         ctx.fillStyle = '#f1f5f9';
-        ctx.fillText(text, W - w - 1, H - 22);
+        ctx.fillText(text, 11, H - 22);
       });
     }
 

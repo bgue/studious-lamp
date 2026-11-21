@@ -2,7 +2,7 @@
 // layer draws into. Drawn each frame while a score plays, cleared otherwise.
 
 import type { Camera } from 'three';
-import type { HudLayer } from '../hud';
+import type { HudLayer, HudFrame } from '../hud';
 import { makeProjector } from './project';
 
 export class HudOverlay {
@@ -12,16 +12,24 @@ export class HudOverlay {
   private w = 0;
   private h = 0;
   private dpr = 1;
+  /** Offset of the drawing area inside the viewer canvas (CSS px): the parts chrome covers are left out. */
+  private ox = 0;
+  private oy = 0;
+  private fullW = 0;
+  private fullH = 0;
 
   constructor(
     private readonly viewer: HTMLCanvasElement,
     private readonly layer: HudLayer,
     private readonly camera: () => Camera,
+    /** How much of each edge of the viewer canvas chrome covers (tool strip, status bar, top bar), so the HUD stays clear of it. */
+    private readonly insets: () => { top: number; right: number; bottom: number; left: number } | null = () => null,
   ) {
     const c = document.createElement('canvas');
     c.className = 'xray-hud';
     c.setAttribute('aria-hidden', 'true');
-    c.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:840;display:none';
+    // z-index 15: above the 3D view, below the sidebars and phone sheets (z-index 20), so an open panel is never drawn over
+    c.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:15;display:none';
     document.body.appendChild(c);
     this.canvas = c;
     try {
@@ -43,13 +51,18 @@ export class HudOverlay {
 
   private fit(): boolean {
     const r = this.viewer.getBoundingClientRect();
-    const w = Math.round(r.width);
-    const h = Math.round(r.height);
+    const ins = this.insets() ?? { top: 0, right: 0, bottom: 0, left: 0 };
+    this.fullW = Math.round(r.width);
+    this.fullH = Math.round(r.height);
+    this.ox = Math.round(Math.max(0, ins.left));
+    this.oy = Math.round(Math.max(0, ins.top));
+    const w = Math.round(r.width - this.ox - Math.max(0, ins.right));
+    const h = Math.round(r.height - this.oy - Math.max(0, ins.bottom));
     if (w <= 0 || h <= 0) return false;
     const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
     const s = this.canvas.style;
-    s.left = `${r.left}px`;
-    s.top = `${r.top}px`;
+    s.left = `${r.left + this.ox}px`;
+    s.top = `${r.top + this.oy}px`;
     s.width = `${w}px`;
     s.height = `${h}px`;
     if (w !== this.w || h !== this.h || dpr !== this.dpr || this.canvas.width !== Math.round(w * dpr)) {
@@ -80,10 +93,22 @@ export class HudOverlay {
       width: this.w,
       height: this.h,
       pixelRatio: this.dpr,
-      project: makeProjector(cam, this.w, this.h),
+      project: this.projector(cam),
       recording: false,
     });
     this.drawn = true;
+  }
+
+  /** Project with the full canvas (the camera's aspect), then shift into the drawing area; points outside it give null. */
+  private projector(cam: Camera): HudFrame['project'] {
+    const full = makeProjector(cam, this.fullW, this.fullH);
+    const ox = this.ox, oy = this.oy, w = this.w, h = this.h, slack = 40;
+    return (p) => {
+      const q = full(p);
+      if (!q) return null;
+      const x = q.x - ox, y = q.y - oy;
+      return x < -slack || x > w + slack || y < -slack || y > h + slack ? null : { x, y };
+    };
   }
 
   clear(): void {
