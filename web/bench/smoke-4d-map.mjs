@@ -217,7 +217,7 @@ try {
   // export and import
   const exported = await page.evaluate(() => window.__xray4dMap.exportJson());
   const ds = JSON.parse(exported);
-  check('the export is a LinkDataset with model, model_elements and assignments, and a marked placeholder schedule', ds.model.identity_key && ds.model_elements.length > 0 && ds.assignments.length > 0 && /no schedule/.test(ds.schedule.project) && !('activities' in ds) && !exported.includes('reviewed_by'));
+  check('the export is a LinkDataset with model, model_elements and assignments, and no schedule yet', ds.model.identity_key && ds.model_elements.length > 0 && ds.assignments.length > 0 && !('schedule' in ds) && !('activities' in ds) && !exported.includes('reviewed_by'));
   await page.evaluate(() => window.__xray4dMap.reset());
   check('Reset empties the assignments', (await page.evaluate(() => window.__xray4dMap.coverage().attributes.location.assigned)) === 0);
   const imp = await page.evaluate((t) => { const r = window.__xray4dMap.importJson(t); return { read: r.read, added: r.added, problems: r.problems.length }; }, exported);

@@ -19,6 +19,26 @@ export const SAMPLE_PROJECTS: readonly SampleProject[] = [
   { name: 'procedural', label: 'Procedural' },
 ];
 
+/**
+ * A sample that opens a model and then does something with it. The value is not a model name: it is the menu entry's own value
+ * and never a `?model=` value. `model` is the sample project it opens first; the entry comes right after that project.
+ */
+export interface SampleWorkflow {
+  value: string;
+  label: string;
+  /** The sample project (a `name` of SAMPLE_PROJECTS) the workflow loads first. */
+  model: string;
+}
+
+export const SAMPLE_WORKFLOWS: readonly SampleWorkflow[] = [
+  { value: 'fzk-haus-4d', label: 'FZK-Haus 4D', model: 'fzk-haus' },
+];
+
+/** The workflow a menu value names, or undefined for a model name. */
+export function workflowOf(value: string): SampleWorkflow | undefined {
+  return SAMPLE_WORKFLOWS.find((w) => w.value === value);
+}
+
 /** What a single-file bundle says about the models inside it. Not a single file: null (the served app loads every sample). */
 export interface BundleContents {
   /** Models embedded as glb with their sidecar (window.__xrayEmbeddedModels). */
@@ -52,6 +72,8 @@ export function bundleContents(): BundleContents | null {
 
 /** Can the sample be loaded here? Everything is, except what a single file does not carry. */
 export function sampleAvailable(name: string, bundle: BundleContents | null): boolean {
+  const w = workflowOf(name);
+  if (w) return sampleAvailable(w.model, bundle);
   if (!bundle) return true;
   return name === 'procedural' || bundle.models.includes(name) || bundle.ifc.includes(name);
 }
@@ -76,7 +98,10 @@ export function sampleMenu(bundle: BundleContents | null, opened: readonly strin
     seen.add(value);
     out.push({ value, label: available ? label : `${label} (${UNAVAILABLE_HINT})`, available });
   };
-  for (const s of SAMPLE_PROJECTS) add(s.name, s.label, sampleAvailable(s.name, bundle));
+  for (const s of SAMPLE_PROJECTS) {
+    add(s.name, s.label, sampleAvailable(s.name, bundle));
+    for (const w of SAMPLE_WORKFLOWS) if (w.model === s.name) add(w.value, w.label, sampleAvailable(w.value, bundle));
+  }
   for (const name of [...(bundle?.models ?? []), ...(bundle?.ifc ?? [])]) add(name, name, true);
   for (const name of opened) add(name, `${name} (opened file)`, true);
   return out;

@@ -155,6 +155,8 @@ const SELF_CHECK_MAX_BYTES = 200 * 1024 * 1024;
 
 interface FourDLike { saveMap?(): ReadonlyMap<string, import('../ifcsave/plan').FourDValues> }
 const fourD = (): FourDLike | undefined => (window as unknown as { __xray4dMap?: FourDLike }).__xray4dMap;
+/** The schedule workflow (src/plugins/schedule4d.ts): GlobalId -> comma-separated task codes of the accepted build links. */
+const fourDLinks = (): ReadonlyMap<string, string> | undefined => (window as unknown as { __xray4dSchedule?: { activityIds?(): ReadonlyMap<string, string> } }).__xray4dSchedule?.activityIds?.();
 
 interface CleanupLike {
   simplify?: { plan(strip?: boolean): CleanupPlan | null };
@@ -226,7 +228,14 @@ export const ifcSavePlugin: AppPlugin = (() => {
     return cleanupMarks(c.hiddenByCleanup(), model, c.lastReport?.matches ?? []);
   };
 
-  const fourDMap = (): ReadonlyMap<string, import('../ifcsave/plan').FourDValues> => fourD()?.saveMap?.() ?? new Map();
+  const fourDMap = (): ReadonlyMap<string, import('../ifcsave/plan').FourDValues> => {
+    const base = fourD()?.saveMap?.() ?? new Map<string, import('../ifcsave/plan').FourDValues>();
+    const ids = fourDLinks();
+    if (!ids || ids.size === 0) return base;
+    const out = new Map(base);
+    for (const [g, activityIds] of ids) out.set(g, { ...(out.get(g) ?? {}), activityIds });
+    return out;
+  };
   const fourDCount = (): number => fourDMap().size;
 
   const options = (r: SaveRequest = {}): SaveOptions => ({
@@ -811,7 +820,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
       };
       const owned = ownedCleanup().size;
       const n4 = fourDCount();
-      const fourDBox = checkBox('Include 4D location, trade and zone', n4 > 0 ? `${plural(n4, 'element')} with accepted 4D assignments get the property set Xray_4D. Off: nothing from the 4D tab is written.` : 'No element has an accepted 4D assignment yet. Assign values in the 4D tab first.',
+      const fourDBox = checkBox('Include 4D location, trade and zone', n4 > 0 ? `${plural(n4, 'element')} with accepted 4D assignments or schedule links get the property set Xray_4D, with the task codes in ActivityIds. Off: nothing from the 4D tab is written.` : 'No element has an accepted 4D assignment yet. Assign values in the 4D tab first.',
         this.opts.includeFourD && n4 > 0, (v) => { this.opts.includeFourD = v; }, n4 === 0);
       fourDBox.setAttribute('data-help-key', '4D tab/Save with 4D');
       body.append(

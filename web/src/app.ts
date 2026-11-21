@@ -6,7 +6,7 @@ import GUI from 'lil-gui';
 import { loadModel, parseModel } from './model/loader';
 import type { LoadedModel } from './model/loader';
 import { importIfc } from './model/ifcImport';
-import { SAMPLE_PROJECTS, UNAVAILABLE_HINT, bundleContents, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu } from './samples';
+import { SAMPLE_PROJECTS, UNAVAILABLE_HINT, bundleContents, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu, workflowOf } from './samples';
 import { buildProceduralGlb, proceduralSidecar } from './model/procedural';
 import { BvhGeometryProvider } from './render/geometry';
 import { XrayRenderer } from './render/renderer';
@@ -51,12 +51,12 @@ export const USER_MODELS = new Map<string, LoadedModel>();
 
 /** The names that can be loaded here: the samples the page can reach (a single file: the ones it carries), then the opened models. */
 export function availableModelNames(): string[] {
-  return sampleMenu(bundleContents(), [...USER_MODELS.keys()]).filter((e) => e.available).map((e) => e.value);
+  return sampleMenu(bundleContents(), [...USER_MODELS.keys()]).filter((e) => e.available && !workflowOf(e.value)).map((e) => e.value);
 }
 
 /** The label of a model name in the Sample Projects menu (the name itself when it is not a sample). */
 function sampleLabel(name: string): string {
-  return SAMPLE_PROJECTS.find((s) => s.name === name)?.label ?? name;
+  return SAMPLE_PROJECTS.find((s) => s.name === name)?.label ?? workflowOf(name)?.label ?? name;
 }
 
 function base64ToArrayBuffer(b64: string): ArrayBuffer {
@@ -231,6 +231,12 @@ export class ViewerApp {
 
   /** The Sample Projects menu chose a model. An entry that the page cannot load says why, and the current model stays. */
   private chooseModel(name: string): void {
+    const flow = workflowOf(name);
+    if (flow && sampleAvailable(name, bundleContents())) {
+      // a workflow sample (FZK-Haus 4D): the model, then what the sample does with it (the 4D tab loads its files)
+      void this.loadScene(flow.model).then(() => window.__xray4dSchedule?.loadSample());
+      return;
+    }
     if (USER_MODELS.has(name) || sampleAvailable(name, bundleContents())) {
       void this.loadScene(name);
       return;
