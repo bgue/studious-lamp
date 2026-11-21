@@ -1,0 +1,31 @@
+ERMHDR	20.12	2027-03-12	Project Management	admin	admin	PLANNING-PC	Oracle	Project Management	USD
+%T	PROJECT
+%F	proj_id	proj_short_name	proj_name	last_recalc_date	clndr_id
+%R	101	BLD-A	Tower A	2027-03-12 08:00	1
+%R	202	BLD-B	Tower B (phase 2)	2027-03-05 17:00	1
+%E
+%T	CALENDAR
+%F	clndr_id	clndr_name	day_hr_cnt	clndr_data
+%R	1	Standard 5 Day	8	(0||CalendarData()((0||DaysOfWeek()((0||1()())(0||2()((0||0(s|08:00|f|12:00)())(0||1(s|13:00|f|17:00)())))(0||3()((0||0(s|08:00|f|12:00)())(0||1(s|13:00|f|17:00)())))(0||4()((0||0(s|08:00|f|12:00)())(0||1(s|13:00|f|17:00)())))(0||5()((0||0(s|08:00|f|12:00)())(0||1(s|13:00|f|17:00)())))(0||6()((0||0(s|08:00|f|12:00)())(0||1(s|13:00|f|17:00)())))(0||7()())))(0||Exceptions()((0||0(d|46380)((0||0(s|08:00|f|12:00)())))(0||0(d|46381)())(0||0(d|46388)())))))
+%R	2	Site 6 Day	8	(0||CalendarData()((0||DaysOfWeek()((0||1()())(0||2()((0||0(s|07:00|f|12:00)())(0||1(s|12:30|f|15:30)())))(0||3()((0||0(s|07:00|f|12:00)())(0||1(s|12:30|f|15:30)())))(0||4()((0||0(s|07:00|f|12:00)())(0||1(s|12:30|f|15:30)())))(0||5()((0||0(s|07:00|f|12:00)())(0||1(s|12:30|f|15:30)())))(0||6()((0||0(s|07:00|f|12:00)())(0||1(s|12:30|f|15:30)())))(0||7()((0||0(s|07:00|f|12:00)())(0||1(s|12:30|f|15:30)())))))(0||Exceptions()((0||0(d|46381)())(0||0(d|46388)())))))
+%E
+%T	PROJWBS
+%F	wbs_id	proj_id	parent_wbs_id	wbs_short_name	wbs_name	proj_node_flag	seq_num
+%R	501	202		BLD-B	Tower B (phase 2)	Y	0
+%R	510	202	501	PRE	Preliminaries	N	1
+%R	520	202	501	L00	Ground	N	2
+%R	521	202	520	STR	Structure	N	1
+%E
+%T	TASK
+%F	task_id	proj_id	wbs_id	clndr_id	phys_complete_pct	task_type	status_code	task_code	task_name	target_start_date	target_end_date	early_start_date	early_end_date	act_start_date	act_end_date	restart_date	reend_date	total_float_hr_cnt
+%R	1500	202	510	1	100	TT_Task	TK_Complete	B1000	B mobilise	2026-10-05 08:00	2026-10-09 17:00	2026-10-05 08:00	2026-10-09 17:00	2026-10-05 08:00	2026-10-09 17:00			0
+%R	1501	202	521	1	50	TT_Task	TK_Active	B1010	B foundations	2026-10-12 08:00	2026-11-20 17:00	2026-10-12 08:00	2026-11-20 17:00	2026-10-12 08:00		2027-03-12 08:00	2027-03-26 17:00	40
+%R	1502	202	521	1	0	TT_Task	TK_NotStart	B1020	B ground slab	2027-03-29 08:00	2027-04-09 17:00	2027-03-29 08:00	2027-04-09 17:00					40
+%R	1503	202	520	1	0	TT_FinMile	TK_NotStart	BM100	B ground floor closed	2027-04-12 08:00	2027-04-12 08:00	2027-04-12 08:00	2027-04-12 08:00					40
+%E
+%T	TASKPRED
+%F	task_id	pred_task_id	proj_id	pred_proj_id	pred_type	lag_hr_cnt
+%R	1501	1500	202	202	PR_FS	0
+%R	1502	1501	202	202	PR_FS	0
+%R	1503	1502	202	202	PR_FS	0
+%E

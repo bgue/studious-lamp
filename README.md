@@ -39,6 +39,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - Selection sets, static or by criteria query ([sets-query.md](web/docs-features/sets-query.md)), class styles, parameter
     export and import, share links.
   - `xray-pack`: model plus viewer in one HTML file ([xray-pack.md](web/docs-features/xray-pack.md)).
+  - `xray-4d`: 4D construction animation from a Primavera P6 schedule; `inspect` reads a `.xer` file (the rest of the pipeline comes later) ([xray-4d.md](web/docs-features/xray-4d.md)).
   - A single-file viewer, `xray-viewer.html`, that runs from disk.
 - **Navigation**
   - Model tree on the left; a right sidebar with the Properties, Classification and Parameters tabs, a bottom sheet on a phone ([right-sidebar.md](web/docs-features/right-sidebar.md)); hover cards with properties ([hover-info.md](web/docs-features/hover-info.md)).

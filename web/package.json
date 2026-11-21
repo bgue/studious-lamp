@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "xray-pack": "tools/xray-pack.mjs"
+    "xray-pack": "tools/xray-pack.mjs",
+    "xray-4d": "tools/xray-4d.mjs"
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
@@ -16,6 +17,7 @@
     "zip": "bash ../tools/make_zip.sh",
     "docs": "node tools/gen-settings-doc.mjs",
     "pack": "node tools/xray-pack.mjs",
+    "4d": "node tools/xray-4d.mjs",
     "classify:truth": "node tools/classify-truth.mjs",
     "template": "node tools/build-single-file.mjs --template"
   },

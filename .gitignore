@@ -8,3 +8,5 @@ xray-ref.zip
 web/.single-build-template-*/
 web/tools/pack/reader.mjs
 web/.single-build-pdf*/
+web/tools/xray-4d/schedule.bundle.mjs
+web/tools/xray-4d/.build-*/
