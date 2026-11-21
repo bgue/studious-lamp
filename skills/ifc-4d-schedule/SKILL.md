@@ -1,69 +1,91 @@
 ---
 name: ifc-4d-schedule
-description: Write schedule activities and their element links into an IFC model (IfcWorkSchedule, IfcTask with dates, task-to-element assignments, logic links, and the Xray_4D property set), from X-ray 4D linking data (a LinkML LinkDataset JSON from `xray-4d link` or the viewer's 4D tab, or rows from the generated SQL tables). Use when asked to put a P6 / XER schedule, 4D links, activity IDs, or location / trade assignments into an IFC file, through an IFC MCP server when one is connected or with IfcOpenShell locally.
+description: Link a Primavera P6 schedule (.xer) to an IFC model and write the result back into both, then write an animation script (.xrayanim) that plays any part of the build in schedule order. Reads the XER and the IFC itself, links activities to elements (rules from a 4D configuration plus the agent's own proposals for review), writes IfcWorkSchedule / IfcTask / dates / task-to-element assignments / logic and the Xray_4D property set into a copy of the IFC, writes 4D link status into a copy of the XER as activity user fields, and generates and checks X-ray animation scripts. Uses an IFC MCP server when one is connected, else the bundled Python and Node tools. Use for 4D linking, putting a schedule into an IFC, activity IDs or location/trade assignments in a model, or animating construction sequences tied to a schedule.
 ---
 
-# Write 4D schedule links into an IFC
+# 4D: schedule ↔ IFC, and animations tied to the schedule
 
-The goal: an IFC that carries its own construction schedule, so any 4D tool (and the X-ray viewer on reload) sees which
-activity builds or removes each element and when. Inputs are already-reviewed links; this skill does not decide links.
+The skill does every step with its own tools. Nothing needs to have been run before.
 
-## Inputs
+| Step | Tool (in `scripts/`) | Needs |
+| --- | --- | --- |
+| Read the schedule | `python xer_read.py schedule.xer [--project P] -o schedule.json` | nothing |
+| Read the model | `python ifc_read.py model.ifc [--props Pset.Prop,...] -o model.json`, or IFC MCP queries | ifcopenshell 0.8.x (`requirements.txt`) |
+| Link | `python link.py --xer schedule.json --ifc model.json --config map.4d.json [--prior links.json] [--proposals mine.json] -o links.json` | the two JSONs, a 4D configuration |
+| Write the IFC | `python apply_links.py --ifc model.ifc --links links.json --xer schedule.xer -o model.4d.ifc`, or IFC MCP calls | ifcopenshell, or an MCP that can write |
+| Check the IFC | `python verify.py --ifc model.4d.ifc --links links.json` | ifcopenshell |
+| Write the XER | `python xer_write.py --xer schedule.xer --links links.json -o schedule.4d.xer` | nothing |
+| Write an animation | `python anim_write.py --links links.json --ifc model.json [selection] [style] -o build.xrayanim` | nothing |
+| Check an animation | `node xrayanim_check.mjs build.xrayanim` (the viewer's own compiler) | node 18+ |
 
-1. **The IFC model**: a file path, or a model already open in the IFC MCP server.
-2. **Linking data** in the X-ray 4D LinkML form (`schema/linkml/xray_4d.yaml` in the xray-ref repo), from one of these:
-   - `links.json`: a `LinkDataset` written by `xray-4d link`, or exported from the viewer's 4D tab.
-   - SQL tables generated from the schema (`Activity`, `ActivityLink`, `ActivityLink_elements`, `Assignment`). Queries
-     are in [reference/sql.md](reference/sql.md).
-3. **Optional:** the `.xer` file, used only for logic links (predecessors), which the link data does not hold.
-
-**Only rows with `status: accepted` are written.** Proposed, rejected and superseded rows are reported as skipped.
-Never write `reviewed_by` (personal data) into the IFC.
+The JSON formats are described in [reference/data-formats.md](reference/data-formats.md). Every tool prints a JSON
+summary on stdout and never overwrites its input.
 
 ## Workflow
 
-1. **Check the inputs.**
-   - Load the dataset. Confirm `model.file_name` / `model.identity_key` matches the IFC you were given; if not, stop and ask.
-   - Count accepted build and remove links, the activities they use, and assignments.
-2. **Check the model.**
-   - Look up every linked GlobalId. Through MCP, use its query or element-by-GlobalId tool; locally,
-     `scripts/apply_links.py --dry-run` does the lookup.
-   - List the GlobalIds that are missing from the model. Continue only if the user agrees to skip them.
-   - Note the IFC schema. IFC4 and IFC4X3 get everything. IFC2X3 has no `IfcTaskTime`, so tasks and assignments are
-     written but dates are not; say so.
-3. **Plan the change and say what will happen before writing:**
-   - one `IfcWorkSchedule` named `Xray 4D` (an existing one with that name is replaced, nothing else is touched);
-   - N `IfcTask`s with dates;
-   - M build assignments and K remove assignments;
-   - L logic links;
-   - `Xray_4D` on E elements.
+1. **Read both files.** Run `xer_read.py` and `ifc_read.py` (or the MCP equivalents). Report:
+   - the project, data date and activity count;
+   - the activity code types and their values;
+   - the model's storeys and the element count by class;
+   - any 4D links already in the IFC (elements carrying tasks).
+2. **Get a 4D configuration.** This says which schedule fields mean location, trade and zone, how schedule values map to
+   model values, and which elements each trade builds (queries in the criteria language). Use one the user gives, or
+   draft one from step 1 and show it to them:
+   - Level or Area codes against storey names and zones;
+   - Trade codes against IFC classes, names or properties.
 
-   Ask before replacing an existing `Xray 4D` schedule if the user has not already said to.
-4. **Write**, always to a new file. Never overwrite the input unless the user asks.
-   - **With an IFC MCP server:** follow [reference/mcp-tools.md](reference/mcp-tools.md) to find the tools that fit
-     and make the calls in the order of [reference/ifc-mapping.md](reference/ifc-mapping.md).
-   - **Without one, or when the MCP can only read:** run the bundled script on a copy:
-     ```bash
-     python scripts/apply_links.py --ifc model.ifc --links links.json [--xer schedule.xer] -o model.4d.ifc
-     ```
-     It needs `ifcopenshell` (0.8.x).
-5. **Verify** with `python scripts/verify.py --ifc model.4d.ifc --links links.json`, or the same checks through MCP
-   queries. It checks:
-   - every accepted link is in the file with the right role;
-   - every task has its dates (IFC4 and later);
-   - every `Xray_4D.ActivityIds` value matches the links.
+   The format is the viewer's `.4d.json`; an example is `fzk-haus.4d.json` in the xray-ref samples, and the query
+   language is summarised in `scripts/criteria.py`.
+3. **Link.** Run `link.py`.
+   - Rules give accepted links. The order of strength is links already in the IFC, then per-activity overrides, then
+     matching location, trade and zone.
+   - An element two activities claim equally is a tie and goes to neither.
+4. **Propose where the rules fall short.** For activities with no elements, unlinked elements and ties, read the activity
+   names and WBS and the element names, classes and storeys, and propose links yourself.
+   - Write the proposals as `[{activity, role, elements, reasons, confidence}]` and pass them with `--proposals`.
+   - They become `proposed` links, never `accepted`.
+   - Show the user what you proposed and why, and record their decision: set the link's `status` to `accepted` or
+     `rejected` in links.json, or in the SQL tables ([reference/sql.md](reference/sql.md)).
+   - Re-run `link.py --prior links.json` to fold decisions in.
+5. **Write the IFC** to a new file.
+   - Through an IFC MCP server: [reference/mcp-tools.md](reference/mcp-tools.md), in the order of
+     [reference/ifc-mapping.md](reference/ifc-mapping.md).
+   - Otherwise with `apply_links.py`.
 
-   A failed check means the write is not done: fix it and run the check again.
-6. **Report:** counts written, items skipped and why, the output path, and the verify result. If the link data came from
-   SQL, offer to record the output file's SHA-256 against the dataset so later runs can tell which file carries which
-   links.
+   Then run `verify.py`, or the same checks through MCP; it must pass. Only accepted links are written. An existing
+   `Xray 4D` schedule is replaced; ask first if the user has not said to.
+6. **Write the XER** with `xer_write.py`. This adds three activity user fields to a copy:
+   - `4D Elements`: how many elements each activity builds;
+   - `4D Status`: linked, proposed, tie, no elements or no geometry;
+   - `4D Model`: the model file.
+
+   Tell the user to import it into P6 with "update existing project", so only those fields change.
+7. **Write an animation** when asked, or offer one. `anim_write.py` turns a selection of the schedule into a script:
+   - **Selection**, combined: `--activities`, `--trade`, `--location`, `--wbs`, `--from`/`--to`, `--critical`,
+     `--status`. For example "the roof", "everything on the critical path in June", or "the ground-floor masonry".
+   - **What it does:** elements appear at their schedule time, swept along the building in `--chunks` steps. The camera
+     follows the work (`--camera follow`), captions give the date and activity, and `--labels N` names the elements.
+     Work finished before the window is shown at the start (`--context built`).
+   - **Timing:** `--length` (seconds) or `--days-per-second`.
+   - **4D statements:** `--plan NAME` uses the schedule clock statements (`schedule … over N`, `at date`,
+     `at milestone`, `focus active`). These need the plan built in the viewer or by `xray-4d plan` from the same
+     schedule.
+
+   You may edit the script afterwards, for example to add `explode storeys` at a milestone, `orbit`, or `mode cutaway`
+   for interior work. **Always** run `node xrayanim_check.mjs` on the result and fix every error before handing it
+   over. The user plays it in the viewer's Script tab or renders it with `xray-4d render`.
+8. **Report:**
+   - counts: links accepted, proposed, rejected and ties, coverage, tasks written;
+   - what was skipped and why;
+   - the output files, the check results, and the sha256 of the outputs.
 
 ## Rules
 
-- **Idempotent:** running twice gives the same result. The `Xray 4D` schedule and its tasks are rebuilt each time, and
-  `Xray_4D` property values are overwritten, not duplicated.
-- **Leave the rest alone:** never delete or change other schedules, tasks, property sets or geometry.
-- **Keys:** activities are keyed by P6 Activity ID (`IfcTask.Identification`), elements by GlobalId. Do not match by name.
-- **Milestones:** they become tasks with `IsMilestone = TRUE` and no elements.
-- **Activities without elements:** plaster, services and drying become tasks only if `--all-activities` is given or the
-  user asks. Otherwise only linked activities and milestones are written.
+- **Keys:** activities by P6 Activity ID, elements by GlobalId; never by name alone.
+- **What reaches the files:** only accepted links are written into the IFC, the XER fields count only accepted
+  links, and animations use only accepted links. Never write `reviewed_by` (personal data).
+- **Outputs:** every output is a new file. Re-running gives the same file: the `Xray 4D` schedule and the `4D` user fields
+  are replaced, never duplicated, and nothing else is changed.
+- **IFC2X3:** has no `IfcTaskTime`. Tasks and assignments are written but dates are not; say so.
+- **Duplicate logic links:** P6 can link one pair of activities twice (SS and FF); IFC keeps one sequence per pair.
+  The first is kept and the other reported.
