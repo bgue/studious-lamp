@@ -15,9 +15,12 @@ import {
   serializeFlyDoc,
   uniqueFlyName,
 } from './flythrough';
+import { cleanFields } from './flythrough';
 import type { FlyDoc, FlyKeyframe, FlyThrough } from './flythrough';
+import { defaultHud, sanitizeHud } from './hud/settings';
+import type { HudSettings } from './hud/settings';
 
-export type KeyframePatch = Partial<Pick<FlyKeyframe, 'name' | 'hold' | 'ease' | 'fade' | 'fadeFraction' | 'switchAt' | 'caption'>> & { travel?: number | null };
+export type KeyframePatch = Partial<Pick<FlyKeyframe, 'name' | 'hold' | 'ease' | 'fade' | 'fadeFraction' | 'switchAt' | 'caption' | 'hover'>> & { travel?: number | null; labels?: { fields: string[] } | null };
 
 export class FlyStore {
   doc: FlyDoc = { schema: FLYTHROUGHS_SCHEMA, flythroughs: [], active: null };
@@ -200,8 +203,26 @@ export class FlyStore {
       if (c && ((c.title ?? '').trim() || (c.text ?? '').trim())) k.caption = { ...(c.title ? { title: c.title } : {}), ...(c.text ? { text: c.text } : {}) };
       else delete k.caption;
     }
+    if ('labels' in patch) {
+      if (patch.labels) k.labels = { fields: cleanFields(patch.labels.fields) };
+      else delete k.labels;
+    }
+    if (patch.hover !== undefined) {
+      if (patch.hover) k.hover = true;
+      else delete k.hover;
+    }
     this.commit();
     return true;
+  }
+
+  /** The HUD settings (progress bar, compass, scale bar, label size, caption position) of this model's fly-throughs. */
+  get hud(): HudSettings {
+    return this.doc.hud ?? defaultHud();
+  }
+
+  setHud(patch: Partial<HudSettings>): void {
+    this.doc.hud = sanitizeHud({ ...this.hud, ...patch });
+    this.commit();
   }
 
   /** Replace the state of a keyframe with a view; timing, name and caption stay. */
@@ -237,7 +258,7 @@ export class FlyStore {
   /** An explicit export of the active fly-through (or all), with captions. */
   exportDoc(all = false, withThumbs = true): string {
     const a = this.active;
-    const doc: FlyDoc = all || !a ? this.doc : { schema: FLYTHROUGHS_SCHEMA, flythroughs: [a], active: a.id };
+    const doc: FlyDoc = all || !a ? this.doc : { schema: FLYTHROUGHS_SCHEMA, flythroughs: [a], active: a.id, ...(this.doc.hud ? { hud: this.doc.hud } : {}) };
     return serializeFlyDoc(doc, withThumbs);
   }
 

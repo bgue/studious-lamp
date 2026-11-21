@@ -7,6 +7,8 @@
 //     or a wheel turn on the canvas stops it too (the camera stays where the person took it).
 //   - Persistence: localStorage `xray.flythroughs.<identity key of the model>`; the old `xray.flythrough.<modelName>` keyframes are
 //     imported once as the fly-through "Imported". See docs-features/flythrough.md.
+//   - The HUD (captions, labels, hover card, progress bar, compass, scale bar: src/anim/hud) is registered with setHudLayer and drawn
+//     into an overlay canvas while a score plays. Its settings live in the fly-through document (store.hud).
 //   - window.__xrayFlythrough for scripts and smoke tests; window.__cinematic.play / record / keys keep working.
 
 import { Box3, Vector3 } from 'three';
@@ -24,6 +26,12 @@ import type { FlyKeyframe, FlyThrough, Timing } from '../anim/flythrough';
 import { ScorePlayer } from '../anim/player';
 import { ViewerScoreHost } from '../anim/viewerHost';
 import { PathOverlay } from '../anim/overlay';
+import { setHudLayer } from '../anim/hud';
+import { appHudSource } from '../anim/hud/appSource';
+import { ScoreHudLayer } from '../anim/hud/layer';
+import type { HudDescription } from '../anim/hud/layer';
+import { HudOverlay } from '../anim/hud/overlay';
+import type { HudSettings } from '../anim/hud/settings';
 import { setScorePlayer } from '../anim/score';
 import type { PlayOptions, Score } from '../anim/score';
 import { FlythroughPanel } from '../views/flythroughPanel';
@@ -50,7 +58,7 @@ export interface FlythroughApi {
   removeFlythrough(key: string): void;
   setOptions(o: Partial<Pick<FlyThrough, 'timing' | 'speed' | 'segmentS' | 'lookAtSelection' | 'loop'>>): void;
   /** Keyframes of the active fly-through (without the thumbnails and the params snapshots). */
-  keyframes(): Array<{ id: string; name: string; travel: number; hold: number; ease: boolean; fade: boolean; fadeFraction: number; switchAt: string; caption?: { title?: string; text?: string }; selection: number; hasThumb: boolean; camera: SavedView['camera'] }>;
+  keyframes(): Array<{ id: string; name: string; travel: number; hold: number; ease: boolean; fade: boolean; fadeFraction: number; switchAt: string; caption?: { title?: string; text?: string }; labels?: { fields: string[] }; hover?: boolean; selection: number; hasThumb: boolean; camera: SavedView['camera'] }>;
   /** Add the current view (or a saved view by id or name) as a keyframe at the end or at `at`. */
   add(opts?: { view?: string; at?: number; name?: string } & KeyframePatch): number;
   update(index: number, patch: KeyframePatch & { fromCurrent?: boolean }): boolean;
@@ -81,6 +89,11 @@ export interface FlythroughApi {
   openTab(): void;
   /** The camera-path overlay is drawn now. */
   readonly pathVisible: boolean;
+  /** The HUD settings of this model's fly-throughs (progress bar, compass, scale bar, label size, caption position). */
+  hud(): HudSettings;
+  setHud(patch: Partial<HudSettings>): void;
+  /** The HUD overlay canvas: is something drawn on it, and what the last draw put where (for smoke tests). */
+  hudState(): { drawn: boolean; width: number; height: number; pixelRatio: number; last: HudDescription | null };
   readonly store: FlyStore;
 }
 
@@ -130,6 +143,8 @@ class FlythroughController {
   readonly player: ScorePlayer;
   panel: FlythroughPanel | null = null;
   overlay: PathOverlay | null = null;
+  hudLayer: ScoreHudLayer | null = null;
+  hudOverlay: HudOverlay | null = null;
   private lastVisCheck = 0;
   private msgTimer: ReturnType<typeof setTimeout> | null = null;
   private suppressedForPlay = false;
@@ -394,8 +409,12 @@ class FlythroughController {
       this.player.tick(now);
       if (this.player.paused) this.host.applyFades();
       this.panel?.tick();
+      // After the tick: the camera of this frame is what the overlay projects against.
+      if (this.player.playing) this.hudOverlay?.draw(this.player.time, this.player.duration);
+      else this.hudOverlay?.clear();
       return true;
     }
+    this.hudOverlay?.clear();
     if (now - this.lastVisCheck > 250) {
       this.lastVisCheck = now;
       this.updateOverlayVisible();
@@ -463,6 +482,8 @@ function buildApi(c: FlythroughController): FlythroughApi {
         fadeFraction: k.fadeFraction,
         switchAt: k.switchAt,
         ...(k.caption ? { caption: { ...k.caption } } : {}),
+        ...(k.labels ? { labels: { fields: [...k.labels.fields] } } : {}),
+        ...(k.hover ? { hover: true } : {}),
         selection: k.view.selection.length,
         hasThumb: !!k.view.thumb,
         camera: JSON.parse(JSON.stringify(k.view.camera)) as SavedView['camera'],
@@ -532,6 +553,12 @@ function buildApi(c: FlythroughController): FlythroughApi {
     get pathVisible() {
       return c.overlay?.visible === true;
     },
+    hud: () => ({ ...st.hud }),
+    setHud: (p) => st.setHud(p),
+    hudState: () => {
+      const o = c.hudOverlay;
+      return { drawn: o?.visible === true, ...(o?.size ?? { width: 0, height: 0, pixelRatio: 1 }), last: c.hudLayer?.last ?? null };
+    },
     store: st,
   };
 }
@@ -546,6 +573,9 @@ export const flythroughPlugin: AppPlugin = {
     const api = buildApi(c);
     window.__xrayFlythrough = api;
     c.overlay = new PathOverlay(app.renderer.scene, () => app.renderer.markDirty());
+    c.hudLayer = new ScoreHudLayer(appHudSource(app, (ref, key) => c.host.resolveRef(ref, key)), () => c.store.hud);
+    setHudLayer(c.hudLayer);
+    c.hudOverlay = new HudOverlay(app.canvas, c.hudLayer, () => app.renderer.camera);
 
     const host: FlyHost = {
       list: () => c.store.list,
@@ -620,6 +650,8 @@ export const flythroughPlugin: AppPlugin = {
       removeKeyframe: (i) => void api.remove(i),
       move: (from, to) => void api.move(from, to),
       setOptions: (o) => c.store.setOptions(c.store.ensureActive().id, o),
+      hud: () => c.store.hud,
+      setHud: (p) => c.store.setHud(p),
       play: (from) => void c.play(from !== undefined ? { fromKeyframe: from } : {}),
       pause: () => {
         c.player.pause();
