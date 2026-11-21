@@ -163,10 +163,15 @@ export function serializeKeyframes(modelName: string, keys: readonly Keyframe[],
 
 // ---------------------------------------------------------------- recorder
 
-/** Best supported webm mime type for MediaRecorder: vp9, else vp8, else plain webm; null when unsupported. */
-export function pickRecorderMime(isTypeSupported: ((t: string) => boolean) | undefined): string | null {
+/**
+ * Best supported mime type for MediaRecorder: webm vp9, else vp8, else plain webm, then (Safari) mp4 with H.264, else plain mp4;
+ * null when unsupported. `prefer: 'mp4'` tries the mp4 types first.
+ */
+export function pickRecorderMime(isTypeSupported: ((t: string) => boolean) | undefined, prefer: 'webm' | 'mp4' = 'webm'): string | null {
   if (!isTypeSupported) return null;
-  for (const m of ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']) if (isTypeSupported(m)) return m;
+  const webm = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  const mp4 = ['video/mp4;codecs=avc1', 'video/mp4;codecs=avc1.640028', 'video/mp4'];
+  for (const m of prefer === 'mp4' ? [...mp4, ...webm] : [...webm, ...mp4]) if (isTypeSupported(m)) return m;
   return null;
 }
 
@@ -191,11 +196,11 @@ export class CanvasRecorder {
     return this.rec !== null && this.rec.state === 'recording';
   }
 
-  start(canvas: HTMLCanvasElement, onDone: (r: Recording | null) => void): boolean {
+  start(canvas: HTMLCanvasElement, onDone: (r: Recording | null) => void, opts: { prefer?: 'webm' | 'mp4'; fps?: number } = {}): boolean {
     if (!CanvasRecorder.supported) return false;
-    const mime = pickRecorderMime((t) => MediaRecorder.isTypeSupported(t));
+    const mime = pickRecorderMime((t) => MediaRecorder.isTypeSupported(t), opts.prefer);
     if (!mime) return false;
-    this.stream = canvas.captureStream(30);
+    this.stream = canvas.captureStream(opts.fps ?? 30);
     this.chunks = [];
     this.onDone = onDone;
     const rec = new MediaRecorder(this.stream, { mimeType: mime });

@@ -125,6 +125,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Revision banner](#revision-banner)
 - [Revision walk](#revision-walk)
 - [Script tab](#script-tab)
+- [Record dialog](#record-dialog)
 
 ## Glossary
 
@@ -542,7 +543,7 @@ Impact follows the same sentence rules and adds these:
 | Fly-through pause | The button pauses the playing fly-through and resumes it. The Space key does the same. | Click and the film freezes on the current frame. Click again and it carries on. | Click the button during playback. Click it again to resume. | Report: Onboarding checklist |
 | Fly-through stop | The button stops the fly-through. The camera, selection, hides and settings return to their state before the start. | Click and the film ends at once. The view looks as it did before you started the film. | Click the button or press Escape. | Report: Onboarding checklist |
 | Fly-through play from | The button plays the fly-through from the selected keyframe instead of the start. | Click and the film starts at the stop you picked. Earlier stops do not show. | Click a card. Click the button. | Report: Onboarding checklist |
-| Fly-through record | The button plays the fly-through and records it as a webm video that the browser downloads. | Click and the film runs while the viewer captures it. Your browser then saves the video file. | Add keyframes first. Click the button. Wait for the download. | Report: Onboarding checklist |
+| Fly-through record | The button opens the settings for a video of the fly-through. The viewer then plays it picture by picture into a file. | A dialog asks for size, frame rate and kind of file. The browser then saves the video. | Add keyframes first. Click the button. Pick the settings and confirm. | Report: Onboarding checklist |
 | Fly-through timeline | The bar shows the running time. Ticks mark the keyframes and a line marks the playhead. | The bar maps the whole film. Click or drag on it to jump to that moment. | Click or drag on the bar. Press ArrowLeft or ArrowRight to step by 1 s. | Report: Onboarding checklist |
 | Fly-through add keyframe | The button adds the current view as a keyframe at the end. The keyframe keeps the camera, cuts, modes, selection and hides. | Click and the screen you see now becomes a new stop on the trip, with a small picture. | Set up the camera and the look. Click the button. | Report: Onboarding checklist |
 | Fly-through add saved view | The list adds a saved view as a keyframe at the end of the fly-through. | Pick a bookmark and it joins the trip as the last stop. | Select a saved view from the list. | Report: Onboarding checklist |
@@ -1674,3 +1675,19 @@ Impact follows the same sentence rules and adds these:
 | Editor | The area holds the lines of the script. Each line is 1 statement. | Colours show which words do what. A red mark shows a line that has a problem. | Click in the area. Type 1 statement on each line. Press Ctrl and Enter to play. | Report: Onboarding checklist |
 | Problems | The list shows each error and each warning of the script with its line and column. | Each row says what is wrong and how to fix it. A click takes you to the spot. | Click a row. Fix the marked text. | Report: Onboarding checklist |
 | Reference | The section lists every statement with a short example. | You see the words that you can type. A button adds an example to the editor. | Open the section. Click Insert example. | Report: Onboarding checklist |
+| Record | The button compiles the script and opens the settings for a video of it. | A dialog asks for the video size and kind of file. The viewer then plays the text picture by picture into a file. | Fix all errors first. Click the button. Pick the settings and confirm. | Report: Onboarding checklist |
+
+## Record dialog
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Size | The list sets the width and the height of the video in pixels. The window choice uses the current view. | A larger video shows finer detail and makes a bigger file. It also takes longer to make. | Pick a smaller video for a quick test. Pick Full HD for a normal film. | Report: Onboarding checklist |
+| Frame rate | The list sets how many pictures make 1 second of video. | More pictures per second make moves look smoother. The work takes longer and the file grows. | Pick 30 for most films. Pick 24 for a film look or 60 for very smooth moves. | Report: Onboarding checklist |
+| Quality | The list sets how much data each second of video may use. | A small file shows some blur in fast moves. The top choice keeps edges sharp and makes a large file. | Pick Balanced first. Pick High quality for a film that you show on a big screen. | Report: Onboarding checklist |
+| Format | The list sets the kind of file. Automatic picks MP4 when the browser can make it and WebM otherwise. | MP4 plays almost everywhere. WebM plays in browsers and many players. The picture choice gives a zip of still images. | Keep Automatic unless a program needs a certain kind. Pick the picture choice to edit the frames elsewhere. | Report: Onboarding checklist |
+| Include HUD | The switch puts the captions, labels and the progress bar into the video. | On, the video shows the same text as the screen. Off, the video shows the model alone. | Switch it off when you add your own text in a video editor. | Report: Onboarding checklist |
+| File name | The box sets the name of the downloaded file. The browser adds the ending. | The download folder shows the text that you typed. Unusual marks change to dashes. | Type a short name. Leave the box empty to use the name of the film. | Report: Onboarding checklist |
+| Time frames | The button draws 4 test pictures at the chosen settings and measures the time. | You see how long the whole video takes on this computer before you commit to it. | Click the button. Pick smaller settings when the time is too long. | Report: Onboarding checklist |
+| Cancel | The button closes the dialog and starts nothing. | The view stays as it is and the browser saves no file. | Click the button or press Escape. | Report: Onboarding checklist |
+| Record | The button starts the work with the chosen settings. The browser then saves the file. | The viewer stops answering to the mouse and the keys. A bar shows how much work remains. | Check the settings. Click the button. Wait for the download. | Report: Onboarding checklist |
+| Cancel recording | The button stops the work before it ends and throws the pictures away. | The bar goes away and the view returns to the state before the start. The browser saves no file. | Click the button or press Escape. | Report: Onboarding checklist |

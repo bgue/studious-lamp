@@ -32,6 +32,10 @@ IFC files are converted in node by the **same TypeScript reader the browser uses
 | `--camera px,py,pz:tx,ty,tz` | Camera position and target in the viewer frame: metres, Y up, shifted by the sidecar's `originShift`. Easiest to copy from an exported params file (`camera.position`, `camera.target`). |
 | `--views <file.json>` | Saved views (`xray-views/1`, from the Views tab > Export) added to the Views tab of the page. Views without a name or camera are skipped with a warning; GlobalIds missing from the model are warned about. See [saved-views.md](saved-views.md). |
 | `--open-view <name>` | A saved view of `--views` (name, id or 1-based number) opened at start, after everything else. Needs `--views`. |
+| `--flythroughs <file.json>` | Fly-throughs (`xray-flythroughs/1`, from the Views tab > Fly-through > Export) added to the Views tab of the page. Entries without keyframes are skipped with a warning. A name that the viewer already has is not added twice, so a reload does not duplicate them. The viewer keys its fly-through store by the model's identity, so they belong to the packed model. See [flythrough.md](flythrough.md). |
+| `--scripts <a.xrayanim,b.xrayanim>` | Animation scripts (text files from the Script tab > Export) added to the Script tab; the file name without its ending is the script name. Scripts stay the person's own text: only the files you name here are packed. See [animation-script.md](animation-script.md). |
+| `--autoplay <flythrough:Name\|script:Name>` | Play this fly-through or script when the page starts (after everything else; a kiosk film). Needs `--flythroughs` or `--scripts` with that name. A press or a wheel turn on the canvas stops it. Writes `autoplay` into `__xrayBoot`. |
+| `--loop` | With `--autoplay`: play it again and again from the start. |
 | `--ifc-reader` | Also embed the in-browser IFC reader (worker + wasm, gzip + base64) so the recipient can open more IFC files. Adds about 1.2 MB. Default: left out. |
 | `--samples` | Also embed the sample models (building, fzk-haus, plumbing). Adds about 1.8 MB. |
 | `--force` | Overwrite the output. |
@@ -42,7 +46,7 @@ Exit codes: `0` ok, `1` usage error (bad option, missing `-o`, output exists), `
 
 ## What the page does at start
 
-`window.__xrayBoot` (see `XrayBoot` in `src/tools/registry.ts`) is read once, after the first model installs (`src/plugins/boot.ts`), in this order: page title, preset, params, camera, selection, open tool, kiosk, saved view (`openView`). The views plugin adds `__xrayBoot.views` to the Views tab on the first model. The toolbar plugin reads `__xrayBoot.tools` itself. The initial model is `__xrayBoot.model`, else `?model=`, else the first embedded model, else `building`.
+`window.__xrayBoot` (see `XrayBoot` in `src/tools/registry.ts`) is read once, after the first model installs (`src/plugins/boot.ts`), in this order: page title, preset, params, camera, selection, open tool, kiosk, saved view (`openView`), packed fly-throughs and scripts, autoplay. The views plugin adds `__xrayBoot.views` to the Views tab on the first model. The toolbar plugin reads `__xrayBoot.tools` itself. The initial model is `__xrayBoot.model`, else `?model=`, else the first embedded model, else `building`.
 
 ## Templates
 
@@ -61,6 +65,9 @@ node tools/xray-pack.mjs Building-Structural.ifc Building-Architecture.ifc Build
 # a tuned look from an exported params file, with only three tools and the measure drawer open
 node tools/xray-pack.mjs public/models/building.glb -o review.html --params tuned.json \
   --tools xray,section,measure --open-tool measure --camera 12,8,14:0,3,0
+
+# a kiosk page: fly-through plays on a loop, panels hidden
+node tools/xray-pack.mjs model.ifc -o kiosk.html --kiosk --flythroughs tour.json --autoplay flythrough:Tour --loop
 
 # a recipient who may want to open their own IFC files too
 node tools/xray-pack.mjs model.ifc -o viewer.html --ifc-reader

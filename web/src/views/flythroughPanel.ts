@@ -179,7 +179,7 @@ export class FlythroughPanel {
     this.pauseBtn = el('button', 'btn', { type: 'button', title: 'Pause or resume (Space)', ...hk('Fly-through pause') }, '❚❚');
     this.stopBtn = el('button', 'btn', { type: 'button', title: 'Stop and put the view back (Escape)', ...hk('Fly-through stop') }, '■');
     this.fromBtn = el('button', 'btn', { type: 'button', title: 'Play from the selected keyframe', ...hk('Fly-through play from') }, '▶ From');
-    this.recBtn = el('button', 'btn', { type: 'button', title: 'Play and record a video', ...hk('Fly-through record') }, '● Rec');
+    this.recBtn = el('button', 'btn', { type: 'button', title: 'Record a video (size, frame rate and format)', ...hk('Fly-through record') }, '● Rec');
     this.timeEl = el('span', 'fl-time');
     const row2 = el('div', 'fl-row');
     row2.append(this.playBtn, this.pauseBtn, this.stopBtn, this.fromBtn, this.recBtn, this.timeEl);

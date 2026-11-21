@@ -30,6 +30,8 @@ export interface ScriptPanelDeps {
   toast?(text: string, ms?: number): void;
   /** Give a text file to the person (a download). */
   download?(fileName: string, text: string): void;
+  /** Open the video export (options dialog) for the compiled script. */
+  record?(text: string, name: string): void;
 }
 
 export interface ScriptPanelState {
@@ -129,6 +131,7 @@ export class ScriptPanel {
   private runBtn!: HTMLButtonElement;
   private pauseBtn!: HTMLButtonElement;
   private stopBtn!: HTMLButtonElement;
+  private recBtn!: HTMLButtonElement;
   private delBtn!: HTMLButtonElement;
   private fileIn!: HTMLInputElement;
   private examplesBtn!: HTMLButtonElement;
@@ -163,9 +166,12 @@ export class ScriptPanel {
     this.runBtn = el('button', 'as-btn primary', { type: 'button', ...HELP('Run'), 'data-act': 'run' }, 'Run') as HTMLButtonElement;
     this.pauseBtn = el('button', 'as-btn', { type: 'button', ...HELP('Pause'), 'data-act': 'pause' }, 'Pause') as HTMLButtonElement;
     this.stopBtn = el('button', 'as-btn', { type: 'button', ...HELP('Stop'), 'data-act': 'stop' }, 'Stop') as HTMLButtonElement;
+    this.recBtn = el('button', 'as-btn', { type: 'button', title: 'Record the script as a video', ...HELP('Record'), 'data-act': 'record' }, 'Record') as HTMLButtonElement;
     this.msg = el('div', 'as-msg', { role: 'status', 'aria-live': 'polite', 'data-script-status': '1' });
     const runRow = el('div', 'as-row');
-    runRow.append(this.runBtn, this.pauseBtn, this.stopBtn, this.msg);
+    runRow.append(this.runBtn, this.pauseBtn, this.stopBtn);
+    if (this.deps.record) runRow.append(this.recBtn);
+    runRow.append(this.msg);
 
     // file row
     this.nameIn = el('input', 'as-name', { type: 'text', 'aria-label': 'Script name', placeholder: 'Script name', maxlength: '60', spellcheck: 'false', autocomplete: 'off', ...HELP('Name') }) as HTMLInputElement;
@@ -210,6 +216,7 @@ export class ScriptPanel {
     this.runBtn.addEventListener('click', () => this.run());
     this.pauseBtn.addEventListener('click', () => this.togglePause());
     this.stopBtn.addEventListener('click', () => this.stop());
+    this.recBtn.addEventListener('click', () => this.record());
     saveBtn.addEventListener('click', () => this.save());
     this.delBtn.addEventListener('click', () => this.armDelete());
     this.examplesBtn.addEventListener('click', () => this.openExamples());
@@ -536,6 +543,19 @@ export class ScriptPanel {
     this.updateButtons();
     this.managePoll();
     return res;
+  }
+
+  /** Compile the text and open the video export for it. */
+  record(): void {
+    this.recompile();
+    const name = cleanName(this.nameIn.value) || 'script';
+    const first = this.diags.find((e) => e.severity === 'error');
+    if (first) {
+      this.jumpTo(first);
+      this.setStatus(formatDiagnostic(first), 'bad');
+      return;
+    }
+    this.deps.record?.(this.text, name);
   }
 
   private togglePause(): void {

@@ -22,6 +22,10 @@ export interface PackOptions {
   camera: PackCamera | undefined;
   views: string | undefined;
   openView: string | undefined;
+  flythroughs: string | undefined;
+  scripts: string[] | undefined;
+  autoplay: { kind: 'flythrough' | 'script'; name: string } | undefined;
+  loop: boolean;
   kiosk: boolean;
   noTopBar: boolean;
   ifcReader: boolean;
@@ -36,7 +40,11 @@ export function parseArgs(argv: string[]): { help: boolean; inputs: string[]; op
 export function unknownTools(tools: string[] | undefined): string[];
 export function defaultModelName(inputPath: string): string;
 export function checkViews(doc: unknown, openView?: string, modelName?: string): { views: Array<Record<string, unknown>>; warnings: string[] };
-export function buildBoot(model: string, options?: Partial<PackOptions>, params?: unknown, views?: unknown[]): Record<string, unknown>;
+export function parseAutoplay(text: string): { kind: 'flythrough' | 'script'; name: string };
+export function checkFlythroughs(doc: unknown, autoplay?: { kind: string; name: string }): { doc: Record<string, unknown>; names: string[]; warnings: string[] };
+export function scriptNameOf(path: string): string;
+export function checkScripts(files: Array<{ path: string; text: string }>, autoplay?: { kind: string; name: string }): { scripts: Array<{ name: string; text: string }>; warnings: string[] };
+export function buildBoot(model: string, options?: Partial<PackOptions>, params?: unknown, views?: unknown[], extras?: { flythroughs?: unknown; scripts?: unknown }): Record<string, unknown>;
 export function toBase64(bytes: Uint8Array | ArrayBuffer): string;
 export function fromBase64(text: string): Uint8Array;
 export function scriptSafe(s: string): string;

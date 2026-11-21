@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  EXIT_INPUT, EXIT_USAGE, HELP, PackError, buildBoot, checkViews, defaultModelName, injectTemplate, parseSelect, toBase64, unknownTools,
+  EXIT_INPUT, EXIT_USAGE, HELP, PackError, buildBoot, checkFlythroughs, checkScripts, checkViews, defaultModelName, injectTemplate, parseSelect, toBase64, unknownTools,
 } from './pack/lib.mjs';
 import { convertIfcFiles, newestMtime } from './pack/convert.mjs';
 
@@ -80,6 +80,8 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
   if (existsSync(out) && !options.force) throw new PackError(`${options.out} exists (use --force to overwrite)`, EXIT_USAGE);
   const params = options.params ? loadParams(options.params) : undefined;
   const viewsDoc = options.views ? loadJson(options.views, '--views') : undefined;
+  const flyDoc = options.flythroughs ? loadJson(options.flythroughs, '--flythroughs') : undefined;
+  const scriptFiles = options.scripts ? options.scripts.map((p) => ({ path: p, text: readInput(p).toString('utf8') })) : undefined;
 
   // ---- model
   const name = options.name ?? defaultModelName(inputs[0]);
@@ -135,6 +137,16 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
       if (missing.length) warn(`--views: ${missing.length} GlobalId${missing.length > 1 ? 's' : ''} of the views not in the model (${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ', ...' : ''})`);
     }
   }
+  const extras = {};
+  if (flyDoc !== undefined) {
+    const checked = checkFlythroughs(flyDoc, options.autoplay);
+    extras.flythroughs = checked.doc;
+    for (const m of checked.warnings) warn(`--flythroughs: ${m}`);
+  }
+  if (scriptFiles !== undefined) {
+    const checked = checkScripts(scriptFiles, options.autoplay);
+    extras.scripts = checked.scripts;
+  }
   const odd = unknownTools(options.tools);
   if (odd.length) warn(`--tools: unknown tool id${odd.length > 1 ? 's' : ''} ${odd.join(', ')} (known: see src/tools/registry.ts)`);
 
@@ -150,13 +162,13 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
   const template = ensureTemplate(options.ifcReader, log);
   const html = injectTemplate(readFileSync(template, 'utf8'), {
     models,
-    boot: buildBoot(name, options, params, views),
+    boot: buildBoot(name, options, params, views, extras),
     title: options.title ?? name,
   });
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, html);
   const dt = performance.now() - t0;
-  log(`wrote ${options.out}: ${fmtMB(Buffer.byteLength(html))}, model "${name}"${elements ? `, ${elements.length} elements` : ''}${views ? `, ${views.length} saved view${views.length > 1 ? 's' : ''}` : ''}${options.ifcReader ? ', with IFC reader' : ''}, ${fmtMs(dt)}`);
+  log(`wrote ${options.out}: ${fmtMB(Buffer.byteLength(html))}, model "${name}"${elements ? `, ${elements.length} elements` : ''}${views ? `, ${views.length} saved view${views.length > 1 ? 's' : ''}` : ''}${extras.flythroughs ? `, ${extras.flythroughs.flythroughs.length} fly-through${extras.flythroughs.flythroughs.length > 1 ? 's' : ''}` : ''}${extras.scripts ? `, ${extras.scripts.length} script${extras.scripts.length > 1 ? 's' : ''}` : ''}${options.autoplay ? `, autoplay ${options.autoplay.kind}:${options.autoplay.name}${options.loop ? ' (loop)' : ''}` : ''}${options.ifcReader ? ', with IFC reader' : ''}, ${fmtMs(dt)}`);
   return 0;
 }
 

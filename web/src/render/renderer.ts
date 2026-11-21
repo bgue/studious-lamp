@@ -1908,11 +1908,46 @@ export class XrayRenderer {
     this.offsetsVersion++;
   }
 
+  /** Set while a video export renders at its own size (setOutputSize): pixels of the drawing buffer, pixel ratio 1. */
+  private outputSize: { w: number; h: number; pixelRatio: number } | null = null;
+
+  /**
+   * Render at w x h pixels (pixel ratio 1) until clearOutputSize(), whatever the size of the canvas element: the video export
+   * (src/anim/record) draws at the video size. The element keeps its layout size; a window resize does not undo it.
+   */
+  setOutputSize(w: number, h: number): void {
+    if (!this.outputSize) this.outputSize = { w, h, pixelRatio: this.renderer.getPixelRatio() };
+    this.outputSize.w = Math.max(1, Math.floor(w));
+    this.outputSize.h = Math.max(1, Math.floor(h));
+    this.renderer.setPixelRatio(1);
+    this.resize();
+    this.dirty = true;
+  }
+
+  /** Back to the size of the canvas element and the earlier pixel ratio. */
+  clearOutputSize(): void {
+    const o = this.outputSize;
+    if (!o) return;
+    this.outputSize = null;
+    this.renderer.setPixelRatio(o.pixelRatio);
+    this.resize();
+    this.dirty = true;
+  }
+
+  /** The largest side in pixels the graphics card draws (texture and render buffer limits). */
+  maxOutputSide(): number {
+    const gl = this.renderer.getContext();
+    const tex = Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) || 4096;
+    const rb = Number(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)) || tex;
+    return Math.min(tex, rb);
+  }
+
   resize(): void {
     // three refuses (and warns) to resize while an XR session presents; the session owns the framebuffer size.
     if (this.xrPresenting) return;
-    const w = this.canvas.clientWidth || this.canvas.width || 1;
-    const h = this.canvas.clientHeight || this.canvas.height || 1;
+    const o = this.outputSize;
+    const w = o ? o.w : this.canvas.clientWidth || this.canvas.width || 1;
+    const h = o ? o.h : this.canvas.clientHeight || this.canvas.height || 1;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();

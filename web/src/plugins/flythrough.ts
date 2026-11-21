@@ -37,6 +37,8 @@ export interface FlyPlayArgs {
   /** Start at this time (seconds). */
   from?: number;
   restore?: boolean;
+  /** Play again and again (a kiosk), whatever the fly-through's own Loop setting says. */
+  loop?: boolean;
   onEnd?: () => void;
 }
 
@@ -133,6 +135,10 @@ class FlythroughController {
   private lastVisCheck = 0;
   private msgTimer: ReturnType<typeof setTimeout> | null = null;
   private suppressedForPlay = false;
+  /** True during a video export: the exporter steps the player and the frame loop must not (src/anim/record). */
+  exporting = false;
+  /** Set by the record plugin: open the options dialog for the active fly-through. */
+  recordDialog: (() => boolean) | null = null;
 
   constructor(readonly app: ViewerApp) {
     this.store = new FlyStore(storage());
@@ -325,6 +331,7 @@ class FlythroughController {
     }
     if (!this.app.loaded) return false;
     const score = this.compile(f);
+    if (args.loop !== undefined) score.loop = args.loop;
     const tm = this.timing(f);
     const opts: PlayOptions = {
       restore: args.restore !== false,
@@ -357,7 +364,7 @@ class FlythroughController {
   }
 
   userStop(): void {
-    if (this.player.playing) this.player.stopKeepingCamera();
+    if (this.player.playing && !this.exporting) this.player.stopKeepingCamera();
   }
 
   seekKeyframe(i: number): void {
@@ -379,19 +386,35 @@ class FlythroughController {
     this.seekKeyframe(target);
   }
 
+  /** Switch the controller to and from the video export: the exporter owns the clock, settings apply on every frame. */
+  setExporting(on: boolean): void {
+    this.exporting = on;
+    this.host.exact = on;
+    if (on) {
+      this.overlay?.suppress();
+      this.suppressedForPlay = true;
+    } else if (this.suppressedForPlay) {
+      this.suppressedForPlay = false;
+      this.overlay?.release();
+    }
+    this.panel?.render();
+  }
+
+  /** The Rec button: the options dialog and the frame by frame export. Without the record plugin: the old real-time recorder. */
   record(): boolean {
     const f = this.store.active;
     if (!f || f.keyframes.length === 0) {
       this.note('Fly-through: add keyframes first.');
       return false;
     }
+    if (this.recordDialog) return this.recordDialog();
     const cin = (window as unknown as { __cinematic?: { record(): boolean } }).__cinematic;
     return cin ? cin.record() : false;
   }
 
   frame(now: number): boolean {
     if (this.player.playing) {
-      this.player.tick(now);
+      if (!this.exporting) this.player.tick(now);
       if (this.player.paused) this.host.applyFades();
       this.panel?.tick();
       return true;
@@ -507,7 +530,7 @@ function buildApi(c: FlythroughController): FlythroughApi {
       const tm = c.timing();
       let kf = -1;
       if (c.player.playing) for (let i = 0; i < tm.arrive.length; i++) if (tm.arrive[i]! <= c.player.time + 1e-6) kf = i;
-      return { playing: c.player.playing, paused: c.player.paused, recording: (window as unknown as { __cinematic?: { recording?: boolean } }).__cinematic?.recording === true, time: c.player.time, duration: c.player.playing ? c.player.duration : tm.total, keyframe: kf };
+      return { playing: c.player.playing, paused: c.player.paused, recording: (window as unknown as { __cinematic?: { recording?: boolean } }).__cinematic?.recording === true || window.__xrayRecord?.busy === true, time: c.player.time, duration: c.player.playing ? c.player.duration : tm.total, keyframe: kf };
     },
     compile: (key) => {
       const f = key === undefined ? st.active : st.find(key);
@@ -676,7 +699,7 @@ export const flythroughPlugin: AppPlugin = {
     window.addEventListener(
       'keydown',
       (e) => {
-        if (!c.player.playing || isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (!c.player.playing || c.exporting || isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
         let handled = true;
         if (e.key === 'Escape') c.stop();
         else if (e.key === ' ' || e.code === 'Space') {

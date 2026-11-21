@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "lil-gui": "0.21.0",
+    "mediabunny": "1.65.2",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "5.4.149",
     "three": "0.187.0",

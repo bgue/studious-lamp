@@ -187,6 +187,12 @@ export const animScriptPlugin: AppPlugin = {
         storage: store,
         setBadge: (t) => ctx.setBadge(t),
         toast: (t, ms) => showToast(t, ms),
+        record: (text, name) => {
+          const rec = window.__xrayRecord;
+          const r = compileScript(text, compileOptions());
+          if (!rec || !r.score) return;
+          void rec.dialog(`Script "${name}"`, r.score, name);
+        },
       });
       panel = p;
       const off = p.mount(pane);

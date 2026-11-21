@@ -368,6 +368,23 @@ export class ViewerApp {
   /** True while something covers the whole canvas (the sheet view, src/sheets): the frame loop keeps running but skips drawing the 3D scene. */
   renderPaused = false;
 
+  /**
+   * One frame of the loop at the clock `now` (ms): the plugins' hooks, the controller step and the draw. The video export
+   * (src/anim/record) calls it with its own clock, one fixed step per video frame, after pauseLoop().
+   */
+  stepFrame(now: number): void {
+    this.frame(now);
+  }
+
+  /** Stop the animation loop (the video export drives the frames itself). Returns the function that starts it again. */
+  pauseLoop(): () => void {
+    this.renderer.renderer.setAnimationLoop(null);
+    return () => {
+      this.lastFrameTime = performance.now();
+      this.renderer.renderer.setAnimationLoop(this.frame);
+    };
+  }
+
   private frame = (now: number): void => {
     const t0 = performance.now();
     const dt = now - this.lastFrameTime;

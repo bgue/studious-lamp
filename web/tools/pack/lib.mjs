@@ -46,6 +46,10 @@ Options:
   --camera px,py,pz:tx,ty,tz   camera position and target in the viewer frame (Y up, origin-shifted)
   --views <file.json>     saved views (xray-views/1, from the viewer's Views tab > Export) shown in the Views tab
   --open-view <name>      saved view (name, id or 1-based number) opened at start; needs --views
+  --flythroughs <file.json>  fly-throughs (xray-flythroughs/1, from the Views tab > Fly-through > Export) added to the Views tab
+  --scripts <a.xrayanim,b.xrayanim>  animation scripts (text files, from the Script tab > Export) added to the Script tab
+  --autoplay <flythrough:Name|script:Name>  play this fly-through or script at start (a kiosk film); needs --flythroughs or --scripts
+  --loop                  with --autoplay: play it again and again
   --ifc-reader            also embed the in-browser IFC reader (adds about 1.2 MB)
   --samples               also embed the sample models (building, fzk-haus, plumbing)
   --force                 overwrite an existing output file
@@ -58,11 +62,11 @@ Exit codes: 0 ok, 1 usage error, 2 input error.
 const VALUE_OPTIONS = {
   '-o': 'out', '--out': 'out', '--params': 'params', '--preset': 'preset', '--select': 'select', '--title': 'title',
   '--name': 'name', '--tools': 'tools', '--open-tool': 'openTool', '--camera': 'camera', '--views': 'views',
-  '--open-view': 'openView',
+  '--open-view': 'openView', '--flythroughs': 'flythroughs', '--scripts': 'scripts', '--autoplay': 'autoplay',
 };
 const FLAG_OPTIONS = {
   '--kiosk': 'kiosk', '--no-topbar': 'noTopBar', '--ifc-reader': 'ifcReader', '--samples': 'samples', '--force': 'force', '--quiet': 'quiet',
-  '-h': 'help', '--help': 'help',
+  '--loop': 'loop', '-h': 'help', '--help': 'help',
 };
 
 /** "a, b,,c" -> ['a','b','c'] (trimmed, empty entries dropped, duplicates removed in order). */
@@ -112,13 +116,14 @@ export function parseCamera(text) {
 
 /**
  * Parse the command line (without node and script). Returns { help, inputs, options } where options has:
- * out, params, preset, select(string[]), title, name, tools(string[]), openTool, camera, views (file), openView, kiosk,
- * noTopBar, ifcReader, samples, force, quiet. Throws PackError (exit code 1) on any problem.
+ * out, params, preset, select(string[]), title, name, tools(string[]), openTool, camera, views (file), openView,
+ * flythroughs (file), scripts (string[] of files), autoplay ({ kind, name }), loop, kiosk, noTopBar, ifcReader, samples, force, quiet. Throws PackError (exit code 1) on any problem.
  */
 export function parseArgs(argv) {
   const options = {
     out: undefined, params: undefined, preset: undefined, select: undefined, title: undefined, name: undefined,
     tools: undefined, openTool: undefined, camera: undefined, views: undefined, openView: undefined,
+    flythroughs: undefined, scripts: undefined, autoplay: undefined, loop: false,
     kiosk: false, noTopBar: false, ifcReader: false, samples: false, force: false, quiet: false,
   };
   const inputs = [];
@@ -180,7 +185,73 @@ export function parseArgs(argv) {
     if (options.openView.trim() === '') throw new PackError('--open-view must not be empty');
     if (options.views === undefined) throw new PackError('--open-view needs --views <file.json>');
   }
+  if (options.scripts !== undefined) {
+    options.scripts = parseList(options.scripts);
+    if (options.scripts.length === 0) throw new PackError('--scripts needs at least one file');
+  }
+  if (options.autoplay !== undefined) {
+    options.autoplay = parseAutoplay(options.autoplay);
+    if (options.autoplay.kind === 'flythrough' && options.flythroughs === undefined) throw new PackError('--autoplay flythrough:... needs --flythroughs <file.json>');
+    if (options.autoplay.kind === 'script' && options.scripts === undefined) throw new PackError('--autoplay script:... needs --scripts <files>');
+  }
+  if (options.loop && options.autoplay === undefined) throw new PackError('--loop needs --autoplay');
   return { help: false, inputs, options };
+}
+
+/** "flythrough:Tour" or "script:Walk around" -> { kind, name }. */
+export function parseAutoplay(text) {
+  const m = /^(flythrough|script)\s*:\s*(.+)$/i.exec(String(text).trim());
+  if (!m || m[2].trim() === '') throw new PackError(`--autoplay: expected flythrough:<name> or script:<name>, got "${text}"`);
+  return { kind: m[1].toLowerCase(), name: m[2].trim() };
+}
+
+/**
+ * Check a --flythroughs document (parsed JSON, `xray-flythroughs/1`). Returns { doc, names, warnings }; throws PackError(2) when it is
+ * not a fly-through document or holds none with keyframes. Fly-throughs without keyframes are dropped with a warning.
+ */
+export function checkFlythroughs(doc, autoplay) {
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  if (!isObj(doc) || doc.schema !== 'xray-flythroughs/1') throw new PackError(`--flythroughs: not a fly-through document (schema ${isObj(doc) ? doc.schema ?? 'missing' : 'missing'}; expected xray-flythroughs/1)`, EXIT_INPUT);
+  if (!Array.isArray(doc.flythroughs)) throw new PackError('--flythroughs: the document has no "flythroughs" list', EXIT_INPUT);
+  const warnings = [];
+  const list = [];
+  for (const f of doc.flythroughs) {
+    if (!isObj(f) || typeof f.name !== 'string' || !Array.isArray(f.keyframes) || f.keyframes.length === 0) {
+      warnings.push(`a fly-through without a name or keyframes was skipped${isObj(f) && typeof f.name === 'string' ? ` ("${f.name}")` : ''}`);
+      continue;
+    }
+    list.push(f);
+  }
+  if (list.length === 0) throw new PackError('--flythroughs: the document has no usable fly-through', EXIT_INPUT);
+  const names = list.map((f) => f.name);
+  if (autoplay && autoplay.kind === 'flythrough' && !names.some((n) => n === autoplay.name || n.toLowerCase() === autoplay.name.toLowerCase())) {
+    throw new PackError(`--autoplay flythrough:${autoplay.name} is not in the fly-through file (${names.slice(0, 8).join(', ')})`, EXIT_INPUT);
+  }
+  return { doc: { ...doc, flythroughs: list }, names, warnings };
+}
+
+/** Script name of a file: the base name without .xrayanim or .txt. */
+export function scriptNameOf(path) {
+  return String(path).split(/[\\/]/).pop().replace(/\.(xrayanim|txt)$/i, '').trim() || 'Script';
+}
+
+/**
+ * Check --scripts files: `files` is a list of { path, text }. Returns { scripts: [{ name, text }], warnings }; throws PackError(2) for
+ * an empty or binary file or an autoplay name that no file has.
+ */
+export function checkScripts(files, autoplay) {
+  const scripts = [];
+  for (const f of files) {
+    const text = String(f.text).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+    if (text.includes('\u0000')) throw new PackError(`--scripts ${f.path} is not a text file`, EXIT_INPUT);
+    if (text.trim() === '') throw new PackError(`--scripts ${f.path} is empty`, EXIT_INPUT);
+    if (text.length > 200000) throw new PackError(`--scripts ${f.path} is too large (more than 200000 characters)`, EXIT_INPUT);
+    scripts.push({ name: scriptNameOf(f.path), text });
+  }
+  if (autoplay && autoplay.kind === 'script' && !scripts.some((s) => s.name === autoplay.name || s.name.toLowerCase() === autoplay.name.toLowerCase())) {
+    throw new PackError(`--autoplay script:${autoplay.name} is not among the script files (${scripts.map((s) => s.name).slice(0, 8).join(', ')})`, EXIT_INPUT);
+  }
+  return { scripts, warnings: [] };
 }
 
 /** Tool ids that are neither reserved nor plausible custom ids; used for a warning only. */
@@ -239,9 +310,10 @@ export function checkViews(doc, openView, modelName) {
 
 /**
  * The window.__xrayBoot object. `params` is the parsed --params document (or undefined), `views` the checked views
- * list (or undefined). Keys that were not requested are left out, so a plain pack gives { model } only.
+ * list (or undefined), `extras` { flythroughs: checked document, scripts: checked list } (both optional). Keys that were not
+ * requested are left out, so a plain pack gives { model } only.
  */
-export function buildBoot(model, options = {}, params, views) {
+export function buildBoot(model, options = {}, params, views, extras = {}) {
   const boot = { model };
   if (options.title) boot.title = options.title;
   if (params !== undefined) boot.params = params;
@@ -254,6 +326,9 @@ export function buildBoot(model, options = {}, params, views) {
   if (options.noTopBar) boot.topBar = false;
   if (views !== undefined) boot.views = { schema: 'xray-views/1', model, views };
   if (options.openView && views !== undefined) boot.openView = options.openView;
+  if (extras.flythroughs !== undefined) boot.flythroughs = extras.flythroughs;
+  if (extras.scripts !== undefined) boot.scripts = extras.scripts;
+  if (options.autoplay) boot.autoplay = { [options.autoplay.kind]: options.autoplay.name, ...(options.loop ? { loop: true } : {}) };
   return boot;
 }
 

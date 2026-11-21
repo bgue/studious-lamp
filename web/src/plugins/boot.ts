@@ -10,6 +10,7 @@ import { PARAMS_SCHEMA, applyParams } from '../ui/params';
 import type { ParamsApp } from '../ui/params';
 import type { ElementId } from '../types';
 import { openBootView } from './views';
+import { getScorePlayer } from '../anim/score';
 
 /** XrayBoot plus the camera that xray-pack's --camera writes (viewer frame, Y up, origin-shifted). */
 type BootWithCamera = XrayBoot & { camera?: { position: [number, number, number]; target: [number, number, number] } };
@@ -23,6 +24,78 @@ interface ToolbarApi {
 const win = (): { __xrayPresets?: PresetsApi; __xrayToolbar?: ToolbarApi } => window as unknown as { __xrayPresets?: PresetsApi; __xrayToolbar?: ToolbarApi };
 
 const warn = (msg: string): void => console.warn(`[xray-boot] ${msg}`);
+
+interface FlyApiLike {
+  list(): Array<{ id: string; name: string }>;
+  importJson(text: string): { ok: boolean; added: number };
+  play(args?: { key?: string; loop?: boolean }): boolean;
+}
+interface ScriptApiLike {
+  list(): Array<{ name: string }>;
+  save(name: string, text: string): boolean;
+  load(name: string): string | null;
+  compile(text: string): { score: import('../anim/score').Score | null };
+}
+const animWin = (): { __xrayFlythrough?: FlyApiLike; __xrayScript?: ScriptApiLike } => window as unknown as { __xrayFlythrough?: FlyApiLike; __xrayScript?: ScriptApiLike };
+
+/**
+ * Fly-throughs and scripts of a packed page: add the ones that the viewer does not have yet (by name, so a reload does not
+ * duplicate them), then play the autoplay one. Returns the autoplay start function, or null.
+ */
+export function applyBootAnimation(boot: XrayBoot): (() => boolean) | null {
+  const w = animWin();
+  if (boot.flythroughs !== undefined && w.__xrayFlythrough) {
+    const doc = boot.flythroughs as { flythroughs?: Array<{ name?: string }> } & Record<string, unknown>;
+    const have = new Set(w.__xrayFlythrough.list().map((f) => f.name.toLowerCase()));
+    const fresh = Array.isArray(doc.flythroughs) ? doc.flythroughs.filter((f) => typeof f?.name === 'string' && !have.has(f.name.toLowerCase())) : [];
+    if (fresh.length > 0) {
+      const r = w.__xrayFlythrough.importJson(JSON.stringify({ ...doc, flythroughs: fresh }));
+      if (!r.ok) warn('the packed fly-throughs could not be read');
+    }
+  }
+  if (boot.scripts && w.__xrayScript) {
+    const have = new Set(w.__xrayScript.list().map((x) => x.name.toLowerCase()));
+    for (const sc of boot.scripts) {
+      if (typeof sc?.name !== 'string' || typeof sc.text !== 'string' || have.has(sc.name.toLowerCase())) continue;
+      if (!w.__xrayScript.save(sc.name, sc.text)) warn(`script "${sc.name}" could not be stored`);
+    }
+  }
+  const ap = boot.autoplay;
+  if (!ap) return null;
+  const loop = ap.loop === true;
+  if (typeof ap.flythrough === 'string') {
+    const name = ap.flythrough;
+    return () => {
+      const ok = animWin().__xrayFlythrough?.play({ key: name, loop }) === true;
+      if (!ok) warn(`autoplay: fly-through "${name}" not found or has no keyframes`);
+      return ok;
+    };
+  }
+  if (typeof ap.script === 'string') {
+    const name = ap.script;
+    return () => {
+      const text = animWin().__xrayScript?.load(name) ?? boot.scripts?.find((x) => x.name.toLowerCase() === name.toLowerCase())?.text ?? null;
+      const score = text ? animWin().__xrayScript?.compile(text).score : null;
+      const ok = !!score && getScorePlayer()?.play({ ...score, loop: loop || score.loop === true }) === true;
+      if (!ok) warn(`autoplay: script "${name}" not found or it has errors`);
+      return ok;
+    };
+  }
+  return null;
+}
+
+/** Start the autoplay once the viewer draws its first frame (the player needs the frame loop). */
+function startWhenReady(start: () => boolean): void {
+  let tries = 0;
+  const go = (): void => {
+    if ((window as unknown as { __xrayReady?: boolean }).__xrayReady === true || ++tries > 100) {
+      setTimeout(() => void start(), 400);
+      return;
+    }
+    setTimeout(go, 100);
+  };
+  go();
+}
 
 /**
  * A boot params document with the schema filled in when it has none: xray-pack accepts partial params files without
@@ -121,6 +194,9 @@ function applyBoot(app: ViewerApp, boot: BootWithCamera): void {
   if (boot.openView) {
     if (!openBootView(boot.openView)) warn(`saved view "${boot.openView}" not found`);
   }
+
+  const autoplay = applyBootAnimation(boot);
+  if (autoplay) startWhenReady(autoplay);
 }
 
 let booted = false;

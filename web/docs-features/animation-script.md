@@ -123,18 +123,24 @@ compiling: it expands to one pass per element, with `it` as `{ globalIds: [id] }
   selection set with a caption, and changing the look over time.
 - **Saved scripts**: give the script a name and **Save**. Scripts are kept per model (the model identity of
   `src/markup/scope.ts`) in `localStorage["xray.anim.<model>"]`, together with the text you were editing, so a reload brings it back.
+- **Record** compiles the script and opens the video export dialog (size, frame rate, quality, format, captions and labels, file name; the
+  name of the script is the file name). The export plays the script frame by frame at a fixed step, so the video holds duration x fps frames
+  on any machine; the viewer is busy until it ends or you cancel. Fix errors first: Record jumps to the first error instead. See
+  [flythrough.md](flythrough.md), Export.
 - **Export** downloads the text as `<name>.xrayanim` (plain text, the script itself); **Import** reads such a file (or a `.txt`).
 - **Statement reference** with an **Insert example** button for each statement.
 - On a phone the right sidebar is a bottom sheet; the tab has one column, 16 px text and large buttons.
 
-Scripts are the person's own text. They are **never** part of the parameters document, share links, saved views, presets or packed
-pages; only the browser's storage and exported files hold them (`tests/animscript-leak.test.ts`).
+Scripts are the person's own text. They are **never** part of the parameters document, share links, saved views or presets, and no
+tool copies them anywhere on its own; only the browser's storage and exported files hold them. A packed page carries a script only
+when you name its exported file yourself (`xray-pack --scripts a.xrayanim --autoplay script:a`, see [xray-pack.md](xray-pack.md)).
 
 ## For scripts and smoke tests
 
 ```js
 const r = window.__xrayScript.compile('fly to everything over 3 seconds');  // { score, errors }
 window.__xrayScript.run(text);       // compile and play; { ok, message, errors, score }
+window.__xrayRecord.run(score, { size: '1280x720', fps: 30, format: 'auto', name: 'tour' });  // export a score as a video (a promise)
 window.__xrayScript.list();          // the saved scripts of this model
 window.__xrayScript.save('Tour', text);
 window.__xrayScript.load('Tour');

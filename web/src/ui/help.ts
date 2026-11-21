@@ -332,7 +332,18 @@ export const REVISION_HELP_KEYS: readonly string[] = [
 /** Keys of the Script tab of the right sidebar (src/anim/scriptPanel.ts): its controls carry the key in `data-help-key`. */
 export const SCRIPT_HELP_KEYS: readonly string[] = [
   'Script tab/Run', 'Script tab/Pause', 'Script tab/Stop', 'Script tab/Name', 'Script tab/Save', 'Script tab/Delete', 'Script tab/Saved scripts',
-  'Script tab/Examples', 'Script tab/Example', 'Script tab/Export', 'Script tab/Import', 'Script tab/Editor', 'Script tab/Problems', 'Script tab/Reference',
+  'Script tab/Examples', 'Script tab/Example', 'Script tab/Export', 'Script tab/Import', 'Script tab/Editor', 'Script tab/Problems', 'Script tab/Reference', 'Script tab/Record',
+];
+
+/** Keys of the video export dialog and its busy overlay (src/anim/record/ui.ts): the controls carry the key in `data-help-key`. */
+export const RECORD_HELP_KEYS: readonly string[] = [
+  'Record dialog/Size', 'Record dialog/Frame rate', 'Record dialog/Quality', 'Record dialog/Format', 'Record dialog/Include HUD', 'Record dialog/File name',
+  'Record dialog/Time frames', 'Record dialog/Cancel', 'Record dialog/Record', 'Record dialog/Cancel recording',
+];
+
+/** Rule for the video export dialog: the key is the attribute. */
+export const RECORD_RULES: ReadonlyArray<DomRule> = [
+  { selector: '[data-help-key^="Record dialog/"]', keys: (e) => { const k = e.getAttribute('data-help-key'); return k ? [k] : null; }, title: (e) => (e.getAttribute('data-help-key') ?? '').split('/').pop() ?? '' },
 ];
 
 /** Rule for the Script tab, which sits in the right sidebar: the key is the attribute. */
@@ -348,7 +359,7 @@ export const REVISION_RULES: ReadonlyArray<DomRule> = [
 /** Match the DOM rules against one element. The first rule that matches and gives a key with a text wins; else the first key. */
 export function domTarget(e: Element): HelpTarget | null {
   const d = drawerTitleOf(e);
-  const rules = d ? TOOL_RULES : [TOOL_RULES[0]!, TOOL_RULES[1]!, ...DIALOG_RULES, ...REVISION_RULES, ...SCRIPT_RULES];
+  const rules = d ? TOOL_RULES : [TOOL_RULES[0]!, TOOL_RULES[1]!, ...DIALOG_RULES, ...REVISION_RULES, ...SCRIPT_RULES, ...RECORD_RULES];
   for (const r of rules) {
     if (!e.matches(r.selector)) continue;
     const keys = r.keys(e, d);
@@ -362,7 +373,7 @@ export function domTarget(e: Element): HelpTarget | null {
 /** Elements of a drawer or dialog that carry help: the check on the drawer content uses this list. */
 export const DOM_CANDIDATES =
   '.xt-btn-tool, .xt-title, .xt-close, .xt-grip, .xt-sec, .xt-table, .xt-table th, .xt-slider, .xt-select, .xt-check, .xt-chip, .xt-btn, .xt-status, .xt-item, .xp-card, .xp-key, .xp-badge, .xp-skip, .xp-form input[type=text], .pc-result, ' +
-  '.bcf-btn, .bcf-in, .bcf-h, .bcf-item, .bcf-snap, .bcf-comment, .bcf-status, .bcf-detail label, .kx-input, .kx-btn, .kx-cell, .kx-row, .kx-item, [data-help^="Revision "], [data-help-key^="Script tab/"]';
+  '.bcf-btn, .bcf-in, .bcf-h, .bcf-item, .bcf-snap, .bcf-comment, .bcf-status, .bcf-detail label, .kx-input, .kx-btn, .kx-cell, .kx-row, .kx-item, [data-help^="Revision "], [data-help-key^="Script tab/"], [data-help-key^="Record dialog/"]';
 
 // ---------------------------------------------------------------- popover
 

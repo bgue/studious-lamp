@@ -19,7 +19,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - Optional map under the model (satellite or street map, off by default; sends the project location to the tile server when on) ([map.md](web/docs-features/map.md)).
   - Section box and section plane with caps ([section.md](web/docs-features/section.md)).
   - Cinematic effects: fly-to, tour, sweep and reveal, exploded storeys, bloom, edge glow, depth grading.
-  - Fly-through: keyframes that are saved-view states plus timing (constant speed, holds, ease, fades, captions), edited in a timeline in the Views tab and played by one score player, with a 3D camera-path overlay and webm recording ([flythrough.md](web/docs-features/flythrough.md)).
+  - Fly-through: keyframes that are saved-view states plus timing (constant speed, holds, ease, fades, captions), edited in a timeline in the Views tab and played by one score player, with a 3D camera-path overlay and deterministic frame-by-frame video export (MP4 or WebM through WebCodecs, 1280 x 720 to 4K, 24 to 60 fps, captions and labels included; PNG sequence and real-time recorder as fallbacks), also from the Script tab ([flythrough.md](web/docs-features/flythrough.md)).
   - Animation scripts: a short English-like script (`fly to class IfcPump over 3 seconds`, `hide class IfcSlab fading over 2 seconds`, captions, loops over elements and sets) that animates the camera, settings, visibility and selection, written in the Script tab with live error messages and examples ([animation-script.md](web/docs-features/animation-script.md)).
   - Presets: thirteen named looks on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
   - Top bar: four visualisation modes (Ghost, Radiograph, Glow, Cutaway, keys `Shift+1` to `Shift+4`) that apply built-in presets, and a host for the search bar ([topbar.md](web/docs-features/topbar.md)).
@@ -126,7 +126,7 @@ npm run pack -- Building-Structural.ifc Building-Architecture.ifc Building-Hvac.
 ```
 
 Inputs are `.ifc` / `.ifczip` (federated) or one `.glb`. IFC files are converted in node by the same TypeScript reader the
-browser uses. Options (`--params`, `--preset`, `--select`, `--tools`, `--open-tool`, `--kiosk`, `--camera`, `--ifc-reader`,
+browser uses. Options (`--params`, `--preset`, `--select`, `--tools`, `--open-tool`, `--kiosk`, `--camera`, `--flythroughs`, `--scripts`, `--autoplay`, `--loop`, `--ifc-reader`,
 `--samples`, `--views`, `--open-view`, `--force`, ...), the boot sequence, templates, CI use and limits are in
 [web/docs-features/xray-pack.md](web/docs-features/xray-pack.md).
 

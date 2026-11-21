@@ -90,6 +90,12 @@ export interface XrayBoot {
   views?: unknown;
   /** A saved view (name, id or 1-based position) opened at start, after everything else. */
   openView?: string;
+  /** Fly-throughs (an `xray-flythroughs/1` document) added to the Views tab; a name that exists is not added again (plugins/boot.ts). */
+  flythroughs?: unknown;
+  /** Animation scripts (name and text) added to the Script tab; a name that exists is kept (plugins/boot.ts). */
+  scripts?: Array<{ name: string; text: string }>;
+  /** Play a fly-through or a script by name when the page starts (a kiosk film); `loop` plays it again and again. */
+  autoplay?: { flythrough?: string; script?: string; loop?: boolean };
 }
 
 declare global {

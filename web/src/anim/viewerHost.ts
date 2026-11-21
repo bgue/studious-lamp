@@ -75,6 +75,11 @@ export class ViewerScoreHost implements PlayerHost {
   private pathSpans: Array<[number, number]> = [];
   private pending = new Map<string, { keys: Keys; value: unknown }>();
   private lastParamApply = -Infinity;
+  /**
+   * Deterministic mode (the video export): settings are applied on every flush instead of at most once per PARAM_APPLY_MS of wall
+   * clock, so a frame looks the same however fast or slow the machine runs.
+   */
+  exact = false;
   private forceParams = false;
   private groups = new Set<FadeGroup>();
   private sightlinesDirty = false;
@@ -198,7 +203,7 @@ export class ViewerScoreHost implements PlayerHost {
   }
 
   flush(): void {
-    this.flushParams(performance.now());
+    this.flushParams(this.exact ? Infinity : performance.now());
     this.applyFades();
     if (this.sightlinesDirty) this.flushSightlines();
   }
@@ -423,7 +428,7 @@ export class ViewerScoreHost implements PlayerHost {
       return;
     }
     if (!this.forceParams && now - this.lastParamApply < PARAM_APPLY_MS) return;
-    this.lastParamApply = now;
+    this.lastParamApply = Number.isFinite(now) ? now : -Infinity;
     const items = [...this.pending.values()];
     this.pending.clear();
     const force = this.forceParams;
