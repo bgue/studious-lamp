@@ -1,0 +1,414 @@
+id: https://w3id.org/xray-ref/4d
+name: xray_4d
+title: X-ray 4D linking data
+description: >-
+  Links between a P6 schedule's activities and the elements of an IFC model, and the location / trade / zone assignments of
+  elements that the links are derived from. One LinkDataset ties one model (by its identity key) to one schedule (by its source
+  hash and data date). Designed to round-trip between the viewer and its xray-4d CLI (JSON: links.json, types in
+  web/src/schedule/types.ts) and a SQL or MCP environment where people and agents propose, review and accept assignments
+  (generate tables with gen-sqltables). Activities and elements are referenced by their stable keys: the P6 Activity ID
+  (task_code) and the IFC GlobalId, so a schedule update or a model re-export keeps the links.
+  Design: docs/design/4d-xer-animation.md.
+version: 1.0.0
+license: MIT
+prefixes:
+  linkml: https://w3id.org/linkml/
+  x4d: https://w3id.org/xray-ref/4d/
+  schema: http://schema.org/
+default_prefix: x4d
+default_range: string
+imports:
+  - linkml:types
+
+types:
+  local_datetime:
+    typeof: string
+    description: >-
+      A date and time without a time zone, as P6 writes them (project local time): YYYY-MM-DDTHH:MM[:SS]. Record timestamps
+      (created_at, reviewed_at) are zoned datetimes instead.
+    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?$"
+
+# ---------------------------------------------------------------- classes
+
+classes:
+
+  LinkDataset:
+    tree_root: true
+    description: >-
+      One model, one schedule, and everything that links them. In JSON this is the links file; in SQL each slot holding a
+      list becomes its own table keyed to the dataset.
+    slots:
+      - id
+      - model
+      - schedule
+      - created_at
+      - tool
+      - activities
+      - model_elements
+      - assignments
+      - links
+      - ties
+      - unlinked_activities
+      - unlinked_elements
+
+  ModelRef:
+    description: The IFC model the elements belong to.
+    slots:
+      - identity_key
+      - name
+      - file_name
+      - file_hash
+      - ifc_schema
+    slot_usage:
+      identity_key:
+        identifier: true
+        required: true
+
+  ScheduleRef:
+    description: The schedule the activities belong to (one P6 project of one XER file).
+    slots:
+      - source_hash
+      - project
+      - data_date
+      - file_name
+    slot_usage:
+      source_hash:
+        identifier: true
+        required: true
+      project:
+        required: true
+
+  Activity:
+    description: >-
+      A schedule activity as far as linking needs it. The full schedule stays in the XER; these rows exist so SQL can join and
+      filter (by location, trade, dates) without parsing XER.
+    slots:
+      - task_code
+      - name
+      - wbs_path
+      - activity_type
+      - activity_status
+      - start
+      - finish
+      - location
+      - trade
+      - zone
+      - critical
+    slot_usage:
+      task_code:
+        identifier: true
+        required: true
+
+  Element:
+    description: An IFC element as far as linking needs it, with the attributes read from the model.
+    slots:
+      - global_id
+      - ifc_class
+      - name
+      - storey
+      - location
+      - trade
+      - zone
+      - existing
+    slot_usage:
+      global_id:
+        identifier: true
+        required: true
+
+  Assignment:
+    description: >-
+      One attribute value given to one element (its location, trade or zone), with who or what gave it. The viewer's 4D mapping
+      tool, rules, the classifier and SQL / MCP agents all write these; accepted ones are saved into the IFC (property set
+      Xray_4D) and drive the links.
+    slots:
+      - id
+      - element
+      - attribute
+      - value
+      - source
+      - confidence
+      - reasons
+      - status
+      - reviewed_by
+      - reviewed_at
+      - created_at
+    slot_usage:
+      id:
+        identifier: true
+        required: true
+      element:
+        required: true
+      attribute:
+        required: true
+      value:
+        required: true
+
+  ActivityLink:
+    description: >-
+      Elements built (or removed) by an activity. An element has at most one accepted build link; a removal link may follow it.
+    slots:
+      - id
+      - activity
+      - role
+      - elements
+      - source
+      - confidence
+      - reasons
+      - split
+      - rule
+      - status
+      - reviewed_by
+      - reviewed_at
+      - created_at
+    slot_usage:
+      id:
+        identifier: true
+        required: true
+      activity:
+        required: true
+      role:
+        required: true
+      elements:
+        required: true
+        minimum_cardinality: 1
+
+  Tie:
+    description: An element that two or more activities would build with equal specificity; left for a person to decide.
+    slots:
+      - element
+      - candidates
+    slot_usage:
+      element:
+        required: true
+      candidates:
+        minimum_cardinality: 2
+
+# ---------------------------------------------------------------- slots
+
+slots:
+
+  id:
+    identifier: true
+    description: Unique key of the record (a UUID or any stable string).
+  created_at:
+    range: datetime
+  tool:
+    description: The program and version that wrote the dataset (xray-4d 1.0, viewer 25, an MCP server name).
+
+  model:
+    range: ModelRef
+    inlined: true
+    required: true
+  schedule:
+    range: ScheduleRef
+    inlined: true
+    required: true
+
+  activities:
+    range: Activity
+    multivalued: true
+    inlined_as_list: true
+  model_elements:
+    description: The elements of the model that linking considers (inlined rows).
+    range: Element
+    multivalued: true
+    inlined_as_list: true
+  elements:
+    description: The elements that the activity builds or removes (references by GlobalId).
+    range: Element
+    multivalued: true
+    inlined: false
+    pattern: "^[0-9A-Za-z_$]{22}$"
+  assignments:
+    range: Assignment
+    multivalued: true
+    inlined_as_list: true
+  links:
+    range: ActivityLink
+    multivalued: true
+    inlined_as_list: true
+  ties:
+    range: Tie
+    multivalued: true
+    inlined_as_list: true
+  unlinked_activities:
+    description: Activities that should build something but have no accepted link.
+    range: Activity
+    multivalued: true
+  unlinked_elements:
+    description: Elements that are not existing and have no accepted build link.
+    range: Element
+    multivalued: true
+
+  identity_key:
+    description: The viewer's model identity key (file names and sizes, or a content hash), the same in every tool.
+  name:
+  file_name:
+  file_hash:
+    description: SHA-256 of the file, hex.
+    pattern: "^[0-9a-f]{64}$"
+  ifc_schema:
+    range: IfcSchemaVersion
+
+  source_hash:
+    description: SHA-256 of the XER file, hex.
+    pattern: "^[0-9a-f]{64}$"
+  project:
+    description: The P6 project short name.
+  data_date:
+    description: The schedule's data date (P6 last_recalc_date), local time without a zone.
+    range: local_datetime
+
+  task_code:
+    description: The P6 Activity ID (task_code).
+  wbs_path:
+    description: WBS short names from the top down, joined with "/".
+  activity_type:
+    range: ActivityType
+  status:
+    description: The review state of an assignment or a link.
+    range: ReviewStatus
+  activity_status:
+    description: The P6 status of the activity.
+    range: ActivityStatus
+  start:
+    description: The activity's start in the dates the dataset was made from (planned or actual), local time.
+    range: local_datetime
+  finish:
+    range: local_datetime
+  critical:
+    range: boolean
+
+  global_id:
+    description: The IFC GlobalId (22 characters, IFC base-64).
+    pattern: "^[0-9A-Za-z_$]{22}$"
+  ifc_class:
+    description: The IFC entity, e.g. IfcSlab.
+    pattern: "^Ifc[A-Za-z]+$"
+  storey:
+    description: The name of the IfcBuildingStorey that contains the element.
+  location:
+    description: Location value (schedule side after value mapping, or model side), e.g. "Level 3".
+  trade:
+    description: Trade value, e.g. "CONC".
+  zone:
+    description: Zone or area value, e.g. "A".
+  existing:
+    description: The element exists before the job starts (never animated in).
+    range: boolean
+
+  element:
+    description: An element, by GlobalId.
+    range: Element
+    pattern: "^[0-9A-Za-z_$]{22}$"
+  attribute:
+    range: AttributeKind
+  value:
+    description: The assigned value.
+  candidates:
+    range: Activity
+    multivalued: true
+  activity:
+    range: Activity
+  role:
+    range: LinkRole
+  source:
+    range: LinkSource
+  confidence:
+    range: float
+    minimum_value: 0
+    maximum_value: 1
+  reasons:
+    description: Human-readable evidence, one per line ("Level 3 from code Level=L03").
+    multivalued: true
+  split:
+    range: SplitRule
+  rule:
+    description: The mapping rule or query that made the link (for attribute and suggested links).
+  reviewed_by:
+    description: >-
+      Who accepted or rejected the record. Personal data: kept in the dataset only, never written into share links or packed
+      pages, and into the IFC only by explicit opt-in (like reviewer names in Xray_Review).
+  reviewed_at:
+    range: datetime
+
+# ---------------------------------------------------------------- enums
+
+enums:
+
+  LinkRole:
+    permissible_values:
+      build:
+        description: The activity constructs or installs the elements.
+      remove:
+        description: The activity demolishes or removes the elements.
+
+  LinkSource:
+    permissible_values:
+      native:
+        description: IfcTask with IfcRelAssignsToProcess in the IFC.
+      property:
+        description: An element property holds the activity ID.
+      attributes:
+        description: Location, trade and zone of the activity matched those of the elements (the mapping configuration).
+      override:
+        description: An explicit query or element list for this activity in the configuration.
+      suggested:
+        description: Proposed from the activity name and WBS; needs review.
+      manual:
+        description: Made by a person in the viewer or in SQL.
+      agent:
+        description: Proposed by an automated agent (for example over MCP); needs review unless its confidence policy allows.
+      classifier:
+        description: From the viewer's classifier (trade from discipline); assignments only.
+
+  ReviewStatus:
+    permissible_values:
+      proposed:
+      accepted:
+      rejected:
+      superseded:
+        description: Replaced by a newer record for the same element and attribute (or activity and role).
+
+  ActivityStatus:
+    permissible_values:
+      notStarted:
+      active:
+      complete:
+
+  AttributeKind:
+    permissible_values:
+      location:
+      trade:
+      zone:
+
+  ActivityType:
+    permissible_values:
+      task:
+      resource:
+      milestone:
+      finishMilestone:
+      loe:
+        description: Level of effort; never drives geometry.
+      wbsSummary:
+        description: WBS summary; never drives geometry.
+      other:
+
+  SplitRule:
+    description: How the elements of one activity appear over its duration.
+    permissible_values:
+      none:
+      sweep_x:
+      sweep_minus_x:
+      sweep_y:
+      sweep_minus_y:
+      sweep_z:
+      sweep_minus_z:
+      by_storey:
+      by_name:
+
+  IfcSchemaVersion:
+    permissible_values:
+      IFC2X3:
+      IFC4:
+      IFC4X3:

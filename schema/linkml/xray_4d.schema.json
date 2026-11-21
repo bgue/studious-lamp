@@ -1,0 +1,714 @@
+{
+    "$defs": {
+        "Activity": {
+            "additionalProperties": false,
+            "description": "A schedule activity as far as linking needs it. The full schedule stays in the XER; these rows exist so SQL can join and filter (by location, trade, dates) without parsing XER.",
+            "properties": {
+                "activity_status": {
+                    "$ref": "#/$defs/ActivityStatus",
+                    "description": "The P6 status of the activity."
+                },
+                "activity_type": {
+                    "$ref": "#/$defs/ActivityType"
+                },
+                "critical": {
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "finish": {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "location": {
+                    "description": "Location value (schedule side after value mapping, or model side), e.g. \"Level 3\".",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "start": {
+                    "description": "The activity's start in the dates the dataset was made from (planned or actual), local time.",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "task_code": {
+                    "description": "The P6 Activity ID (task_code).",
+                    "type": "string"
+                },
+                "trade": {
+                    "description": "Trade value, e.g. \"CONC\".",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "wbs_path": {
+                    "description": "WBS short names from the top down, joined with \"/\".",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "zone": {
+                    "description": "Zone or area value, e.g. \"A\".",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "task_code"
+            ],
+            "title": "Activity",
+            "type": "object"
+        },
+        "ActivityLink": {
+            "additionalProperties": false,
+            "description": "Elements built (or removed) by an activity. An element has at most one accepted build link; a removal link may follow it.",
+            "properties": {
+                "activity": {
+                    "type": "string"
+                },
+                "confidence": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "elements": {
+                    "description": "The elements that the activity builds or removes (references by GlobalId).",
+                    "items": {
+                        "pattern": "^[0-9A-Za-z_$]{22}$",
+                        "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                },
+                "id": {
+                    "description": "Unique key of the record (a UUID or any stable string).",
+                    "type": "string"
+                },
+                "reasons": {
+                    "description": "Human-readable evidence, one per line (\"Level 3 from code Level=L03\").",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "reviewed_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reviewed_by": {
+                    "description": "Who accepted or rejected the record. Personal data: kept in the dataset only, never written into share links or packed pages, and into the IFC only by explicit opt-in (like reviewer names in Xray_Review).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "role": {
+                    "$ref": "#/$defs/LinkRole"
+                },
+                "rule": {
+                    "description": "The mapping rule or query that made the link (for attribute and suggested links).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "source": {
+                    "$ref": "#/$defs/LinkSource"
+                },
+                "split": {
+                    "$ref": "#/$defs/SplitRule"
+                },
+                "status": {
+                    "$ref": "#/$defs/ReviewStatus",
+                    "description": "The review state of an assignment or a link."
+                }
+            },
+            "required": [
+                "id",
+                "activity",
+                "role",
+                "elements"
+            ],
+            "title": "ActivityLink",
+            "type": "object"
+        },
+        "ActivityStatus": {
+            "description": "",
+            "enum": [
+                "notStarted",
+                "active",
+                "complete"
+            ],
+            "title": "ActivityStatus",
+            "type": "string"
+        },
+        "ActivityType": {
+            "description": "",
+            "enum": [
+                "task",
+                "resource",
+                "milestone",
+                "finishMilestone",
+                "loe",
+                "wbsSummary",
+                "other"
+            ],
+            "title": "ActivityType",
+            "type": "string"
+        },
+        "Assignment": {
+            "additionalProperties": false,
+            "description": "One attribute value given to one element (its location, trade or zone), with who or what gave it. The viewer's 4D mapping tool, rules, the classifier and SQL / MCP agents all write these; accepted ones are saved into the IFC (property set Xray_4D) and drive the links.",
+            "properties": {
+                "attribute": {
+                    "$ref": "#/$defs/AttributeKind"
+                },
+                "confidence": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "element": {
+                    "description": "An element, by GlobalId.",
+                    "pattern": "^[0-9A-Za-z_$]{22}$",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Unique key of the record (a UUID or any stable string).",
+                    "type": "string"
+                },
+                "reasons": {
+                    "description": "Human-readable evidence, one per line (\"Level 3 from code Level=L03\").",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "reviewed_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reviewed_by": {
+                    "description": "Who accepted or rejected the record. Personal data: kept in the dataset only, never written into share links or packed pages, and into the IFC only by explicit opt-in (like reviewer names in Xray_Review).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "source": {
+                    "$ref": "#/$defs/LinkSource"
+                },
+                "status": {
+                    "$ref": "#/$defs/ReviewStatus",
+                    "description": "The review state of an assignment or a link."
+                },
+                "value": {
+                    "description": "The assigned value.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id",
+                "element",
+                "attribute",
+                "value"
+            ],
+            "title": "Assignment",
+            "type": "object"
+        },
+        "AttributeKind": {
+            "description": "",
+            "enum": [
+                "location",
+                "trade",
+                "zone"
+            ],
+            "title": "AttributeKind",
+            "type": "string"
+        },
+        "Element": {
+            "additionalProperties": false,
+            "description": "An IFC element as far as linking needs it, with the attributes read from the model.",
+            "properties": {
+                "existing": {
+                    "description": "The element exists before the job starts (never animated in).",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "global_id": {
+                    "description": "The IFC GlobalId (22 characters, IFC base-64).",
+                    "pattern": "^[0-9A-Za-z_$]{22}$",
+                    "type": "string"
+                },
+                "ifc_class": {
+                    "description": "The IFC entity, e.g. IfcSlab.",
+                    "pattern": "^Ifc[A-Za-z]+$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "location": {
+                    "description": "Location value (schedule side after value mapping, or model side), e.g. \"Level 3\".",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "storey": {
+                    "description": "The name of the IfcBuildingStorey that contains the element.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "trade": {
+                    "description": "Trade value, e.g. \"CONC\".",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "zone": {
+                    "description": "Zone or area value, e.g. \"A\".",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "global_id"
+            ],
+            "title": "Element",
+            "type": "object"
+        },
+        "IfcSchemaVersion": {
+            "description": "",
+            "enum": [
+                "IFC2X3",
+                "IFC4",
+                "IFC4X3"
+            ],
+            "title": "IfcSchemaVersion",
+            "type": "string"
+        },
+        "LinkDataset": {
+            "additionalProperties": false,
+            "description": "One model, one schedule, and everything that links them. In JSON this is the links file; in SQL each slot holding a list becomes its own table keyed to the dataset.",
+            "properties": {
+                "activities": {
+                    "items": {
+                        "$ref": "#/$defs/Activity"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "assignments": {
+                    "items": {
+                        "$ref": "#/$defs/Assignment"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "Unique key of the record (a UUID or any stable string).",
+                    "type": "string"
+                },
+                "links": {
+                    "items": {
+                        "$ref": "#/$defs/ActivityLink"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "model": {
+                    "$ref": "#/$defs/ModelRef"
+                },
+                "model_elements": {
+                    "description": "The elements of the model that linking considers (inlined rows).",
+                    "items": {
+                        "$ref": "#/$defs/Element"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "schedule": {
+                    "$ref": "#/$defs/ScheduleRef"
+                },
+                "ties": {
+                    "items": {
+                        "$ref": "#/$defs/Tie"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "tool": {
+                    "description": "The program and version that wrote the dataset (xray-4d 1.0, viewer 25, an MCP server name).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "unlinked_activities": {
+                    "description": "Activities that should build something but have no accepted link.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "unlinked_elements": {
+                    "description": "Elements that are not existing and have no accepted build link.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id",
+                "model",
+                "schedule"
+            ],
+            "title": "LinkDataset",
+            "type": "object"
+        },
+        "LinkRole": {
+            "description": "",
+            "enum": [
+                "build",
+                "remove"
+            ],
+            "title": "LinkRole",
+            "type": "string"
+        },
+        "LinkSource": {
+            "description": "",
+            "enum": [
+                "native",
+                "property",
+                "attributes",
+                "override",
+                "suggested",
+                "manual",
+                "agent",
+                "classifier"
+            ],
+            "title": "LinkSource",
+            "type": "string"
+        },
+        "ModelRef": {
+            "additionalProperties": false,
+            "description": "The IFC model the elements belong to.",
+            "properties": {
+                "file_hash": {
+                    "description": "SHA-256 of the file, hex.",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "file_name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "identity_key": {
+                    "description": "The viewer's model identity key (file names and sizes, or a content hash), the same in every tool.",
+                    "type": "string"
+                },
+                "ifc_schema": {
+                    "$ref": "#/$defs/IfcSchemaVersion"
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "identity_key"
+            ],
+            "title": "ModelRef",
+            "type": "object"
+        },
+        "ReviewStatus": {
+            "description": "",
+            "enum": [
+                "proposed",
+                "accepted",
+                "rejected",
+                "superseded"
+            ],
+            "title": "ReviewStatus",
+            "type": "string"
+        },
+        "ScheduleRef": {
+            "additionalProperties": false,
+            "description": "The schedule the activities belong to (one P6 project of one XER file).",
+            "properties": {
+                "data_date": {
+                    "description": "The schedule's data date (P6 last_recalc_date), local time without a zone.",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "file_name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "project": {
+                    "description": "The P6 project short name.",
+                    "type": "string"
+                },
+                "source_hash": {
+                    "description": "SHA-256 of the XER file, hex.",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "source_hash",
+                "project"
+            ],
+            "title": "ScheduleRef",
+            "type": "object"
+        },
+        "SplitRule": {
+            "description": "How the elements of one activity appear over its duration.",
+            "enum": [
+                "none",
+                "sweep_x",
+                "sweep_minus_x",
+                "sweep_y",
+                "sweep_minus_y",
+                "sweep_z",
+                "sweep_minus_z",
+                "by_storey",
+                "by_name"
+            ],
+            "title": "SplitRule",
+            "type": "string"
+        },
+        "Tie": {
+            "additionalProperties": false,
+            "description": "An element that two or more activities would build with equal specificity; left for a person to decide.",
+            "properties": {
+                "candidates": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 2,
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "element": {
+                    "description": "An element, by GlobalId.",
+                    "pattern": "^[0-9A-Za-z_$]{22}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "element"
+            ],
+            "title": "Tie",
+            "type": "object"
+        }
+    },
+    "$id": "https://w3id.org/xray-ref/4d",
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "additionalProperties": true,
+    "description": "One model, one schedule, and everything that links them. In JSON this is the links file; in SQL each slot holding a list becomes its own table keyed to the dataset.",
+    "metamodel_version": "1.11.0",
+    "properties": {
+        "activities": {
+            "items": {
+                "$ref": "#/$defs/Activity"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "assignments": {
+            "items": {
+                "$ref": "#/$defs/Assignment"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "created_at": {
+            "format": "date-time",
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "id": {
+            "description": "Unique key of the record (a UUID or any stable string).",
+            "type": "string"
+        },
+        "links": {
+            "items": {
+                "$ref": "#/$defs/ActivityLink"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "model": {
+            "$ref": "#/$defs/ModelRef"
+        },
+        "model_elements": {
+            "description": "The elements of the model that linking considers (inlined rows).",
+            "items": {
+                "$ref": "#/$defs/Element"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "schedule": {
+            "$ref": "#/$defs/ScheduleRef"
+        },
+        "ties": {
+            "items": {
+                "$ref": "#/$defs/Tie"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "tool": {
+            "description": "The program and version that wrote the dataset (xray-4d 1.0, viewer 25, an MCP server name).",
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "unlinked_activities": {
+            "description": "Activities that should build something but have no accepted link.",
+            "items": {
+                "type": "string"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "unlinked_elements": {
+            "description": "Elements that are not existing and have no accepted build link.",
+            "items": {
+                "type": "string"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        }
+    },
+    "required": [
+        "id",
+        "model",
+        "schedule"
+    ],
+    "title": "xray_4d",
+    "type": "object",
+    "version": "1.0.0"
+}
+

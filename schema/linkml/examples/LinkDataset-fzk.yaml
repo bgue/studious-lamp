@@ -1,0 +1,89 @@
+# A small example: FZK-Haus, two activities, mapping-tool assignments, one proposed link from an agent, one tie.
+id: fzk-haus-2027-03-14
+created_at: "2027-03-14T09:00:00Z"
+tool: xray-4d 1.0
+model:
+  identity_key: "file:AC20-FZK-Haus.ifc|2550983"
+  name: AC20-FZK-Haus
+  file_name: AC20-FZK-Haus.ifc
+  ifc_schema: IFC4
+schedule:
+  source_hash: 3f5a1c9e0b7d4e2f8a6c1b3d5e7f9a0b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f
+  project: FZK-DEMO
+  data_date: "2027-03-14T08:00:00"
+  file_name: fzk-demo.xer
+activities:
+  - task_code: A1010
+    name: Ground floor slab pour
+    wbs_path: FZK/EG/STR
+    activity_type: task
+    activity_status: complete
+    start: "2027-02-01T08:00:00"
+    finish: "2027-02-05T17:00:00"
+    location: Erdgeschoss
+    trade: CONC
+  - task_code: A1020
+    name: Ground floor walls
+    wbs_path: FZK/EG/STR
+    activity_type: task
+    activity_status: active
+    start: "2027-02-08T08:00:00"
+    finish: "2027-03-19T17:00:00"
+    location: Erdgeschoss
+    trade: MASONRY
+    critical: true
+model_elements:
+  - global_id: 2O2Fr$t4X7Zf8NOew3FLOH
+    ifc_class: IfcSlab
+    name: Bodenplatte
+    storey: Erdgeschoss
+    location: Erdgeschoss
+    trade: CONC
+  - global_id: 1hOSvn6df7F8_7GcBWlRGQ
+    ifc_class: IfcWallStandardCase
+    name: Wand-Ext-ERDG-1
+    storey: Erdgeschoss
+    location: Erdgeschoss
+    trade: MASONRY
+  - global_id: 0DWgwt6o1FOx7466fPk$jl
+    ifc_class: IfcWallStandardCase
+    name: Wand-Int-ERDG-4
+    storey: Erdgeschoss
+assignments:
+  - id: as-001
+    element: 2O2Fr$t4X7Zf8NOew3FLOH
+    attribute: trade
+    value: CONC
+    source: manual
+    confidence: 1
+    status: accepted
+  - id: as-002
+    element: 1hOSvn6df7F8_7GcBWlRGQ
+    attribute: trade
+    value: MASONRY
+    source: classifier
+    confidence: 0.86
+    reasons: ["discipline Architecture, class IfcWallStandardCase"]
+    status: accepted
+links:
+  - id: ln-001
+    activity: A1010
+    role: build
+    elements: [2O2Fr$t4X7Zf8NOew3FLOH]
+    source: attributes
+    confidence: 1
+    reasons: ["location Erdgeschoss from WBS level 1 'EG'", "trade CONC from code Trade=CONC"]
+    split: sweep_x
+    status: accepted
+  - id: ln-002
+    activity: A1020
+    role: build
+    elements: [1hOSvn6df7F8_7GcBWlRGQ]
+    source: agent
+    confidence: 0.72
+    reasons: ["name 'walls' matches IfcWallStandardCase", "storey Erdgeschoss matches WBS 'EG'"]
+    status: proposed
+ties:
+  - element: 0DWgwt6o1FOx7466fPk$jl
+    candidates: [A1020, A1010]
+unlinked_elements: [0DWgwt6o1FOx7466fPk$jl]

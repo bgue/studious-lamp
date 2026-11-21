@@ -27,7 +27,10 @@ export type ElementRef =
   | { query: string }
   | { set: string }
   | { selection: true }
-  | { all: true };
+  | { all: true }
+  /** 4D (additive): elements in a state of the running `schedule4d` cue at this moment; resolved each time the cue runs, not at
+   *  play start. Without a running schedule they are empty. */
+  | { schedule: 'active' | 'completed' | 'critical' | 'future' };
 
 export interface CameraPose {
   position: V3;
@@ -95,7 +98,21 @@ export type Cue =
   | (CueBase & { kind: 'caption'; title?: string; text?: string })
   /** HUD labels pinned to elements (phase 2 draws them; a player without a HUD skips the cue). */
   | (CueBase & { kind: 'label'; elements: ElementRef; fields: string[] })
-  | (CueBase & { kind: 'hover'; elements: ElementRef });
+  | (CueBase & { kind: 'hover'; elements: ElementRef })
+  // ---- 4D (additive; docs/design/4d-xer-animation.md, types in src/schedule/types.ts)
+  /** Play a 4D plan over the cue: plan time maps to the cue through plan.timeMap (scaled to the cue's dur). Each frame the player
+   *  sets every planned element's visibility, alpha (fades), tint (trade colour while active) and glow from its state at that
+   *  plan time; the HUD reads the date and progress. `plan` inline, or by name from the 4D store. */
+  | (CueBase & { kind: 'schedule4d'; plan: import('../schedule/types').FourDPlan | { name: string } })
+  /** Tint elements with a colour (#rrggbb), fading over the cue; null removes the tint. */
+  | (CueBase & { kind: 'tint'; elements: ElementRef; colour: string | null })
+  /** Explode by storey or radially (the cinematic explode), eased over the cue; factor default 1. */
+  | (CueBase & { kind: 'explode'; mode: 'storeys' | 'radial'; factor?: number })
+  | (CueBase & { kind: 'collapse' })
+  /** The x-ray focus set: these elements (occluders in front of them ghost); null gives the focus back to the selection. */
+  | (CueBase & { kind: 'focus'; elements: ElementRef | null })
+  /** A section box around elements or a storey (margin in metres), or off (null), eased over the cue. */
+  | (CueBase & { kind: 'sectionBox'; around: ElementRef | { storey: string } | null; margin?: number });
 
 export type CueKind = Cue['kind'];
 

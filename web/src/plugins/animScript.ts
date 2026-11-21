@@ -143,6 +143,7 @@ export const animScriptPlugin: AppPlugin = {
         const r = runQuery(model, ref.query);
         return r.error ? null : gidsOf(r.ids);
       }
+      if ('schedule' in ref) return null; // the elements of a running 4D schedule are known only while it plays
       const s = sets().find((x) => x.name === ref.set);
       if (!s) return [];
       if (isCriteria(s)) {

@@ -1,6 +1,7 @@
 # 4D from a P6 schedule: XER → model links → animation
 
-Status: design, not built. Builds on the score player, the HUD, frame-by-frame export, the animation script language, the
+Status: design agreed (answers in section 10), contracts written (`web/src/schedule/types.ts`, the 4D cue kinds in
+`web/src/anim/score.ts`, the LinkML schema `schema/linkml/xray_4d.yaml`), build starting. Builds on the score player, the HUD, frame-by-frame export, the animation script language, the
 criteria query language, the classifier, explode, x-ray focus and xray-pack.
 
 ## 1. Goal
@@ -113,10 +114,13 @@ reason for every link so a person can check it.
   slabs and facades), `split: by storey` (bottom up), `split: by name` (pour 1, pour 2 ...), or `split: none`.
 - **Context.** Elements no activity builds are either existing (`--existing` query: shown from the start as solid
   context) or unplanned (shown ghosted from the start and listed in the report).
-- **Output.** `links.json`: `{ schema: "xray-4d-links/1", model: identity, schedule: { project, dataDate, file hash },
-  links: [{ task_code, role: build|temp|remove, globalIds[], source: native|property|rule|suggested|manual, rule?,
-  confidence, reasons[] }], unlinked: { elements[], activities[] } }`. Stable under re-export (keys are GlobalId and
-  task_code), so a new XER update re-uses the links and only new activities need work.
+- **Output.** `links.json` is a `LinkDataset` of the LinkML schema `schema/linkml/xray_4d.yaml`: the model and schedule
+  references, activity and element rows, element **assignments** (location / trade / zone with source, confidence,
+  reasons, review status), **activity links** (activity, role build|remove, element GlobalIds, source, confidence,
+  reasons, split, review status) and ties. The same schema generates SQL tables (`xray_4d.sql`) so assignment and
+  linking can be done in a SQL / MCP environment by people and agents (`status: proposed` → `accepted`), and a JSON
+  Schema the viewer and the CLI validate against. Keys are GlobalId and task_code, so a new XER or a re-exported IFC
+  keeps the work.
 - **Report.** `link-report.html`: coverage by WBS and by trade (elements linked, activities linked), activities with
   no elements, elements with no activity (grouped by class and storey, each group with the query that selects it so
   it can go straight into `map.yaml`), ties, low-confidence suggestions.
@@ -303,7 +307,19 @@ xray-4d all    model.ifc schedule.xer --map map.yaml -o out/   # every step, sto
 The contract (cue kinds, `build.4d.json` and `links.json` schemas) is written first, like `score.ts` and `hud.ts`, so
 A, B and E can start in parallel.
 
-## 10. Open questions
+## 10. Answers (2026-11-21)
+
+1. XER mapping is configurable (which activity codes, user fields or WBS levels mean location, trade and zone:
+   `FourDConfig.schedule`). Models are not mapped yet, so the viewer gets a **4D mapping tool**: assign location, trade
+   and zone to elements (by selection, by query, by storey, from the classifier's discipline as a suggestion), review,
+   and save into the IFC (`Xray_4D` property set: Location, Trade, Zone; ActivityIds once linked) through the
+   append-only save, read back on load.
+2. View configurable, default **planned**; unbuilt elements configurable **hidden or ghosted**.
+3. Film style configurable, including a **short lookahead** (e.g. six weeks from the data date, the past shown built).
+4. Temporary works: not in the models yet; out of scope for now (the `removed` state stays for demolition).
+5. Write-back **yes**, for reloading later: `Xray_4D` properties and `IfcTask` + `IfcTaskTime` + `IfcRelAssignsToProcess`.
+
+## 11. Earlier open questions
 
 1. A real XER (even a trimmed one) and its model: how do your schedules describe location and trade (activity codes?
    WBS? names?), and does any model carry activity ids?
