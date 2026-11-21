@@ -385,6 +385,7 @@ export class XrayRenderer {
       fogRange: { value: new Vector3(0, 1, 0) },
       glowColor: { value: new Vector3(1, 0.6, 0.15) },
       glowStrength: { value: 0.3 },
+      glowAccent: { value: new Vector3(1, 0.18, 0.18) },
       glowRes: { value: new Vector2(1, 1) },
       oitFlat: { value: 0 },
       vmAny: { value: 0 },
@@ -1096,12 +1097,21 @@ export class XrayRenderer {
     this.markDirty();
   }
 
-  setEdgeGlow(ids: ReadonlySet<number> | null, color: [number, number, number] = [1, 0.6, 0.15], opts: { strength?: number; additive?: boolean } = {}): void {
+  setEdgeGlow(
+    ids: ReadonlySet<number> | null,
+    color: [number, number, number] = [1, 0.6, 0.15],
+    opts: { strength?: number; additive?: boolean; accent?: { ids: Iterable<number>; color: [number, number, number] } } = {},
+  ): void {
     const on = ids !== null && ids.size > 0;
     if (on) {
       const mask = this.glowMask && this.glowMask.length === this.n ? this.glowMask : new Uint8Array(this.n);
       mask.fill(0);
       for (const id of ids!) if (id >= 0 && id < this.n) mask[id] = 1;
+      // 4D: elements of `accent` glow in their own colour (mask value 2), e.g. critical work in red.
+      if (opts.accent) {
+        for (const id of opts.accent.ids) if (id >= 0 && id < this.n) mask[id] = 2;
+        (this.shared.glowAccent!.value as Vector3).set(opts.accent.color[0], opts.accent.color[1], opts.accent.color[2]);
+      }
       this.glowMask = mask;
     } else {
       this.glowMask = null;

@@ -27,8 +27,16 @@ import type { Keys } from './blend';
 import type { CameraPose, Cue, ElementRef, Score, V3, ViewState } from './score';
 import type { CueRunner, PlayerHost } from './player';
 import { getHudLayer } from './hud';
+import { collapseRunner, explodeRunner, focusRunner, sectionRunner, tintRunner } from './fourd/cues';
+import { resolvePlan } from './fourd/plans';
+import { Schedule4dRunner } from './fourd/runner';
+import { ViewerLookSink } from './fourd/viewerSink';
+import { ViewerExplode, ViewerFocus, ViewerSection } from './fourd/viewerTargets';
+import type { FourDPlan } from '../schedule/types';
 
 const PARAM_APPLY_MS = 50;
+/** 4D: the x-ray sightlines run again at most this often (ms) while the hidden set changes (a video export: every frame). */
+const FOURD_SIGHTLINES_MS = 400;
 
 type Cam = ViewCamera;
 interface Snapshot {
@@ -86,8 +94,26 @@ export class ViewerScoreHost implements PlayerHost {
   private sightlinesDirty = false;
   private camSetup = false;
   readonly warned = new Set<string>();
+  // ---- 4D (src/anim/fourd)
+  private readonly sink: ViewerLookSink;
+  private readonly explode4d: ViewerExplode;
+  private readonly section4d: ViewerSection;
+  private readonly focus4d: ViewerFocus;
+  /** The schedule4d runner that started last: the dynamic element references (`{ schedule }`) read its states. */
+  private schedule: Schedule4dRunner | null = null;
+  private planIds = new Map<FourDPlan, Int32Array>();
+  private fourdSightDirty = false;
+  private lastFourdSight = -Infinity;
 
-  constructor(private readonly app: ViewerApp) {}
+  constructor(private readonly app: ViewerApp) {
+    this.sink = new ViewerLookSink(app, {
+      sightlinesDirty: () => void (this.fourdSightDirty = true),
+      select: (ids) => this.selectIds(ids),
+    });
+    this.explode4d = new ViewerExplode(app);
+    this.section4d = new ViewerSection(app);
+    this.focus4d = new ViewerFocus((ids) => this.selectIds(ids), () => (this.snap ? this.snap.selection.filter((id) => id < this.model.elements.length) : []));
+  }
 
   private get model() {
     return this.app.controller.model;
@@ -121,6 +147,11 @@ export class ViewerScoreHost implements PlayerHost {
     this.forceParams = false;
     this.camSetup = false;
     this.pathSpans = [];
+    this.schedule = null;
+    this.fourdSightDirty = false;
+    this.planIds.clear();
+    this.sink.begin();
+    this.section4d.begin();
     getHudLayer()?.setScore?.(score);
     score.cues.forEach((c, i) => {
       if (c.kind === 'cameraPath') this.pathSpans.push([c.at, c.at + c.dur]);
@@ -156,6 +187,11 @@ export class ViewerScoreHost implements PlayerHost {
     this.forceParams = false;
     this.sightlinesDirty = false;
     this.snap = null;
+    this.schedule?.abandon();
+    this.schedule = null;
+    this.sink.abandon();
+    this.explode4d.abandon();
+    this.section4d.abandon();
     getHudLayer()?.setScore?.(null);
     const cin = getCinematic();
     if (cin) {
@@ -167,6 +203,13 @@ export class ViewerScoreHost implements PlayerHost {
   restore(keepCamera: boolean): void {
     const s = this.snap;
     if (!s) return;
+    // 4D first: hides, alphas, tints, glow, explode offsets and the section box go back before the saved state is applied.
+    if (this.schedule) this.schedule.restore();
+    this.schedule = null;
+    this.sink.reset();
+    this.explode4d.clear();
+    this.section4d.restore();
+    this.fourdSightDirty = false;
     const app = this.app;
     const cin = getCinematic();
     const model = this.model;
@@ -204,7 +247,33 @@ export class ViewerScoreHost implements PlayerHost {
   flush(): void {
     this.flushParams(this.exact ? Infinity : performance.now());
     this.applyFades();
+    this.sink.applyFrame();
+    if (this.fourdSightDirty) {
+      const now = performance.now();
+      if (this.exact || now - this.lastFourdSight >= FOURD_SIGHTLINES_MS) {
+        this.lastFourdSight = now;
+        this.fourdSightDirty = false;
+        this.sightlinesDirty = true;
+      }
+    }
     if (this.sightlinesDirty) this.flushSightlines();
+  }
+
+  /** 4D: what the running schedule has done to the viewer (window.__xray4d.live). */
+  fourdLive(): { planMs: number | null; progress: number | null; hidden: number; alphaOverrides: number; tinted: number; glow: number; active: number; completed: number } {
+    const r = this.schedule;
+    return {
+      planMs: r && Number.isFinite(r.planTime) ? r.planTime : null,
+      progress: r && Number.isFinite(r.progress) ? r.progress : null,
+      ...this.sink.stats(),
+      active: r ? r.idsIn('active').length : 0,
+      completed: r ? r.idsIn('completed').length : 0,
+    };
+  }
+
+  /** 4D: write the alpha, tint and glow overrides again (the frame loop calls it after the controller step, so the x-ray smoothing does not undo them). */
+  applyFrame(): void {
+    this.sink.applyFrame();
   }
 
   /** Re-write the fade alphas (the frame loop calls it while paused, when no tick runs). */
@@ -225,7 +294,10 @@ export class ViewerScoreHost implements PlayerHost {
     const pre = (ref: ElementRef | null | undefined, field: string): void => {
       if (ref) this.resolveRef(ref, `${index}:${field}`);
     };
-    if (c.kind === 'visibility') {
+    if (c.kind === 'schedule4d') {
+      const plan = resolvePlan(c.plan);
+      if (plan) this.idsOfPlan(plan);
+    } else if (c.kind === 'visibility') {
       pre(c.show, 'show');
       pre(c.hide, 'hide');
       pre(c.isolate, 'isolate');
@@ -240,6 +312,8 @@ export class ViewerScoreHost implements PlayerHost {
   /** The element ids of a reference. A query, a set and a list are resolved once per play; `selection` is read when asked. */
   resolveRef(ref: ElementRef, key: string): ElementId[] {
     if ('selection' in ref) return [...this.app.controller.selection];
+    // 4D: the elements in a state of the running schedule right now (empty without one); never cached.
+    if ('schedule' in ref) return this.schedule?.idsIn(ref.schedule) ?? [];
     const hit = this.refs.get(key);
     if (hit) return hit;
     const model = this.model;
@@ -664,6 +738,33 @@ export class ViewerScoreHost implements PlayerHost {
     return { update: () => undefined };
   }
 
+  // ---------------------------------------------------------------- 4D
+
+  private readonly env4d = { resolve: (ref: ElementRef, key: string): ElementId[] => this.resolveRef(ref, key) };
+
+  /** Model element id per plan element (matched by GlobalId once per play), -1 where the model has none. */
+  private idsOfPlan(plan: FourDPlan): Int32Array {
+    let ids = this.planIds.get(plan);
+    if (!ids) {
+      const by = this.model.byGlobalId;
+      ids = new Int32Array(plan.elements.length);
+      plan.elements.forEach((e, i) => (ids![i] = by.get(e.globalId) ?? -1));
+      this.planIds.set(plan, ids);
+    }
+    return ids;
+  }
+
+  private scheduleRunner(cue: Extract<Cue, { kind: 'schedule4d' }>): CueRunner | null {
+    const plan = resolvePlan(cue.plan);
+    if (!plan) {
+      this.warnOnce('plan', `Score: no 4D plan named "${'name' in cue.plan ? cue.plan.name : ''}".`);
+      return null;
+    }
+    const runner = new Schedule4dRunner({ plan, ids: this.idsOfPlan(plan), sink: this.sink, cueDur: cue.dur });
+    this.schedule = runner;
+    return runner;
+  }
+
   // ---------------------------------------------------------------- cue dispatch
 
   start(cue: Cue, index: number): CueRunner | null {
@@ -686,6 +787,18 @@ export class ViewerScoreHost implements PlayerHost {
       case 'label':
       case 'hover':
         return this.hudRunner();
+      case 'schedule4d':
+        return this.scheduleRunner(cue);
+      case 'tint':
+        return tintRunner(cue, index, this.env4d, this.sink);
+      case 'explode':
+        return explodeRunner(cue, this.explode4d);
+      case 'collapse':
+        return collapseRunner(cue, this.explode4d);
+      case 'focus':
+        return focusRunner(cue, index, this.env4d, this.focus4d);
+      case 'sectionBox':
+        return sectionRunner(cue, index, this.env4d, this.section4d);
       default:
         return null; // cue kinds from a newer score format
     }

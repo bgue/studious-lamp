@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ActivityLink, Assignment, FourDLinks, LinkActivity, LinkElement, LinkModelRef, LinkScheduleRef, LinkSource, LinkTie, ReviewStatus, SplitRule } from '../src/schedule/types';
 
+declare const __dirname: string;
 const schema = JSON.parse(readFileSync(resolve(__dirname, '../../schema/linkml/xray_4d.schema.json'), 'utf8')) as { $defs: Record<string, { properties?: Record<string, unknown>; enum?: string[] }> };
 const props = (name: string): string[] => Object.keys(schema.$defs[name]?.properties ?? {}).sort();
 const enumOf = (name: string): string[] => [...(schema.$defs[name]?.enum ?? [])].sort();

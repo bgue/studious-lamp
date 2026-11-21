@@ -68,7 +68,7 @@ describe('storing the options', () => {
     s.load('k', 'm');
     const f = s.create('T');
     s.add(f, view('a', 0, ['g']), undefined, { labels: { fields: ['class'] }, hover: true });
-    expect(s.hud).toEqual({ progress: true, compass: false, scaleBar: false, labelSize: 12, captionPosition: 'bottom' });
+    expect(s.hud).toEqual({ progress: true, compass: false, scaleBar: false, labelSize: 12, captionPosition: 'bottom', scheduleDate: true, sCurve: true, activities: true, milestones: true, legend: true });
     s.setHud({ compass: true, labelSize: 18, captionPosition: 'top' });
     const again = new FlyStore(mem);
     again.load('k', 'm');
@@ -91,6 +91,6 @@ describe('storing the options', () => {
   });
   it('repairs bad stored HUD settings', () => {
     const d = parseFlyDoc(JSON.stringify({ schema: 'xray-flythroughs/1', flythroughs: [], hud: { progress: 'x', labelSize: 'big' } }));
-    expect(d!.hud).toEqual({ progress: true, compass: false, scaleBar: false, labelSize: 12, captionPosition: 'bottom' });
+    expect(d!.hud).toEqual({ progress: true, compass: false, scaleBar: false, labelSize: 12, captionPosition: 'bottom', scheduleDate: true, sCurve: true, activities: true, milestones: true, legend: true });
   });
 });

@@ -164,7 +164,7 @@ describe('timing: chapters, clock, scale', () => {
 
 describe('HUD settings', () => {
   it('has defaults with the progress bar on and the rest off, and repairs bad data', () => {
-    expect(DEFAULT_HUD).toEqual({ progress: true, compass: false, scaleBar: false, labelSize: 12, captionPosition: 'bottom' });
+    expect(DEFAULT_HUD).toEqual({ progress: true, compass: false, scaleBar: false, labelSize: 12, captionPosition: 'bottom', scheduleDate: true, sCurve: true, activities: true, milestones: true, legend: true });
     expect(sanitizeHud(null)).toEqual(DEFAULT_HUD);
     expect(sanitizeHud({ progress: false, compass: 'yes', labelSize: 400, captionPosition: 'left' })).toEqual({ ...DEFAULT_HUD, progress: false, labelSize: 28 });
     expect(sanitizeHud({ labelSize: 3, captionPosition: 'top', scaleBar: true }).labelSize).toBe(9);

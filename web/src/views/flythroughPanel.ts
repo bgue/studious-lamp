@@ -145,7 +145,7 @@ export class FlythroughPanel {
   private readonly speedLbl: HTMLLabelElement;
   private readonly lookChk: HTMLInputElement;
   private readonly loopChk: HTMLInputElement;
-  private readonly hudEls: { progress: HTMLInputElement; compass: HTMLInputElement; scaleBar: HTMLInputElement; labelSize: HTMLInputElement; captionPosition: HTMLSelectElement };
+  private readonly hudEls: { progress: HTMLInputElement; compass: HTMLInputElement; scaleBar: HTMLInputElement; labelSize: HTMLInputElement; captionPosition: HTMLSelectElement; scheduleDate: HTMLInputElement; sCurve: HTMLInputElement; activities: HTMLInputElement; milestones: HTMLInputElement; legend: HTMLInputElement };
   private readonly savedSel: HTMLSelectElement;
   private readonly fileInput: HTMLInputElement;
   private head: HTMLDivElement | null = null;
@@ -239,20 +239,28 @@ export class FlythroughPanel {
     hsizeL.append('Label size', hsize, 'px');
     const hpos = el('select', 'inp', { 'aria-label': 'Where captions show', ...hk('Fly-through caption position') });
     hpos.append(el('option', '', { value: 'bottom' }, 'Captions at bottom'), el('option', '', { value: 'top' }, 'Captions at top'));
-    this.hudEls = { progress: hp.input, compass: hc.input, scaleBar: hs.input, labelSize: hsize, captionPosition: hpos };
+    // 4D items: drawn while a schedule cue plays
+    const h4d = chk('Schedule date', 'Fly-through schedule date');
+    const h4c = chk('S-curve', 'Fly-through S-curve');
+    const h4a = chk('Activities', 'Fly-through activities');
+    const h4m = chk('Milestones', 'Fly-through milestones');
+    const h4l = chk('Legend', 'Fly-through legend');
+    this.hudEls = { progress: hp.input, compass: hc.input, scaleBar: hs.input, labelSize: hsize, captionPosition: hpos, scheduleDate: h4d.input, sCurve: h4c.input, activities: h4a.input, milestones: h4m.input, legend: h4l.input };
     const hudHead = el('div', 'fl-sub', {}, 'On-screen display');
     hudHead.style.cssText = 'font-size:11px;color:var(--sb-dim);margin-top:2px';
     const row5 = el('div', 'fl-row');
     row5.append(hp.label, hc.label, hs.label);
     const row6 = el('div', 'fl-row');
     row6.append(hsizeL, hpos);
+    const row7 = el('div', 'fl-row');
+    row7.append(h4d.label, h4c.label, h4a.label, h4m.label, h4l.label);
 
     this.msg = el('div', 'fl-msg', { 'aria-live': 'polite' });
     this.cards = el('div', 'fl-cards', { role: 'list', 'aria-label': 'Keyframes' });
     this.edit = el('div', 'fl-edit');
     this.fileInput = el('input', '', { type: 'file', accept: 'application/json,.json' });
     this.fileInput.style.display = 'none';
-    this.body.append(row1, row2, this.bar, row3, row3b, row4, hudHead, row5, row6, this.msg, this.cards, this.edit, this.fileInput);
+    this.body.append(row1, row2, this.bar, row3, row3b, row4, hudHead, row5, row6, row7, this.msg, this.cards, this.edit, this.fileInput);
 
     this.wire(newBtn, menuBtn, addBtn, fromViews, fromSets);
   }
@@ -324,6 +332,11 @@ export class FlythroughPanel {
       if (Number.isFinite(v)) h.setHud({ labelSize: v });
       else this.render();
     });
+    he.scheduleDate.addEventListener('change', () => h.setHud({ scheduleDate: he.scheduleDate.checked }));
+    he.sCurve.addEventListener('change', () => h.setHud({ sCurve: he.sCurve.checked }));
+    he.activities.addEventListener('change', () => h.setHud({ activities: he.activities.checked }));
+    he.milestones.addEventListener('change', () => h.setHud({ milestones: he.milestones.checked }));
+    he.legend.addEventListener('change', () => h.setHud({ legend: he.legend.checked }));
     he.captionPosition.addEventListener('change', () => h.setHud({ captionPosition: he.captionPosition.value === 'top' ? 'top' : 'bottom' }));
     this.fileInput.addEventListener('change', () => {
       const f = this.fileInput.files?.[0];
@@ -527,6 +540,11 @@ export class FlythroughPanel {
     this.hudEls.scaleBar.checked = hud.scaleBar;
     if (document.activeElement !== this.hudEls.labelSize) this.hudEls.labelSize.value = String(hud.labelSize);
     this.hudEls.captionPosition.value = hud.captionPosition;
+    this.hudEls.scheduleDate.checked = hud.scheduleDate;
+    this.hudEls.sCurve.checked = hud.sCurve;
+    this.hudEls.activities.checked = hud.activities;
+    this.hudEls.milestones.checked = hud.milestones;
+    this.hudEls.legend.checked = hud.legend;
 
     // Saved views to add.
     const saved = h.savedViews();

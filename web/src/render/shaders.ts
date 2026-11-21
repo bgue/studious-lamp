@@ -335,6 +335,7 @@ varying float vDist;
 varying vec3 vWorldPos;
 uniform float edgeAlpha;
 uniform vec3 glowColor;
+uniform vec3 glowAccent;   // glow colour of the elements whose glow mask is 2 (4D critical work)
 uniform float glowStrength;
 uniform vec3 imgEdgeCol;   // imaging: faint tissue edges
 uniform float imgEdgeAlpha;
@@ -355,7 +356,7 @@ void main() {
   gl_FragColor = vec4(imgEdgeCol * ia, ia);
 #elif defined( EDGES_GLOW )
   if (vGlow < 0.5) discard;
-  gl_FragColor = vec4(glowColor * glowStrength, glowStrength); // premultiplied; additive or over
+  gl_FragColor = vec4((vGlow > 1.5 ? glowAccent : glowColor) * glowStrength, glowStrength); // premultiplied; additive or over
 #else
 #if defined( EDGES_FOCUS )
   if (!focus) discard;
