@@ -2027,6 +2027,36 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Choose Top when the model fills the lower part of the view.',
     'Report: Onboarding checklist',
   ),
+  'Sidebar/Fly-through schedule date': h(
+    'The switch shows the date, the week and the percent complete at the top left while a 4D plan plays. The date also replaces the clock on the progress bar.',
+    'On, a panel names the day the film has reached. Off, the film shows plain video time.',
+    'Tick the box for a film that shows the building by calendar. Clear it for a clean picture.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Fly-through S-curve': h(
+    'The switch draws a small chart at the top right while a 4D plan plays. It plots planned progress and actual progress over the whole job.',
+    'On, a line rises as work completes, with a marker for the day in the film. Off, no chart shows.',
+    'Tick the box to compare the plan with the real work. Clear it when the chart crowds the view.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Fly-through activities': h(
+    'The switch lists the 5 jobs with the most parts in progress while a 4D plan plays. Each row has a colour square for its trade.',
+    'On, a short list at the top left names the work under way. Off, the list stays out of the picture.',
+    'Tick the box when viewers must know what is being built now. Clear it for a cleaner film.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Fly-through milestones': h(
+    'The switch shows a banner when the 4D plan reaches a key date. The banner stays for the hold time of the plan.',
+    'On, a title appears at the top when a big stage ends. Off, the film runs on without titles.',
+    'Tick the box for client films. Clear it when other captions say the same.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Fly-through legend': h(
+    'The switch draws a key at the bottom left while a 4D plan plays. It names the trade colours and marks critical, behind and ahead work.',
+    'On, small colour squares explain what each tint and outline means. Off, the colours stand alone.',
+    'Tick the box when viewers do not know the colours. Clear it to keep the corner free.',
+    'Report: Onboarding checklist',
+  ),
   'Sidebar/Fly-through label selection': h(
     'The switch adds a tag to each selected element while the film stays on this keyframe. A keyframe needs a selection first.',
     'On, a small box with text points at every chosen part. Off, the parts show no text.',

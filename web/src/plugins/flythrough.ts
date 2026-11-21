@@ -34,6 +34,7 @@ import type { HudDescription } from '../anim/hud/layer';
 import { HudOverlay } from '../anim/hud/overlay';
 import type { HudSettings } from '../anim/hud/settings';
 import { setScorePlayer } from '../anim/score';
+import { install4dApi } from '../anim/fourd/api';
 import type { PlayOptions, Score } from '../anim/score';
 import { FlythroughPanel } from '../views/flythroughPanel';
 import type { FlyHost, FlyState } from '../views/flythroughPanel';
@@ -432,6 +433,8 @@ class FlythroughController {
     if (this.player.playing) {
       if (!this.exporting) this.player.tick(now);
       if (this.player.paused) this.host.applyFades();
+      // 4D: the alpha, tint and glow of the schedule go in after the controller step of this frame.
+      this.host.applyFrame();
       this.panel?.tick();
       // After the tick: the camera of this frame is what the overlay projects against.
       // (Not during a video export: the exporter draws the layer itself, at the video size.)
@@ -598,6 +601,7 @@ export const flythroughPlugin: AppPlugin = {
     setScorePlayer(c.player);
     const api = buildApi(c);
     window.__xrayFlythrough = api;
+    install4dApi({ model: () => (app.loaded ? app.controller.model : null), live: () => c.host.fourdLive() });
     c.overlay = new PathOverlay(app.renderer.scene, () => app.renderer.markDirty());
     c.hudLayer = new ScoreHudLayer(appHudSource(app, (ref, key) => c.host.resolveRef(ref, key)), () => c.store.hud);
     setHudLayer(c.hudLayer);

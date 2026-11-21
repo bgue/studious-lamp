@@ -16,6 +16,9 @@ import type { LabelIn, Rect } from './place';
 import type { HudSettings } from './settings';
 import { fitText, wrapText } from './text';
 import { activeCues, anyItemAt, chaptersOf, clock, niceScale, scaleText } from './timing';
+import { fourdViewAt } from '../fourd/live';
+import { layoutFourD } from './fourd';
+import type { FourDDescription } from './fourd';
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -44,6 +47,8 @@ export interface HudDescription {
   progress: { fraction: number; chapters: number[]; rect: Rect } | null;
   compass: { rect: Rect; angle: number } | null;
   scale: { metres: number; rect: Rect } | null;
+  /** Additive (4D): what a running `schedule4d` cue put on the HUD; null without one. */
+  fourd?: FourDDescription | null;
 }
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', sans-serif";
@@ -94,7 +99,7 @@ export class ScoreHudLayer implements HudLayer {
     const s = this.score;
     if (!s) return false;
     const st = this.settings();
-    return st.progress || st.compass || st.scaleBar || anyItemAt(s, t);
+    return st.progress || st.compass || st.scaleBar || anyItemAt(s, t) || fourdViewAt(s, t) !== null;
   }
 
   draw(ctx: Ctx, frame: HudFrame): void {
@@ -115,7 +120,7 @@ export class ScoreHudLayer implements HudLayer {
     ctx.scale(frame.pixelRatio, frame.pixelRatio);
     ctx.textBaseline = 'top';
     ctx.lineJoin = 'round';
-    const desc: HudDescription = { t, caption: null, labels: [], more: 0, hover: null, progress: null, compass: null, scale: null };
+    const desc: HudDescription = { t, caption: null, labels: [], more: 0, hover: null, progress: null, compass: null, scale: null, fourd: null };
     const occupied: Rect[] = [];
     const paint: Array<() => void> = [];
 
@@ -199,6 +204,32 @@ export class ScoreHudLayer implements HudLayer {
         occupied.push(rect);
         paint.push(() => this.drawScale(ctx, x, y, sc.px, scaleText(sc.metres)));
       }
+    }
+
+    // ---- 4D: date, activities, S-curve, milestone, legend (while a schedule4d cue runs)
+    let topLeftBottom = margin;
+    let fourdLate: Array<() => void> = [];
+    const fd = fourdViewAt(score, t);
+    if (fd) {
+      const lay = layoutFourD(ctx, {
+        view: fd.view,
+        settings: st,
+        W,
+        H,
+        margin,
+        compact,
+        cueAt: fd.cue.at,
+        cueDur: Math.max(0, fd.cue.dur),
+        duration: frame.duration,
+        bottomLift: barLift + (st.scaleBar ? 26 : 0),
+        compass: st.compass,
+        progressBar: st.progress,
+      });
+      desc.fourd = lay.desc;
+      occupied.push(...lay.occupied);
+      paint.push(...lay.paint);
+      fourdLate = lay.late;
+      topLeftBottom = Math.max(margin, lay.topLeftBottom);
     }
 
     // ---- hover card
@@ -293,10 +324,10 @@ export class ScoreHudLayer implements HudLayer {
           ctx.font = font(11);
           const w = ctx.measureText(text).width + 12;
           ctx.fillStyle = PANEL;
-          rr(ctx, margin, margin, w, 20, 10);
+          rr(ctx, margin, topLeftBottom, w, 20, 10);
           ctx.fill();
           ctx.fillStyle = '#f8fafc';
-          ctx.fillText(text, margin + 6, margin + 4);
+          ctx.fillText(text, margin + 6, topLeftBottom + 4);
           ctx.globalAlpha = 1;
         });
       }
@@ -317,7 +348,7 @@ export class ScoreHudLayer implements HudLayer {
           if (c <= 0 || c >= frame.duration) continue;
           ctx.fillRect(Math.round((c / frame.duration) * W) - 1, H - 8, 2, 8);
         }
-        const text = `${clock(t)} / ${clock(frame.duration)}`;
+        const text = fd && st.scheduleDate ? fd.view.date + `  W${String(fd.view.week).padStart(2, '0')}` : `${clock(t)} / ${clock(frame.duration)}`;
         ctx.font = font(11);
         const w = ctx.measureText(text).width + 10;
         ctx.fillStyle = 'rgba(12, 16, 22, 0.6)';
@@ -331,6 +362,7 @@ export class ScoreHudLayer implements HudLayer {
 
     // labels were put in front with unshift (they draw first, under the caption and the card)
     for (const p of paint) p();
+    for (const p of fourdLate) p();
     ctx.restore();
     this.last = desc;
   }
