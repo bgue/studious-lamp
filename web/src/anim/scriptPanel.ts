@@ -11,6 +11,8 @@ import type { CompileOptions, CompileResult } from './script/compiler';
 import { formatDiagnostic } from './script/diagnostics';
 import type { ScriptDiagnostic } from './script/diagnostics';
 import { EXAMPLES } from './script/examples';
+import { getPlan, registerPlan } from './fourd/plans';
+import type { FourDPlan } from '../schedule/types';
 import { highlightLine, markPieces } from './script/highlight';
 import { runScript } from './script/runner';
 import type { RunResult } from './script/runner';
@@ -715,6 +717,13 @@ export class ScriptPanel {
   loadExample(id: string): boolean {
     const ex = EXAMPLES.find((e) => e.id === id);
     if (!ex) return false;
+    // the 4D example plays the plan "Demo": build the demo plan of the model on screen when there is none yet
+    if (/schedule\s+"Demo"/.test(ex.text) && !getPlan('Demo')) {
+      try {
+        const demo = (window as unknown as { __xray4d?: { demoPlan(): FourDPlan } }).__xray4d?.demoPlan();
+        if (demo) registerPlan('Demo', demo);
+      } catch { /* no model: the example then reports the unknown plan */ }
+    }
     this.setText(ex.text, ex.title);
     this.savedText = null;
     this.setStatus(`Loaded the example "${ex.title}". ${ex.about}`, '');

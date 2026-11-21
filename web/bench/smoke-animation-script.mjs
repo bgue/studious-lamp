@@ -225,7 +225,7 @@ try {
 
   // ---- examples
   const ex = await page.evaluate(() => window.__xrayScript.examples());
-  check('there are 3 or 4 examples', ex.length >= 3 && ex.length <= 4, ex.map((e) => e.title).join(' | '));
+  check('there are 3 to 5 examples', ex.length >= 3 && ex.length <= 5, ex.map((e) => e.title).join(' | '));
   for (let i = 0; i < ex.length; i++) {
     await page.click('[data-act=examples]');
     await page.waitForSelector('.xm-menu');
@@ -291,7 +291,7 @@ try {
   // ---- the reference
   await page.locator('[data-script-reference] summary').click();
   const ref = await page.evaluate(() => ({ items: document.querySelectorAll('[data-script-reference] [data-statement]').length, hasFading: /fading over N seconds/.test(document.querySelector('[data-script-reference]').textContent) }));
-  check('the statement reference lists every statement', ref.items === 19 && ref.hasFading, `${ref.items} statements`);
+  check('the statement reference lists every statement (the 4D statements included)', ref.items === 28 && ref.hasFading, `${ref.items} statements`);
   await setScript(page, '');
   await page.click('[data-insert=wait]');
   check('Insert example adds the example to the editor', (await page.evaluate(() => window.__xrayScript.text())) === 'wait 1.5 seconds\n');
