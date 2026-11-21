@@ -91,6 +91,16 @@ try {
     }
   };
   const hold = async (key, ms) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); await page.waitForTimeout(150); };
+  // Hold for at least `ms` and until the camera has moved (at most 3 s): on a slow software renderer the page can stall for a moment
+  // and draw no frame inside a short hold, which tests the frame rate, not the key.
+  const holdUntilMoved = async (key, ms) => {
+    const p0 = JSON.stringify(await pose());
+    await page.keyboard.down(key);
+    await page.waitForTimeout(ms);
+    for (let i = 0; i < 27 && JSON.stringify(await pose()) === p0; i++) await page.waitForTimeout(100);
+    await page.keyboard.up(key);
+    await page.waitForTimeout(150);
+  };
   await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.__cinematic.cfg.flyTo = false; });
 
   // Held orbit.
@@ -106,10 +116,10 @@ try {
 
   // Held fly: camera and target move together.
   a = await pose();
-  await hold('w', 300);
+  await holdUntilMoved('w', 300);
   b = await pose();
   const dp = sub(b.p, a.p), dt = sub(b.t, a.t);
-  check('w held 300 ms moves position and target together', len(dp) > 0.005 && len(sub(dp, dt)) < 1e-6, `move=${len(dp).toFixed(3)} m`);
+  check('w held moves position and target together', len(dp) > 0.005 && len(sub(dp, dt)) < 1e-6, `move=${len(dp).toFixed(3)} m`);
 
   // Alt+7 top view.
   await page.keyboard.press('Alt+Digit7');
