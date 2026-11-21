@@ -14,6 +14,8 @@ export const XRAY_DEFAULTS = {
   psetReview: 'Xray_Review',
   /** Property set of the cleanup marks (2.2). */
   psetCleanup: 'Xray_Cleanup',
+  /** Property set of the 4D location, trade and zone (4D mapping tool; docs/design/4d-xer-animation.md section 10). */
+  psetFourD: 'Xray_4D',
   /** Name of the MasterFormat division system. */
   divisionSystemName: 'MasterFormat',
   divisionSystemSource: 'CSI',
@@ -28,6 +30,8 @@ export interface SaveOptions {
   /** Write ReviewedBy and Comment (reviewer names and comments). Default false: no name leaves the viewer unless this is true. */
   includeReviewers: boolean;
   includeCleanupMarks: boolean;
+  /** Write Xray_4D (Location, Trade, Zone) for the elements that have accepted 4D assignments. Default false. */
+  includeFourD?: boolean;
   scope: 'all' | 'reviewed';
   /** Goes into the block comment. Default "dev". */
   toolVersion?: string;
@@ -51,6 +55,9 @@ export interface IfcSourceInfo {
 
 export type RevisionStatus = 'new' | 'changed' | 'rematched' | 'unchanged';
 
+/** The accepted 4D values of one element. */
+export interface FourDValues { location?: string; trade?: string; zone?: string }
+
 export interface ElementSave {
   expressId: number;
   globalId: string;
@@ -58,6 +65,8 @@ export interface ElementSave {
   comment?: string;
   revision?: { status: RevisionStatus; baseline: string };
   cleanup?: { rules: string[]; reasons: string[]; keptBecause?: string };
+  /** Accepted 4D values (property names Location, Trade, Zone), only with `includeFourD`. */
+  fourD?: FourDValues;
 }
 
 export interface FileSavePlan {
@@ -74,6 +83,8 @@ export interface SaveExtra {
   comments?: ReadonlyMap<string, string>;
   revision?: ReadonlyMap<string, { status: RevisionStatus; baseline: string }>;
   cleanup?: ReadonlyMap<string, { rules: string[]; reasons: string[]; keptBecause?: string }>;
+  /** Accepted 4D assignments by GlobalId (used only when `includeFourD` is on). */
+  fourD?: ReadonlyMap<string, FourDValues>;
 }
 
 export class UnsupportedSchemaError extends Error {
@@ -112,8 +123,10 @@ export function planSave(
     const result = r && (o.scope === 'all' || REVIEWED.has(r.source)) ? r : undefined;
     const cleanup = o.includeCleanupMarks ? extra.cleanup?.get(e.globalId) : undefined;
     const revision = extra.revision?.get(e.globalId);
+    const fd = o.includeFourD ? extra.fourD?.get(e.globalId) : undefined;
+    const fourD = fd && (fd.location || fd.trade || fd.zone) ? fd : undefined;
     // Revision state belongs to the review set, which exists only for an element with a result.
-    if (!result && !cleanup) continue;
+    if (!result && !cleanup && !fourD) continue;
     seen.add(key);
     const comment = extra.comments?.get(e.globalId);
     plan.elements.push({
@@ -123,6 +136,7 @@ export function planSave(
       ...(comment ? { comment } : {}),
       ...(revision && result ? { revision } : {}),
       ...(cleanup ? { cleanup } : {}),
+      ...(fourD ? { fourD } : {}),
     });
   }
   for (const p of plans) p.elements.sort((a, b) => a.expressId - b.expressId);

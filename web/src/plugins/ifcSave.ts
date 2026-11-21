@@ -42,6 +42,8 @@ export interface SaveSummary {
 export interface SaveRequest {
   includeReviewers?: boolean;
   includeCleanupMarks?: boolean;
+  /** Write Xray_4D (Location, Trade, Zone) from the accepted 4D assignments. Default: true when there are any. */
+  includeFourD?: boolean;
   scope?: 'all' | 'reviewed';
   /** Default `download`. `none` keeps the outputs for `lastOutputs()` and writes nothing (tests, measurements). */
   target?: 'download' | 'none';
@@ -56,6 +58,8 @@ export interface PlanSummary {
   elements: number;
   /** Cleanup marks that would be written. */
   cleanupMarked: number;
+  /** Elements that would get Xray_4D. */
+  fourDElements: number;
   duplicatesSkipped: number;
 }
 
@@ -149,6 +153,9 @@ export const simplifiedIfcEnabled = (): boolean => {
 const SELF_CHECK_TOL = 0.001;
 const SELF_CHECK_MAX_BYTES = 200 * 1024 * 1024;
 
+interface FourDLike { saveMap?(): ReadonlyMap<string, import('../ifcsave/plan').FourDValues> }
+const fourD = (): FourDLike | undefined => (window as unknown as { __xray4dMap?: FourDLike }).__xray4dMap;
+
 interface CleanupLike {
   simplify?: { plan(strip?: boolean): CleanupPlan | null };
   hiddenByCleanup?(): number[];
@@ -219,10 +226,14 @@ export const ifcSavePlugin: AppPlugin = (() => {
     return cleanupMarks(c.hiddenByCleanup(), model, c.lastReport?.matches ?? []);
   };
 
+  const fourDMap = (): ReadonlyMap<string, import('../ifcsave/plan').FourDValues> => fourD()?.saveMap?.() ?? new Map();
+  const fourDCount = (): number => fourDMap().size;
+
   const options = (r: SaveRequest = {}): SaveOptions => ({
     ...DEFAULT_SAVE_OPTIONS,
     includeReviewers: r.includeReviewers === true,
     includeCleanupMarks: r.includeCleanupMarks ?? ownedCleanup().size > 0,
+    includeFourD: r.includeFourD ?? fourDCount() > 0,
     scope: r.scope ?? 'all',
     toolVersion: 'xray-viewer',
   });
@@ -242,6 +253,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
       history: o.includeReviewers ? c?.review?.history() : undefined,
       cleanup: o.includeCleanupMarks ? ownedCleanup() : undefined,
       revision: revisionStates(),
+      fourD: o.includeFourD ? fourDMap() : undefined,
     });
   };
 
@@ -249,6 +261,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
     files: plans.map((p) => ({ fileName: p.fileName, outName: outputName(p.fileName), family: p.family, elements: p.elements.length, base: p.base })),
     elements: plans.reduce((a, p) => a + p.elements.length, 0),
     cleanupMarked: o.includeCleanupMarks ? plans.reduce((a, p) => a + p.elements.filter((e) => e.cleanup).length, 0) : 0,
+    fourDElements: o.includeFourD ? plans.reduce((a, p) => a + p.elements.filter((e) => e.fourD).length, 0) : 0,
     duplicatesSkipped: app?.loaded ? duplicatesOf.get(app.loaded) ?? 0 : 0,
   });
 
@@ -699,7 +712,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
     private readonly back = el('div', 'xis-back', { hidden: '' });
     private readonly box = el('div', 'xis-box', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'xis-title' });
     private body = el('div');
-    private opts: { includeReviewers: boolean; includeCleanupMarks: boolean; scope: 'all' | 'reviewed' } = { includeReviewers: false, includeCleanupMarks: true, scope: 'all' };
+    private opts: { includeReviewers: boolean; includeCleanupMarks: boolean; includeFourD: boolean; scope: 'all' | 'reviewed' } = { includeReviewers: false, includeCleanupMarks: true, includeFourD: false, scope: 'all' };
     private message = '';
     private progress: { text: string; frac: number } | null = null;
     private readonly onKey = (ev: KeyboardEvent): void => {
@@ -722,7 +735,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
     show(): void {
       // every opening starts with the safe choices: the reviewer box is never remembered
       const owned = ownedCleanup().size;
-      this.opts = { includeReviewers: false, includeCleanupMarks: owned > 0, scope: 'all' };
+      this.opts = { includeReviewers: false, includeCleanupMarks: owned > 0, includeFourD: fourDCount() > 0, scope: 'all' };
       this.message = '';
       this.progress = null;
       this.back.hidden = false;
@@ -797,15 +810,20 @@ export const ifcSavePlugin: AppPlugin = (() => {
         return lab;
       };
       const owned = ownedCleanup().size;
+      const n4 = fourDCount();
+      const fourDBox = checkBox('Include 4D location, trade and zone', n4 > 0 ? `${plural(n4, 'element')} with accepted 4D assignments get the property set Xray_4D. Off: nothing from the 4D tab is written.` : 'No element has an accepted 4D assignment yet. Assign values in the 4D tab first.',
+        this.opts.includeFourD && n4 > 0, (v) => { this.opts.includeFourD = v; }, n4 === 0);
+      fourDBox.setAttribute('data-help-key', '4D tab/Save with 4D');
       body.append(
         checkBox('Include reviewer names and comments', 'Off: no name or comment is written. On: the name of who confirmed a label and the review comments go into the file.',
           this.opts.includeReviewers, (v) => { this.opts.includeReviewers = v; }),
         checkBox('Mark cleanup matches', owned > 0 ? `Nothing is removed. The ${plural(marks || owned, 'element')} that cleanup hid get Xray_Cleanup.FlaggedForRemoval.` : 'Cleanup has not hidden anything, so there is nothing to mark.',
           this.opts.includeCleanupMarks && owned > 0, (v) => { this.opts.includeCleanupMarks = v; }, owned === 0),
+        fourDBox,
       );
       const pset = schema().psetName;
       if (pset.startsWith('Pset_')) body.append(el('p', 'xis-warn', undefined, `The property set name ${pset} starts with Pset_, which buildingSMART reserves; some checkers will flag it. It is written as given.`));
-      if (!fatal && total === 0) body.append(el('p', 'xis-warn', undefined, this.opts.scope === 'reviewed' ? 'No element has been reviewed yet.' : 'Nothing is classified yet and cleanup has no marks. Classify the model first.'));
+      if (!fatal && total === 0) body.append(el('p', 'xis-warn', undefined, this.opts.scope === 'reviewed' ? 'No element has been reviewed yet.' : 'Nothing is classified yet, no 4D values are assigned and cleanup has no marks. Classify the model or assign 4D values first.'));
 
       if (this.message) body.append(el('p', this.message.startsWith('Saved') ? 'xis-dim' : 'xis-err', undefined, this.message));
       if (this.progress) {

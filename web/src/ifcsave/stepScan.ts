@@ -34,7 +34,7 @@ export interface StepScan {
 
 export interface ScanOptions {
   wantGuids?: Iterable<number>;
-  /** Property set names that count as ours (the relation names always start with "Xray"). Default: Xray_Review, Xray_Cleanup. */
+  /** Property set names that count as ours (the relation names always start with "Xray"). Default: Xray_Review, Xray_Cleanup, Xray_4D. */
   ourPsetNames?: readonly string[];
   chunkSize?: number;
 }
@@ -59,7 +59,7 @@ const strAt = (a: StepValue[], i: number): string | null => (a[i]?.t === 'str' ?
 export async function scanStep(blob: Blob, o: ScanOptions = {}): Promise<StepScan> {
   const chunk = o.chunkSize ?? 4 * 1024 * 1024;
   const want = new Set(o.wantGuids ?? []);
-  const ours = new Set(o.ourPsetNames ?? ['Xray_Review', 'Xray_Cleanup']);
+  const ours = new Set(o.ourPsetNames ?? ['Xray_Review', 'Xray_Cleanup', 'Xray_4D']);
   const out: StepScan = { schema: '', maxExpressId: 0, dataEnd: null, endIso: null, ownerHistoryId: null, classifications: [], guidOf: new Map(), ourNamedRoots: [], statements: 0 };
   const wantSize = want.size;
   const classOffsets: number[] = [];

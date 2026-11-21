@@ -70,6 +70,8 @@ export interface ElementProps {
   review: PropSpec[];
   /** `Xray_Cleanup`. */
   cleanup: PropSpec[];
+  /** `Xray_4D`: Location, Trade, Zone. */
+  fourD: PropSpec[];
 }
 
 const hashCache = new WeakMap<ClassificationSchema, string>();
@@ -82,7 +84,7 @@ const schemaHashOf = (schema: ClassificationSchema): string => {
 
 /** The properties of one element, in the fixed order of the design. Empty values are left out. */
 export function elementProps(e: ElementSave, schema: ClassificationSchema, family: SchemaFamily, o: SaveOptions): ElementProps {
-  const out: ElementProps = { classification: [], review: [], cleanup: [] };
+  const out: ElementProps = { classification: [], review: [], cleanup: [], fourD: [] };
   const r = e.result;
   if (r) {
     const n = propertyNames(schema);
@@ -133,6 +135,10 @@ export function elementProps(e: ElementSave, schema: ClassificationSchema, famil
     if (e.cleanup.rules.length) out.cleanup.push({ name: 'Rules', type: 'IfcLabel', value: e.cleanup.rules.join(';') });
     if (e.cleanup.reasons.length) out.cleanup.push({ name: 'Reason', type: 'IfcText', value: e.cleanup.reasons.join('; ') });
     if (e.cleanup.keptBecause) out.cleanup.push({ name: 'KeptBecause', type: 'IfcLabel', value: e.cleanup.keptBecause });
+  }
+  if (e.fourD && o.includeFourD) {
+    const f = e.fourD;
+    for (const [name, v] of [['Location', f.location], ['Trade', f.trade], ['Zone', f.zone]] as const) if (v) out.fourD.push({ name, type: 'IfcLabel', value: v });
   }
   return out;
 }
@@ -194,6 +200,7 @@ export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, 
     { kind: 'classification', setName: schema.psetName },
     { kind: 'review', setName: XRAY_DEFAULTS.psetReview },
     { kind: 'cleanup', setName: XRAY_DEFAULTS.psetCleanup },
+    { kind: 'fourD', setName: XRAY_DEFAULTS.psetFourD },
   ];
   const groups: Group[] = [];
   for (const { kind, setName } of kinds) {

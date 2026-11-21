@@ -122,6 +122,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Search bar](#search-bar)
 - [Status ba](#status-ba)
 - [Status bar](#status-bar)
+- [4D tab](#4d-tab)
 - [Revision banner](#revision-banner)
 - [Revision walk](#revision-walk)
 - [Script tab](#script-tab)
@@ -477,6 +478,7 @@ Impact follows the same sentence rules and adds these:
 | Properties tab | The tab shows the properties of the selected part: its class, name, storey, material and property sets. | Click a part and the facts about it appear here. Use the menu of a value to select all parts with the same value. | Click the tab. Select a part in the view or in the tree. | Report: Onboarding checklist |
 | Classification tab | The tab holds the classifier. It shows the result for the selected part and has the settings and the review walk. | Click a part and see its discipline and division here. Accept the answer or change it, and walk through all answers. | Click the tab. Select 1 part. Click Accept, Change or Unsure. | Report: Limitations and extensions, classification |
 | Parameters tab | The tab holds the X-ray parameters. Each folder groups the settings of a feature. | Move a slider here and the picture changes at once. Click a folder title to open or close it. | Click the tab. Open a folder and change a setting. | Report: Onboarding checklist |
+| 4D tab | The tab holds the 4D mapping tool. It gives each part a location, a trade and a zone. | You can link a schedule to the model by place and by work type. The parts keep their labels in the model file. | Click the tab. Pick a value and click Selection to label the selected parts. | Report: Limitations and extensions, 4D mapping |
 | Script tab | The tab holds the editor for animation scripts. A script moves the camera and changes the view in order. | Type short lines of plain English and the model moves by itself. You see the camera fly and parts fade. | Click the tab. Type a script or pick an example. Click Run. | Report: Onboarding checklist |
 
 ## Sidebar
@@ -1633,6 +1635,53 @@ Impact follows the same sentence rules and adds these:
 | Model name | The segment names the model and counts its elements. A click opens the details and the credits of the models. | It tells you which building you look at and how many parts it has. Click it to see where it comes from. | Click the segment to read the credits of the built-in models. | Report: Onboarding checklist |
 | Details button | The button opens a panel with the timings of Algorithm 1 and 2, the ray count and the model credits. | Click it and a small box opens with every number and the source of each demo building. | Click the button to open the box. Click it again or outside the box to close it. | Report: Algorithm 2 |
 | Dismiss button | The button removes the red message from the bar. | Click the cross and the red text goes away. The rest stays as it is. | Click the cross after you read the message. | Report: Onboarding checklist |
+
+## 4D tab
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Section Values | The section lists the known locations, trades and zones. | You edit the names and colours that you can give to parts. | Open the section. Pick an attribute. Edit the list. | Report: Limitations and extensions, 4D mapping |
+| Section Assign | The section gives a chosen value to parts. | Parts get their label from the selection, a query, a level or a set. | Type a value. Pick the parts. Click the button for that choice. | Report: Limitations and extensions, 4D mapping |
+| Section Suggest | The section proposes labels with a confidence and reasons. | You review ready-made answers instead of typing every label. | Press Suggest. Read the reasons. Accept the ones that fit. | Report: Limitations and extensions, 4D mapping |
+| Section Coverage | The section counts the parts with and without each label. | You see what is still missing and colour the model by label. | Open the section. Click Select without to find the gaps. | Report: Limitations and extensions, 4D mapping |
+| Section Import and Export | The section moves labels to a file and back. | You hand labels to a database or another team and take them back. | Export to hand the labels over. Import to bring labels back. | Report: Limitations and extensions, 4D mapping |
+| Attribute | The buttons pick which label you work on: location, trade or zone. | The lists and the buttons below change to match your pick. | Click Location, Trade or Zone. | Report: Limitations and extensions, 4D mapping |
+| New value | The box takes the name of a new value for the chosen attribute. | The name you type becomes a choice in all the lists. | Type a name. Press Enter or click Add. | Report: Limitations and extensions, 4D mapping |
+| Add value | The button adds the name in the box to the list. | The name appears as a choice to give to parts. | Type a name in the box. Click the button. | Report: Limitations and extensions, 4D mapping |
+| Seed from model | The button reads storey names, zone groups and classifier trades from the model and lists them. | The lists fill with names that the building already holds. | Click the button after you open a model or run the classifier. | Report: Limitations and extensions, 4D mapping |
+| Value to assign | The box holds the value that the buttons below give to parts. | Each button below uses this text as the label. | Type a name or pick a listed name. | Report: Limitations and extensions, 4D mapping |
+| Assign to selection | The button gives the value to all selected parts. | The chosen parts take the label at once. | Select parts in the view. Type a value. Click the button. | Report: Limitations and extensions, 4D mapping |
+| Clear from selection | The button removes the label of the chosen attribute from the selected parts. | The parts lose that label and show up as missing in the counts. | Select parts. Click the button. | Report: Limitations and extensions, 4D mapping |
+| Query text | The box takes a criteria query that picks parts, such as class = IfcSlab. | The count beside the box shows how many parts match. They glow orange in the view. | Type a criteria query. Check the count and the orange parts. | Report: Limitations and extensions, 4D mapping |
+| Assign to query | The button gives the value to every part that the query picks. | All matching parts take the label in a single step. | Type a value and a query. Click the button. | Report: Limitations and extensions, 4D mapping |
+| Storey | The list picks a storey of the model. | The parts of that level glow in the view. | Pick a storey name. | Report: Limitations and extensions, 4D mapping |
+| Assign to storey | The button gives the value to every part of the picked storey. | All parts on that level take the label together. | Pick a storey. Type a value. Click the button. | Report: Limitations and extensions, 4D mapping |
+| Location from every storey | The button sets the location of each part to the name of its storey. | Each part gets its level name as its place in a single click. | Click the button for a quick start. | Report: Limitations and extensions, 4D mapping |
+| Selection set | The list picks a saved selection set. | The parts of that group glow in the view. | Pick a set by name. | Report: Limitations and extensions, 4D mapping |
+| Assign to set | The button gives the value to every part of the picked set. | All parts of that group take the label together. | Pick a set. Type a value. Click the button. | Report: Limitations and extensions, 4D mapping |
+| Suggest | The button builds proposals for location, zone and trade. It uses the storey, the zone group, the class and the classifier. | A list of ready answers appears with a score and the reasons for each. | Click the button. Review the list below. | Report: Limitations and extensions, 4D mapping |
+| Confidence limit | The box sets the lowest confidence that Accept all above takes. | Higher numbers accept fewer answers and keep more for your own check. | Type a number from 0 to 1. | Report: Limitations and extensions, 4D mapping |
+| Accept all above | The button accepts every open proposal at or above the confidence limit. | Many labels become final in a single click. The rest stay open. | Set the limit. Click the button. Check the rest by hand. | Report: Limitations and extensions, 4D mapping |
+| Proposal | The row shows a proposed label, its confidence and the reasons. | The matching part lights up in the view so you can judge the answer. | Click the row to look at the part. | Report: Limitations and extensions, 4D mapping |
+| Accept proposal | The button accepts the proposal and makes it final. | The label counts in the totals and goes into the saved file. | Read the reasons. Click the button. | Report: Limitations and extensions, 4D mapping |
+| Reject proposal | The button rejects the proposal. | The answer leaves the list and the part stays without that label. | Click the button when the reasons do not fit. | Report: Limitations and extensions, 4D mapping |
+| Show more | The button shows more proposals in the list. | The list grows by another 100 rows. | Click the button. | Report: Limitations and extensions, 4D mapping |
+| Class trade table | The table maps an IFC class to a trade. A class and material pair such as IfcBeam:steel wins over the bare class. | Edits here change the work type that the next run proposes. | Open the list. Change a trade. Press Suggest again. | Report: Limitations and extensions, 4D mapping |
+| Class name | The box holds the class of the row, or a class and a material text. | Parts of that kind follow the row. | Type a class such as IfcWall. Press Enter. | Report: Limitations and extensions, 4D mapping |
+| Class trade | The list picks the trade for the class of the row. | Parts of that kind get this work type in the next proposals. | Pick a trade. | Report: Limitations and extensions, 4D mapping |
+| Delete class row | The button removes the row from the table. | Parts of that kind get no work type from the list. | Click the button. | Report: Limitations and extensions, 4D mapping |
+| New class | The box takes a class name for a new row. | The rule covers more kinds of parts once you add it. | Type a class such as IfcRoof, or IfcWall:concrete. | Report: Limitations and extensions, 4D mapping |
+| Add class row | The button adds a row with the class in the box. | The next proposals follow the new rule. | Type a class. Click the button. Pick its trade. | Report: Limitations and extensions, 4D mapping |
+| Colour by | The list colours the model by location, trade or zone. Parts without a label turn grey. | You see gaps and groups at a glance. The normal look returns when you leave. | Pick an attribute. Look for grey parts. | Report: Limitations and extensions, 4D mapping |
+| Select unassigned | The button selects all parts that have no accepted label of this attribute. | You can fix the gaps with the buttons in the section Assign. | Click the button. Then give the selected parts a value. | Report: Limitations and extensions, 4D mapping |
+| Export assignments | The button writes the labels to a LinkML file. The file holds no reviewer names. | You get a file that a database or another team can read. | Click the button. Keep the file. | Report: Limitations and extensions, 4D mapping |
+| Import assignments | The button reads a LinkML file and merges its labels. Newer accepted labels win. | Labels from a database or another team join yours. | Click the button. Pick the file. | Report: Limitations and extensions, 4D mapping |
+| Reset assignments | The button removes all labels and values of this model from this browser. | The 4D labels of the model go back to empty. Saved files stay as they are. | Click the button and confirm. | Report: Limitations and extensions, 4D mapping |
+| Value colour | The swatch sets the colour of the value in the view. | Parts with that label show this tint when the view uses labels. | Click the swatch. Pick a tint. | Report: Limitations and extensions, 4D mapping |
+| Value name | The box shows the name of the value. Edit it to rename the value everywhere. | Parts that carry the old wording switch to the new wording. | Click the box. Type a name. Press Enter. | Report: Limitations and extensions, 4D mapping |
+| Delete value | The button removes an unused value from the list. | The name leaves the choices. A name in use cannot go. | Click the button. First clear the label from its parts if the button is grey. | Report: Limitations and extensions, 4D mapping |
+| Use value | The button copies the name into the box Value to assign. | The next button below acts on this name. | Click the button, then click a button for the parts. | Report: Limitations and extensions, 4D mapping |
+| Save with 4D | The box adds the property set Xray_4D with Location, Trade and Zone to the saved IFC file. | Other tools and the schedule link read the labels from the file. Off: the file gets no labels. | Tick the box when you have accepted labels. | Report: Limitations and extensions, 4D mapping |
 
 ## Revision banner
 

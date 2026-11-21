@@ -12,8 +12,9 @@ The copy is the **original file, byte for byte**, plus one block of new lines in
 | The classification properties | the property set named by the schema (`psetName`, default `XR_Classification`): discipline, sub-discipline, MasterFormat division, title and section, confidence, source, model, needs review. The same values the viewer shows as `<psetName>.<Property>` |
 | Review state | `Xray_Review`: `Status` (unreviewed, manual, confirmed, corrected), `Unsure`, `NeedsReview`, `Confidence` and the three part confidences, `BuildingElementProbability`, `ProposedBy`, `Rationale` (rules only), `ReviewedAt`, `CommitId`, `SchemaHash`; after a revision walk also `RevisionStatus` and `RevisionBaseline` |
 | Cleanup marks | `Xray_Cleanup`: `FlaggedForRemoval` = true, `Rules`, `Reason`. Nothing is removed from the file |
+| 4D mapping | `Xray_4D`: the `IfcLabel` properties `Location`, `Trade` and `Zone` of the accepted 4D assignments, with the box `Include 4D location, trade and zone` ([4d-mapping.md](4d-mapping.md)) |
 
-The set names are `Xray_Review` and `Xray_Cleanup`, not `Pset_...`: that prefix belongs to buildingSMART. If the schema's own `psetName` starts with `Pset_`, the dialog warns you; it is written as given.
+The set names are `Xray_Review`, `Xray_Cleanup` and `Xray_4D`, not `Pset_...`: that prefix belongs to buildingSMART. If the schema's own `psetName` starts with `Pset_`, the dialog warns you; it is written as given.
 
 Supported schemas: IFC2X3, IFC4 and IFC4X3. For any other schema (IFC2X2, unknown) the dialog names the schema and the button stays disabled.
 
@@ -33,7 +34,7 @@ A model opened from several IFC files is saved as **one output per source file**
 
 ## Saving again
 
-The block is marked by two comments, `XRAY-BEGIN ... base=N` and `XRAY-END bytes=N`. Saving a file that already holds a block **replaces** that block, never adds to it; new ids start after `base`. With an unchanged state, saving the saved file gives the same bytes. A file that went through another tool (which drops comments) loses the markers; the property sets named `Xray_Review` or `Xray_Cleanup` and the relations named `Xray ...` are then found by name, taken out and written again, so nothing is written twice. This costs one pass over the file at save time.
+The block is marked by two comments, `XRAY-BEGIN ... base=N` and `XRAY-END bytes=N`. Saving a file that already holds a block **replaces** that block, never adds to it; new ids start after `base`. With an unchanged state, saving the saved file gives the same bytes. A file that went through another tool (which drops comments) loses the markers; the property sets named `Xray_Review`, `Xray_Cleanup` or `Xray_4D` and the relations named `Xray ...` are then found by name, taken out and written again, so nothing is written twice. This costs one pass over the file at save time.
 
 ## When the source is not available
 
