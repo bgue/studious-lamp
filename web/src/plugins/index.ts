@@ -38,7 +38,9 @@ import { workPlugin } from './work';
 import { topBarPlugin } from './topBar';
 import { awesomeBarPlugin } from './awesomeBar';
 import { mapPlugin } from './map';
+import { animScriptPlugin } from './animScript';
 
+// animScript before help (its tab controls carry help keys) and anywhere before rightSidebar: tabs added early are queued.
 // work (the saved sketches and issues of each model) right after sheets: it waits for the sheets store and joins the controllers.
 // sheets right after issues (it adds the Sheets segment to the Issues panel and joins its controller).
 // issues after views (its sidebar tab follows Views) and after bcf and markup (it joins their controllers).
@@ -49,4 +51,4 @@ import { mapPlugin } from './map';
 // help runs after every panel-building plugin so it can see all controls; rightSidebar last so it wraps the finished panel.
 // topBar first: it creates the bar and the #xray-topbar-search host that the awesomeBar plugin mounts into, and its onModel
 // takes the factory settings hash before any other plugin changes the state.
-export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, mapPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, ifcSavePlugin, revisionPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, issuesPlugin, issueToolsPlugin, sheetsPlugin, workPlugin, helpPlugin, rightSidebarPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];
+export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, mapPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, ifcSavePlugin, revisionPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, issuesPlugin, issueToolsPlugin, sheetsPlugin, workPlugin, animScriptPlugin, helpPlugin, rightSidebarPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];

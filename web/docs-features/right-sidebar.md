@@ -8,6 +8,7 @@ folded, the state kept in `localStorage`. It is the element `#dock` (`src/ui/rig
 | **Properties** | The properties of the selected element: GlobalId (with **Copy GlobalId**), class, name, storey, material, x-ray state, and the collapsible list of every property set and quantity, with the `⋯` menu and the right-click menu (select all with this value, copy, save as criteria set) | the foot of the left sidebar |
 | **Classification** | The classify panel (provider, settings, results, calibration, schema), the **selected element** card with Accept, Change and Unsure, and the **review walk** ([classify.md](classify.md)) | the Classify drawer of the tool strip |
 | **Revision** (only while a revision walk is open) | The revision walk ([revision.md](revision.md)): it is added when the walk opens, at 420 px, and taken away when the walk closes | a floating panel at the bottom left |
+| **Script** | The animation script editor: code with line numbers, live errors, Run / Pause / Stop, examples, saved scripts per model, `.xrayanim` export and import ([animation-script.md](animation-script.md)). Added at 420 px, order 40 | (new) |
 | **Parameters** | The lil-gui "X-ray parameters" panel with all its folders | a floating panel in the same column (it was already docked at the right) |
 
 The left sidebar keeps Model, Sets, Views and Issues and gives the freed height to them.

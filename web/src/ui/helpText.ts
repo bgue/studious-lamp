@@ -5152,6 +5152,98 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the button when the walk is done, or any time before.',
     'Report: Limitations and extensions, revision walk',
   ),
+
+  // ------------------------------------------------------------------ Script tab (animation scripts)
+  'Right sidebar/Script tab': h(
+    'The tab holds the editor for animation scripts. A script moves the camera and changes the view in order.',
+    'Type short lines of plain English and the model moves by itself. You see the camera fly and parts fade.',
+    'Click the tab. Type a script or pick an example. Click Run.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Run': h(
+    'The button compiles the script and plays it from the first line.',
+    'The model starts to move as the lines say. The line that plays lights up.',
+    'Click the button after you fix all errors. Click it again to start over.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Pause': h(
+    'The button holds the playing script at the current time. It becomes Resume.',
+    'Camera moves and fades freeze where they are. Click again and they go on.',
+    'Click the button during play. Click Resume to go on.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Stop': h(
+    'The button ends playback and returns the view to its first state.',
+    'Moves and fades end at once. The camera and the hidden parts return to their first state.',
+    'Click the button to end the play early.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Name': h(
+    'The box names the script. A saved script keeps this name.',
+    'Pick a short title and you find the text again in the list.',
+    'Type a title. Click Save.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Save': h(
+    'The button stores the script in this browser under the name in the box. Each model has its own list.',
+    'The text stays after you reload the page. Another model shows its own list.',
+    'Type a title. Click the button.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Delete': h(
+    'The button removes the stored script that has the name in the box.',
+    'The title leaves the list. The text stays in the editor until you change it.',
+    'Click the button. Click again to confirm.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Saved scripts': h(
+    'The list shows the scripts that you stored for this model.',
+    'Pick a title and its text loads into the editor.',
+    'Open the list. Choose a title.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Examples': h(
+    'The button opens a menu of ready scripts to learn from.',
+    'Pick a title and the editor fills with a working text that you can change.',
+    'Click the button. Choose an example. Click Run.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Example': h(
+    'The item loads a ready script into the editor.',
+    'The editor fills with a working text. Your own text goes away, so store it first.',
+    'Click the item. Change the text if you like.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Export': h(
+    'The button downloads the script as a text file with the xrayanim ending.',
+    'You get a small file to keep, to send, or to open in another browser.',
+    'Click the button. Keep the file.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Import': h(
+    'The button reads a text file with the xrayanim ending into the editor.',
+    'The text of the file replaces what you see in the editor.',
+    'Click the button. Choose a file.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Editor': h(
+    'The area holds the lines of the script. Each line is 1 statement.',
+    'Colours show which words do what. A red mark shows a line that has a problem.',
+    'Click in the area. Type 1 statement on each line. Press Ctrl and Enter to play.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Problems': h(
+    'The list shows each error and each warning of the script with its line and column.',
+    'Each row says what is wrong and how to fix it. A click takes you to the spot.',
+    'Click a row. Fix the marked text.',
+    'Report: Onboarding checklist',
+  ),
+  'Script tab/Reference': h(
+    'The section lists every statement with a short example.',
+    'You see the words that you can type. A button adds an example to the editor.',
+    'Open the section. Click Insert example.',
+    'Report: Onboarding checklist',
+  ),
 };
 
 /**
