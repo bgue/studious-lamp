@@ -2,10 +2,10 @@
 // JSON Schema) must name the same fields and allow the same enum values.
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ActivityLink, Assignment, FourDLinks, LinkActivity, LinkElement, LinkModelRef, LinkScheduleRef, LinkSource, LinkTie, ReviewStatus, SplitRule } from '../src/schedule/types';
 
-const schema = JSON.parse(readFileSync(resolve(__dirname, '../../schema/linkml/xray_4d.schema.json'), 'utf8')) as { $defs: Record<string, { properties?: Record<string, unknown>; enum?: string[] }> };
+const schema = JSON.parse(readFileSync(fileURLToPath(new URL('../../schema/linkml/xray_4d.schema.json', import.meta.url)), 'utf8')) as { $defs: Record<string, { properties?: Record<string, unknown>; enum?: string[] }> };
 const props = (name: string): string[] => Object.keys(schema.$defs[name]?.properties ?? {}).sort();
 const enumOf = (name: string): string[] => [...(schema.$defs[name]?.enum ?? [])].sort();
 
