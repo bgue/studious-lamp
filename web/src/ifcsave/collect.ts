@@ -47,6 +47,8 @@ export interface PlanInputs {
   cleanup?: ReadonlyMap<string, { rules: string[]; reasons: string[] }>;
   /** `RevisionStatus` by GlobalId, from the revision walk (ticket T4). */
   revision?: SaveExtra['revision'];
+  /** Accepted 4D assignments by GlobalId (the 4D mapping tool). Written only when `options.includeFourD` is on. */
+  fourD?: SaveExtra['fourD'];
 }
 
 /** The plan of one save: one entry per source. Comments are read only when the reviewer box is ticked. */
@@ -56,6 +58,7 @@ export function planOf(i: PlanInputs): FileSavePlan[] {
     ...(i.options.includeReviewers && i.history ? { comments: reviewComments(i.history) } : {}),
     ...(i.options.includeCleanupMarks && i.cleanup ? { cleanup: i.cleanup } : {}),
     ...(i.revision ? { revision: i.revision } : {}),
+    ...(i.options.includeFourD && i.fourD ? { fourD: i.fourD } : {}),
   };
   return planSave(i.model, results, i.schema, i.sources, i.options, extra);
 }

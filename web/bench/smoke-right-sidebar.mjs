@@ -90,7 +90,7 @@ try {
 
   // tabs
   const tabs = await page.locator('#dock .dk-tab').allTextContents();
-  check('the right sidebar has the tabs Properties, Classification, Parameters and Script, in that order', JSON.stringify(tabs) === JSON.stringify(['Properties', 'Classification', 'Parameters', 'Script']), JSON.stringify(tabs));
+  check('the right sidebar has the tabs Properties, Classification, Parameters, Script and 4D, in that order', JSON.stringify(tabs) === JSON.stringify(['Properties', 'Classification', 'Parameters', 'Script', '4D']), JSON.stringify(tabs));
   const st0 = await page.evaluate(() => window.__xrayRightSidebar.state());
   check('it is open on Properties by default', !st0.collapsed && st0.tab === 'properties' && (await page.locator('#dock .dk-tab.active').textContent()) === 'Properties', JSON.stringify(st0));
   check('the left sidebar has lost its properties block and keeps Model, Sets, Views, Issues', (await page.locator('#sidebar .props').count()) === 0 && (await page.locator('#sidebar .sb-tab').allTextContents()).join() === 'Model,Sets,Views,Issues');
@@ -233,7 +233,7 @@ try {
     tab.remove();
     return { before, shown, hidden, ids: window.__xrayRightSidebar.tabs(), cleaned: calls.cleaned === true, dupSame: dup.id === 'revision-test' };
   });
-  check('addTab: the tab is listed after the built-in ones and mounts lazily on the first show', JSON.stringify(api.before.ids) === JSON.stringify(['properties', 'classification', 'parameters', 'script', 'revision-test']) && api.before.mounted === 0 && api.shown.mounted === 1, JSON.stringify(api.before));
+  check('addTab: the tab is listed after the built-in ones and mounts lazily on the first show', JSON.stringify(api.before.ids) === JSON.stringify(['properties', 'classification', 'parameters', 'script', 'revision-test', '4d']) && api.before.mounted === 0 && api.shown.mounted === 1, JSON.stringify(api.before));
   check('addTab: show() opens it with its content, badge and width; the visibility callback runs', api.shown.visible && api.shown.content === 'Revision walkthrough' && api.shown.badge === '2' && api.shown.w === '360px' && api.shown.active === 'revision-test' && api.hidden[0] === true && api.hidden.at(-1) === false, JSON.stringify(api));
   check('addTab: a known id returns the same tab, and remove() runs the cleanup and takes the tab away', api.dupSame && api.cleaned && !api.ids.includes('revision-test'), JSON.stringify(api.ids));
 
@@ -258,7 +258,7 @@ try {
   await p.evaluate(() => document.querySelector('#dock .dk-toggle').click());
   await p.waitForFunction(() => document.getElementById('dock').getBoundingClientRect().height < 600 && document.getElementById('dock').getBoundingClientRect().width > 200, null, { timeout: 15000 });
   R = await rects();
-  check('phone: the right sidebar opens as a bottom sheet with the same tabs', R.dock.w > 300 && R.dock.h > 150 && R.dock.h < R.vh * 0.62 && R.dock.b <= R.vh && R.dock.b > R.vh - 40 && (await p.locator('#dock .dk-tab').count()) === 4, JSON.stringify(R.dock));
+  check('phone: the right sidebar opens as a bottom sheet with the same tabs', R.dock.w > 300 && R.dock.h > 150 && R.dock.h < R.vh * 0.62 && R.dock.b <= R.vh && R.dock.b > R.vh - 40 && (await p.locator('#dock .dk-tab').count()) === 5, JSON.stringify(R.dock));
   check('phone: no horizontal page scroll with the sheet open', R.scrollW <= R.vw + 1, `${R.scrollW} vs ${R.vw}`);
   // the overlay reserve counts the sheet: one reserved rect covers it (canvas pixels), so labels, the gizmo and the drawing toolbar keep clear of it
   await p.waitForTimeout(600);

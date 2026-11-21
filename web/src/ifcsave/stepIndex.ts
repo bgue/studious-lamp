@@ -47,7 +47,7 @@ function grow32(a: Uint32Array, n: number): Uint32Array<ArrayBuffer> {
 }
 
 const ASCII = (s: string): number[] => Array.from(s, (c) => c.charCodeAt(0));
-const PSET_NAMES = ['Xray_Review', 'Xray_Cleanup'].map((n) => ASCII(`'${n}'`));
+const PSET_NAMES = ['Xray_Review', 'Xray_Cleanup', 'Xray_4D'].map((n) => ASCII(`'${n}'`));
 const XRAY_PREFIX = ASCII("'Xray");
 const at = (b: Uint8Array, i: number, pat: number[]): boolean => {
   if (i + pat.length > b.length) return false;

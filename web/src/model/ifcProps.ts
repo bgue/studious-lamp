@@ -28,6 +28,9 @@ export const GROUP_COMMON = 1;
 export const GROUP_QTY = 2;
 export const GROUP_OTHER = 3;
 
+/** The property set the 4D mapping tool writes (src/ifcsave/plan.ts `psetFourD`); read in every props mode except none. */
+export const FOURD_PSET = 'Xray_4D';
+
 /** `Pset_WallCommon`, `Pset_SlabCommon`, ... */
 export const isCommonPset = (name: string): boolean => /^Pset_.*Common$/.test(name);
 /** `Qto_WallBaseQuantities`, and the IFC2x3 name `BaseQuantities`. */
@@ -36,6 +39,8 @@ export const isBaseQtoSet = (name: string): boolean => /^Qto_.*BaseQuantities$/.
 /** Group of a single-value property, or null when the mode drops it. */
 export function propertyGroup(setName: string, mode: PropsMode): number | null {
   if (mode === 'none') return null;
+  // The 4D mapping tool's Location, Trade and Zone: always read, so a saved model reopens mapped.
+  if (setName === FOURD_PSET) return GROUP_ATTR;
   if (isCommonPset(setName)) return GROUP_COMMON;
   return mode === 'all' ? GROUP_OTHER : null;
 }
