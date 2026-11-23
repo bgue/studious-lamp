@@ -36,7 +36,7 @@ export function buildClashSection(check: ClashCheck): ClashSection {
   const progress = statusLine('');
   progress.setAttribute('data-clash-progress', '');
   const ask = el('div', 'xt-clash-ask', { 'data-clash-ask': '' });
-  const raiseBtn = button('Raise issues from results', () => void start(), { primary: true, title: `Make an issue of each ${CLASH_LABEL[check]} result: both elements, the view on the pair and a sketch tied to it. Results already raised are skipped.` });
+  const raiseBtn = button('Raise issues from results', () => void start(), { primary: true, title: `Make an issue of each ${CLASH_LABEL[check]} result: both elements, the view on the pair and drawings tied to it. Results already raised are skipped.` });
   raiseBtn.setAttribute('data-act', 'clash-raise');
   const closeBtn = button('Close 0 not found', () => {
     const c = issuesController();

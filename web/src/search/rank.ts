@@ -11,9 +11,9 @@ export const SECTION_TITLES: Record<SectionId, string> = {
   elements: 'Elements',
   commands: 'Commands',
   presets: 'Presets',
-  views: 'Saved views',
+  views: 'Views',
   sets: 'Selection sets',
-  issues: 'Issues and sketches',
+  issues: 'Issues',
   settings: 'Settings',
 };
 

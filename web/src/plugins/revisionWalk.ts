@@ -686,7 +686,7 @@ export class RevisionWalkPanel {
     // attachments
     const att = ctl.attachCountOf(e);
     if (att.issues + att.sketches > 0) {
-      b.appendChild(el('div', 'xrw-meta', { 'data-role': 'attachments' }, `${att.issues} issue${att.issues === 1 ? '' : 's'}, ${att.sketches} sketch${att.sketches === 1 ? '' : 'es'} attached${e.category === 'rematched' ? '. Accepting the match moves them to the new GlobalId.' : ''}`));
+      b.appendChild(el('div', 'xrw-meta', { 'data-role': 'attachments' }, `${att.issues} issue${att.issues === 1 ? '' : 's'}, ${att.sketches} view${att.sketches === 1 ? '' : 's'} with drawings attached${e.category === 'rematched' ? '. Accepting the match moves them to the new GlobalId.' : ''}`));
       if (e.category === 'deleted') {
         const box = el('div', 'xrw-box', { 'data-role': 'attach-choice' });
         for (const [v, label] of [['keep', 'Keep, flagged'], ['reattach', 'Re-attach to the selected element'], ['resolve', 'Resolve issues']] as const) {
@@ -835,7 +835,7 @@ export class RevisionWalkPanel {
       return l;
     };
     const bar2 = el('div', 'xrw-bar');
-    bar2.append(chk('Only undecided', 'undecided', 'filter-undecided'), chk('Only unsure', 'unsure', 'filter-unsure'), chk('Only skipped', 'onlySkipped', 'filter-skipped'), chk('Only with issues or sketches', 'hasAttachments', 'filter-attach'));
+    bar2.append(chk('Only undecided', 'undecided', 'filter-undecided'), chk('Only unsure', 'unsure', 'filter-unsure'), chk('Only skipped', 'onlySkipped', 'filter-skipped'), chk('Only with issues or drawings', 'hasAttachments', 'filter-attach'));
     const mv = el('label');
     const mi = el('input', undefined, { type: 'number', min: '0', step: '1', 'aria-label': 'Smallest move in millimetres', 'data-role': 'filter-minmove', value: f.minMove !== undefined ? String(Math.round(f.minMove * 1000)) : '' });
     mi.addEventListener('change', () => { const v = Number(mi.value); if (mi.value === '' || !Number.isFinite(v)) set({}, ['minMove']); else set({ minMove: v / 1000 }); });

@@ -360,29 +360,24 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Markup': h(
-    'The folder controls markup sets. A set is 1 saved view with clouds, notes, highlights and shapes.',
+    'The folder controls the drawings on views. A view with drawings holds clouds, notes, highlights and shapes.',
     'These controls save a view, open a shared file and write a PDF for your team.',
-    'Click New markup set from view. Open the Markup tool to draw.',
+    'Click Draw on this view in the Views tab. Pick a tool to draw.',
     'Report: Appendix J, Coordination tools',
   ),
   'Sidebar/Issues tab': h(
-    'The tab lists the issues and the sketches of this model. A switch at the top changes the list.',
-    'Click and the left side shows what your team must fix, and the drawings that show where.',
-    'Click the tab. Click an item to open it and bring its view back.',
+    'The tab lists the issues of this model. An issue points at the views that show the problem.',
+    'Click and the left side shows what your team must fix, with the pictures that show where.',
+    'Click the tab. Click an issue to open it and bring its view back.',
     'Report: Appendix J, Coordination tools',
   ),
   'Issues panel': h(
-    'The panel holds the issue list, the sketch list and the detail of the chosen item.',
+    'The panel holds the issue list and the detail of the chosen issue. The detail lists the views of the issue.',
     'This column shows what is wrong, who owns it and where it sits.',
-    'Pick Issues or Sketches. Search or filter. Click an item to read it.',
+    'Search or filter. Click an issue to read it.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Issues panel/Segments': h(
-    'The switch picks the list. Issues carry a status and comments. Sketches are saved views with drawings. Sheets hold the pages of PDF drawings.',
-    'Click and the column swaps between the problems of your team, the drawn views and the paper drawings.',
-    'Click Issues, Sketches or Sheets.',
-    'Report: Appendix J, Coordination tools',
-  ),
+
   'Issues panel/Phone sheet': h(
     'On a small screen the list and the detail rise from the bottom edge of the view.',
     'The list leaves the top of the picture free. It steps aside while you draw.',
@@ -390,13 +385,13 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Drawing toolbar': h(
-    'The bar floats over the view while you draw on a sketch. It holds the tools, the colours, the line weights and Done.',
+    'The bar floats over the view while you draw on it. It holds the tools, the colours, the line weights and Done.',
     'This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done.',
     'Pick a tool. Drag on the view. Press Done when the drawing is ready.',
     'Report: Appendix J, Coordination tools',
   ),
   'Issues panel/Clear everything': h(
-    'The button deletes the sketches and the issues of the open model, and the copy this browser keeps. Sketches on sheets stay.',
+    'The button deletes the drawings and the issues of the open model, and the copy this browser keeps. Saved views and sheet drawings stay.',
     'Click twice and your marks and your team tasks for this building are gone for good. Other buildings keep theirs.',
     'Click the button. Click again within 8 seconds to confirm.',
     'Report: Appendix J, Coordination tools',
@@ -420,9 +415,9 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Sheet view/Sketch': h(
-    'The list picks the sketch that you draw on. A read-only sketch cannot change.',
+    'The list picks the drawings that you edit. Read-only drawings cannot change.',
     'Pick one and your marks go into it. Pick the last choice to start a new one.',
-    'Pick a sketch from the list.',
+    'Pick drawings from the list.',
     'Report: Appendix J, Coordination tools',
   ),
   'Sheet view/Draw': h(
@@ -432,9 +427,9 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Sheet view/Raise as issue': h(
-    'The button makes an issue of the sketch you draw on. The issue gets a snapshot of the sheet region and the PDF. When the sketch already has an issue, the button opens that issue.',
+    'The button makes an issue of the view you draw on. The issue gets a snapshot of the sheet region and the PDF. When the view already has an issue, the button opens that issue.',
     'Click and your marks on the drawing go to your team as a task that they can follow.',
-    'Pick a sketch from the list. Click the button.',
+    'Pick drawings from the list. Click the button.',
     'Report: Appendix J, Coordination tools',
   ),
   'Sheet view/Drawing toolbar': h(
@@ -474,7 +469,7 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Issues panel/View switch': h(
-    'The control shows a sketch in 3D, in plan or in section. It appears when a drawing sits on a part of the model.',
+    'The control shows a view in 3D, in plan or in section. It appears when a drawing sits on a part of the model.',
     'Click Plan and the picture turns to a cut from above. Click Section for a cut from the side. Click 3D to go back.',
     'Click 3D, Plan or Section. Your own cut returns when you click 3D.',
     'Report: Appendix J, Coordination tools',
@@ -486,13 +481,13 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Issues panel/Raise issues from results': h(
-    'The block turns each result of the check into an issue. Each issue frames both elements and holds a sketch tied to them.',
+    'The block turns each result of the check into an issue. Each issue frames both elements and holds drawings tied to them.',
     'A second run adds only the new finds. A find that vanishes gets a note, and you can close it.',
     'Run the check. Click Raise issues from results. Click Close to close the issues that are gone.',
     'Report: Appendix J, Coordination tools',
   ),
   'Drawing toolbar/View switch': h(
-    'The control shows the sketch in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model.',
+    'The control shows the view in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model.',
     'Click Plan and the picture shows a cut from above, with your marks on the same part. Click Section for a cut from the side.',
     'Click 3D, Plan or Section. Draw on any of them.',
     'Report: Appendix J, Coordination tools',
@@ -505,7 +500,7 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
   ),
   'Markup drawer': h(
     'The heading names the Markup drawer. The drawer holds the sets, the drawing tools and the list of markups.',
-    'This panel lets you sketch on a saved view for your team without an issue topic.',
+    'This panel lets you mark a view for your team without an issue.',
     'Make a set. Pick a tool. Draw on the view. Export a PDF.',
     'Report: Appendix J, Coordination tools',
   ),
@@ -1679,9 +1674,9 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   // ------------------------------------------------------------------ Sidebar: saved views (src/plugins/views.ts)
   'Sidebar/Views tab': h(
-    'The tab shows the saved views of this model. A saved view keeps the camera, the cuts, the modes and the selection.',
+    'The tab lists the views of this model. A view keeps the camera, the cuts, the modes and the selection. It can carry drawings.',
     'Click and the left side lists your bookmarked camera angles with their cuts and looks. One click brings a shot back.',
-    'Click the tab to save, restore, play, share or reorder views.',
+    'Click the tab to save, restore, draw on, share or reorder views.',
     'Report: Onboarding checklist',
   ),
   'Sidebar/View name box': h(
@@ -1727,7 +1722,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Onboarding checklist',
   ),
   'Sidebar/View filter box': h(
-    'The box filters the list of views by name or preset id.',
+    'The box filters the list of views by name, note or issue title.',
     'Type a few letters and the list shrinks to the bookmarks that match. A small number tells you how many match.',
     'Type part of a name. Press Escape to clear the box.',
     'Report: Onboarding checklist',
@@ -1739,7 +1734,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Onboarding checklist',
   ),
   'Sidebar/View menu': h(
-    'The menu holds the commands for 1 view: update, rename, duplicate, copy link, BCF topic and delete.',
+    'The menu holds the commands for 1 view: update, draw, make issue, details, rename, duplicate, copy link and delete.',
     'Click and a short list of extra commands opens for this bookmark.',
     'Click the button. Select a command.',
     'Report: Onboarding checklist',
@@ -1774,12 +1769,43 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the command. Paste the link into a chat or an email.',
     'Report: Onboarding checklist',
   ),
-  'Sidebar/View as BCF topic': h(
-    'The command restores the view and creates a BCF topic with a snapshot from it.',
-    'Click and the app turns this bookmark into an issue with a picture, ready to send to another design tool.',
-    'Click the command. Open the Issues tab to add comments or to export the topic.',
-    'Report: Onboarding checklist',
+  'Sidebar/View chips': h(
+    'The chips filter the list. The choices are All, With drawings, On sheets and In an issue.',
+    'Click a label and the list shows only the items of that kind. The number tells how many there are.',
+    'Click a chip. Click All to see every view.',
+    'Report: Appendix J, Coordination tools',
   ),
+  'Sidebar/Draw on view': h(
+    'The command shows the drawing toolbar on this view. A view without drawings gets a drawing layer first.',
+    'Click and the picture comes back and a small bar of marker tools appears over it.',
+    'Click the command. Pick a tool and drag on the picture.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sidebar/Make issue': h(
+    'The command makes an issue of this view, or adds the view to an issue. The issue points at the view.',
+    'Click and a form offers a new task or an existing one. The task then shows this picture.',
+    'Click the command. Choose New issue or Add to, then press Make issue.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sidebar/Open issue of view': h(
+    'The command opens the issue that holds this view.',
+    'Click and the left side shows the task with its status and its comments.',
+    'Click the command.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sidebar/View details': h(
+    'The command opens the detail of the view. The detail holds the note, the exports and the list of drawings.',
+    'Click and the list gives way to a page with the note, the files you can save and the marks.',
+    'Click the command. Click Views at the top to come back.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Views panel/Drawings': h(
+    'The area below the list holds the detail of a view with drawings, the sheet pages and the file button.',
+    'This part shows the note, the exports and the marks of the item you picked.',
+    'Click a view with drawings in the list. Read or change it here.',
+    'Report: Appendix J, Coordination tools',
+  ),
+
   // ------------------------------------------------------------------ Sidebar: fly-through (src/plugins/flythrough.ts)
   'Fly-through/Open the Views tab': h(
     'The button opens the Views tab, where you build and edit the fly-through.',
@@ -3999,7 +4025,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   'Clearance drawer/Issues (heading)': h(
     'The heading starts the block that turns the clearance results into issues.',
-    'You get a record per result with both elements, a view on the pair and a sketch tied to them.',
+    'You get a record per result with both elements, a view on the pair and marks tied to them.',
     'Run the check first, then use the buttons below.',
     'Report: Appendix J, Coordination tools',
   ),
@@ -4023,7 +4049,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   'Penetrations drawer/Issues (heading)': h(
     'The heading starts the block that turns the penetration results into issues.',
-    'You get a record per result with both elements, a view on the pair and a sketch tied to them.',
+    'You get a record per result with both elements, a view on the pair and marks tied to them.',
     'Run the check first, then use the buttons below.',
     'Report: Appendix J, Coordination tools',
   ),

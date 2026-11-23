@@ -40,7 +40,7 @@ export interface Row {
 
 type Win = Window & {
   __xrayPresets?: { list(): Array<{ id: string; name: string; description: string; group: string; key: string | null }>; apply(id: string): unknown };
-  __xrayViews?: { list(): Array<{ id: string; name: string; summary: string }>; restore(key: string): unknown };
+  __xrayViews?: { list(): Array<{ id: string; name: string; summary: string; note: string }>; restore(key: string): unknown };
   __xrayIssues?: { search(query: string): IssueHit[]; hit(kind: 'issue' | 'sketch', id: string): IssueHit | null; openHit(hit: Pick<IssueHit, 'kind' | 'id'>): boolean };
 };
 const win = (): Win => window as Win;
@@ -241,7 +241,7 @@ export class SearchSources {
   views(query: string): Row[] {
     const api = win().__xrayViews;
     if (!api) return [];
-    return rankByText(api.list(), query, (v) => ({ label: v.name, extra: v.summary })).map((r) => ({
+    return rankByText(api.list(), query, (v) => ({ label: v.name, extra: `${v.summary} ${v.note}`.trim() })).map((r) => ({
       key: `v:${r.item.id}`,
       section: 'views' as const,
       label: r.item.name,
@@ -258,7 +258,7 @@ export class SearchSources {
     }));
   }
 
-  /** Issues and sketches of the loaded model, by title, note, description and comment text (src/issues/search.ts). */
+  /** Issues of the loaded model, by title, description and comment text (src/issues/search.ts). Views are the `views` section. */
   issues(query: string): Row[] {
     const api = win().__xrayIssues;
     if (!api || !query.trim()) return [];

@@ -19,9 +19,9 @@ const CSS = `
 `;
 
 const TITLE: Record<ViewMode, string> = {
-  '3d': 'Back to the 3D view of the sketch: its own camera, and the section you had',
-  plan: 'A top-down plan cut about 1.2 m above the storey, framed on what the sketch is tied to',
-  section: 'A vertical section through what the sketch is tied to, with a short depth',
+  '3d': 'Back to the 3D view: the camera of the view, and the section you had',
+  plan: 'A top-down plan cut about 1.2 m above the storey, framed on what the drawings are tied to',
+  section: 'A vertical section through what the drawings are tied to, with a short depth',
 };
 
 export interface SwitchHost {
@@ -43,7 +43,7 @@ export function buildViewSwitch(host: SwitchHost, o: { labelled?: boolean; helpK
   const seg = document.createElement('div');
   seg.className = 'vs-seg';
   seg.setAttribute('role', 'group');
-  seg.setAttribute('aria-label', '3D, Plan or Section view of the sketch');
+  seg.setAttribute('aria-label', '3D, Plan or Section of the view');
   seg.setAttribute('data-view-switch', '');
   if (o.helpKey) seg.setAttribute('data-help-key', o.helpKey);
   const now = host.mode();

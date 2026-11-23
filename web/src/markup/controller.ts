@@ -25,6 +25,7 @@ import { findHint, fractionInput, inferAttachment, projectRegion, projectSurface
 import { currentMeasurements } from '../measure/current';
 import type { Measurement } from '../measure/maths';
 import { formatLength } from '../measure/maths';
+import type { SavedView } from '../views/model';
 import { captureThumb } from '../views/thumb';
 import type { RestoreResult } from '../plugins/views';
 import { sharedAuthor } from '../plugins/bcf';
@@ -464,24 +465,29 @@ export class MarkupController {
     return set;
   }
 
-  /** A new set from the current view; it becomes the active one. */
-  newSet(title?: string): MarkupSet {
+  /**
+   * A new set from the current view; it becomes the active one. With `from` (a saved view that is restored just before), the set
+   * takes that view as its capture and the saved view's picture: it holds the drawings of that view.
+   */
+  newSet(title?: string, from?: { view: SavedView; thumb?: string }): MarkupSet {
     if (!this.loaded) throw new Error('No model loaded');
     const t = title?.trim() ? uniqueSetTitle(title, this.sets) : defaultSetTitle(this.sets);
-    const view = this.views.capture(t);
+    const view = from ? (JSON.parse(JSON.stringify(from.view)) as SavedView) : this.views.capture(t);
     delete view.thumb;
+    delete view.drawings;
+    view.name = t;
     const now = nowIso();
     const set: MarkupSet = {
       id: newMarkupId('s'), title: t, author: this.who, created: now, updated: now,
       view, camera: this.liveCamera(), markups: [], nextNumber: 1, model: { ...this.modelIdentity() },
     };
-    const thumb = captureThumb(this.app);
+    const thumb = from?.thumb ?? captureThumb(this.app);
     if (thumb) set.thumb = thumb;
     this.sets.push(set);
     this.histories.set(set.id, new History());
     this.activeId = set.id;
     this.selected = null;
-    this.setStatus(`Markup set "${t}" created from the current view`);
+    this.setStatus(`View "${t}" ready for drawings`);
     return set;
   }
 
@@ -543,7 +549,7 @@ export class MarkupController {
       this.tool = 'select';
     }
     for (const l of this.removedListeners) l(gone!);
-    this.setStatus(`Sketch "${gone!.title}" deleted`);
+    this.setStatus(`Drawings of "${gone!.title}" deleted`);
   }
 
   // ---------------------------------------------------------------- markups
@@ -583,7 +589,7 @@ export class MarkupController {
   updateView(id: string, keep: 'model' | 'screen' = this.updateKeep): { shapes: number; moved: number; kept: number } {
     const set = this.get(id);
     if (!set) throw new Error(`No markup set ${id}`);
-    if (isSheetSet(set)) throw new Error('A sketch on a PDF sheet has no 3D view to update');
+    if (isSheetSet(set)) throw new Error('Drawings on a PDF sheet have no 3D view to update');
     if (!this.loaded) throw new Error('No model loaded');
     this.cancelDrawing?.();
     const old = set.camera;
@@ -647,7 +653,7 @@ export class MarkupController {
   /** Add a finished markup to the active set (numbered, undoable, selected). */
   add(m: Markup, set: MarkupSet | null = this.active): Markup {
     if (!set) throw new Error('No markup set: create one from the view first');
-    if (set.readonly) throw new Error(`"${set.title}" is read-only (annotations that were already in the PDF). Copy it to an editable sketch first.`);
+    if (set.readonly) throw new Error(`"${set.title}" is read-only (annotations that were already in the PDF). Copy it to editable drawings first.`);
     if (needsAttach(m)) this.migrateMarkup(m, set);
     this.record(set);
     addMarkup(set, m);
@@ -695,7 +701,7 @@ export class MarkupController {
 
   /** Sketches have no comment threads: comments belong to an issue (raise the sketch as an issue). Always false. */
   comment(_id: string, _text: string): boolean {
-    this.setStatus('Sketches have no comments. Raise the sketch as an issue to discuss it.');
+    this.setStatus('Views have no comments. Make an issue of the view to discuss it.');
     return false;
   }
 

@@ -197,7 +197,7 @@ export class WorkPersistence {
     const docs = await this.pendingDocs(rec.documents);
     const n = this.bcf.adoptTopics(topics, docs);
     if (n || sketches) {
-      this.status = `${sketches} sketch${sketches === 1 ? '' : 'es'} and ${n} issue${n === 1 ? '' : 's'} from the last session`;
+      this.status = `${sketches} view${sketches === 1 ? '' : 's'} with drawings and ${n} issue${n === 1 ? '' : 's'} from the last session`;
       this.markup.setStatus(this.status);
     }
   }
@@ -229,7 +229,7 @@ export class WorkPersistence {
     const n = this.counts();
     for (const t of [...this.bcf.topics]) if (scopeOf(t.model, now).visible) this.bcf.deleteTopic(t.guid);
     for (const s of [...this.markup.sets]) if (!isSheetSet(s) && !s.readonly && scopeOf(s.model, now).visible) this.markup.deleteSet(s.id);
-    this.markup.setStatus(`Cleared ${n.sketches} sketch${n.sketches === 1 ? '' : 'es'} and ${n.issues} issue${n.issues === 1 ? '' : 's'} for this model`);
+    this.markup.setStatus(`Cleared ${n.sketches} view${n.sketches === 1 ? '' : 's'} with drawings and ${n.issues} issue${n.issues === 1 ? '' : 's'} for this model`);
     await this.save();
     return n;
   }

@@ -194,7 +194,7 @@ export const sheetsPlugin: AppPlugin = {
       newSketch: (id, t) => c.newSketch(id, t),
       add: (setId, spec) => {
         const set = mk.get(setId);
-        if (!set) throw new Error(`No sketch ${setId}`);
+        if (!set) throw new Error(`No view ${setId}`);
         const author = mk.author.trim() || 'unknown';
         let m: Markup;
         if (spec.kind === 'text' || spec.kind === 'callout') {

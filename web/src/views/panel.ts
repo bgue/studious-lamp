@@ -1,4 +1,5 @@
-// DOM of the "Views" tab of the sidebar: save, play, export / import, a filter box and the list of saved views.
+// DOM of the "Views" tab of the sidebar: save, play, export / import, a filter box, the chips All / With drawings / On sheets / In an
+// issue and the list of views (saved views and the views that only have a drawing layer, src/views/unified.ts).
 // One-line rows (grip · number · name · summary · ⋯) with the thumbnail shown next to the row on hover, or a compact
 // grid of thumbnails (the grid toggle; the choice and the dwell time persist in localStorage `xray.views.ui`).
 // Rows are reordered by dragging the grip (pointer events, so touch works too) or with Alt+ArrowUp / Alt+ArrowDown.
@@ -7,22 +8,33 @@
 import { debounce, el, esc } from '../ui/dom';
 import { closeMenu, openMenu } from '../ui/popupMenu';
 import type { MenuItem } from '../ui/popupMenu';
-import { filterViews, viewSummary } from './model';
-import type { SavedView } from './model';
+import { VIEW_FILTERS, VIEW_FILTER_LABEL, filterCounts, filterEntries } from './unified';
+import type { ViewEntry, ViewFilter } from './unified';
 
+/** Every method that takes an `index` means a position in `entries()` (the whole list, not the filtered one). */
 export interface ViewsHost {
-  views(): readonly SavedView[];
-  activeId(): string | null;
+  entries(): readonly ViewEntry[];
+  activeKey(): string | null;
+  filter(): ViewFilter;
+  setFilter(f: ViewFilter): void;
+  /** The detail of a view (src/issues/ui.ts) is open: it takes the place of the list. */
+  detailOpen(): boolean;
   playing(): boolean;
-  /** BCF topics can be created (window.__xrayBcf.createTopic exists). */
-  canBcf(): boolean;
+  /** Issues can be made (the Issues tab is in this build). */
+  canIssue(): boolean;
   save(name: string): void;
   restore(index: number): void;
   update(index: number): void;
   rename(index: number, name: string): void;
   duplicate(index: number): void;
   copyLink(index: number): void;
-  bcf(index: number): void;
+  /** Draw on the view: it gets a drawing layer if it has none, and the drawing toolbar comes up. */
+  drawOn(index: number): void;
+  /** Make an issue of the view: the detail opens with the chooser New issue / Add to. */
+  makeIssue(index: number): void;
+  openIssue(index: number): void;
+  /** Open the detail of the view (needs a drawing layer). */
+  details(index: number): void;
   remove(index: number): void;
   move(from: number, to: number): void;
   togglePlay(): void;
@@ -47,6 +59,16 @@ const CSS = `
 .vw-filter { display: flex; align-items: center; gap: 6px; padding: 0 6px 4px; flex: 0 0 auto; }
 .vw-filter .inp { flex: 1 1 auto; min-width: 0; }
 .vw-filter-info { color: var(--sb-dim); white-space: nowrap; font-size: 11px; }
+.vw-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 6px 4px; flex: 0 0 auto; }
+.vw-chip { background: transparent; color: var(--sb-dim); border: 1px solid var(--sb-line); border-radius: 10px; padding: 1px 8px; font: inherit; font-size: 11px; cursor: pointer; }
+.vw-chip:hover { color: var(--sb-fg); background: var(--sb-hover); }
+.vw-chip[aria-pressed="true"] { color: var(--sb-fg); background: #1f4a7a; border-color: #2d6aa8; }
+.vw-tag { flex: 0 0 auto; font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 7px; border: 1px solid var(--sb-line); color: var(--sb-dim); white-space: nowrap; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.vw-tag.issue { color: #ffd37a; border-color: #5a4a22; }
+.vw-card .vw-tags { position: absolute; left: 3px; bottom: 24px; display: flex; gap: 3px; }
+.vw.vw-detailing > .vw-top, .vw.vw-detailing > .vw-chips, .vw.vw-detailing > .vw-filter, .vw.vw-detailing > .vw-list { display: none; }
+.vw.vw-sheets > .vw-filter, .vw.vw-sheets > .vw-list { display: none; }
+.vw-drawings { flex: 0 0 auto; }
 .vw-list { flex: 1 1 auto; min-height: 96px; overflow-y: auto; padding: 0 4px 6px; }
 .vw-row { position: relative; display: flex; align-items: center; gap: 2px; height: 26px; padding: 0 2px; border-radius: 3px; }
 .vw-row:hover, .vw-row:focus-within { background: var(--sb-hover); }
@@ -133,6 +155,9 @@ export class ViewsPanel {
   private readonly gridBtn: HTMLButtonElement;
   private readonly msg: HTMLDivElement;
   private readonly filterRow: HTMLDivElement;
+  private readonly chips: HTMLDivElement;
+  /** The slot of the drawings part (src/issues/ui.ts, mode `views`): the detail of a view, the sheets, Open file, Other models. */
+  readonly drawings: HTMLDivElement;
   private readonly filterInput: HTMLInputElement;
   private readonly filterInfo: HTMLSpanElement;
   private readonly list: HTMLDivElement;
@@ -167,7 +192,7 @@ export class ViewsPanel {
     this.dwellSel.value = String(this.prefs.dwell);
     this.gridBtn = el('button', 'btn vw-grid-btn', { type: 'button', 'aria-pressed': String(this.prefs.grid), 'aria-label': 'Show thumbnails as a grid', title: 'Grid of thumbnails', ...help('View grid toggle', 'Grid toggle') });
     this.gridBtn.innerHTML = GRID_ICON;
-    const exp = el('button', 'btn', { type: 'button', title: 'Download the views of this model as JSON', ...help('Export views', 'Export views') }, 'Export');
+    const exp = el('button', 'btn', { type: 'button', title: 'Download the saved views of this model as JSON', ...help('Export views', 'Export views') }, 'Export');
     const imp = el('button', 'btn', { type: 'button', title: 'Add views from a JSON file', ...help('Import views', 'Import views') }, 'Import');
     this.fileInput = el('input', '', { type: 'file', accept: 'application/json,.json' });
     this.fileInput.style.display = 'none';
@@ -177,11 +202,13 @@ export class ViewsPanel {
     top.append(row1, row2, this.msg);
 
     this.filterRow = el('div', 'vw-filter');
-    this.filterInput = el('input', 'inp', { type: 'search', placeholder: 'Filter views', 'aria-label': 'Filter the views by name', ...help('View filter box', 'Filter views') });
+    this.filterInput = el('input', 'inp', { type: 'search', placeholder: 'Filter views', 'aria-label': 'Filter the views by name or note', ...help('View filter box', 'Filter views') });
     this.filterInfo = el('span', 'vw-filter-info');
     this.filterRow.append(this.filterInput, this.filterInfo);
-    this.list = el('div', 'vw-list', { role: 'list', 'aria-label': 'Saved views' });
-    this.root.append(top, this.filterRow, this.list);
+    this.chips = el('div', 'vw-chips', { role: 'group', 'aria-label': 'Show', ...help('View chips', 'View filters') });
+    this.list = el('div', 'vw-list', { role: 'list', 'aria-label': 'Views' });
+    this.drawings = el('div', 'vw-drawings');
+    this.root.append(top, this.chips, this.filterRow, this.list, this.drawings);
     this.peek = el('div', 'vw-peek');
     this.peek.style.display = 'none';
     document.body.appendChild(this.peek);
@@ -273,37 +300,50 @@ export class ViewsPanel {
   }
 
   render(): void {
-    const views = this.host.views();
-    const active = this.host.activeId();
+    const entries = this.host.entries();
+    const active = this.host.activeKey();
     const playing = this.host.playing();
+    const filter = this.host.filter();
+    const saved = entries.filter((e) => e.viewId).length;
     this.playBtn.textContent = playing ? '■ Stop' : '▶ Play';
     this.playBtn.classList.toggle('on', playing);
-    this.playBtn.disabled = views.length < 1;
+    this.playBtn.disabled = saved < 1;
     this.playBtn.setAttribute('aria-pressed', String(playing));
     this.gridBtn.setAttribute('aria-pressed', String(this.prefs.grid));
     this.list.classList.toggle('grid', this.prefs.grid);
-    this.filterRow.style.display = views.length > 0 ? '' : 'none';
+    this.root.classList.toggle('vw-detailing', this.host.detailOpen());
+    this.root.classList.toggle('vw-sheets', filter === 'sheets');
+    this.renderChips(entries, filter);
+    this.filterRow.style.display = entries.length > 0 ? '' : 'none';
     this.hidePeek();
-    if (views.length === 0) {
+    if (filter === 'sheets') return; // the sheets pane (the drawings slot) takes the place of the list
+    if (entries.length === 0) {
       this.list.innerHTML = '<div class="tv-empty">No views yet. Set up the camera, cuts and modes, then press Save view.</div>';
       this.filterInfo.textContent = '';
       return;
     }
-    const shown = filterViews(views, this.filter);
+    const pool = filterEntries(entries, { filter });
+    const shown = filterEntries(pool, { query: this.filter }).map((e) => entries.indexOf(e));
     if (this.editing >= 0 && !shown.includes(this.editing)) shown.push(this.editing);
     const html: string[] = [];
     for (const i of shown) {
-      const v = views[i]!;
-      const cls = v.id === active ? ' active' : '';
-      const sum = viewSummary(v);
-      const grip = `<span class="vw-grip" data-grip="1" title="Drag to reorder (Alt+Up, Alt+Down)" aria-hidden="true" data-help-key="Sidebar/View drag handle" data-help-title="Drag handle">⋮⋮</span>`;
+      const v = entries[i]!;
+      const cls = v.key === active ? ' active' : '';
+      const sum = this.summaryOf(v);
+      const grip = v.viewId
+        ? `<span class="vw-grip" data-grip="1" title="Drag to reorder (Alt+Up, Alt+Down)" aria-hidden="true" data-help-key="Sidebar/View drag handle" data-help-title="Drag handle">⋮⋮</span>`
+        : `<span class="vw-grip" style="visibility:hidden" aria-hidden="true"></span>`;
       const menu = `<button type="button" class="vw-ico" data-act="menu" aria-haspopup="menu" aria-expanded="false" aria-label="More actions for ${esc(v.name)}" title="More actions" data-help-key="Sidebar/View menu" data-help-title="View menu">⋯</button>`;
+      const tags =
+        (v.hasDrawings ? `<span class="vw-tag" data-tag="drawings" title="${v.drawings} drawing${v.drawings === 1 ? '' : 's'}">✎ ${v.drawings}</span>` : '') +
+        (v.sheet ? '<span class="vw-tag" data-tag="sheet" title="A page of a PDF sheet">Sheet</span>' : '') +
+        (v.issue ? `<span class="vw-tag issue" data-tag="issue" title="In issue: ${esc(v.issue.title)}">Issue</span>` : '');
       if (this.prefs.grid) {
         const img = v.thumb ? `<img src="${v.thumb}" alt="" width="160" height="100" loading="lazy">` : '<span class="vw-noshot">no picture</span>';
         html.push(
-          `<div class="vw-card${cls}" role="listitem" data-i="${i}" title="${esc(sum)}">` +
+          `<div class="vw-card${cls}" role="listitem" data-i="${i}" data-key="${esc(v.key)}" title="${esc(sum)}">` +
             `<button type="button" class="vw-shot" data-act="restore" aria-label="Restore ${esc(v.name)}" data-help-key="Sidebar/Restore view" data-help-title="Restore view">${img}</button>` +
-            `${grip}<span class="vw-num">${i + 1}</span>` +
+            `${v.viewId ? grip : ''}<span class="vw-num">${i + 1}</span><span class="vw-tags">${tags}</span>` +
             `<div class="vw-cap"><button type="button" class="vw-name" data-act="restore" title="${esc(v.name)}" data-help-key="Sidebar/Restore view" data-help-title="Restore view">${esc(v.name)}</button>${menu}</div>` +
             `</div>`,
         );
@@ -314,16 +354,33 @@ export class ViewsPanel {
           ? `<input class="inp vw-rename" type="text" value="${esc(v.name)}" aria-label="Rename view">`
           : `<button type="button" class="vw-name" data-act="restore" title="${esc(v.name)}: restore" data-help-key="Sidebar/Restore view" data-help-title="Restore view">${esc(v.name)}</button>`;
       html.push(
-        `<div class="vw-row${cls}" role="listitem" data-i="${i}">${grip}<span class="vw-num">${i + 1}</span>${name}` +
-          `<span class="vw-meta" title="${esc(sum)}">${esc(sum)}</span>${menu}</div>`,
+        `<div class="vw-row${cls}" role="listitem" data-i="${i}" data-key="${esc(v.key)}">${grip}<span class="vw-num">${i + 1}</span>${name}${tags}` +
+          `<span class="vw-meta" title="${esc(sum)}">${esc(v.summary)}</span>${menu}</div>`,
       );
     }
-    this.list.innerHTML = shown.length ? html.join('') : '<div class="tv-empty">No view matches the filter.</div>';
-    this.filterInfo.textContent = this.filter.trim() ? `${shown.length} of ${views.length}` : `${views.length}`;
+    this.list.innerHTML = shown.length ? html.join('') : `<div class="tv-empty">${pool.length ? 'No view matches the filter.' : filter === 'issue' ? 'No view is in an issue yet. Open a view menu and press Make issue.' : filter === 'drawings' ? 'No view has drawings yet. Open a view menu and press Draw on this view.' : 'No views yet.'}</div>`;
+    this.filterInfo.textContent = this.filter.trim() ? `${shown.length} of ${pool.length}` : `${pool.length}`;
     const inp = this.list.querySelector<HTMLInputElement>('.vw-rename');
     if (inp) {
       inp.focus();
       inp.select();
+    }
+  }
+
+  private summaryOf(v: ViewEntry): string {
+    return [v.summary, v.drawings ? `${v.drawings} drawing${v.drawings === 1 ? '' : 's'}` : '', v.issue ? `In issue: ${v.issue.title}` : ''].filter(Boolean).join(' · ');
+  }
+
+  private renderChips(entries: readonly ViewEntry[], filter: ViewFilter): void {
+    const n = filterCounts(entries);
+    const sig = VIEW_FILTERS.map((f) => `${f}:${n[f]}:${f === filter}`).join('|');
+    if (this.chips.dataset['sig'] === sig) return;
+    this.chips.dataset['sig'] = sig;
+    this.chips.textContent = '';
+    for (const f of VIEW_FILTERS) {
+      const b = el('button', 'vw-chip', { type: 'button', 'data-view-filter': f, 'aria-pressed': String(f === filter) }, `${VIEW_FILTER_LABEL[f]} ${n[f]}`);
+      b.addEventListener('click', () => this.host.setFilter(f));
+      this.chips.appendChild(b);
     }
   }
 
@@ -355,21 +412,20 @@ export class ViewsPanel {
   }
 
   private openRowMenu(i: number, btn: HTMLElement): void {
-    const v = this.host.views()[i];
+    const v = this.host.entries()[i];
     if (!v) return;
     this.hidePeek();
+    const can = this.host.canIssue();
     const items: MenuItem[] = [
-      { label: 'Update from current', act: 'update', help: 'Sidebar/Update view', title: 'Replace this view with the current camera and state' },
+      { label: 'Update from current', act: 'update', help: 'Sidebar/Update view', title: 'Replace this view with the current camera and state', disabled: v.sheet },
+      { label: v.hasDrawings ? 'Edit drawings' : 'Draw on this view', act: 'draw', help: 'Sidebar/Draw on view', title: 'Show the drawing toolbar and draw on this view' },
+      v.issue
+        ? { label: 'Open issue', act: 'openIssue', help: 'Sidebar/Open issue of view', title: `This view is in the issue "${v.issue.title}"` }
+        : { label: 'Make issue', act: 'issue', help: 'Sidebar/Make issue', disabled: !can || v.sheet, title: can ? 'Make an issue of this view, or add it to an issue' : 'The Issues tab is not in this build' },
+      ...(v.setId ? [{ label: 'Details', act: 'details', help: 'Sidebar/View details', title: 'Note, PDF and JSON export, the list of drawings' }] : []),
       { label: 'Rename', act: 'rename', help: 'Sidebar/Rename view' },
-      { label: 'Duplicate', act: 'duplicate', help: 'Sidebar/Duplicate view' },
+      { label: 'Duplicate', act: 'duplicate', help: 'Sidebar/Duplicate view', disabled: !v.viewId, title: v.viewId ? 'Copy this view without its drawings' : 'Only saved views can be copied' },
       { label: 'Copy link', act: 'link', help: 'Sidebar/Copy view link', title: 'Copy a link that opens this view' },
-      {
-        label: 'Save as BCF topic',
-        act: 'bcf',
-        help: 'Sidebar/View as BCF topic',
-        disabled: !this.host.canBcf(),
-        title: this.host.canBcf() ? 'Restore the view and create a BCF topic from it' : 'The BCF tool is not in this build',
-      },
       { label: 'Delete', act: 'delete', danger: true, confirm: 'Click again to delete', help: 'Sidebar/Delete view' },
     ];
     btn.setAttribute('aria-expanded', 'true');
@@ -383,6 +439,18 @@ export class ViewsPanel {
           case 'update':
             this.host.update(i);
             break;
+          case 'draw':
+            this.host.drawOn(i);
+            break;
+          case 'issue':
+            this.host.makeIssue(i);
+            break;
+          case 'openIssue':
+            this.host.openIssue(i);
+            break;
+          case 'details':
+            this.host.details(i);
+            break;
           case 'rename':
             this.startRename(i);
             break;
@@ -391,9 +459,6 @@ export class ViewsPanel {
             break;
           case 'link':
             this.host.copyLink(i);
-            break;
-          case 'bcf':
-            this.host.bcf(i);
             break;
           case 'delete':
             this.host.remove(i);
@@ -408,7 +473,7 @@ export class ViewsPanel {
     const i = this.editing;
     this.editing = -1;
     const name = inp.value.trim();
-    if (commit && name && this.host.views()[i] && name !== this.host.views()[i]!.name) this.host.rename(i, name);
+    if (commit && name && this.host.entries()[i] && name !== this.host.entries()[i]!.name) this.host.rename(i, name);
     else this.render();
     this.focusView(i);
   }
@@ -429,7 +494,7 @@ export class ViewsPanel {
     let handled = true;
     if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       const to = i + (e.key === 'ArrowUp' ? -1 : 1);
-      if (to >= 0 && to < this.host.views().length) {
+      if (to >= 0 && to < this.host.entries().length) {
         this.host.move(i, to);
         this.focusView(to);
       }
@@ -531,11 +596,11 @@ export class ViewsPanel {
       this.hidePeek();
       return;
     }
-    const v = this.host.views()[Number(row.dataset['i'])];
+    const v = this.host.entries()[Number(row.dataset['i'])];
     if (!v) return;
     const r = row.getBoundingClientRect();
     const img = v.thumb ? `<img src="${v.thumb}" alt="" width="160" height="100">` : '';
-    this.peek.innerHTML = `${img}<div class="t">${esc(v.name)}</div><div class="s">${esc(viewSummary(v) || 'default look')}</div>`;
+    this.peek.innerHTML = `${img}<div class="t">${esc(v.name)}</div><div class="s">${esc(this.summaryOf(v) || 'default look')}</div>`;
     this.peek.style.display = '';
     const sb = this.root.closest('#sidebar')?.getBoundingClientRect();
     const left = Math.min((sb ? sb.right : r.right) + 6, window.innerWidth - 176);

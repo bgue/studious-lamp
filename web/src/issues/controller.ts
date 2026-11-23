@@ -16,15 +16,19 @@ import type { MarkupSet } from '../markup/model';
 import { newGuid, nowIso } from '../bcf/model';
 import type { BcfAnnotation, BcfTopic, BcfViewpointRef } from '../bcf/model';
 import { addMarkup } from '../markup/model';
+import { captureThumb } from '../views/thumb';
 import { annotationToMarkup, clearLegacyReview, issueOfSketch, legacyIssueOf, legacySketches, linkSketch, reconcileLinks, sketchFromViewpoint, sketchesOfIssue, syncViewpoint, unlinkSketch } from './link';
 import type { IssueRef, LegacyIssue } from './link';
 import { DerivedViewSwitch } from './derivedSwitch';
 import { withDerivedViewpoints } from './derivedViews';
 import { searchIssues } from './search';
+import type { ViewFilter } from '../views/unified';
 import type { IssueHit } from './search';
 
-export type Segment = 'issues' | 'sketches' | 'sheets';
-export type Detail = { kind: 'issue' | 'sketch'; id: string } | null;
+/** Where `open` goes: the Issues tab, or the Views tab (`sketches` is the old name of `With drawings`, `sheets` of `On sheets`). */
+export type Segment = 'issues' | 'views' | 'sketches' | 'sheets';
+/** The open detail: an issue (Issues tab) or a view that has a drawing layer (Views tab). */
+export type Detail = { kind: 'issue' | 'view'; id: string } | null;
 
 /** Statuses that count as closed: the status bar counts the others as open. */
 const CLOSED_RE = /^(resolved|closed|done|solved|completed|rejected|cancel+ed|fixed|verified)$/i;
@@ -32,11 +36,28 @@ export function isOpenStatus(status: string): boolean {
   return !CLOSED_RE.test(status.trim());
 }
 
+/** What the Views tab gives the Issues side (src/plugins/views.ts sets it): the saved view behind a drawing layer, and making one. */
+export interface ViewsHostHook {
+  /** The saved view that holds the drawings of a set. */
+  savedOf(setId: string): { id: string; name: string } | null;
+  /** Remove a saved view (its set is already gone). */
+  removeSaved(id: string): void;
+  /** Save the current state as a view that has a drawing layer, without restoring anything. */
+  saveCurrent(name: string): MarkupSet | Promise<MarkupSet>;
+  /** The title of the set changed: the saved view takes the name. */
+  renamed(setId: string, title: string): void;
+  /** The set was captured again: the saved view takes the capture. */
+  updated(setId: string): void;
+}
+
 /** The status chips of the issue list. */
 export type StatusFilter = 'all' | 'open' | 'closed';
 
 export class IssuesController {
+  /** The tab the panel was last opened on. */
   segment: Segment = 'issues';
+  /** The filter of the Views tab (the views plugin keeps it in step: `window.__xrayViews.setFilter`). */
+  viewFilter: ViewFilter = 'all';
   detail: Detail = null;
   statusFilter: StatusFilter = 'all';
   query = '';
@@ -49,6 +70,10 @@ export class IssuesController {
   sheetRaise: ((setId: string, o: { topic?: string }) => Promise<string>) | null = null;
   /** src/work sets this: what "Clear all sketches and issues for this model" would remove, and the removal (it asks first, in the panel). */
   work: { counts(): { sketches: number; issues: number }; clear(): Promise<unknown> } | null = null;
+  /** src/plugins/views.ts sets this: the saved views behind the drawing layers. */
+  viewsHost: ViewsHostHook | null = null;
+  /** src/plugins/issues.ts sets this: bring a tab of the sidebar to the front (the Issues tab, or the Views tab on a filter). */
+  showTab: ((tab: 'issues' | 'views', filter?: ViewFilter) => void) | null = null;
   /** The result of the last migration, for the panel and scripts. */
   lastMigration: { issues: number; failed: number } | null = null;
   private readonly listeners = new Set<() => void>();
@@ -177,7 +202,7 @@ export class IssuesController {
     const ref = issueOfSketch(this.topics, set.id);
     unlinkSketch(this.topics, [set], set.id);
     if (ref) this.bcf.touch(ref.topic);
-    if (this.detail?.kind === 'sketch' && this.detail.id === set.id) this.detail = null;
+    if (this.detail?.kind === 'view' && this.detail.id === set.id) this.detail = null;
     if (this.confirmRemove === set.id) this.confirmRemove = null;
   }
 
@@ -292,7 +317,7 @@ export class IssuesController {
    */
   async raise(setId: string, o: { topic?: string; legacy?: LegacyIssue } = {}): Promise<string> {
     const set = this.markup.get(setId);
-    if (!set) throw new Error(`No sketch ${setId}`);
+    if (!set) throw new Error(`No view ${setId}`);
     if (isSheetSet(set)) {
       if (!this.sheetRaise) throw new Error('Sheets are not available in this build');
       const have0 = this.issueOf(setId);
@@ -349,7 +374,7 @@ export class IssuesController {
     this.syncAll();
     this.bcf.touch(topic);
     this.bcf.selectedTopic = topic.guid;
-    this.markup.setStatus(`Sketch "${set.title}" raised as the issue "${topic.title}"`);
+    this.markup.setStatus(`View "${set.title}" made an issue: "${topic.title}"`);
     this.emit();
     return topic.guid;
   }
@@ -388,14 +413,14 @@ export class IssuesController {
           issues++;
         } catch (e) {
           failed++;
-          this.markup.setStatus(`"${s.title}" could not be raised: ${e instanceof Error ? e.message : String(e)}`);
+          this.markup.setStatus(`"${s.title}" could not be made an issue: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
     } finally {
       this.migrating = false;
     }
     this.lastMigration = { issues, failed };
-    if (issues) this.markup.setStatus(`${issues} sketch${issues === 1 ? '' : 'es'} raised as issues${failed ? `; ${failed} could not be` : ''}`);
+    if (issues) this.markup.setStatus(`${issues} view${issues === 1 ? '' : 's'} made into issues${failed ? `; ${failed} could not be` : ''}`);
     this.emit();
     return this.lastMigration;
   }
@@ -417,7 +442,9 @@ export class IssuesController {
       return 'confirm';
     }
     this.confirmRemove = null;
+    const saved = this.viewsHost?.savedOf(setId) ?? null;
     this.markup.deleteSet(setId);
+    if (saved) this.viewsHost?.removeSaved(saved.id); // deleting the view takes the saved view with it
     return 'removed';
   }
 
@@ -456,11 +483,17 @@ export class IssuesController {
     this.emit();
   }
 
+  /** Show a view of an issue in the Views tab (its detail). */
+  openView(setId: string): boolean {
+    return this.openSketch(setId);
+  }
+
   /** Open an issue in the detail and apply the view of its first sketch (else its first viewpoint). */
   openIssue(guid: string, o: { apply?: boolean } = {}): boolean {
     const t = this.bcf.topic(guid);
     if (!t) return false;
     this.segment = 'issues';
+    this.showTab?.('issues');
     this.detail = { kind: 'issue', id: guid };
     this.bcf.select(guid);
     if (o.apply !== false) {
@@ -492,13 +525,12 @@ export class IssuesController {
     return ok;
   }
 
-  /** Open a sketch in the detail and bring its view back. */
+  /** Open a view that has a drawing layer in the detail (Views tab) and bring its view back. */
   openSketch(id: string, o: { restore?: boolean } = {}): boolean {
     const s = this.markup.get(id);
     if (!s) return false;
     if (isSheetSet(s)) {
-      // A sketch on a PDF sheet is listed with its sheet; opening it shows the sheet.
-      this.segment = 'sheets';
+      // A drawing on a PDF sheet is listed with its sheet; opening it shows the sheet.
       this.detail = null;
       this.markup.activeId = id;
       this.markup.selected = null;
@@ -506,8 +538,9 @@ export class IssuesController {
       this.emit();
       return true;
     }
-    this.segment = 'sketches';
-    this.detail = { kind: 'sketch', id };
+    this.segment = 'views';
+    this.showTab?.('views');
+    this.detail = { kind: 'view', id };
     void this.markup.select(id, { restore: o.restore !== false });
     this.emit();
     return true;
@@ -549,14 +582,33 @@ export class IssuesController {
     return this.editSketch(s.id);
   }
 
-  /** A new sketch from the current view, open in the detail and ready to draw on. */
+  /**
+   * A new loose view with a drawing layer from the current state, open in the detail and ready to draw on. The Views tab makes a saved
+   * view first (`window.__xrayViews.drawOn`); this is for a caller that has none.
+   */
   newSketch(title?: string): MarkupSet {
     const s = this.markup.newSet(title);
-    this.segment = 'sketches';
-    this.detail = { kind: 'sketch', id: s.id };
+    this.segment = 'views';
+    this.detail = { kind: 'view', id: s.id };
     this.markup.setEditing(true);
     this.emit();
     return s;
+  }
+
+  /**
+   * The view of a new issue (the New issue dialog made it from the current state): its drawing layer, so the view is in the Views
+   * list as "In issue" and can be drawn on. Null when the viewpoint cannot carry one.
+   */
+  adoptNewIssue(topic: BcfTopic): MarkupSet | null {
+    const vp = topic.viewpoints[0];
+    if (!vp) return null;
+    const set = this.sketchForViewpoint(topic, vp);
+    if (set && !set.thumb) {
+      const thumb = captureThumb(this.app);
+      if (thumb) set.thumb = thumb;
+      this.markup.emit();
+    }
+    return set;
   }
 
   // ---------------------------------------------------------------- lists, counts, search
@@ -591,9 +643,9 @@ export class IssuesController {
     return this.bcf.currentTopics.filter((t) => isOpenStatus(t.topicStatus)).length;
   }
 
-  /** Search for the top-bar search: issues and sketches of the loaded model by title, note and comment text. */
+  /** Search for the top-bar search: the issues of the loaded model by title, description and comment text. */
   search(query: string): IssueHit[] {
-    return searchIssues({ topics: this.bcf.currentTopics, sets: this.markup.visibleSets().map((x) => x.set) }, query);
+    return searchIssues({ topics: this.bcf.currentTopics, sets: [] }, query);
   }
 
   /** The search row of one issue or sketch (for recents in the search bar), or null when it is gone or of another model. */
@@ -603,7 +655,7 @@ export class IssuesController {
       return t ? { kind, id, title: t.title, sub: `Issue${t.topicStatus ? `, ${t.topicStatus}` : ''}`, field: 'title', positions: [], score: 50 } : null;
     }
     const s = this.markup.visibleSets().find((x) => x.set.id === id)?.set;
-    return s ? { kind, id, title: s.title, sub: `Sketch, ${s.markups.length} drawing${s.markups.length === 1 ? '' : 's'}`, field: 'title', positions: [], score: 50 } : null;
+    return s ? { kind, id, title: s.title, sub: `View, ${s.markups.length} drawing${s.markups.length === 1 ? '' : 's'}`, field: 'title', positions: [], score: 50 } : null;
   }
 
   /** Open a search hit: an issue applies its view, a sketch restores its own. */

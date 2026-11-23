@@ -161,16 +161,16 @@ export const markupPlugin: AppPlugin = {
 
     registerAction({
       id: 'markup.toggle',
-      label: 'Sketches: open the tab',
+      label: 'Views: open the views with drawings',
       group: 'Panels',
       keys: ['k'],
-      description: 'Open the Issues tab on the Sketches segment, to draw on a saved view',
+      description: 'Open the Views tab on the filter With drawings, to draw on a view',
       run: () => window.__xrayIssues?.open('sketches'),
     });
-    registerAction({ id: 'markup.new', label: 'Sketches: new sketch from view', group: 'Markup', keys: [], run: () => { try { if (window.__xrayIssues) window.__xrayIssues.newSketch(); else c.newSet(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } } });
-    registerAction({ id: 'markup.open', label: 'Sketches: open PDF or JSON file', group: 'Markup', keys: [], run: () => { window.__xrayIssues?.open('sketches'); pickMarkupFile(c); } });
-    registerAction({ id: 'markup.pdf', label: 'Sketches: export PDF of all sketches', group: 'Markup', keys: [], run: () => void c.downloadPdf().catch((e) => c.setStatus(e instanceof Error ? e.message : String(e))) });
-    registerAction({ id: 'markup.json', label: 'Sketches: export JSON of all sketches', group: 'Markup', keys: [], run: () => { try { c.downloadJson(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } } });
+    registerAction({ id: 'markup.new', label: 'Drawings: draw on the current view', group: 'Markup', keys: [], run: () => { try { if (window.__xrayIssues) window.__xrayIssues.newSketch(); else c.newSet(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } } });
+    registerAction({ id: 'markup.open', label: 'Drawings: open a PDF or JSON file', group: 'Markup', keys: [], run: () => { window.__xrayIssues?.open('sketches'); pickMarkupFile(c); } });
+    registerAction({ id: 'markup.pdf', label: 'Drawings: export PDF of all views with drawings', group: 'Markup', keys: [], run: () => void c.downloadPdf().catch((e) => c.setStatus(e instanceof Error ? e.message : String(e))) });
+    registerAction({ id: 'markup.json', label: 'Drawings: export JSON of all views with drawings', group: 'Markup', keys: [], run: () => { try { c.downloadJson(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } } });
 
     installDrop(c);
     markupFileInput(c); // the hidden picker input exists from the start (scripts and tests can feed it)
