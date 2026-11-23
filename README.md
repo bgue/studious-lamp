@@ -24,8 +24,8 @@ plugins (see "Development"), so every feature below is a separate module with it
   - 4D playback: the score player plays a 4D plan (`schedule4d` cue: elements appear by schedule date with trade-colour tint, edge glow, critical red, active work as the x-ray focus) with `tint`, `explode`, `collapse`, `focus` and `sectionBox` cues, and the HUD shows the schedule date, % complete, S-curve, current activities, milestones and a legend, also in the exported video ([4d-playback.md](web/docs-features/4d-playback.md)).
   - Animation scripts: a short English-like script (`fly to class IfcPump over 3 seconds`, `hide class IfcSlab fading over 2 seconds`, captions, loops over elements and sets) that animates the camera, settings, visibility and selection, written in the Script tab with live error messages and examples ([animation-script.md](web/docs-features/animation-script.md)).
   - Animation script grammar and coordinator guide: [grammar](web/docs-features/animation-script-grammar.md), [guide](web/docs-features/animation-script-guide.md).
-  - Presets: thirteen named looks on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
-  - Top bar: four visualisation modes (Ghost, Radiograph, Glow, Cutaway, keys `Shift+1` to `Shift+4`) that apply built-in presets, and a host for the search bar ([topbar.md](web/docs-features/topbar.md)).
+  - Presets: fourteen named looks, the first nine on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
+  - Top bar: five visualisation modes (Solid, Ghost, Radiograph, Glow, Cutaway, keys `Shift+0` to `Shift+4`) that apply built-in presets, and a host for the search bar ([topbar.md](web/docs-features/topbar.md)).
 - **Coordination**
   - Measure (point to point, element to element) and clearance colouring ([measure.md](web/docs-features/measure.md)).
   - Penetration schedule: where MEP passes through hosts and whether there is an opening ([penetrations.md](web/docs-features/penetrations.md)).

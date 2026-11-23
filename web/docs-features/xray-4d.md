@@ -3,7 +3,7 @@
 `xray-4d` is the command line tool for the 4D feature: an animation in which every element appears when its activity runs,
 driven by a Primavera P6 export (`.xer`). The design is in [docs/design/4d-xer-animation.md](../../docs/design/4d-xer-animation.md).
 This document covers the schedule reader and the commands `inspect`, `link`, `plan`, `render`, `pack` and `all`, and the IFC 4D
-write-back. `script` (camera director) is listed in the command table as "coming".
+write-back. `script` is the camera director: it writes a directed `.xrayanim` film from a plan and its model ([4d-director.md](4d-director.md)).
 
 Run it from `web/`:
 

@@ -240,7 +240,7 @@ Sources: `README.md` (Development, Plugin architecture), `SPEC.md` (Extensions, 
 - A. Keyboard reference and shortcut editor: `wd/keyboard.md`, `docs/SETTINGS.md` (Keyboard, Shortcut sheet)
 - B. Settings reference (generated): `docs/SETTINGS.md`; `web/tools/gen-settings-doc.mjs`
 - C. File formats: IFC/IFCZIP/glb/sidecar, BCF, PDF, point clouds, XER, `xray-params/1`, `xray-views/1`, `xray-flythroughs/1`, `xray-sets/1`, `xray-markup-set/1`, `.xrayanim`, `.4d.json`, LinkML. Sources: `SPEC.md`, feature docs
-- D. Presets table (13)
+- D. Presets table (14)
 - E. Glossary: `docs/SETTINGS.md` (Glossary)
 - F. Limits and known issues: `README.md` (Known limitations), `wd/*` Limitations
 - G. Privacy and data: what is stored in localStorage, what the map sends, `reviewed_by`, what share links and packed pages exclude
