@@ -349,11 +349,13 @@ try {
   const thumbs = await page.evaluate(() => window.__xrayViews.list().filter((v) => v.set).map((v) => v.hasThumb));
   // Assertion changed: the first view went through the legacy-data JSON round trip above and the JSON carries no thumbnail, so it
   // lists as "no picture"; the view made from the view has its picture.
-  check('two views with a drawing layer are listed, the new one with a thumbnail', (await page.$$('#views-panel .vw-row')).length === 2 && thumbs.length === 2 && thumbs.some(Boolean));
+  // The first saved view is plain again (its layer was deleted and imported back, as a view of its own): 3 rows, 2 of them with a layer.
+  check('two views with a drawing layer are listed (3 rows), the new one with a thumbnail', (await page.$$('#views-panel .vw-row')).length === 3 && thumbs.length === 2 && thumbs.some(Boolean));
   await tool('cloud');
   await drag(box.x + box.w * 0.55, box.y + box.h * 0.4, box.x + box.w * 0.75, box.y + box.h * 0.6);
   check('the second view has its own markup', (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[1].id).markups.length)) === 1 && (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id).markups.length)) === 15);
-  // selecting view 1 restores its view
+  // selecting view 1 restores its view (the detail of the second view is open: back to the list first)
+  await page.click('#views-drawings [data-act=back]');
   await page.click(`#views-panel [data-key] .vw-name >> nth=${await page.evaluate((id) => window.__xrayViews.list().findIndex((v) => v.set === id), set1.id)}`);
   await page.waitForTimeout(1500);
   await settle();

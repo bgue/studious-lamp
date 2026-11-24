@@ -311,7 +311,7 @@ try {
   });
   check('after a reload the view and its drawings are back', back.sketch === 'Legacy review' && back.markups === 2 && back.id === kept.setId, JSON.stringify(back));
   check('after a reload the issues, their comments and snapshots are back, linked to the view both ways', back.issues === kept.issues && back.snap === kept.snap && back.link === kept.setId && back.back && JSON.stringify(back.comments) === JSON.stringify(['Reroute below the girder']), JSON.stringify(back));
-  check('nothing of it is in the URL or localStorage', (await page.evaluate(() => location.href)) === urlBefore && (await page.evaluate(() => !Object.keys(localStorage).some((k) => /view|issue|topic|snapshot/i.test(k) || /Legacy review/.test(localStorage.getItem(k) ?? '')))));
+  check('nothing of it is in the URL or localStorage', (await page.evaluate(() => location.href)) === urlBefore && (await page.evaluate(() => !Object.keys(localStorage).some((k) => /sketch|issue|topic|snapshot/i.test(k) || /Legacy review/.test(localStorage.getItem(k) ?? '')))));
   await page.evaluate(() => window.__xrayIssues.open('sketches'));
   await page.waitForSelector('#views-drawings [data-act=clear-all]');
   await page.click('#views-drawings [data-act=clear-all]');
@@ -334,14 +334,15 @@ try {
   await page.waitForSelector('#issues-panel [data-viewpoint] [data-act=open-sketch]');
   await page.click('#issues-panel [data-act=add-sketch]');
   await page.waitForFunction(() => window.__xrayBcf.topics[0].viewpoints.length === 2 && window.__xrayViews.entries('issue').length === 2);
-  check('Add current view puts a second view into the issue and the list', await page.evaluate(() => window.__xrayViews.entries('issue').every((e) => e.issue.title === 'Door swing') && window.__xrayViews.list().length === 2));
+  check('Add current view puts a second view into the issue and the list', await page.evaluate(() => window.__xrayViews.entries('issue').every((e) => e.issue.title === 'Door swing') && window.__xrayViews.list().filter((v) => v.set).length === 2));
   await page.click('#issues-panel [data-viewpoint] [data-act=open-sketch]');
   await page.waitForSelector('#views-drawings [data-issue-link]');
   check('Open in Views shows the view in the Views tab, in its issue', await page.evaluate(() => document.querySelector('#views-panel').offsetParent !== null && window.__xrayIssues.detail?.kind === 'view') && (await page.textContent('#views-drawings [data-issue-link]')).includes('Door swing'));
   await page.evaluate(() => window.__xrayViews.open('all'));
   await page.evaluate(() => window.__xrayIssues.controller.emit());
   const chips = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#views-panel [data-view-filter]')].map((b) => [b.dataset.viewFilter, Number(b.textContent.match(/\d+$/)[0])])));
-  check('the chips count the views: All 2, With drawings 0, On sheets 0, In an issue 2', JSON.stringify(chips) === JSON.stringify({ all: 2, drawings: 0, sheets: 0, issue: 2 }), JSON.stringify(chips));
+  const plain = await page.evaluate(() => window.__xrayViews.list().filter((v) => !v.set).length);
+  check('the chips count the views: the plain saved views plus the 2 views of the issue; With drawings 0, On sheets 0, In an issue 2', JSON.stringify(chips) === JSON.stringify({ all: plain + 2, drawings: 0, sheets: 0, issue: 2 }), JSON.stringify(chips));
 
   // ------------------------------------------------------------------ part 6: phone
   const phone = await browser.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });

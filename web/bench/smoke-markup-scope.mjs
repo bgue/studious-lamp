@@ -79,9 +79,9 @@ try {
 
   // The free part of the canvas: right of the sidebar.
   await page.keyboard.press('k');
-  await page.waitForSelector('#issues-panel');
-  await page.fill('#issues-panel [data-keep=author]', 'smoke@example.org');
-  await page.dispatchEvent('#issues-panel [data-keep=author]', 'change');
+  await page.waitForSelector('#views-drawings');
+  await page.fill('#views-drawings [data-keep=author]', 'smoke@example.org');
+  await page.dispatchEvent('#views-drawings [data-keep=author]', 'change');
   const box = await page.evaluate(() => {
     const cv = window.__xray.app.canvas.getBoundingClientRect();
     const dr = document.querySelector('#sidebar')?.getBoundingClientRect();

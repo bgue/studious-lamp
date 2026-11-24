@@ -455,6 +455,7 @@ try {
   failed = true;
   console.error(e);
   console.error(viteLog.slice(-1500));
+  console.error('console errors:', errors.slice(0, 5).join(' | '));
 } finally {
   if (browser) await browser.close();
   vite.kill();

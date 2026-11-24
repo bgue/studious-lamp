@@ -72,6 +72,8 @@ export class IssuesController {
   work: { counts(): { sketches: number; issues: number }; clear(): Promise<unknown> } | null = null;
   /** src/plugins/views.ts sets this: the saved views behind the drawing layers. */
   viewsHost: ViewsHostHook | null = null;
+  /** src/plugins/issues.ts sets this: the drawing toolbar came up (on a phone the sidebar and the sheets step aside). */
+  editStarted: (() => void) | null = null;
   /** src/plugins/issues.ts sets this: bring a tab of the sidebar to the front (the Issues tab, or the Views tab on a filter). */
   showTab: ((tab: 'issues' | 'views', filter?: ViewFilter) => void) | null = null;
   /** The result of the last migration, for the panel and scripts. */
@@ -556,6 +558,7 @@ export class IssuesController {
     }
     if (isSheetSet(s)) this.markup.restore(id, true); // shows the sheet
     this.markup.setEditing(true);
+    this.editStarted?.();
     this.emit();
     return this.markup.editing;
   }

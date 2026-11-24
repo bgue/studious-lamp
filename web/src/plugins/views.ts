@@ -21,7 +21,7 @@ import { bootConfig } from '../tools/registry';
 import { copyText } from '../ui/dom';
 import { registerParamSection } from '../ui/params';
 import type { ParamsApp } from '../ui/params';
-import { addSidebarTab, collapseSidebar } from './sidebar';
+import { addSidebarTab } from './sidebar';
 import { bcfController } from './bcf';
 import { markupController } from './markup';
 import type { MarkupController } from '../markup/controller';
@@ -364,7 +364,6 @@ class ViewsController {
       this.mk?.restore(set.id, true);
       this.mk?.setEditing(true);
     }
-    if (window.matchMedia?.('(max-width: 700px)').matches) collapseSidebar();
     this.render();
     return set.id;
   }

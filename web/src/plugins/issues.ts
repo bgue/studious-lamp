@@ -211,6 +211,7 @@ export const issuesPlugin: AppPlugin = {
 
     // ---- the Views tab: the drawings part (detail of a view with drawings, sheets) is built here, from the same controller
     linkViews(c);
+    c.editStarted = () => { if (phone()) collapseSides(); };
     c.showTab = (which, filter) => {
       if (which === 'issues') api.open('issues');
       else api.open(filter === 'sheets' ? 'sheets' : filter === 'drawings' ? 'sketches' : 'views');
