@@ -66,7 +66,7 @@ drawing takes colour, weight and fill changes.
 
 **Keys while you draw.** `Ctrl+Z` and `Ctrl+Shift+Z` undo and redo (100 steps per view). `Delete` removes the selected drawing.
 `Escape` cancels the drawing in progress, then returns to **Select**, then deselects. While a tool is active the left button
-draws. The middle and right buttons still orbit and pan. Touch and pen draw too. The global undo of chapter 3 stands aside
+draws. The middle and right buttons still pan, and `Shift` with the middle button orbits. Touch and pen draw too. The global undo of chapter 3 stands aside
 while you draw.
 
 **Edit later.** For a view that has drawings the row menu says **Edit drawings** in place of **Draw on this view**. In an

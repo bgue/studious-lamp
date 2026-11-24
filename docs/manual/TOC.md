@@ -25,11 +25,11 @@ Sources: `README.md` (Quick start, Opening your own files), `wd/large-ifc.md`, `
 ### 3. The screen and moving around
 Sources: `wd/topbar.md`, `wd/toolbar.md`, `wd/right-sidebar.md`, `wd/gizmo.md`, `wd/pointer-modes.md`, `wd/hover-info.md`, `wd/undo.md`
 - 3.1 The screen map: name the top bar, left sidebar (Model, Sets, Views, Issues), tool strip, right sidebar (Properties, Classification, Parameters, Script, 4D, Revision), gizmo and status bar.
-- 3.2 Orbit, pan, zoom, Arrow vs Hand [R/G], the view cube, home and projection buttons.
+- 3.2 Moving around: orbit, pan, zoom (BIM-style mouse), Arrow vs Hand [R/G], Walk mode, the Navigation style setting, the view cube, home and projection buttons.
 - 3.3 Select, hover cards and the Properties tab: read any element's data.
 - 3.4 Undo and redo for view, selection and settings; what is not undoable.
 - 3.5 On a phone: bottom sheets and the folded sidebars.
-- 3.6 Keyboard, command palette, cheat sheet [?]: do common actions without the mouse. (`wd/keyboard.md`)
+- 3.6 Keyboard, focus and F6, command palette, cheat sheet [?]: do common actions without the mouse. (`wd/keyboard.md`)
 
 ---
 
@@ -62,7 +62,7 @@ Sources: `wd/imaging.md`, `wd/map.md`
 
 ### 7. Model tree and search
 Sources: `wd/search.md`, `README.md` (Navigation), `wd/right-sidebar.md`
-- 7.1 Browse the Model tree; hide, isolate, show.
+- 7.1 Browse the Model tree; keys; hide, isolate, show.
 - 7.2 Search bar: find elements, commands, presets, views, sets, settings.
 - 7.3 WHERE queries typed into search: filter by class or property.
 

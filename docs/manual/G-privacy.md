@@ -37,7 +37,7 @@ renamed copy of the same model finds its fly-throughs and views again, and a dif
 | Presets you saved | `xray.presets` |
 | Fly-throughs | `xray.flythroughs.<model identity>`, `xray.flythrough.ui` |
 | Animation scripts and the text you were editing | `xray.anim.<model>` |
-| Shortcuts you changed, keyboard speeds | `xray.keymap`, `xray.keynav` |
+| Shortcuts you changed, keyboard speeds, navigation style | `xray.keymap`, `xray.keynav` |
 | Recent searches and palette commands | `xray.search.recent`, `xray.palette.recent` |
 | Layout: sidebars, dock, tool strip, top bar, view cube, pointer mode, hover list | `xray.sidebar`, `xray.dock`, `xray.toolbar`, `xray.topbar`, `xray.gizmo`, `xray.pointerMode`, `xray.propsListOpen` |
 | Tooltips on or off | `xray.help` |

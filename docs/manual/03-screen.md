@@ -37,38 +37,94 @@ and come back. Hover over a tool button to read its name.
 **Limits.** Your fold choices for the right sidebar, the tool strip and the top bar are remembered in the browser. The view cube is not
 saved in views or share links.
 
-## 3.2 Orbit, pan, zoom, Arrow vs Hand, the view cube
+## 3.2 Moving around: orbit, pan, zoom, Walk mode, the view cube
+
+Think of holding a model house in your hands. You turn it, slide it, bring it closer. The viewer works the same way, in the
+style of Revit, Navisworks and Solibri: the mouse moves the model around a point you choose, and the keyboard does the same
+in small steps. A second way, **Walk mode**, puts you inside the building instead.
 
 The left mouse button does one of two things, depending on the *pointer mode*. The mode is set by a toggle under the view
-cube, or by two keys.
+cube, or by two keys. The other buttons and the wheel do the same in both modes.
 
 | | **Hand** (key `G`, the default) | **Arrow** (key `R`) |
 | --- | --- | --- |
 | Left drag | Orbit | Draw a selection box |
 | Click | Select | Select |
-| Right drag | Pan | Pan |
-| Wheel, middle drag | Zoom | Zoom |
+| Double-click an element | Select it and fly to it | The same |
+| Right drag, middle drag | Pan | Pan |
+| `Shift` with middle drag | Orbit | Orbit |
+| Wheel | Zoom toward the cursor | Zoom toward the cursor |
+| Double middle click | Frame everything | Frame everything |
 | Touch | One finger orbits, two fingers zoom and pan | One finger draws the box, two fingers zoom and orbit |
 
-In Hand mode, `Shift` with a left drag pans. The camera is never out of reach in Arrow mode, because right drag, wheel and
-the keyboard still work.
+Two details make this feel natural. The wheel zooms toward the point under the cursor, so what you point at stays under the
+pointer. And an orbit turns around the point you grab: when a drag starts, the viewer finds the element under the cursor and
+makes that the centre of the turn. If the cursor is over empty space, the centre stays where it was. In Hand mode, `Shift` with
+a left drag pans. A double-click on empty space does nothing. The camera is never out of reach in Arrow mode, because the
+right and middle buttons, the wheel and the keyboard still work.
 
 **The selection box (Arrow mode).** Drag from left to right: a solid blue box that picks the elements lying fully inside
 it. Drag from right to left: a dashed green box that picks every element it touches. This is the convention of CAD
 programs. `Shift` adds to the selection, `Ctrl` or `Cmd` toggles, and `Esc` cancels the box while the button is down. The
 box looks at bounding boxes only, not at what hides what, so it picks elements behind the ones in front.
 
-**From the keyboard.** Arrow keys orbit. `Shift` with arrow keys pans. `W`, `A`, `S`, `D` fly forward, left, back and right,
-and `Q` and `E` move down and up. `=` and `-` zoom. Hold `Ctrl` to move at a quarter of the speed. `Home` frames the whole
-model, `F` frames the selection (or everything when nothing is selected), and `Alt+Left` goes back to the previous view.
+**From the keyboard.** Arrow keys orbit. `Shift` with arrow keys pans. `=` and `-` (or `+`) zoom. Hold `Ctrl` to move at a
+quarter of the speed. The number pad gives the standard views: `1` front, `3` right, `7` top, `0` isometric. `F` or `.`
+frames the selection (`F` frames everything when nothing is selected), and `Home` frames the whole model. `PageUp` and
+`PageDown` move up and down one storey. `Alt+Left` and `Alt+Right` step back and forward through your last 50 views of the
+model (mouse buttons 4 and 5 do the same).
+
+`W`, `A`, `S`, `D`, `Q` and `E` do nothing here. They belong to Walk mode, below.
 
 **The view cube.** Click a face (Top, Bottom, Front, Back, Left, Right), an edge or a corner, and the camera glides there,
 framing the selection (or the whole model). Drag the cube to orbit. The curved arrows at the top corners roll the picture
 by 90 degrees, and the arrows at the bottom corners turn the camera 90 degrees to the left or right. **Home** frames the
 model. The projection button switches between perspective and an orthographic look (`Alt+5`).
 
-**Try it.** In FZK-Haus, click **Top** on the cube. You look straight down. Click **Home**. Press `Alt+Left` to go back to
-the view before.
+### Walk mode
+
+Orbiting looks at a building from outside. To check what you would see standing in a corridor, you need to be inside.
+**Walk mode** moves the camera as a person would: you stay at one eye height and go forward, back and sideways on the level.
+
+Enter it with `Shift+W`, or with the walk button next to the Arrow and Hand toggle under the view cube. A chip at the top of
+the view reads "Walk · Esc to exit", and the cursor becomes an eye. Leave it with `Esc`, a click on the chip, or the walk
+button again.
+
+- `W` and `S`, or `Up` and `Down`, walk forward and back. `A` and `D` step left and right.
+- `Left` and `Right` turn you on the spot.
+- `Q` lowers the eye and `E` raises it.
+- Hold `Shift` to run (3 times faster). Hold `Ctrl` to go slow (a quarter speed).
+- Drag with the left button to look around. The wheel walks forward and back. A click still selects.
+
+While you walk, `Shift+W` does not leave: `Shift` with `W` runs forward. Use `Esc` to leave. Walk mode is also left when a
+fly-through, a script or a 4D film plays (chapter 21).
+
+**Try it.** In FZK-Haus, walk into the house from outside.
+
+1. Press `Home`. The whole house fills the view, seen from above and outside.
+2. Press `Shift+W`. The chip appears. Nothing moves yet.
+3. Hold `Q` until the ground outside the house is just below the middle of the view: your eye is now low, at about the height
+   of the ground floor. Drag with the left button to look level, toward the house.
+4. Hold `W`. You walk toward the house at the same height. Keep it down and you pass through the outer wall and stand inside
+   the ground floor. Hold `Shift` as well to run, or `Ctrl` to creep.
+5. Press `Left` to turn and look around the room. Press `Esc`. The chip goes away and the mouse orbits again, around a point
+   a short way in front of you.
+
+**How it works.** Walk mode moves the camera and a point a fixed distance in front of it, so leaving it leaves a sensible
+orbit. It is a state of your viewer only. It is not in share links, saved views, presets or packed pages, and opening another
+model ends it. A walk is one camera step on the undo stack (3.4).
+
+**Limits.** There is no gravity and no collision. You pass through walls and floors, and you stay at the eye height you set
+until you change it. Speeds scale with the size of the model, and the **move speed** and **orbit speed** settings change them.
+
+### The old keys: Navigation style
+
+If you liked the older way, where `W`, `A`, `S`, `D`, `Q` and `E` always fly the camera and the middle button zooms, open the
+**Keyboard** folder of the **Parameters** tab and set **navigation style** to **Game**. **BIM** is the default. The choice is
+remembered in your browser. It is not in share links or views. Game style has no pivot pick and no double-click action.
+
+**Try it.** Click **Top** on the cube. You look straight down. Click **Home**. Press `Alt+Left` to go back to the view before.
+Turn the wheel with the pointer over a corner of the house, and see that corner stay under the pointer.
 
 **Limits and gotchas.** The orthographic look is an approximation: a camera with a 2 degree field of view moved far back.
 There is no true orthographic camera. The view cube has no compass letters, because the model files carry no true north.
@@ -166,8 +222,22 @@ Keys are ignored while you type in a text box. A few that you will use all the t
 
 Appendix A lists every key.
 
+**Where the keys go (focus).** A list such as the model tree, the Views list or the Sets list keeps its own arrow keys,
+`Home`, `End`, `PageUp`, `PageDown`, `Enter` and `Space` while it has focus. So `PageUp` in the tree moves up the tree, not up
+a storey. Keys that the list does not use, such as `F`, `H` and `X`, still act on the selection. Chapter 7 gives the tree keys.
+
+`Esc` is the way out. With focus in a list, the first `Esc` hands focus back to the 3D view and does nothing else. A second
+`Esc` does what it always does: it closes an open panel or card, then clears the selection. In a text box, `Esc` also leaves the
+box.
+
+`F6` moves focus around the screen: the 3D view, the left sidebar, the right sidebar, the top bar, and back to the 3D view.
+`Shift+F6` goes the other way. A folded sidebar or a hidden top bar is skipped (open it with `[`, `]` or `Shift+T` first). The
+region that has focus shows a ring. `F6` is the one key that also works while you type in a text box. Together with `Tab`, it
+lets you reach every part of the screen without the mouse.
+
 ## See also
 
 - Chapter 4: x-ray, the main feature.
-- Chapter 7: the model tree and search.
+- Chapter 7: the model tree, its keys and search.
+- Chapter 21: what happens to the camera while something plays.
 - Appendix A: keyboard reference.

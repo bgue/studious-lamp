@@ -52,6 +52,34 @@ The filter looks at name, GlobalId and class. While you filter, the tree remembe
 them back when you clear the filter. The tree draws only the rows you can see, so a model with 100,000 elements
 scrolls without delay.
 
+### Use the tree from the keyboard
+
+The tree is one `Tab` stop: press `Tab` (or `F6`, see 3.6) until it has focus, then move with these keys. The row you are on
+shows a ring. It is separate from the blue fill of selected rows.
+
+| Keys | What they do |
+| --- | --- |
+| `Up`, `Down`, `Home`, `End`, `PageUp`, `PageDown` | Move to another row. A page is the rows you see, minus one. |
+| `Right` | Open a closed row. On an open row, go to its first child. |
+| `Left` | Close an open row. Otherwise go to its parent. |
+| `*` | Open all rows at the same level as this one. |
+| `Enter`, `Space` | Select what the row holds, replacing the selection. A storey or class selects all its elements. |
+| `Ctrl+Space` | Add the row's elements to the selection, or remove them if they are already in it. |
+| `Shift+Up`, `Shift+Down` | Move, and add the new row's elements to the selection. |
+| Letters | Type-ahead: jump to the next row whose name starts with what you typed. The text resets after half a second. |
+
+Type-ahead takes a letter only when no global key uses it. `d` and `t` jump to rows. `f`, `h`, `x` and `i` keep their normal
+job, so `f` still frames the selection and `h` still hides it, even with the tree in focus. For a row that starts with such a
+letter, hold `Shift`: `Shift+I`, then `fcDoor` (once the text has started, every letter joins it), finds `IfcDoor`. Pressing
+one letter again and again cycles through the rows with that initial. The eye button of a row has no `Tab` stop, because `h`,
+`Shift+H` and `Alt+H` already act on the selection.
+
+`Esc` hands focus back to the 3D view. A second `Esc` clears the selection, as usual.
+
+**The tree follows your clicks in 3D.** Click an element in the 3D view, find it with the search bar, or step to it with `Tab`.
+The tree opens its storey and class, scrolls the row into view and makes it the row you are on. Focus stays where it was, so
+you can keep working in 3D.
+
 ### Hide, isolate, show
 
 The eye on a row hides or shows everything below that row. A half-dimmed eye on a storey or class means some of its
@@ -70,6 +98,7 @@ Hidden elements are not drawn, cannot be picked and are removed from the selecti
 
 ### Limits and gotchas
 
+- The tree keys work only while the tree has focus. With focus on the 3D view, the arrow keys move the camera.
 - The tree selects and hides. It does not rename, move or delete elements, and it never changes the file.
 - An element can appear in two branches (for example under a storey and under a system). Each row is its own row, but
   both select the same element.

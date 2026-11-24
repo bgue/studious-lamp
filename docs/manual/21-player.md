@@ -66,6 +66,7 @@ its item runs.
 | `Right`, `Left` | Next or previous keyframe of the active fly-through |
 | `Esc` | Stop, and put everything back |
 | a press or wheel on the 3D view | Stop, keep the camera, put the rest back |
+| `Shift+w` | Nothing. Walk mode (3.2) cannot start while something plays, and starting a fly-through, script or 4D film leaves it. |
 
 **The on-screen display.** Everything that shows over the 3D view while it plays comes from one layer, drawn on a transparent canvas
 above the view. It takes no mouse input. The same layer is drawn into every frame of an exported video, so what you see is what the
@@ -97,6 +98,7 @@ model and apply to scripts as well.
 
 ### Limits and gotchas
 
+- Walk mode is left when something starts to play, so the camera keys of Walk mode (`w a s d q e`) do nothing during playback. After it ends, press `Shift+w` to walk again.
 - Space, Left, Right and Esc work only while the player plays and the cursor is not in a text box. Typing a caption does not trigger them.
 - `Left` and `Right` know only fly-through keyframes. During a script or a 4D film they jump to the keyframe times of the active fly-through, and do nothing when it has none. Use `Space` and `Esc`, or the date slider of a 4D film, instead.
 - When the timeline bar has the focus, `Left` and `Right` move it by 1 s (`Shift` for 5 s).

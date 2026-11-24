@@ -70,11 +70,22 @@ the left edge) has one button per tool and each opens a drawer. Drawers and fold
 | Animation scripts | **Script** tab | Script tab | 23 |
 | Revisions | Revision banner and walk | Revision banner, Revision walk | 20 |
 | Map under the model | Parameters tab | Map | 6 |
-| Keys | **Keyboard** folder | Keyboard, Shortcut sheet, Shortcut editor, Command palette | Appendix A |
+| Keys and navigation style | **Keyboard** folder | Keyboard, Shortcut sheet, Shortcut editor, Command palette | 3.2, Appendix A |
 | AR and VR | **WebXR** tool | WebXR, WebXR drawer | 31 |
 | Search | Top bar | Search bar | 7 |
 | Large files | **Large model** tool | Large model drawer | 2 |
 | All settings as a file | **Export / import** folder | Export / import | 29 |
+
+## Navigation style
+
+One setting in the **Keyboard** folder decides how the mouse and the keys move the camera: **navigation style**.
+
+| Value | What it does |
+| --- | --- |
+| **BIM** (default) | The style of Revit, Navisworks and Solibri. The wheel zooms toward the cursor, middle drag pans, `Shift` with middle drag orbits, an orbit turns around the point you grab, and a double-click flies to an element. `w a s d q e` do nothing, except in Walk mode (3.2). |
+| **Game** | The older style. `w a s d q e` always fly the camera, middle drag zooms, the wheel zooms to the orbit target, and there is no pivot pick and no double-click action. |
+
+Choose **Game** to get the old keys back. The choice is kept in your browser, not in exported settings, share links or views.
 
 ## Saving settings
 
@@ -92,7 +103,7 @@ Settings are not saved between visits unless a section says so. To keep a look, 
 
 An exported file does not hold API keys, tokens or reviewer names (appendix G). A file that contains a key field is refused on import.
 
-A few settings are remembered in the browser by themselves: the keyboard speeds, shortcuts, panel sizes and folded state, which
+A few settings are remembered in the browser by themselves: the keyboard speeds, the navigation style, shortcuts, panel sizes and folded state, which
 side panels are open, and the view list style. Appendix G lists them.
 
 ## Settings for a packed page

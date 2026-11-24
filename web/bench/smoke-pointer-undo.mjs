@@ -359,7 +359,8 @@ try {
   await settle(page, 300);
   const sBefore = await selSize(page);
   check('a click selected one element before the undo', sBefore === 1);
-  check('the undo button says "Undo selection"', await page.evaluate(() => document.querySelector('#xray-gizmo .xg-undo').getAttribute('aria-label')) === 'Undo selection');
+  const undoLabel = await page.evaluate(() => ({ label: document.querySelector('#xray-gizmo .xg-undo').getAttribute('aria-label'), stack: window.__xrayUndo?.list?.().undo.slice(-3) ?? null }));
+  check('the undo button says "Undo selection"', undoLabel.label === 'Undo selection', JSON.stringify(undoLabel));
   await page.keyboard.press('Control+z');
   await settle(page, 300);
   check('Ctrl+Z undoes the selection', (await selSize(page)) === 0);

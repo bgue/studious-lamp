@@ -14,21 +14,56 @@ build and your changes. This appendix is the same list on paper, for the viewer 
 
 ## Moving the camera
 
-Hold the keys to keep moving. Hold `Ctrl` to go slow (a quarter speed).
+Hold the keys to keep moving. Hold `Ctrl` to go slow (a quarter speed). The keys below are for the default **BIM** navigation
+style. In the **Game** style, `w a s d q e` fly the camera at all times (see **navigation style** under Keyboard settings).
 
 | Action | Keys |
 | --- | --- |
 | Orbit left, right | `ArrowLeft`, `ArrowRight` |
 | Orbit up, down | `ArrowUp`, `ArrowDown` |
 | Pan left, right, up, down | `Shift+ArrowLeft`, `Shift+ArrowRight`, `Shift+ArrowUp`, `Shift+ArrowDown` |
-| Fly forward, back | `w`, `s` |
-| Fly left, right | `a`, `d` |
-| Fly down, up | `q`, `e` |
+| Walk mode on (leave with `Escape`) | `Shift+w`, or the walk button on the view cube |
 | Zoom in (15 %) | `=`, `+`, `code:NumpadAdd` |
 | Zoom out (15 %) | `-`, `code:NumpadSubtract` |
 | Storey up, down | `PageUp`, `PageDown` |
 | Next, previous selected element | `Tab`, `Shift+Tab` |
 | Previous, next camera position (history of 50) | `Alt+ArrowLeft`, `Alt+ArrowRight`, or mouse buttons 4 and 5 |
+
+`w a s d q e` do nothing outside Walk mode. The cheat sheet lists them as "(Walk mode)".
+
+## Walk mode
+
+`Shift+w` or the walk button turns it on. A chip "Walk · Esc to exit" shows. You keep your eye height. There is no gravity and
+no collision.
+
+| Action | Keys |
+| --- | --- |
+| Walk forward, back | `w`, `s` or `ArrowUp`, `ArrowDown` |
+| Step left, right | `a`, `d` |
+| Turn left, right | `ArrowLeft`, `ArrowRight` |
+| Lower, raise the eye | `q`, `e` |
+| Run (3 times faster) | Hold `Shift`. `Shift+w` while walking runs forward and does not leave. |
+| Go slow (a quarter speed) | Hold `Ctrl` |
+| Look around | Left drag, or one finger |
+| Walk forward, back | Wheel |
+| Leave | `Escape`, a click on the chip, or the walk button |
+
+Walk mode is left when a fly-through, a script or a 4D film plays.
+
+## The mouse
+
+| Action | Hand mode (default) | Arrow mode |
+| --- | --- | --- |
+| Orbit (around the point you grab) | Left drag, or `Shift` with middle drag | `Shift` with middle drag |
+| Select a box | | Left drag |
+| Pan | Right drag, middle drag, `Shift` with left drag | Right drag, middle drag |
+| Zoom toward the cursor | Wheel | Wheel |
+| Select and fly to an element | Double-click it | Double-click it |
+| Frame everything | Double middle click | Double middle click |
+| Previous, next camera position | Mouse buttons 4 and 5 | Mouse buttons 4 and 5 |
+
+In the **Game** style the middle button zooms and the wheel zooms to the orbit target. There is no pivot pick and no double-click
+action.
 
 ## Standard angles and framing
 
@@ -101,8 +136,26 @@ Pressing a lit top bar mode again switches to Solid. Solid itself does nothing w
 | Open the Views tab on the filter **With drawings** | `k` |
 | Save a view | `Ctrl+Shift+s` |
 | Previous, next view | `Shift+PageUp`, `Shift+PageDown` |
+| Next, previous area: 3D view, left sidebar, right sidebar, top bar | `F6`, `Shift+F6` (also from a text box) |
 | Classify: start the review walk | `Shift+r` |
 | Revision: start the review walk | `Shift+v` |
+
+### Keys in a list (model tree, Views, Sets)
+
+While one of these lists has focus, it keeps the arrow keys, `Home`, `End`, `PageUp`, `PageDown`, `Enter` and `Space`. Keys it
+does not use (`f`, `h`, `x`, `[`, `?`, and chords with `Ctrl`, `Alt` or `Meta`) still act on the selection. `Escape` returns
+focus to the 3D view. A second `Escape` does the usual (close overlays, then clear the selection).
+
+| Key in the model tree | Action |
+| --- | --- |
+| `ArrowUp`, `ArrowDown`, `Home`, `End`, `PageUp`, `PageDown` | Move to another row |
+| `ArrowRight` | Open a closed row, or go to the first child |
+| `ArrowLeft` | Close an open row, or go to the parent |
+| `*` | Open all rows at the same level |
+| `Enter`, `Space` | Select the row's elements |
+| `Ctrl+Space` | Toggle the row's elements in the selection |
+| `Shift+ArrowUp`, `Shift+ArrowDown` | Move and add to the selection |
+| Letters | Type-ahead. Use `Shift+<letter>` for a letter that is a global key, such as `Shift+i` |
 
 ### Keys inside a review walk
 
@@ -154,7 +207,8 @@ action unbinds it.
 ## Keyboard settings
 
 The **Keyboard** folder has: **keyboard navigation** (a master switch for the camera keys), **orbit speed (deg/s)**, **pan speed**,
-**move speed**, **invert vertical**, **smooth moves** (off makes the standard angles jump), and the buttons **Shortcuts (?)**,
+**move speed**, **invert vertical**, **smooth moves** (off makes the standard angles jump), **navigation style** (**BIM**, the
+default, or **Game**, the older keys and mouse), and the buttons **Shortcuts (?)**,
 **Edit shortcuts**, **Command palette (Ctrl+Shift+K)** and **Reset shortcuts**. Speeds scale with the size of the model.
 
 The standard angles use a 400 ms glide. The orthographic switch is an approximation: a very narrow field of view with the camera

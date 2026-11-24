@@ -90,6 +90,7 @@ You will play the same fly-through many times while you tune it. The transport b
 3. Press `Left` and `Right` for the previous and next keyframe. If you are more than 0.6 s into a move, `Left` goes back to the
    keyframe that began it. With the timeline bar in focus, they move it by 1 s instead.
 4. Click **Stop** or press `Esc`. Camera, selection, hides, settings and preset go back as they were.
+   If you were in Walk mode (3.2), playing leaves it, and `Shift+w` does nothing until the fly-through ends.
 5. Click on the 3D view during play: it stops, and keeps the camera where you took it.
 
 ### How it works
