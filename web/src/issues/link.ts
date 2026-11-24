@@ -58,7 +58,7 @@ export function linkSketch(topics: readonly BcfTopic[], sets: readonly MarkupSet
   if (!topic || !vp) return { ok: false, error: 'No such issue viewpoint' };
   const have = issueOfSketch(topics, sketchId);
   if (have && (have.topic.guid !== topicGuid || have.viewpoint.guid !== viewpointGuid)) {
-    return { ok: false, error: `"${set.title}" already belongs to the issue "${have.topic.title}". A sketch belongs to at most one issue.` };
+    return { ok: false, error: `"${set.title}" already belongs to the issue "${have.topic.title}". A view belongs to at most one issue.` };
   }
   if (vp.sketchId && vp.sketchId !== sketchId) return { ok: false, error: 'That viewpoint already has another sketch' };
   vp.sketchId = sketchId;
@@ -279,7 +279,7 @@ export function sketchFromViewpoint(topic: BcfTopic, ref: BcfViewpointRef, o: Fr
   const now = nowIso();
   const title = topic.viewpoints.length > 1 ? `${topic.title} (view ${topic.viewpoints.indexOf(ref) + 1})` : topic.title;
   const set: MarkupSet = {
-    id: newMarkupId('s'), title: title || 'Sketch', author: o.author, created: now, updated: now,
+    id: newMarkupId('s'), title: title || 'View', author: o.author, created: now, updated: now,
     view: viewFromCamera(title, camera, o.shift), camera: { position: [...camera.position], direction: [...camera.direction], up: [...camera.up], fov: camera.fov, aspect: camera.aspect },
     markups, nextNumber: list.length + 1, fromViewpoint: true, issue: { topic: topic.guid, viewpoint: ref.guid },
   };
@@ -304,7 +304,7 @@ export function legacyIssueOf(set: MarkupSet): LegacyIssue {
   const open = set.markups.length === 0 || set.markups.some((m) => m.status === 'open');
   const out: LegacyIssue = {
     title: set.title,
-    description: set.note ?? `Sketch "${set.title}" with ${set.markups.length} markup${set.markups.length === 1 ? '' : 's'}.`,
+    description: set.note ?? `View "${set.title}" with ${set.markups.length} drawing${set.markups.length === 1 ? '' : 's'}.`,
     status: open ? 'Open' : 'Resolved',
     comments: [],
   };

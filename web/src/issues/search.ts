@@ -86,7 +86,7 @@ export function searchIssues(input: IssueSearchInput, query: string, limit = 50)
     const text = hit ? hit[1] : s.title;
     out.push({
       kind: 'sketch', id: s.id, title: s.title, field, positions: positionsOf(s.title, ts), score: Math.max(1, FIELD_SCORE[field] - 5),
-      sub: `Sketch, ${s.markups.length} drawing${s.markups.length === 1 ? '' : 's'}${field === 'title' ? '' : `: ${field} "${snippet(text, ts)}"`}`,
+      sub: `View, ${s.markups.length} drawing${s.markups.length === 1 ? '' : 's'}${field === 'title' ? '' : `: ${field} "${snippet(text, ts)}"`}`,
     });
   }
   out.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));

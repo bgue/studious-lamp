@@ -185,7 +185,7 @@ function notesToBcf(notes: FieldNote[]): number {
       note.clearance !== null ? `Clearance from the device: ${(note.clearance * 100).toFixed(1)} cm.` : '',
       note.storey ? `Storey: ${note.storey}.` : '',
       `Head at ${h.map((v) => v.toFixed(3)).join(', ')} (viewer coordinates); ${note.text}.`,
-      'The camera image is not available to a web page in WebXR: the topic snapshot is the model from the same pose; the overlay picture is in the field notes download.',
+      'The camera image is not available to a web page in WebXR: the issue snapshot is the model from the same pose; the overlay picture is in the field notes download.',
     ].filter(Boolean);
     try {
       bcf.createTopic({
@@ -202,7 +202,7 @@ function notesToBcf(notes: FieldNote[]): number {
       /* the BCF plugin refused one note; keep the rest */
     }
   }
-  fieldStatus = `${n} field snapshot${n === 1 ? '' : 's'} added as BCF topics (camera at your position). Camera pixels are not available in WebXR.`;
+  fieldStatus = `${n} field snapshot${n === 1 ? '' : 's'} added as issues (camera at your position). Camera pixels are not available in WebXR.`;
   return n;
 }
 

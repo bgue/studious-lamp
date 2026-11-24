@@ -88,7 +88,7 @@ export function buildReportBlock(c: IssuesController): HTMLElement {
   const cbl = el('label', 'is-meta');
   cbl.style.cssText = 'display:flex;gap:6px;align-items:center';
   cbl.append(cb, el('span', undefined, undefined, 'Plan/Section images'));
-  cbl.title = 'Add a small Plan and a small Section for the issues whose sketch is tied to the model. They are rendered on the 3D view, which is put back afterwards.';
+  cbl.title = 'Add a small Plan and a small Section for the issues whose view has drawings tied to the model. They are rendered on the 3D view, which is put back afterwards.';
   const pdf = button(`PDF report (${n})`, () => { void exportReportPdf(c).catch(() => undefined); }, { primary: true, title: 'A PDF of the issues in the list below: a cover with the counts, then a page per issue with its fields, comments, snapshot and elements' });
   pdf.setAttribute('data-act', 'report-pdf');
   pdf.disabled = n === 0 || reportState.busy || !c.app.loaded;

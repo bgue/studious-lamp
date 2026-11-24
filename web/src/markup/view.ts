@@ -216,7 +216,7 @@ export class MarkupView {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const [x, y] of st.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
       if (st.pts.length < 2 || Math.max(x1 - x0, y1 - y0) < 6) {
-        this.c.setStatus('Drag further to draw the markup (Esc cancels)');
+        this.c.setStatus('Drag further to draw (Esc cancels)');
         return;
       }
       this.c.addShape(st.tool, st.pts);
@@ -331,8 +331,8 @@ export class MarkupView {
     const b = document.createElement('button');
     b.type = 'button';
     b.id = 'markup-return';
-    b.textContent = 'Return to markup view';
-    b.setAttribute('aria-label', 'Return to markup view');
+    b.textContent = 'Return to the drawing view';
+    b.setAttribute('aria-label', 'Return to the drawing view');
     b.style.cssText = 'position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:8;display:none;padding:6px 12px;border-radius:14px;border:1px solid #3b9cff;background:#14365c;color:#eaf2ff;font:600 12px system-ui,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.35)';
     b.addEventListener('click', () => {
       const s = this.c.active;
@@ -498,7 +498,7 @@ export class MarkupView {
       renderOps(g, layoutMarkupFull(prev, { ...ctx, shapeDirect: true }).ops.filter((o) => o.role !== 'badge'));
       layer.appendChild(g);
     }
-    // The "Return to markup view" chip.
+    // The "Return to the drawing view" chip.
     if (chip) {
       const away = faded;
       chip.style.display = away ? '' : 'none';

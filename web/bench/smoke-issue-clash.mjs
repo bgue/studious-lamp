@@ -3,7 +3,7 @@
 //   - above the batch limit (lowered to 5 here) the drawer asks first and offers "Raise top N by severity"; the worst results are
 //     raised, with progress, and the page keeps drawing frames between the issues;
 //   - each issue is "Penetration: A through B", has both GlobalIds, the labels clash and penetration, the camera on the pair, a pin and a
-//     sketch tied to the pair (penetration attachment); the worst rows come first (no opening before the rest);
+//     view tied to the pair (penetration attachment); the worst rows come first (no opening before the rest);
 //   - re-running the analysis and raising again makes no doubles: the counts say new / already raised / not found;
 //   - a result the re-run no longer reports gets one note "Not found in latest run", is not deleted, and "Close n not found" closes it;
 //   - the BCF export and a re-open keep the dedup keys, so raising after loading the file makes no doubles either;
@@ -124,8 +124,8 @@ try {
     check('5 issues were raised and the report says so', first.length === K && /^5 raised, 0 already raised, /.test(report) && /left out \(top 5 by severity\)/.test(report), `${first.length}: ${report}`);
     check('titles read "Penetration: A through B"', first.every((x) => /^Penetration: .+ through .+$/.test(x.title)), first[0]?.title);
     check('each has both GlobalIds, the labels clash + penetration, a pin, a snapshot and the check type', first.every((x) => x.a && x.b && x.a !== x.b && x.labels.includes('clash') && x.labels.includes('penetration') && x.pin && x.snapshot && x.type === 'Clash'), JSON.stringify(first[0]?.labels));
-    check('the viewpoint selects the pair and the camera frames it (sketch rectangle inside the picture)', first.every((x) => x.sel >= 2 && x.inside), first.map((x) => `${x.sel}/${x.inside}`).join(' '));
-    check('each issue has a sketch tied to the pair with the penetration attachment, linked both ways', first.every((x) => x.attach === 'penetration' && x.pen === [x.a, x.b].sort().join('|') && x.linked), first.map((x) => x.attach).join(','));
+    check('the viewpoint selects the pair and the camera frames it (view rectangle inside the picture)', first.every((x) => x.sel >= 2 && x.inside), first.map((x) => `${x.sel}/${x.inside}`).join(' '));
+    check('each issue has a view tied to the pair with the penetration attachment, linked both ways', first.every((x) => x.attach === 'penetration' && x.pen === [x.a, x.b].sort().join('|') && x.linked), first.map((x) => x.attach).join(','));
     check('the worst results come first: the raised ones have no opening when there are enough such rows', nNone < K || first.every((x) => x.desc.startsWith('no opening')), first.map((x) => x.desc.split(';')[0]).join(' / '));
     const openIssues = await page.evaluate(() => window.__xrayIssues.controller.bcf.topics.length);
     check('the Issues panel did not jump into the detail of each new issue', await page.evaluate(() => window.__xrayIssues.detail === null), `${openIssues} topics`);
@@ -199,7 +199,7 @@ try {
     const cl = await raisedOf('clearance')(page);
     check('the issues are raised, one per pair', cl.length === c0.fresh && new Set(cl.map((x) => x.key)).size === cl.length, `${cl.length} of ${c0.fresh}`);
     check('titles read "Clearance n mm < m mm: A / B"', cl.every((x) => /^Clearance \d+ mm < 600 mm: .+ \/ .+$/.test(x.title)), cl[0]?.title);
-    check('labels clash + clearance; sketch tied with a measurement of both elements', cl.every((x) => x.labels.includes('clash') && x.labels.includes('clearance') && x.attach === 'measurement' && x.meas?.length === 2 && x.linked && x.inside), JSON.stringify([cl[0]?.labels, cl[0]?.attach, cl[0]?.meas]));
+    check('labels clash + clearance; view tied with a measurement of both elements', cl.every((x) => x.labels.includes('clash') && x.labels.includes('clearance') && x.attach === 'measurement' && x.meas?.length === 2 && x.linked && x.inside), JSON.stringify([cl[0]?.labels, cl[0]?.attach, cl[0]?.meas]));
     const c1 = await page.evaluate(() => window.__xrayClash.preview('clearance'));
     check('the counts say 0 new, all already raised', c1.fresh === 0 && c1.already === cl.length && c1.resolved === 0, JSON.stringify(c1));
     await page.evaluate(() => window.__xrayClearance.recompute());

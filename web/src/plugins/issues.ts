@@ -1,5 +1,6 @@
-// Issues plugin: BCF is the container, the markup drawing engine is the drawing layer. This file wires
-//   - the sidebar tab "Issues" with the segments Issues and Sketches (src/issues/ui.ts), and on a phone a bottom sheet,
+// Issues plugin: an issue (a BCF topic) points at views; the markup drawing engine is the drawing layer of a view. This file wires
+//   - the sidebar tab "Issues" (issues only, src/issues/ui.ts), and on a phone a bottom sheet,
+//   - the drawings part of the Views tab (the detail of a view that has drawings, the sheets pane; the same builder, mode `views`),
 //   - the drawing toolbar's state (the controller's `editing` flag; the bar itself is src/markup/toolbar.ts, drawn by the view),
 //   - "N open issues" in the status bar, which opens the tab,
 //   - the palette actions and the aliases of the actions that opened the old BCF and Markup drawers (tool.bcf, tool.markup),
@@ -18,6 +19,8 @@ import type { IssueHit } from '../issues/search';
 import type { BcfTopic, BcfViewpointRef } from '../bcf/model';
 import type { MarkupSet } from '../markup/model';
 import { bcfController } from './bcf';
+import { linkViews } from './views';
+import type { ViewFilter } from '../views/unified';
 import { markupController } from './markup';
 import { addSidebarTab, collapseSidebar } from './sidebar';
 import { getRightSidebar } from '../ui/rightSidebar';
@@ -26,17 +29,17 @@ import type { SidebarTabHandle } from './sidebar';
 declare global {
   interface Window {
     __xrayIssues?: {
-      /** Open the Issues tab (a bottom sheet on a phone) on a segment. */
+      /** Open the Issues tab (a bottom sheet on a phone), or the Views tab (`views`; `sketches` = With drawings, `sheets` = On sheets). */
       open(segment?: Segment): void;
       /** Close the bottom sheet (a phone); on a wide screen the sidebar stays as it is. */
       close(): void;
       readonly segment: Segment;
       /** The open detail: an issue guid or a sketch id. */
-      readonly detail: { kind: 'issue' | 'sketch'; id: string } | null;
+      readonly detail: { kind: 'issue' | 'view'; id: string } | null;
       /** The panel is on screen: the sidebar tab is shown, or the phone sheet is up. */
       readonly visible: boolean;
       readonly phone: boolean;
-      /** A new sketch from the current view, open in the detail with the drawing toolbar up. */
+      /** A new view with a drawing layer from the current state, open in the detail with the drawing toolbar up (a saved view is made too). */
       newSketch(title?: string): MarkupSet;
       /** Show the drawing toolbar for a sketch, or for an issue viewpoint (the sketch of it). */
       editSketch(id: string): boolean;
@@ -46,19 +49,19 @@ declare global {
       stopEditing(): void;
       openIssue(guid: string, opts?: { apply?: boolean }): boolean;
       openSketch(id: string): boolean;
-      /** Raise a sketch as an issue: a new one, or one more viewpoint of `topic`. Returns the issue guid. */
+      /** Make an issue of a view that has a drawing layer: a new one, or one more viewpoint of `topic`. Returns the issue guid. */
       raise(setId: string, opts?: { topic?: string }): Promise<string>;
       /** The issue a sketch belongs to (topic and viewpoint guid), or null. */
       issueOf(setId: string): { topic: string; viewpoint: string } | null;
       /** The sketches of an issue, in viewpoint order. */
       sketchesOf(topicGuid: string): MarkupSet[];
-      /** Remove a sketch; one that belongs to an issue returns `confirm` until called with `confirmed`. */
+      /** Delete a view that has a drawing layer; one that is in an issue returns `confirm` until called with `confirmed`. */
       removeSketch(setId: string, confirmed?: boolean): 'removed' | 'confirm' | 'none';
       /** Sketches with comments or a status that the banner offers to raise. */
       legacyCount(): number;
       migrate(): Promise<{ issues: number; failed: number }>;
       readonly openCount: number;
-      /** Issues and sketches by title, note and comment text (what the top-bar search lists). */
+      /** Issues by title, description and comment text (what the top-bar search lists). */
       search(query: string): IssueHit[];
       hit(kind: 'issue' | 'sketch', id: string): IssueHit | null;
       openHit(hit: Pick<IssueHit, 'kind' | 'id'>): boolean;
@@ -124,7 +127,7 @@ export const issuesPlugin: AppPlugin = {
     const pane = el('div', 'issues-pane');
     pane.style.cssText = 'display:flex;flex-direction:column;min-height:0;flex:1 1 auto';
     const panel: IssuesPanel = buildIssuesPanel(pane, c);
-    const sheet = el('div', '', { id: 'issues-sheet', role: 'dialog', 'aria-label': 'Issues and sketches', 'data-help-key': 'Issues panel/Phone sheet' });
+    const sheet = el('div', '', { id: 'issues-sheet', role: 'dialog', 'aria-label': 'Issues', 'data-help-key': 'Issues panel/Phone sheet' });
     const head = el('div', 'is-sheet-head');
     const grip = el('div', 'is-sheet-grip');
     const title = el('div', 'is-sheet-title', undefined, 'Issues');
@@ -147,7 +150,6 @@ export const issuesPlugin: AppPlugin = {
       if (panel.root.parentElement !== want) want.appendChild(panel.root);
       const show = inSheet && sheetWanted && !(mk.editing && mk.active);
       sheet.classList.toggle('on', show);
-      title.textContent = c.segment === 'issues' ? 'Issues' : c.segment === 'sheets' ? 'Sheets' : 'Sketches';
     };
     const visible = (): boolean => (phone() ? sheet.classList.contains('on') : !!tab?.visible());
     const syncOpen = (): void => {
@@ -207,10 +209,27 @@ export const issuesPlugin: AppPlugin = {
     });
     updateStatus();
 
+    // ---- the Views tab: the drawings part (detail of a view with drawings, sheets) is built here, from the same controller
+    linkViews(c);
+    c.editStarted = () => { if (phone()) collapseSides(); };
+    c.showTab = (which, filter) => {
+      if (which === 'issues') api.open('issues');
+      else api.open(filter === 'sheets' ? 'sheets' : filter === 'drawings' ? 'sketches' : 'views');
+    };
+
     // ---- scripting
     const api: NonNullable<Window['__xrayIssues']> = {
       open(segment) {
-        if (segment) c.setSegment(segment);
+        const target = segment ?? 'issues';
+        if (target !== 'issues') {
+          // The Views tab: the filter follows the old segment names.
+          c.segment = target;
+          const f: ViewFilter | null = target === 'sheets' ? 'sheets' : target === 'sketches' ? 'drawings' : null;
+          if (f) window.__xrayViews?.setFilter(f);
+          window.__xrayViews?.open();
+          return;
+        }
+        c.segment = 'issues';
         if (phone()) sheetWanted = true;
         if (tab) tab.show();
         else if (phone()) sheetWanted = true;
@@ -237,6 +256,8 @@ export const issuesPlugin: AppPlugin = {
         return phone();
       },
       newSketch(t) {
+        const v = window.__xrayViews;
+        if (v) return v.drawOnCurrent(t);
         api.open('sketches');
         return c.newSketch(t);
       },
@@ -270,9 +291,7 @@ export const issuesPlugin: AppPlugin = {
       search: (q) => c.search(q),
       hit: (k, id) => c.hitOf(k, id),
       openHit: (h) => {
-        const ok = c.openHit(h);
-        if (ok) api.open(h.kind === 'issue' ? 'issues' : 'sketches');
-        return ok;
+        return c.openHit(h);
       },
       viewSwitchAvailable: (id) => c.views.tied(mk.get(id)),
       viewMode: (id) => c.views.mode(mk.get(id)),
@@ -295,11 +314,11 @@ export const issuesPlugin: AppPlugin = {
 
     // ---- actions: the new ones, and the ids that opened the old drawers
     registerAction({ id: 'issues.open', label: 'Issues: open the tab', group: 'Panels', keys: [], description: 'Open the Issues tab on the Issues segment', run: () => api.open('issues') });
-    registerAction({ id: 'issues.sketches', label: 'Issues: open the Sketches segment', group: 'Panels', keys: [], description: 'Open the Issues tab on the Sketches segment', run: () => api.open('sketches') });
-    registerAction({ id: 'issues.edit', label: 'Sketches: edit the drawing', group: 'Markup', keys: [], description: 'Show the drawing toolbar for the active sketch', run: () => { const s = mk.active; if (s) c.editSketch(s.id); } });
-    registerAction({ id: 'issues.done', label: 'Sketches: finish drawing', group: 'Markup', keys: [], description: 'Hide the drawing toolbar', run: () => mk.setEditing(false) });
-    registerAction({ id: 'tool.bcf', label: 'Tool: BCF', group: 'Panels', keys: [], description: 'Open the Issues tab (formerly the BCF drawer)', run: () => api.open('issues') });
-    registerAction({ id: 'tool.markup', label: 'Tool: Markup', group: 'Panels', keys: [], description: 'Open the Issues tab on the Sketches segment (formerly the Markup drawer)', run: () => api.open('sketches') });
+    registerAction({ id: 'issues.sketches', label: 'Views: show the views with drawings', group: 'Panels', keys: [], description: 'Open the Views tab on the filter With drawings', run: () => api.open('sketches') });
+    registerAction({ id: 'issues.edit', label: 'Drawings: edit the drawings of the active view', group: 'Markup', keys: [], description: 'Show the drawing toolbar for the active view', run: () => { const s = mk.active; if (s) c.editSketch(s.id); } });
+    registerAction({ id: 'issues.done', label: 'Drawings: finish drawing', group: 'Markup', keys: [], description: 'Hide the drawing toolbar', run: () => mk.setEditing(false) });
+    registerAction({ id: 'tool.bcf', label: 'Tool: Issues', group: 'Panels', keys: [], description: 'Open the Issues tab (formerly the BCF drawer)', run: () => api.open('issues') });
+    registerAction({ id: 'tool.markup', label: 'Tool: Drawings', group: 'Panels', keys: [], description: 'Open the Views tab on the filter With drawings (formerly the Markup drawer)', run: () => api.open('sketches') });
   },
 
   onModel(): void {

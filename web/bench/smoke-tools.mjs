@@ -123,9 +123,8 @@ try {
     await page.waitForSelector('#xray-toolbar-drawer .xt-table tbody tr', { timeout: 20000 });
     const rowsShown = await page.evaluate(() => document.querySelectorAll('#xray-toolbar-drawer .xt-table tbody tr').length);
     check('table shows rows', rowsShown > 0, `${rowsShown}`);
-    const bcf = await page.evaluate(() => [...document.querySelectorAll('#xray-toolbar-drawer button')].find((b) => /BCF/.test(b.textContent)));
-    const bcfInfo = await page.evaluate(() => { const b = [...document.querySelectorAll('#xray-toolbar-drawer button')].find((x) => /BCF/.test(x.textContent)); return { disabled: b.disabled, title: b.title }; });
-    console.log('BCF button:', JSON.stringify(bcfInfo));
+    const btns = await page.evaluate(() => [...document.querySelectorAll('#xray-toolbar-drawer button')].map((b) => b.textContent.trim()));
+    check('the drawer has Raise issues from results and no older Create BCF topics button', btns.some((t) => /Raise issues from results/.test(t)) && !btns.some((t) => /BCF topics/.test(t)), btns.join(' | '));
     // click the first row
     const sel0 = await page.evaluate(() => window.__xray.app.selection.length);
     await page.click('#xray-toolbar-drawer .xt-table tbody tr:first-child');

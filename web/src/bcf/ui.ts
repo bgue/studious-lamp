@@ -151,7 +151,7 @@ export function openTopicDialog(c: BcfController, onDone?: (t: BcfTopic) => void
   const modal = el('div', 'bcf-modal');
   const form = el('div', 'bcf-form');
   form.id = 'bcf-form';
-  form.appendChild(el('h3', undefined, undefined, 'Create topic from view'));
+  form.appendChild(el('h3', undefined, undefined, 'New issue'));
 
   const field = (label: string, input: HTMLElement): HTMLLabelElement => {
     const l = el('label', undefined, undefined, label);
@@ -210,7 +210,7 @@ export function openTopicDialog(c: BcfController, onDone?: (t: BcfTopic) => void
   const row = el('div', 'bcf-row');
   row.style.justifyContent = 'flex-end';
   const cancel = el('button', 'bcf-btn', undefined, 'Cancel');
-  const ok = el('button', 'bcf-btn primary', undefined, 'Create topic');
+  const ok = el('button', 'bcf-btn primary', undefined, 'Create issue');
   ok.id = 'bcf-f-create';
   row.append(cancel, ok);
   form.append(msg, row);

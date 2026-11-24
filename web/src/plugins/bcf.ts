@@ -135,7 +135,7 @@ export const bcfPlugin: AppPlugin = {
     });
 
     registerAction({ id: 'bcf.open', label: 'BCF: open file', group: 'BCF', keys: [], run: () => { window.__xrayIssues?.open('issues'); pickBcfFile(c); } });
-    registerAction({ id: 'bcf.create', label: 'BCF: create topic from view', group: 'BCF', keys: [], run: () => { window.__xrayIssues?.open('issues'); openTopicDialog(c); } });
+    registerAction({ id: 'bcf.create', label: 'Issues: new issue from the current view', group: 'BCF', keys: [], run: () => { window.__xrayIssues?.open('issues'); openTopicDialog(c); } });
     registerAction({ id: 'bcf.export', label: 'BCF: export', group: 'BCF', keys: [], run: () => void c.download() });
     registerAction({ id: 'bcf.clear', label: 'BCF: clear viewpoint', group: 'BCF', keys: [], run: () => void c.clearViewpoint() });
 
@@ -218,7 +218,7 @@ export const bcfPlugin: AppPlugin = {
 };
 
 function buildGui(gui: GUI, c: BcfController): void {
-  const folder = gui.addFolder('BCF');
+  const folder = gui.addFolder('Issues');
   folder.close();
   const actions = {
     open: () => pickBcfFile(c),
@@ -228,7 +228,7 @@ function buildGui(gui: GUI, c: BcfController): void {
     clear: () => void c.clearViewpoint(),
   };
   folder.add(actions, 'open').name('Open BCF');
-  folder.add(actions, 'create').name('Create topic from view');
+  folder.add(actions, 'create').name('New issue');
   folder.add(actions, 'export21').name('Export BCF 2.1');
   folder.add(actions, 'export30').name('Export BCF 3.0');
   folder.add(actions, 'clear').name('Clear viewpoint');

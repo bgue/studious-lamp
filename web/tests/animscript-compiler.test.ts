@@ -248,7 +248,7 @@ describe('compiler: repeat', () => {
   });
   it('caps the cue count and the total duration (one hour)', () => {
     const cues = compileScript('repeat 400 times\n  repeat 20 times\n    select nothing\n  end repeat\nend repeat', { limits: { maxSteps: 1e9 } });
-    expect(cues.errors[0]!.message).toMatch(/more than 5000 cues/);
+    expect(cues.errors[0]!.message).toMatch(/more than 5000 steps/);
     const long = compileScript('repeat 100 times\n  wait 100\nend repeat\nmode solid');
     expect(long.score).toBeNull();
     expect(long.errors[0]!.message).toMatch(/longer than 1 hour/);
@@ -345,7 +345,7 @@ describe('runScript with a fake player', () => {
     let ended = 0;
     const r = runScript('mode ghost\nwait 1\nfly to everything over 2 seconds\ncaption "Hi" for 1 seconds', {}, p, { onLine: (l) => lines.push(l), onEnd: () => ended++ });
     expect(r.ok).toBe(true);
-    expect(r.message).toMatch(/Playing: 3 cues, 4 seconds/);
+    expect(r.message).toMatch(/Playing: 3 steps, 4 seconds/);
     expect(p.played!.source).toMatchObject({ kind: 'script' });
     p.runThrough();
     expect(lines).toEqual([1, 3, 4, null]);
@@ -364,7 +364,7 @@ describe('runScript with a fake player', () => {
     expect(p.played).toBeNull();
   });
   it('says so for a script with no cues and for a player that refuses', () => {
-    expect(runScript('wait 2', {}, new FakePlayer()).message).toMatch(/no cues/);
+    expect(runScript('wait 2', {}, new FakePlayer()).message).toMatch(/no steps/);
     const p = new FakePlayer();
     p.accept = false;
     expect(runScript('mode ghost', {}, p).message).toMatch(/did not start/);

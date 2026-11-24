@@ -1,14 +1,14 @@
 // Headless check for PDF drawing sheets (src/sheets) on /?model=fzk-haus, with bench/fixtures/sample-sheet.pdf:
-//   - nothing PDF-related loads before a PDF is opened (network requests are watched), also not when the Sheets segment is shown;
+//   - nothing PDF-related loads before a PDF is opened (network requests are watched), also not when the On sheets filter is shown;
 //   - the PDF opens through the file input as a sheet set (2 pages), listed with thumbnails; the model stays loaded;
 //   - the sheet viewer covers the 3D canvas area, "Back to model" returns; the page is drawn and re-drawn sharp after a zoom settles;
-//   - the annotations the PDF already has come in as one read-only "Imported annotations" sketch (author and contents shown);
+//   - the annotations the PDF already has come in as one read-only "Imported annotations" view (author and contents shown);
 //   - a cloud and a text are drawn with the floating toolbar; pan and zoom keep the shapes on the same PDF points;
 //   - Export marked-up PDF: the layer "X-ray markups", real annotations that point at it (read back with pdf-lib in node), the
 //     foreign annotations untouched; a second export does not double them; opening the exported PDF gives the markups back
 //     editable and the foreign annotations read-only;
-//   - Raise as issue (the button of the viewer bar for the active sketch): snapshot, DocumentReference to the PDF in the bcfzip (3.0 and 2.1), sheet record in the side file; opening
-//     the bcfzip again restores the sketch and its sheet link by the SHA-256 of the PDF;
+//   - Make issue (the button of the viewer bar for the active drawings): snapshot, DocumentReference to the PDF in the bcfzip (3.0 and 2.1), sheet record in the side file; opening
+//     the bcfzip again restores the view and its sheet link by the SHA-256 of the PDF;
 //   - the phone width (360 px) and no console errors.
 // Screenshots: bench/sheets-view.png, sheets-phone.png, sheets-imported.png.
 // Usage: SMOKE_PORT=5714 node bench/smoke-sheets.mjs
@@ -98,10 +98,10 @@ try {
   await page.waitForTimeout(500);
   check('no PDF chunk loads at start up', pdfRequests().length === 0, pdfRequests().join(', '));
   await page.evaluate(() => window.__xrayIssues.open('sheets'));
-  await page.waitForSelector('#issues-panel [data-seg=sheets][aria-selected=true]');
-  check('the Issues panel has a Sheets segment', (await page.textContent('#issues-panel')).includes('No sheets yet'));
+  await page.waitForSelector('#views-panel [data-view-filter=sheets][aria-pressed=true]');
+  check('the Views tab has an On sheets filter', (await page.textContent('#views-drawings')).includes('No sheets yet'));
   await page.waitForTimeout(400);
-  check('showing the Sheets segment loads no PDF chunk either', pdfRequests().length === 0, pdfRequests().join(', '));
+  check('showing the On sheets filter loads no PDF chunk either', pdfRequests().length === 0, pdfRequests().join(', '));
 
   // ------------------------------------------------------------------ open the fixture through the file input
   await page.setInputFiles('input[data-sheets=open]', FIXTURE);
@@ -113,9 +113,9 @@ try {
   const sheets = await page.evaluate(() => window.__xraySheets.sheets());
   check('one doc with two sheets (a page each)', docs.length === 1 && docs[0].pageCount === 2 && sheets.length === 2 && sheets[0].page === 1 && sheets[1].page === 2 && sheets[0].placement === undefined, JSON.stringify(sheets.map((s) => [s.id, s.widthPt, s.heightPt])));
   check('the doc names its bytes and hash', /^[0-9a-f]{64}$/.test(docs[0].sha256) && docs[0].bytesKey === docs[0].sha256);
-  await page.waitForSelector('#issues-panel [data-doc] .sh-page');
-  const cards = await page.evaluate(() => [...document.querySelectorAll('#issues-panel [data-sheet-pages] .sh-page')].map((c) => ({ img: !!c.querySelector('img[src^="data:image/jpeg"]'), t: c.textContent })));
-  check('the Sheets segment lists the doc, then its pages with thumbnails', cards.length === 2 && cards.every((c) => c.img), JSON.stringify(cards));
+  await page.waitForSelector('#views-drawings [data-doc] .sh-page');
+  const cards = await page.evaluate(() => [...document.querySelectorAll('#views-drawings [data-sheet-pages] .sh-page')].map((c) => ({ img: !!c.querySelector('img[src^="data:image/jpeg"]'), t: c.textContent })));
+  check('On sheets lists the doc, then its pages with thumbnails', cards.length === 2 && cards.every((c) => c.img), JSON.stringify(cards));
   const stored = await page.evaluate(() => ({ ls: Object.keys(localStorage).filter((k) => /pdf|sheet/i.test(k)), size: JSON.stringify(localStorage).length, hash: location.hash, search: location.search }));
   check('no PDF data in localStorage or the URL', stored.ls.length === 0 && stored.size < 50000 && !/pdf|JVBER/i.test(stored.hash + stored.search), JSON.stringify(stored).slice(0, 200));
   const idb = await page.evaluate(async () => {
@@ -128,7 +128,7 @@ try {
 
   // ------------------------------------------------------------------ the viewer
   const sheetId = sheets[0].id;
-  await page.click(`#issues-panel [data-sheet="${sheetId}"]`);
+  await page.click(`#views-drawings [data-sheet="${sheetId}"]`);
   await page.waitForSelector('#sheet-view.on');
   await page.waitForFunction(() => window.__xraySheets.view()?.renders.base >= 1, null, { timeout: 60000 });
   const geo = await page.evaluate(() => {
@@ -149,9 +149,9 @@ try {
   });
   check('the page is drawn by pdf.js', px.w > 800 && px.dark > 50, JSON.stringify(px));
 
-  // imported annotations: one read-only sketch with author and contents
+  // imported annotations: one read-only view with author and contents
   const imported = await page.evaluate((id) => window.__xraySheets.sketches(id), sheetId);
-  check('the annotations of the PDF come in as one read-only "Imported annotations" sketch', imported.length === 1 && imported[0].readonly === true && /Imported annotations/.test(imported[0].title) && imported[0].markups.length === 3, JSON.stringify(imported.map((s) => [s.title, s.markups.length])));
+  check('the annotations of the PDF come in as one read-only "Imported annotations" view', imported.length === 1 && imported[0].readonly === true && /Imported annotations/.test(imported[0].title) && imported[0].markups.length === 3, JSON.stringify(imported.map((s) => [s.title, s.markups.length])));
   check('the imported markups keep their author and contents', imported[0].markups.some((m) => m.author === 'Reviewer A' && /clearance/.test(m.text)) && imported[0].markups.some((m) => m.kind === 'pen') && imported[0].markups.some((m) => m.kind === 'text'));
 
   // ------------------------------------------------------------------ pan and zoom: the picture sharpens when the zoom settles
@@ -195,7 +195,7 @@ try {
   const barBox = await page.evaluate(() => { const b = document.querySelector('#sheet-float').getBoundingClientRect(); const v = document.querySelector('#sheet-view [data-sv=stage]').getBoundingClientRect(); return { inside: b.left >= v.left - 1 && b.right <= v.right + 1 && b.top >= v.top - 1 && b.bottom <= v.bottom + 1 }; });
   check('the toolbar sits inside the sheet view', barBox.inside);
   const set0 = await page.evaluate((id) => window.__xraySheets.sketches(id).find((s) => !s.readonly), sheetId);
-  check('choosing Draw made an editable sketch on the sheet', !!set0 && set0.frame.kind === 'sheet' && set0.frame.sheet === sheetId);
+  check('choosing Draw made an editable view on the sheet', !!set0 && set0.frame.kind === 'sheet' && set0.frame.sheet === sheetId);
   const toPx = async (ux, uy) => page.evaluate(([x, y]) => { const p = window.__xraySheets.toStage(x, y); const r = document.querySelector('#sheet-view [data-sv=stage]').getBoundingClientRect(); return [r.left + p[0], r.top + p[1]]; }, [ux, uy]);
   const drag = async (a, b) => {
     await page.mouse.move(a[0], a[1]);
@@ -208,7 +208,7 @@ try {
   const c1 = await toPx(230, 180);
   await drag(c0, c1);
   await page.click('#sheet-float [data-tool-id=text]');
-  await page.fill('#sheet-float [aria-label="Text for the next markup"]', 'Move wall 50 mm');
+  await page.fill('#sheet-float [aria-label="Text for the next drawing"]', 'Move wall 50 mm');
   const tp = await toPx(560, 300);
   await page.mouse.click(tp[0], tp[1]);
   const mine = await page.evaluate((id) => window.__xraySheets.sketches(id).find((s) => !s.readonly), sheetId);
@@ -262,7 +262,7 @@ try {
       await page.mouse.click(m[0], m[1] + 20);
       await page.keyboard.press('Enter');
     } else {
-      await page.fill('#sheet-float [aria-label="Text for the next markup"]', 'Callout text');
+      await page.fill('#sheet-float [aria-label="Text for the next drawing"]', 'Callout text');
       await page.mouse.click(a[0], a[1]);
     }
     yy += 16;
@@ -271,14 +271,14 @@ try {
   const want = ['cloud', 'text', 'rect', 'ellipse', 'line', 'arrow', 'cloud', 'pen', 'highlight', 'highlightBox', 'polyline', 'polygon', 'callout'];
   check('every tool makes a markup on the sheet', JSON.stringify(allKinds.slice().sort()) === JSON.stringify(want.slice().sort()), allKinds.join(','));
   await page.click('#sheet-float [data-tool-id=select]');
-  // undo and redo work on the sheet sketch
+  // undo and redo work on the sheet view
   const n0 = allKinds.length;
   await page.keyboard.press('Control+z');
   const n1 = await page.evaluate((id) => window.__xraySheets.sketches(id).find((s) => !s.readonly).markups.length, sheetId);
   await page.keyboard.press('Control+Shift+z');
   const n2 = await page.evaluate((id) => window.__xraySheets.sketches(id).find((s) => !s.readonly).markups.length, sheetId);
-  check('undo and redo work on a sheet sketch', n1 === n0 - 1 && n2 === n0, `${n0} ${n1} ${n2}`);
-  // keep the sketch to what the later checks expect: a cloud and a text, plus a callout and a rectangle
+  check('undo and redo work on a sheet view', n1 === n0 - 1 && n2 === n0, `${n0} ${n1} ${n2}`);
+  // keep the view to what the later checks expect: a cloud and a text, plus a callout and a rectangle
   const keep = await page.evaluate((id) => { const s = window.__xraySheets.sketches(id).find((q) => !q.readonly); return s.markups.filter((m) => ['cloud', 'text', 'callout', 'rect', 'arrow', 'pen', 'highlightBox'].includes(m.kind)).map((m) => m.id); }, sheetId);
   await page.evaluate(([id, k]) => { const mk = window.__xraySheets.controller.markup; const s = mk.get(window.__xraySheets.sketches(id).find((q) => !q.readonly).id); for (const m of [...s.markups]) if (!k.includes(m.id)) mk.remove(m.id); }, [sheetId, keep]);
   await page.click('#sheet-float [data-act=done]');
@@ -318,7 +318,7 @@ try {
   const r2 = await read(out2);
   check('exporting again replaces the X-ray annotations instead of doubling them', r2.list.filter((a) => a.nm.startsWith('xray-')).length === nOwn && r2.list.length === r1.list.length && r2.nOcgs === 1);
   const dl = page.waitForEvent('download');
-  await page.click('#issues-panel [data-act=export-pdf]').catch(() => undefined);
+  await page.click('#views-drawings [data-act=export-pdf]').catch(() => undefined);
   const dlf = await Promise.race([dl, new Promise((r) => setTimeout(() => r(null), 15000))]);
   check('the Export marked-up PDF button downloads the file', !!dlf && /markup\.pdf$/.test(dlf.suggestedFilename()), dlf ? dlf.suggestedFilename() : 'no download');
 
@@ -331,14 +331,14 @@ try {
   const reSets = await page.evaluate((id) => window.__xraySheets.sketches(id), reSheet.id);
   const reOwn = reSets.find((s) => !s.readonly);
   const reForeign = reSets.find((s) => s.readonly);
-  check('the markups of the exported PDF come back as an editable sketch', !!reOwn && reOwn.markups.length === nOwn && reOwn.title.startsWith(sketchNow.title), `${reOwn?.markups.length} of ${nOwn}`);
+  check('the markups of the exported PDF come back as an editable view', !!reOwn && reOwn.markups.length === nOwn && reOwn.title.startsWith(sketchNow.title), `${reOwn?.markups.length} of ${nOwn}`);
   check('the shapes come back exactly (kind and points)', JSON.stringify(reOwn.markups.map((m) => [m.kind, m.shape?.points ?? m.anchor.point.slice(0, 2)]).sort()) === JSON.stringify(sketchNow.markups.map((m) => [m.kind, m.shape?.points ?? m.anchor.point.slice(0, 2)]).sort()));
   check('the foreign annotations stay read-only', !!reForeign && reForeign.markups.length === 3 && reForeign.readonly === true);
   const ro = await page.evaluate(([setId, mid]) => { const mk = window.__xraySheets.controller.markup; return { removed: mk.remove(mid), patched: mk.patch(mid, { text: 'x' }), count: mk.get(setId).markups.length }; }, [reForeign.id, reForeign.markups[0].id]);
-  check('a read-only sketch refuses edits', ro.removed === false && ro.patched === false && ro.count === 3);
-  // the imported sketch can be copied to an editable one
+  check('a read-only view refuses edits', ro.removed === false && ro.patched === false && ro.count === 3);
+  // the imported view can be copied to an editable one
   const copy = await page.evaluate((id) => { const c = window.__xraySheets.copyToEditable(id); return c ? { ro: !!c.readonly, n: c.markups.length } : null; }, reForeign.id);
-  check('a read-only sketch can be copied to an editable one', !!copy && copy.ro === false && copy.n === 3);
+  check('a read-only view can be copied to an editable one', !!copy && copy.ro === false && copy.n === 3);
   await page.evaluate((id) => window.__xraySheets.open(id), reSheet.id);
   await page.waitForFunction(() => window.__xraySheets.view()?.renders.base >= 2, null, { timeout: 60000 });
   await page.evaluate((id) => { window.__xraySheets.controller.markup.selectMarkup(window.__xraySheets.sketches(id).find((s) => s.readonly).markups.find((m) => m.author === 'Reviewer A' && m.kind === 'rect').id); }, reSheet.id);
@@ -349,10 +349,10 @@ try {
 
   // ------------------------------------------------------------------ raise as issue, BCF export, re-import
   const mkId = reOwn.id;
-  // from the viewer bar: the button raises the sketch you draw on, then reads "Open issue"
+  // from the viewer bar: the button raises the view you draw on, then reads "Open issue"
   await page.evaluate((id) => { const mk = window.__xraySheets.controller.markup; mk.activeId = id; mk.emit(); }, mkId);
-  await page.waitForFunction(() => { const b = document.querySelector('#sheet-view [data-act=raise]'); return !!b && !b.disabled && b.textContent === 'Raise as issue'; });
-  check('the sheet viewer bar has "Raise as issue" for the active sketch', true);
+  await page.waitForFunction(() => { const b = document.querySelector('#sheet-view [data-act=raise]'); return !!b && !b.disabled && b.textContent === 'Make issue'; });
+  check('the sheet viewer bar has "Make issue" for the active drawings', true);
   await page.click('#sheet-view [data-act=raise]');
   await page.waitForFunction((id) => !!window.__xrayIssues.issueOf(id), mkId, { timeout: 60000 });
   const guid = await page.evaluate((id) => window.__xrayIssues.issueOf(id).topic, mkId);
@@ -361,11 +361,11 @@ try {
   await page.evaluate(() => { const mk = window.__xraySheets.controller.markup; mk.activeId = window.__xraySheets.sketches(window.__xraySheets.openSheet).find((s) => s.readonly)?.id ?? null; mk.emit(); });
   // the bar re-renders on the next frame: wait for it rather than reading the button straight after the change
   const roOff = await page.waitForFunction(() => document.querySelector('#sheet-view [data-act=raise]').disabled === true, null, { timeout: 5000 }).then(() => true, () => false);
-  check('the button is off for a read-only sketch', roOff, await page.evaluate(() => { const b = document.querySelector('#sheet-view [data-act=raise]'); const mk = window.__xraySheets.controller.markup; return JSON.stringify({ text: b.textContent, disabled: b.disabled, active: mk.activeId, readonly: !!mk.active?.readonly }); }));
+  check('the button is off for a read-only view', roOff, await page.evaluate(() => { const b = document.querySelector('#sheet-view [data-act=raise]'); const mk = window.__xraySheets.controller.markup; return JSON.stringify({ text: b.textContent, disabled: b.disabled, active: mk.activeId, readonly: !!mk.active?.readonly }); }));
   await page.evaluate((id) => { const mk = window.__xraySheets.controller.markup; mk.activeId = id; mk.emit(); }, mkId);
   const topic = await page.evaluate((g) => { const t = window.__xrayBcf.topics.find((x) => x.guid === g); return { vps: t.viewpoints.length, snap: !!t.viewpoints[0].snapshot, data: t.viewpoints[0].data, sheet: t.viewpoints[0].sheet && { page: t.viewpoints[0].sheet.page, sha: t.viewpoints[0].sheet.sha256, n: t.viewpoints[0].sheet.markups.length }, docs: t.documentReferences.length, sketch: t.viewpoints[0].sketchId }; }, guid);
-  check('raising a sheet sketch makes an issue with a snapshot of the sheet region and a document reference', topic.vps === 1 && topic.snap && topic.data === null && topic.docs === 1 && topic.sheet.page === 1 && topic.sheet.sha === reDoc.sha256 && topic.sheet.n === nOwn && topic.sketch === mkId, JSON.stringify(topic));
-  check('the sketch links to its issue', await page.evaluate((id) => window.__xrayIssues.issueOf(id)?.topic, mkId) === guid);
+  check('raising a sheet view makes an issue with a snapshot of the sheet region and a document reference', topic.vps === 1 && topic.snap && topic.data === null && topic.docs === 1 && topic.sheet.page === 1 && topic.sheet.sha === reDoc.sha256 && topic.sheet.n === nOwn && topic.sketch === mkId, JSON.stringify(topic));
+  check('the view links to its issue', await page.evaluate((id) => window.__xrayIssues.issueOf(id)?.topic, mkId) === guid);
   const png = await page.evaluate((g) => { const s = window.__xrayBcf.topics.find((x) => x.guid === g).viewpoints[0].snapshot; return [s[0], s[1], s[2], s[3]]; }, guid);
   check('the snapshot is a PNG', png[0] === 0x89 && png[1] === 0x50);
   for (const version of ['3.0', '2.1']) {
@@ -382,7 +382,7 @@ try {
     }, [version]);
     check(`BCF ${version}: the DocumentReference points at the PDF inside the zip and the side file names sheet, page and shapes`, info.refs.length === 1 && info.refs[0].external === false && info.docs.length === 1 && info.docs[0].len === out1.length && info.sheet?.page === 1 && info.sheet.sha === reDoc.sha256 && info.sheet.markups === nOwn && info.snap, JSON.stringify(info));
   }
-  // re-import: remove the PDF and its sketch, then open the bcfzip: the PDF comes from the zip and the sketch finds its sheet by hash
+  // re-import: remove the PDF and its view, then open the bcfzip: the PDF comes from the zip and the view finds its sheet by hash
   const zip30 = await bytesOf(async () => window.__xrayBcf.exportZip('3.0'));
   await page.evaluate(async () => { window.__xraySheets.close(); });
   await page.evaluate(async (docId) => { await window.__xraySheets.removeDoc(docId); const b = window.__xrayBcf; for (const t of [...b.topics]) window.__xrayIssues.controller.deleteIssue(t.guid); }, reDoc.id);
@@ -396,7 +396,7 @@ try {
     const sk = window.__xraySheets.controller.markup.get(t.viewpoints[0].sketchId);
     return { sheetKnown: !!window.__xraySheets.controller.sheetOfSet(sk), frame: sk.frame.sheet, want: sid, n: sk.markups.length, issue: sk.issue?.topic === t.guid, same: window.__xraySheets.docs().find((x) => x.id === d)?.sha256 };
   }, [reDoc.id, reSheet.id]);
-  check('opening the bcfzip again restores the sketch and its sheet link by the SHA-256 of the PDF', back.sheetKnown && back.frame === back.want && back.n === nOwn && back.issue, JSON.stringify(back));
+  check('opening the bcfzip again restores the view and its sheet link by the SHA-256 of the PDF', back.sheetKnown && back.frame === back.want && back.n === nOwn && back.issue, JSON.stringify(back));
 
   // ------------------------------------------------------------------ back to the model
   await page.evaluate((id) => window.__xraySheets.open(id), reSheet.id);
@@ -416,8 +416,8 @@ try {
   await phone.evaluate(() => window.__xrayIssues.open('sheets'));
   await phone.setInputFiles('input[data-sheets=open]', FIXTURE);
   await phone.waitForFunction(() => window.__xraySheets.docs().length === 1 && /opened/.test(window.__xraySheets.status), null, { timeout: 90000 });
-  await phone.waitForSelector('#issues-sheet.on [data-sheet]');
-  await phone.tap('#issues-sheet [data-sheet]:first-of-type');
+  await phone.waitForSelector('#views-drawings [data-sheet]');
+  await phone.tap('#views-drawings [data-sheet]:first-of-type');
   await phone.waitForSelector('#sheet-view.on');
   await phone.waitForFunction(() => window.__xraySheets.view()?.renders.base >= 1, null, { timeout: 60000 });
   await phone.click('#sheet-view [data-act=draw]');
@@ -428,10 +428,10 @@ try {
     const b = document.querySelector('#sheet-float').getBoundingClientRect();
     const bar = document.querySelector('#sheet-view .sv-bar');
     const back = document.querySelector('#sheet-view [data-act=back]').getBoundingClientRect();
-    return { vw: innerWidth, view: [v.left, v.right], bar: [b.left, b.right, b.top, b.bottom], barScroll: bar.scrollWidth <= bar.clientWidth + 1, back: [back.left, back.right], docScroll: document.documentElement.scrollWidth <= innerWidth + 1, clear: ['#sidebar', '#xray-toolbar', '#dock'].every((q) => { const e = document.querySelector(q); if (!e || !e.getClientRects().length) return true; const b = e.getBoundingClientRect(); return b.right <= v.left + 1 || b.left >= v.right - 1 || b.bottom <= v.top + 1 || b.top >= v.bottom - 1; }), sheetPanelOpen: !!document.querySelector('#issues-sheet.on'), cardsGone: true };
+    return { vw: innerWidth, view: [v.left, v.right], bar: [b.left, b.right, b.top, b.bottom], barScroll: bar.scrollWidth <= bar.clientWidth + 1, back: [back.left, back.right], docScroll: document.documentElement.scrollWidth <= innerWidth + 1, clear: ['#sidebar', '#xray-toolbar', '#dock'].every((q) => { const e = document.querySelector(q); if (!e || !e.getClientRects().length) return true; const b = e.getBoundingClientRect(); return b.right <= v.left + 1 || b.left >= v.right - 1 || b.bottom <= v.top + 1 || b.top >= v.bottom - 1; }), sheetPanelOpen: document.querySelector('#views-panel')?.offsetParent !== null, cardsGone: true };
   });
   check('on a 360 px phone the sheet view fits the width, with Back to model and the toolbar in reach', pg.view[1] <= pg.vw + 1 && pg.bar[0] >= pg.view[0] - 1 && pg.bar[1] <= pg.view[1] + 1 && pg.barScroll && pg.back[0] >= pg.view[0] - 1 && pg.back[1] <= pg.view[1] + 1 && pg.docScroll && pg.clear, JSON.stringify(pg));
-  check('opening a sheet on the phone closes the issues bottom sheet', !pg.sheetPanelOpen);
+  check('opening a sheet on the phone closes the Views tab', !pg.sheetPanelOpen);
   // a touch pinch: two pointers through the CDP, as the viewer reads pointer events
   const cdp = await pctx.newCDPSession(phone);
   const st = await phone.evaluate(() => { const b = document.querySelector('#sheet-view [data-sv=stage]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
@@ -455,6 +455,7 @@ try {
   failed = true;
   console.error(e);
   console.error(viteLog.slice(-1500));
+  console.error('console errors:', errors.slice(0, 5).join(' | '));
 } finally {
   if (browser) await browser.close();
   vite.kill();

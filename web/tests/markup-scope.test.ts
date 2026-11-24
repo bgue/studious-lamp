@@ -198,7 +198,7 @@ describe('MarkupController on a model change', () => {
     expect(c.list()).toEqual([]);
     expect(c.list({ all: true }).map((s) => [s.id, s.scope])).toEqual([['s1', 'different']]);
     // Exports default to the sets of this model.
-    expect(() => c.exportJson()).toThrow(/No markup set/);
+    expect(() => c.exportJson()).toThrow(/No drawings/);
 
     load(app, 'FZK-Haus', ids(100));
     c.onModel();

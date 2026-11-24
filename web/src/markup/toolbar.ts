@@ -189,7 +189,7 @@ export class DrawToolbar {
       const inp = document.createElement('input');
       inp.type = 'text';
       inp.placeholder = 'Text for the next callout, text box or pointer';
-      inp.setAttribute('aria-label', 'Text for the next markup');
+      inp.setAttribute('aria-label', 'Text for the next drawing');
       inp.setAttribute('data-act', 'text');
       inp.value = c.text;
       inp.addEventListener('input', () => { c.text = inp.value; });
@@ -223,7 +223,7 @@ export class DrawToolbar {
     const fin = mkBtn('Finish', 'finish', finish);
     fin.style.display = polyPoints > 0 ? '' : 'none';
     const done = mkBtn('Done', 'done', () => c.setEditing(false), 'mf-done');
-    done.title = 'Stop editing the sketch';
+    done.title = 'Stop editing the drawings';
     act.append(label, undo, redo, fin, done);
     root.appendChild(act);
   }

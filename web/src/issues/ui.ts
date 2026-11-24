@@ -1,6 +1,7 @@
-// The Issues panel: a segmented switch "Issues · Sketches", the list of the segment (filter, search, status chips, "Other
-// models (n)"), and the detail of the chosen item in the same column. It lives in the sidebar tab "Issues" (and in a bottom
-// sheet on a phone, src/plugins/issues.ts). DOM only; the logic is in controller.ts.
+// The Issues panel (mode `issues`): the list of issues (filter, search, status chips, "Other models (n)") and the detail of the
+// chosen issue in the same column. It lives in the sidebar tab "Issues" (and in a bottom sheet on a phone, src/plugins/issues.ts).
+// The same builder makes the drawings part of the Views tab (mode `views`): the detail of a view that has a drawing layer, the sheets
+// pane, "Open file" and "Other models (n)". DOM only; the logic is in controller.ts.
 
 import { el } from '../ui/dom';
 import { button, row, select } from '../tools/ui';
@@ -24,6 +25,8 @@ const CSS = `
 .is-root { --is-fg: var(--sb-fg, #dfe6ee); --is-dim: var(--sb-dim, #8d99a8); --is-line: var(--sb-line, #262d3a); --is-hover: var(--sb-hover, #1c2230); --is-sel: var(--sb-sel, #1f4a7a); --is-accent: var(--sb-accent, #3b9cff);
   color: var(--is-fg); font: 12px/1.4 system-ui, sans-serif; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; padding: 8px; min-height: 0; flex: 1 1 auto; overflow-y: auto; }
 .is-root * { box-sizing: border-box; }
+.is-root.is-embedded { flex: 0 0 auto; overflow: visible; }
+.is-vthumb { width: 56px; height: 35px; object-fit: cover; border-radius: 3px; background: #1b2230; flex: 0 0 auto; }
 .is-seg { display: flex; border: 1px solid var(--is-line); border-radius: 6px; overflow: hidden; flex: 0 0 auto; }
 .is-seg button { flex: 1 1 0; background: transparent; color: var(--is-dim); border: 0; padding: 6px 4px; font: inherit; font-weight: 600; cursor: pointer; min-height: 30px; }
 .is-seg button[aria-selected=true] { background: var(--is-sel); color: #fff; }
@@ -107,11 +110,12 @@ export interface IssuesPanel {
 }
 
 /** Build the panel into `host`. */
-export function buildIssuesPanel(host: HTMLElement, c: IssuesController): IssuesPanel {
+export function buildIssuesPanel(host: HTMLElement, c: IssuesController, mode: 'issues' | 'views' = 'issues'): IssuesPanel {
   ensureStyles();
   const root = el('div', 'is-root');
-  root.id = 'issues-panel';
-  root.setAttribute('data-help-key', 'Issues panel');
+  root.id = mode === 'issues' ? 'issues-panel' : 'views-drawings';
+  root.setAttribute('data-help-key', mode === 'issues' ? 'Issues panel' : 'Views panel/Drawings');
+  if (mode === 'views') root.classList.add('is-embedded');
   host.appendChild(root);
   const urls = new Map<string, { sig: string; url: string }>();
   const drafts = new Map<string, string>();
@@ -180,32 +184,20 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
 
   // ---------------------------------------------------------------- pieces
 
-  function segmentBar(): HTMLElement {
-    const bar = el('div', 'is-seg', { role: 'tablist', 'aria-label': c.sheetsPane ? 'Issues, sketches or sheets' : 'Issues or sketches', 'data-help-key': 'Issues panel/Segments' });
-    const segs: Array<readonly ['issues' | 'sketches' | 'sheets', string]> = [['issues', 'Issues'], ['sketches', 'Sketches']];
-    if (c.sheetsPane) segs.push(['sheets', 'Sheets']);
-    for (const [id, label] of segs) {
-      const b = el('button', undefined, { type: 'button', role: 'tab', 'data-seg': id, 'aria-selected': String(c.segment === id) }, label);
-      b.addEventListener('click', () => c.setSegment(id));
-      bar.appendChild(b);
-    }
-    return bar;
-  }
-
   function banner(): HTMLElement | null {
     const n = c.legacy().length;
     if (!n || bannerDismissed) return null;
     const b = el('div', 'is-banner', { 'data-banner': 'migrate', role: 'status' });
-    b.appendChild(el('div', undefined, { 'data-banner-text': '' }, `${n} sketch${n === 1 ? ' has' : 'es have'} comments or a status. Raise ${n === 1 ? 'it as an issue' : 'them as issues'}?`));
-    const yes = act(button('Yes, raise them', () => { void c.migrateLegacy(); }, { primary: true, title: 'Make an issue of each sketch, moving its comments and status. The issue links to the sketch.' }), 'migrate');
-    const no = act(button('Not now', () => { bannerDismissed = true; c.emit(); }, { title: 'Keep the comments and status on the sketches, read-only' }), 'migrate-later');
+    b.appendChild(el('div', undefined, { 'data-banner-text': '' }, `${n} view${n === 1 ? ' has' : 's have'} comments or a status. Make ${n === 1 ? 'an issue of it' : 'issues of them'}?`));
+    const yes = act(button('Yes, make issues', () => { void c.migrateLegacy(); }, { primary: true, title: 'Make an issue of each view, moving its comments and status. The issue points at the view.' }), 'migrate');
+    const no = act(button('Not now', () => { bannerDismissed = true; c.emit(); }, { title: 'Keep the comments and status on the views, read-only' }), 'migrate-later');
     b.appendChild(row(yes, no));
     return b;
   }
 
   function filterRow(withChips: boolean): HTMLElement[] {
     const out: HTMLElement[] = [];
-    const q = input('is-in', { type: 'search', placeholder: c.segment === 'issues' ? 'Search title, description, comments' : 'Search title and note', 'aria-label': 'Search', 'data-keep': 'query', 'data-field': 'query' }, c.query);
+    const q = input('is-in', { type: 'search', placeholder: 'Search title, description, comments', 'aria-label': 'Search', 'data-keep': 'query', 'data-field': 'query' }, c.query);
     q.addEventListener('input', () => { c.query = q.value; c.emit(); });
     out.push(q);
     if (withChips) {
@@ -242,13 +234,13 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
   function issuesList(): HTMLElement[] {
     const out: HTMLElement[] = [];
     const bar = row(
-      act(button('New issue', () => openTopicDialog(bcf), { primary: true, title: 'Create an issue from the current view' }), 'new'),
+      act(button('New issue', () => openTopicDialog(bcf, (t) => { c.adoptNewIssue(t); }), { primary: true, title: 'Capture the current view and make an issue of it' }), 'new'),
       act(button('Open BCF', () => pickBcfFile(bcf), { title: 'Open a BCF 2.1 or 3.0 file. You can also drop it on the page.' }), 'open'),
     );
     out.push(bar);
     out.push(...filterRow(true));
     const shown = c.visibleIssues();
-    if (!shown.length) out.push(el('div', 'is-empty', undefined, bcf.currentTopics.length ? 'No issue matches the filter.' : 'No issues for this model. Open a BCF file, create an issue from the view, or raise a sketch.'));
+    if (!shown.length) out.push(el('div', 'is-empty', undefined, bcf.currentTopics.length ? 'No issue matches the filter.' : 'No issues for this model. Open a BCF file, press New issue, or make an issue of a view in the Views tab.'));
     else {
       const list = el('div', 'is-list', { 'data-issue-list': '' });
       for (const t of shown) {
@@ -260,7 +252,7 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
         if (t.topicStatus) tags.appendChild(tag(t.topicStatus, statusClass(t.topicStatus)));
         if (t.priority) tags.appendChild(tag(t.priority, priorityClass(t.priority)));
         const ns = c.sketchesOf(t).length;
-        if (ns) tags.appendChild(tag(`${ns} sketch${ns === 1 ? '' : 'es'}`, 'link'));
+        if (ns) tags.appendChild(tag(`${ns} view${ns === 1 ? '' : 's'}`, 'link'));
         if (t.comments.length) tags.appendChild(tag(`${t.comments.length} comment${t.comments.length === 1 ? '' : 's'}`, 'lbl'));
         if (t.assignedTo) tags.appendChild(tag(t.assignedTo, 'lbl'));
         item.appendChild(tags);
@@ -277,7 +269,7 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
         line.appendChild(el('div', 'is-t', undefined, t.title));
         line.appendChild(row(
           act(button('Open', () => c.openOtherIssue(t.guid), { title: 'Show this issue on this model. It may not fit: its targets are not here.' }), 'other-open'),
-          act(button('Move to this model', () => c.moveIssueToModel(t.guid), { title: 'Make this issue and its sketches belong to the loaded model' }), 'other-move'),
+          act(button('Move to this model', () => c.moveIssueToModel(t.guid), { title: 'Make this issue and its views belong to the loaded model' }), 'other-move'),
         ));
         const del = act(button('Delete issue', () => undefined, { title: 'Remove this issue from the session' }), 'other-delete');
         arm(del, 'Delete issue', () => c.deleteIssue(t.guid));
@@ -331,11 +323,11 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     out.push(tags);
     if (t.description) out.push(el('div', undefined, undefined, t.description));
 
-    // sketches = viewpoints
-    out.push(el('div', 'is-h', undefined, `Sketches (${t.viewpoints.filter((v) => !v.derived).length})`));
+    // views = viewpoints
+    out.push(el('div', 'is-h', undefined, `Views (${t.viewpoints.filter((v) => !v.derived).length})`));
     t.viewpoints.forEach((v, i) => {
       if (v.derived) {
-        // A Plan or Section written beside a sketch's viewpoint: a view of that sketch, so no drawing of its own.
+        // A Plan or Section written beside the viewpoint of a view: a version of that view, so no drawings of its own.
         const d = el('div', 'is-vp', { 'data-viewpoint': v.guid, 'data-derived': v.derived.kind });
         d.appendChild(el('span', 'is-t', undefined, v.derived.kind === 'plan' ? 'Plan (derived)' : 'Section (derived)'));
         d.appendChild(act(button('Apply', () => { c.applyViewpoint(t, v); }, { title: 'Apply this derived view: an orthographic camera with its clip planes' }), 'apply'));
@@ -347,31 +339,33 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
       }
       const s = c.viewpointSketch(v);
       const r = el('div', 'is-vp', { 'data-viewpoint': v.guid });
-      r.appendChild(el('span', 'is-t', undefined, s ? s.title : `Viewpoint ${i + 1}`));
+      const pic = s?.thumb ?? (v.snapshot ? rawSnapshot(v) : '');
+      if (pic) r.appendChild(el('img', 'is-vthumb', { src: pic, alt: '', draggable: 'false' }));
+      r.appendChild(el('span', 'is-t', undefined, s ? s.title : `View ${i + 1}`));
       const apply = act(button('Apply', () => { c.applyViewpoint(t, v); }, { title: 'Apply this view' }), 'apply');
       apply.disabled = !v.data && !s;
       r.appendChild(apply);
-      const clr = act(button('Clear', () => { bcf.clearViewpoint(); }, { title: 'Undo what the viewpoint changed: the elements it hid, its colours and its clip planes' }), 'clear');
+      const clr = act(button('Clear', () => { bcf.clearViewpoint(); }, { title: 'Undo what the view changed: the elements it hid, its colours and its clip planes' }), 'clear');
       clr.disabled = bcf.applied?.viewpoint !== v.guid;
       r.appendChild(clr);
       const canDraw = !!s || !!bcf.shapeView(v);
-      const edit = act(button('Edit drawing', () => { c.editViewpoint(t, v); }, { primary: true, title: s ? 'Apply the view and draw on its sketch' : 'Apply the view and draw on it: the drawing becomes a sketch of this issue' }), 'edit-drawing');
+      const edit = act(button('Edit drawings', () => { c.editViewpoint(t, v); }, { primary: true, title: s ? 'Apply the view and draw on it' : 'Apply the view and draw on it: it joins the Views list' }), 'edit-drawing');
       edit.disabled = !canDraw;
       r.appendChild(edit);
-      if (s) r.appendChild(act(button('Open sketch', () => { c.openSketch(s.id); }, { title: 'Show the sketch in the Sketches list' }), 'open-sketch'));
+      if (s) r.appendChild(act(button('Open in Views', () => { c.openView(s.id); }, { title: 'Show the view in the Views tab' }), 'open-sketch'));
       else if (v.annotations?.length) r.appendChild(el('span', 'is-meta', undefined, `${v.annotations.length} drawing${v.annotations.length === 1 ? '' : 's'} not editable`));
       r.appendChild(el('span', 'is-meta', { 'data-vp-count': '' }, s ? `${s.markups.length} drawing${s.markups.length === 1 ? '' : 's'}` : v.problem ?? ''));
       out.push(r);
       if (s && c.views.tied(s)) out.push(viewSwitchRow(s));
     });
-    const addVp = act(button('Add current view as sketch', () => {
+    const addVp = act(button('Add current view', () => {
       void (async () => {
         try {
-          const s = mk.newSet(`${t.title} (view ${t.viewpoints.length + 1})`);
+          const s = c.viewsHost ? await c.viewsHost.saveCurrent(`${t.title} (view ${t.viewpoints.length + 1})`) : mk.newSet(`${t.title} (view ${t.viewpoints.length + 1})`);
           await c.raise(s.id, { topic: t.guid });
         } catch (e) { fail(e); }
       })();
-    }, { title: 'Save the current view as a new sketch and add it to this issue' }), 'add-sketch');
+    }, { title: 'Save the current view and add it to this issue' }), 'add-sketch');
     addVp.disabled = !mk.loaded;
     const pin = act(button('Place pin', () => { window.__xrayBcf?.startPlacement('pin', t.guid); }, { title: 'Click the model to pin this issue' }), 'place-pin');
     const rmPin = t.pin ? act(button('Remove pin', () => bcf.setPin(t.guid, null), { title: 'Remove the pin of this issue' }), 'remove-pin') : null;
@@ -404,7 +398,7 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
 
     // export
     out.push(el('div', 'is-h', undefined, 'Export'));
-    const del = act(button('Delete issue', () => undefined, { title: 'Remove this issue. Its sketches stay.' }), 'delete-issue');
+    const del = act(button('Delete issue', () => undefined, { title: 'Remove this issue. Its views stay.' }), 'delete-issue');
     arm(del, 'Delete issue', () => c.deleteIssue(t.guid));
     out.push(row(
       act(button('Export BCF 2.1', () => void bcf.download('2.1'), { title: 'Download every issue as BCF 2.1' }), 'export-2.1'),
@@ -414,9 +408,9 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     return out;
   }
 
-  /** `View: 3D · Plan · Section` for a sketch that is tied to a 3D construct. */
+  /** `View: 3D · Plan · Section` for a view whose drawings are tied to a 3D construct. */
   function viewSwitchRow(set: MarkupSet): HTMLElement {
-    const row = buildViewSwitch({ mode: () => c.views.mode(set), apply: (m) => { if (!c.views.apply(set.id, m)) mk.setStatus('This view needs the model the sketch is tied to'); } }, { labelled: true, helpKey: 'Issues panel/View switch' });
+    const row = buildViewSwitch({ mode: () => c.views.mode(set), apply: (m) => { if (!c.views.apply(set.id, m)) mk.setStatus('This view needs the model its drawings are tied to'); } }, { labelled: true, helpKey: 'Issues panel/View switch' });
     row.setAttribute('data-view-switch-row', set.id);
     return row;
   }
@@ -427,43 +421,24 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     return l;
   }
 
-  // ---------------------------------------------------------------- sketches list
+  // ---------------------------------------------------------------- the drawings part of the Views tab
 
-  function sketchesList(): HTMLElement[] {
+  /** `Open file` and "Other models (n)": what the Views list does not hold. */
+  function viewsExtras(): HTMLElement[] {
     const out: HTMLElement[] = [];
     out.push(row(
-      act(button('New sketch', () => { try { c.newSketch(); } catch (e) { fail(e); } }, { primary: true, title: 'Save the current view as a sketch and start drawing on it' }), 'new-sketch'),
-      act(button('Open file', () => pickMarkupFile(mk), { title: 'Open a sketch PDF or JSON file. You can also drop it on the page.' }), 'open-file'),
+      act(button('Open file', () => pickMarkupFile(mk), { title: 'Open a PDF or JSON file with views and drawings. You can also drop it on the page.' }), 'open-file'),
     ));
-    out.push(...filterRow(false));
-    const shown = c.visibleSketches();
-    if (!shown.length) out.push(el('div', 'is-empty', undefined, mk.sets.length ? 'No sketch matches.' : 'No sketches yet. Frame the view you want to draw on, then press New sketch.'));
-    else {
-      const grid = el('div', 'is-grid', { 'data-sketch-list': '' });
-      for (const s of shown) {
-        const card = el('button', `is-card${mk.activeId === s.id ? ' sel' : ''}`, { type: 'button', 'data-set': s.id, 'data-sketch': s.id, title: `${s.title}: restore the view` });
-        if (s.thumb) card.appendChild(el('img', undefined, { src: s.thumb, alt: '', draggable: 'false' }));
-        else card.appendChild(el('div', 'is-nothumb', undefined, 'no picture'));
-        card.appendChild(el('div', 'is-t', undefined, s.title));
-        card.appendChild(el('div', 'is-meta', undefined, `${s.markups.length} drawing${s.markups.length === 1 ? '' : 's'}`));
-        const ref = c.issueOf(s.id);
-        if (ref) card.appendChild(tag(`Issue: ${ref.topic.title}`, 'link'));
-        else if (hasLegacyReview(s)) card.appendChild(tag('has comments or status', 'open'));
-        card.addEventListener('click', () => c.openSketch(s.id));
-        grid.appendChild(card);
-      }
-      out.push(grid);
-    }
     const other = otherGroup(
       mk.otherModels().map((g) => ({ label: g.label, key: g.key, items: g.items })),
       (s) => {
         const line = el('div', 'is-other-set', { 'data-other-set': s.id });
         line.appendChild(el('div', 'is-t', undefined, `${s.title} (${s.markups.length} drawing${s.markups.length === 1 ? '' : 's'})`));
-        const del = act(button('Delete sketch', () => undefined, { title: 'Remove this sketch from the session' }), 'other-delete');
-        arm(del, 'Delete sketch', () => mk.deleteSet(s.id));
+        const del = act(button('Delete view', () => undefined, { title: 'Remove this view from the session' }), 'other-delete');
+        arm(del, 'Delete view', () => mk.deleteSet(s.id));
         line.appendChild(row(
-          act(button('Open', () => { mk.openOther(s.id); }, { title: 'Show this sketch on this model. It may not fit: its targets are not here.' }), 'other-open'),
-          act(button('Move to this model', () => { mk.moveToModel(s.id); }, { title: 'Make this sketch belong to the loaded model and attach its shapes again' }), 'other-move'),
+          act(button('Open', () => { mk.openOther(s.id); }, { title: 'Show this view on this model. It may not fit: its targets are not here.' }), 'other-open'),
+          act(button('Move to this model', () => { mk.moveToModel(s.id); }, { title: 'Make this view belong to the loaded model and attach its drawings again' }), 'other-move'),
           del,
         ));
         return line;
@@ -473,19 +448,19 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     return out;
   }
 
-  // ---------------------------------------------------------------- sketch detail
+  // ---------------------------------------------------------------- view detail (a view that has a drawing layer)
 
-  function sketchDetail(set: MarkupSet): HTMLElement[] {
+  function viewDetail(set: MarkupSet): HTMLElement[] {
     const out: HTMLElement[] = [];
     const head = el('div', 'is-head');
-    head.append(act(button('‹ Sketches', () => { c.detail = null; c.emit(); }, { title: 'Back to the list' }), 'back'));
+    head.append(act(button('‹ Views', () => { c.detail = null; c.emit(); }, { title: 'Back to the list' }), 'back'));
     out.push(head);
-    if (set.thumb) out.push(el('img', 'is-snap', { src: set.thumb, alt: 'Thumbnail of the sketch', draggable: 'false' }));
-    const title = input('is-in', { type: 'text', 'aria-label': 'Sketch title', 'data-keep': 'title', 'data-field': 'title' }, set.title);
-    title.addEventListener('change', () => silently(() => mk.renameSet(set.id, title.value)));
+    if (set.thumb) out.push(el('img', 'is-snap', { src: set.thumb, alt: 'Thumbnail of the view', draggable: 'false' }));
+    const title = input('is-in', { type: 'text', 'aria-label': 'View title', 'data-keep': 'title', 'data-field': 'title' }, set.title);
+    title.addEventListener('change', () => silently(() => { mk.renameSet(set.id, title.value); c.viewsHost?.renamed(set.id, set.title); }));
     out.push(title);
     if (c.views.tied(set)) out.push(viewSwitchRow(set)); // near the top: the sheet of a phone scrolls
-    const note = input('is-in', { type: 'text', maxlength: '400', placeholder: 'One-line note', 'aria-label': 'Sketch note', 'data-keep': 'note', 'data-field': 'note' }, set.note ?? '');
+    const note = input('is-in', { type: 'text', maxlength: '400', placeholder: 'One-line note', 'aria-label': 'View note', 'data-keep': 'note', 'data-field': 'note' }, set.note ?? '');
     note.addEventListener('input', () => mk.setNote(set.id, note.value, { quiet: true }));
     out.push(note);
 
@@ -493,16 +468,16 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     const ref = c.issueOf(set.id);
     if (ref) {
       const line = el('div', 'is-vp', { 'data-issue-link': ref.topic.guid });
-      line.append(el('span', 'is-meta', undefined, 'Viewpoint of the issue'), el('span', 'is-t', undefined, ref.topic.title), tag(ref.topic.topicStatus, statusClass(ref.topic.topicStatus)));
-      line.appendChild(act(button('Open issue', () => c.openIssue(ref.topic.guid, { apply: false }), { title: 'Open the issue this sketch belongs to' }), 'open-issue'));
+      line.append(el('span', 'is-meta', undefined, 'In issue:'), el('span', 'is-t', undefined, ref.topic.title), tag(ref.topic.topicStatus, statusClass(ref.topic.topicStatus)));
+      line.appendChild(act(button('Open issue', () => { c.openIssue(ref.topic.guid, { apply: false }); }, { title: 'Open the issue this view is in' }), 'open-issue'));
       out.push(line);
     } else {
-      const sel = el('select', 'is-in', { 'aria-label': 'Raise as', 'data-field': 'raise-target' });
+      const sel = el('select', 'is-in', { 'aria-label': 'Make issue', 'data-field': 'raise-target' });
       sel.appendChild(el('option', undefined, { value: '' }, 'New issue'));
       for (const t of bcf.currentTopics) sel.appendChild(el('option', undefined, { value: t.guid }, `Add to: ${t.title}`));
       sel.value = bcf.currentTopics.some((t) => t.guid === raiseTarget) ? raiseTarget : '';
       sel.addEventListener('change', () => { raiseTarget = sel.value; });
-      const raise = act(button('Raise as issue', () => { void c.raise(set.id, raiseTarget ? { topic: raiseTarget } : {}).catch(fail); }, { primary: true, title: 'Make an issue of this sketch, or add it to an existing issue. The issue links to the sketch: it is not a copy.' }), 'raise');
+      const raise = act(button('Make issue', () => { void c.raise(set.id, raiseTarget ? { topic: raiseTarget } : {}).catch(fail); }, { primary: true, title: 'Make an issue of this view, or add it to an existing issue. The issue points at the view: it is not a copy.' }), 'raise');
       raise.disabled = !mk.loaded || !c.bcf;
       out.push(row(sel, raise));
     }
@@ -516,9 +491,9 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
       return b;
     };
     out.push(row(
-      act(button(mk.editing && mk.activeId === set.id ? 'Editing…' : 'Edit drawing', () => { c.editSketch(set.id); }, { primary: true, title: 'Show the drawing toolbar and draw on this sketch' }), 'edit-drawing'),
-      act(button('Restore view', () => { void mk.select(set.id, { restore: true }); }, { title: 'Bring back the camera, section, hidden elements and look of this sketch' }), 'restore'),
-      act(button('Update view', () => { try { mk.updateView(set.id); } catch (e) { fail(e); } }, { title: 'Capture the view of this sketch again from the current camera. You can undo it.' }), 'update-view'),
+      act(button(mk.editing && mk.activeId === set.id ? 'Editing…' : set.markups.length ? 'Edit drawings' : 'Draw on this view', () => { c.editSketch(set.id); }, { primary: true, title: 'Show the drawing toolbar and draw on this view' }), 'edit-drawing'),
+      act(button('Restore view', () => { void mk.select(set.id, { restore: true }); }, { title: 'Bring back the camera, section, hidden elements and look of this view' }), 'restore'),
+      act(button('Update view', () => { try { mk.updateView(set.id); c.viewsHost?.updated(set.id); } catch (e) { fail(e); } }, { title: 'Capture this view again from the current camera. You can undo it.' }), 'update-view'),
     ));
     const pageSel = select<PageSize>('Page size', ['A4', 'Letter'], () => mk.page, (v) => { mk.page = v; page = v; });
     pageSel.update();
@@ -528,27 +503,27 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     void page;
     out.push(row(
       fileBtn('Export PDF', () => mk.downloadPdf({ ids: [set.id] }), { title: 'A PDF with the clean view, the marked view and the table of drawings. The JSON is attached.' }, 'export-pdf'),
-      fileBtn('Export JSON', () => mk.downloadJson([set.id]), { title: 'The sketch as a JSON file. Drop it on the viewer to restore the view and the drawings.' }, 'export-json'),
+      fileBtn('Export JSON', () => mk.downloadJson([set.id]), { title: 'The view and its drawings as a JSON file. Drop it on the viewer to restore them.' }, 'export-json'),
     ));
     out.push(row(pageSel.root, resSel.root));
 
     // Removing.
     if (c.confirmRemove === set.id && ref) {
       const box = el('div', 'is-confirm', { 'data-confirm-remove': set.id, role: 'alertdialog' });
-      box.appendChild(el('div', undefined, undefined, `"${set.title}" is a viewpoint of the issue "${ref.topic.title}". Remove it? The issue keeps the camera view and loses this drawing.`));
-      box.appendChild(row(act(button('Remove sketch', () => { c.removeSketch(set.id, true); }, { title: 'Remove the sketch and cut the link' }), 'remove-confirm'), act(button('Keep it', () => c.cancelRemove()), 'remove-cancel')));
+      box.appendChild(el('div', undefined, undefined, `"${set.title}" is a view of the issue "${ref.topic.title}". Delete it? The issue keeps the camera view and loses these drawings.`));
+      box.appendChild(row(act(button('Delete view', () => { c.removeSketch(set.id, true); }, { title: 'Delete the view and cut the link' }), 'remove-confirm'), act(button('Keep it', () => c.cancelRemove()), 'remove-cancel')));
       out.push(box);
     } else {
-      const del = act(button('Delete sketch', () => undefined, { title: ref ? 'Remove this sketch. It belongs to an issue, so you are asked first.' : 'Remove this sketch and its drawings from the session' }), 'delete');
+      const del = act(button('Delete view', () => undefined, { title: ref ? 'Delete this view. It is in an issue, so you are asked first.' : 'Delete this view and its drawings' }), 'delete');
       if (ref) del.addEventListener('click', () => { c.removeSketch(set.id); });
-      else arm(del, 'Delete sketch', () => { c.removeSketch(set.id, true); });
+      else arm(del, 'Delete view', () => { c.removeSketch(set.id, true); });
       out.push(row(del));
     }
 
     // Legacy review data: read-only.
     if (hasLegacyReview(set)) {
       const box = el('div', 'is-legacy', { 'data-legacy': set.id });
-      box.appendChild(el('div', undefined, undefined, 'Earlier comments and status (read-only). Raise the sketch as an issue to move them.'));
+      box.appendChild(el('div', undefined, undefined, 'Earlier comments and status (read-only). Make an issue of the view to move them.'));
       for (const m of set.markups) {
         if (!m.comments.length && m.status === 'open' && !m.assignee && !m.due) continue;
         const bits = [m.status === 'resolved' ? 'resolved' : '', m.assignee ? `assigned to ${m.assignee}` : '', m.due ? `due ${m.due}` : ''].filter(Boolean).join(', ');
@@ -568,7 +543,7 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
       out.push(sel);
     }
     out.push(el('div', 'is-h', undefined, `Drawings (${set.markups.length})`));
-    if (!set.markups.length) out.push(el('div', 'is-empty', undefined, 'Press Edit drawing, pick a tool and draw on the view.'));
+    if (!set.markups.length) out.push(el('div', 'is-empty', undefined, 'Press Draw on this view, pick a tool and draw.'));
     else {
       const list = el('div', 'is-list');
       for (const m of set.markups) list.appendChild(drawingItem(set, m));
@@ -609,16 +584,16 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     return item;
   }
 
-  /** "Clear all sketches and issues for this model": two clicks, the second names what goes. Not on the Sheets segment. */
+  /** "Clear all drawings and issues for this model": two clicks, the second names what goes. */
   const CLEAR_ARM_MS = 8000;
   let clearArmedAt = 0; // kept here, not on the button: the panel is drawn again on every change
   function clearAll(): HTMLElement | null {
-    if (!c.work || c.segment === 'sheets') return null;
+    if (!c.work) return null;
     const n = c.work.counts();
     if (!n.sketches && !n.issues) return null;
-    const label = 'Clear all sketches and issues for this model';
+    const label = 'Clear all drawings and issues for this model';
     const armed = Date.now() - clearArmedAt < CLEAR_ARM_MS;
-    const b = act(button(armed ? `Click again to delete ${n.sketches} sketch${n.sketches === 1 ? '' : 'es'} and ${n.issues} issue${n.issues === 1 ? '' : 's'}` : label, () => undefined, { title: 'Delete the 3D sketches and the issues of this model, here and in the copy this browser keeps. Sheet sketches stay.' }), 'clear-all');
+    const b = act(button(armed ? `Click again to delete ${n.sketches} view${n.sketches === 1 ? '' : 's'} with drawings and ${n.issues} issue${n.issues === 1 ? '' : 's'}` : label, () => undefined, { title: 'Delete the drawings of the 3D views and the issues of this model, here and in the copy this browser keeps. The saved views and the sheet drawings stay.' }), 'clear-all');
     b.setAttribute('data-help-key', 'Issues panel/Clear everything');
     b.addEventListener('click', () => {
       if (Date.now() - clearArmedAt < CLEAR_ARM_MS) {
@@ -635,31 +610,31 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
 
   // ---------------------------------------------------------------- render
 
+  const statusText = (): string => (mode === 'issues' ? bcf.status : c.viewFilter === 'sheets' && c.sheetsPane ? c.sheetsPane.status() : mk.status);
   const render = (): void => {
     const focus = document.activeElement as HTMLElement | null;
     const keep = focus && root.contains(focus) ? focus.getAttribute('data-keep') : null;
     const pos = focus && root.contains(focus) && 'selectionStart' in focus ? (focus as HTMLInputElement).selectionStart : null;
     const top = root.scrollTop;
     root.textContent = '';
-    root.appendChild(segmentBar());
     const kids: HTMLElement[] = [];
-    if (c.segment === 'sketches') {
+    const d = c.detail;
+    if (mode === 'issues') {
+      const topic = d?.kind === 'issue' ? bcf.topic(d.id) : undefined;
+      kids.push(...(topic ? issueDetail(topic) : issuesList()));
+    } else {
       const b = banner();
       if (b) kids.push(b);
+      const view = d?.kind === 'view' ? mk.get(d.id) : undefined;
+      if (view) kids.push(...viewDetail(view));
+      else if (c.viewFilter === 'sheets' && c.sheetsPane) kids.push(...c.sheetsPane.render());
+      else kids.push(...viewsExtras());
     }
-    const d = c.detail;
-    const topic = d?.kind === 'issue' && c.segment === 'issues' ? bcf.topic(d.id) : undefined;
-    const sketch = d?.kind === 'sketch' && c.segment === 'sketches' ? mk.get(d.id) : undefined;
-    const statusText = (): string => (c.segment === 'issues' ? bcf.status : c.segment === 'sheets' && c.sheetsPane ? c.sheetsPane.status() : mk.status);
-    if (c.segment === 'sheets' && c.sheetsPane) kids.push(...c.sheetsPane.render());
-    else if (topic) kids.push(...issueDetail(topic));
-    else if (sketch) kids.push(...sketchDetail(sketch));
-    else kids.push(...(c.segment === 'issues' ? issuesList() : sketchesList()));
     for (const k of kids) root.appendChild(k);
     const clear = clearAll();
     if (clear) root.appendChild(clear);
     root.appendChild(el('div', 'is-status', { role: 'status', 'data-issues-status': '' }, statusText()));
-    const au = input('is-in', { type: 'text', placeholder: 'Your name (author of sketches and comments)', 'aria-label': 'Author', 'data-keep': 'author' }, mk.author);
+    const au = input('is-in', { type: 'text', placeholder: 'Your name (author of drawings and comments)', 'aria-label': 'Author', 'data-keep': 'author' }, mk.author);
     au.addEventListener('change', () => silently(() => mk.setAuthor(au.value)));
     root.appendChild(au);
     root.scrollTop = top;
@@ -675,14 +650,14 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
   const off = c.onChange(() => {
     if (hold) {
       const st = root.querySelector('[data-issues-status]');
-      if (st) st.textContent = c.segment === 'issues' ? bcf.status : c.segment === 'sheets' && c.sheetsPane ? c.sheetsPane.status() : mk.status;
+      if (st) st.textContent = statusText();
       return;
     }
     // While a text box of the panel has the keyboard, redraw only when the list changed under it (typing must not lose focus).
     const f = document.activeElement;
     if (f instanceof HTMLElement && root.contains(f) && f.matches('input[data-keep]:not([data-keep=query]), textarea') && c.detail) {
       const st = root.querySelector('[data-issues-status]');
-      if (st) st.textContent = c.segment === 'issues' ? bcf.status : c.segment === 'sheets' && c.sheetsPane ? c.sheetsPane.status() : mk.status;
+      if (st) st.textContent = statusText();
       return;
     }
     render();

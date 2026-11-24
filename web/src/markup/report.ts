@@ -115,7 +115,7 @@ export function buildReport(items: readonly ReportSet[], o: ReportOptions): Uint
   const H = size.h;
   const first = items[0]?.set;
   doc.info = {
-    title: items.length === 1 ? `${first!.title} (markup)` : `${o.model.name} markup, ${items.length} sets`,
+    title: items.length === 1 ? `${first!.title} (drawings)` : `${o.model.name} drawings, ${items.length} views`,
     author: o.author || undefined,
     subject: `Markup of ${o.model.name}`,
     creator: 'X-ray mode for BIM reference viewer',
@@ -175,7 +175,7 @@ export function buildReport(items: readonly ReportSet[], o: ReportOptions): Uint
         p.line(MARGIN + 8, y - 1.5, MARGIN + 8 + textWidth(label, 8.5), y - 1.5, { width: 0.5, color: LINK });
         p.link(MARGIN + 8, y - 3, textWidth(label, 8.5), 12, it.link!);
       }
-      footer(p, `${set.title}, view without markups`);
+      footer(p, `${set.title}, view without drawings`);
     }
 
     // ---- page 2: markups burned in
@@ -186,7 +186,7 @@ export function buildReport(items: readonly ReportSet[], o: ReportOptions): Uint
       const r = fitImage(it.marked.width, it.marked.height, imgBox);
       p.rect(r.x - 0.5, r.y - 0.5, r.w + 1, r.h + 1, { stroke: LINE, lineWidth: 0.5 });
       p.image(img(it.marked), r.x, r.y, r.w, r.h);
-      footer(p, `${set.title}, markups`);
+      footer(p, `${set.title}, drawings`);
     }
 
     // ---- comment table

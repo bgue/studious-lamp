@@ -2,7 +2,7 @@
 //   - the Issues tab has a collapsed "Export report" block with a page size (A4) and "Plan/Section images" (on), and PDF and CSV
 //     buttons that count the issues of the list;
 //   - the PDF has a cover and a page per issue, links from the cover rows to the pages, the comments with their authors, a snapshot
-//     per issue and a Plan and Section for the issue whose sketch is tied to the model;
+//     per issue and a Plan and Section for the issue whose view is tied to the model;
 //   - the Plan and Section are rendered on the live view without a flicker (a still copy of the canvas covers it while it switches),
 //     and the camera, the clip planes and the projection are back after;
 //   - Letter and "Plan/Section images" off give Letter pages and no Plan or Section;
@@ -108,13 +108,13 @@ try {
   });
   await page.waitForTimeout(500);
 
-  // ---------------------------------------------------------------- three issues: tied sketch + comments, closed with odd text, plain
+  // ---------------------------------------------------------------- three issues: tied view + comments, closed with odd text, plain
   const made = await page.evaluate(async () => {
     const c = window.__xrayIssues.controller;
     c.markup.setAuthor('Ana Smoke');
     const els = window.__xray.app.controller.model.elements.filter((e) => e.globalId && /Wall/.test(e.ifcClass));
     const [w1, w2] = [els[0].globalId, els[1].globalId];
-    const set = window.__xrayMarkup.create('Tied sketch');
+    const set = window.__xrayMarkup.create('Tied view');
     const m = window.__xrayMarkup.add({ kind: 'rect', fractions: { points: [[0.3, 0.3], [0.6, 0.55]], depth: 8 } });
     window.__xrayMarkup.setAttachment(m.id, 'penetration', { penetration: { mep: w1, host: w2 } });
     const g1 = await window.__xrayIssues.raise(set.id);
@@ -126,7 +126,7 @@ try {
     const t3 = c.bcf.createTopic({ title: 'Plain open issue', status: 'Open' });
     return { g1, g2: t2.guid, g3: t3.guid, tied: window.__xrayIssues.viewSwitchAvailable(set.id) };
   });
-  check('the first issue has a sketch tied to the model (it has the Plan/Section switch)', made.tied);
+  check('the first issue has a view tied to the model (it has the Plan/Section switch)', made.tied);
   await page.evaluate(() => { const c = window.__xrayIssues.controller; c.detail = null; c.segment = 'issues'; window.__xrayIssues.open('issues'); c.emit(); });
   await page.waitForSelector('#issues-panel [data-report]');
   check('Issues tab has the "Export report" block, collapsed', await page.evaluate(() => { const d = document.querySelector('#issues-panel [data-report]'); return !!d && d.tagName === 'DETAILS' && !d.open; }));

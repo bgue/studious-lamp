@@ -1,7 +1,9 @@
-// Saved views plugin: named viewpoints people come back to. A view stores the camera (with up, field of view and the
+// Views plugin: named viewpoints people come back to. A view stores the camera (with up, field of view and the
 // pseudo-orthographic flag), the section box and plane (and foreign clip planes), selection, hides, pins and isolate,
 // the exploded state, a params snapshot (x-ray, view modes, imaging, sightlines, display, cinematic, ...), the active
-// preset id and a thumbnail. See docs-features/saved-views.md.
+// preset id and a thumbnail. A view may carry drawings (src/markup, the drawing engine): the Views tab lists the saved views and the
+// views that only have a drawing layer as one list (src/views/unified.ts). See docs-features/saved-views.md and
+// docs/design/views-and-issues.md.
 //
 //   - Sidebar tab "Views" (src/views/panel.ts), actions views.save (Ctrl+Shift+S), views.prev / views.next
 //     (Shift+PageUp / Shift+PageDown), views.play, views.open.
@@ -20,6 +22,14 @@ import { copyText } from '../ui/dom';
 import { registerParamSection } from '../ui/params';
 import type { ParamsApp } from '../ui/params';
 import { addSidebarTab } from './sidebar';
+import { bcfController } from './bcf';
+import { markupController } from './markup';
+import type { MarkupController } from '../markup/controller';
+import type { MarkupSet } from '../markup/model';
+import type { IssuesController } from '../issues/controller';
+import { buildEntries, filterEntries, findEntry, isViewFilter } from '../views/unified';
+import type { ViewEntry, ViewFilter } from '../views/unified';
+import { buildIssuesPanel } from '../issues/ui';
 import type { SidebarTabHandle } from './sidebar';
 import { applyPlan, captureView, currentViewParams, planRestore } from '../views/capture';
 import type { ViewsApp } from '../views/capture';
@@ -60,12 +70,46 @@ export interface RestoreResult {
   applied: string[];
 }
 
+/** One row of the Views list, as scripts see it (the saved views and the views that only have a drawing layer). */
+export interface ViewRow {
+  /** A saved view id, or the id of a markup set that has no saved view. `restore` takes it. */
+  id: string;
+  name: string;
+  summary: string;
+  hasThumb: boolean;
+  note: string;
+  /** Number of drawings. */
+  drawings: number;
+  hasDrawings: boolean;
+  /** A page of a PDF sheet. */
+  sheet: boolean;
+  /** The markup set that holds the drawings, when the view has one. */
+  set: string | null;
+  /** The issue the view is in. */
+  issue: { topic: string; title: string } | null;
+}
+
 export interface ViewsApi {
-  list(): Array<{ id: string; name: string; summary: string; hasThumb: boolean }>;
+  list(): ViewRow[];
+  /** The list, filtered: all, with drawings, on sheets, in an issue. */
+  entries(filter?: ViewFilter): ViewEntry[];
+  /** The views that have drawings. */
+  withDrawings(): ViewRow[];
+  /** The filter of the Views tab, and setting it. */
+  readonly filter: ViewFilter;
+  setFilter(f: ViewFilter): void;
+  /** Show the Views tab (on a filter). */
+  open(filter?: ViewFilter): void;
+  /** Draw on a view (saved view id, set id or name): it gets a drawing layer if it has none, the drawing toolbar comes up. Returns the set id. */
+  drawOn(key: string): Promise<string>;
+  /** Save the current state as a view and draw on it. Returns the set. */
+  drawOnCurrent(name?: string): MarkupSet;
+  /** Make an issue of a view (a new one, or one more viewpoint of `topic`). Returns the issue guid. */
+  makeIssue(key: string, opts?: { topic?: string }): Promise<string>;
   get(key: string): SavedView | null;
   /** Save the current state as a view (name optional). */
   save(name?: string): SavedView;
-  /** Restore a view by id, name or 1-based position. animate defaults to true (false: jump). */
+  /** Restore a view by id, name or 1-based position (or the id of a view that only has drawings). animate defaults to true (false: jump). */
   restore(key: string, opts?: { animate?: boolean }): RestoreResult;
   update(key: string): SavedView;
   rename(key: string, name: string): void;
@@ -172,6 +216,10 @@ class ViewsController {
   lastRestore: RestoreResult | null = null;
   panel: ViewsPanel | null = null;
   tab: SidebarTabHandle | null = null;
+  /** The Issues side (src/plugins/issues.ts links it): the detail of a view with drawings, making issues. */
+  issues: IssuesController | null = null;
+  filterKind: ViewFilter = 'all';
+  private renderTimer: ReturnType<typeof setTimeout> | null = null;
   private msgTimer: ReturnType<typeof setTimeout> | null = null;
   readonly store = storage();
 
@@ -209,6 +257,126 @@ class ViewsController {
 
   render(): void {
     this.panel?.render();
+  }
+
+  /** Draw the list again soon (the markup or the issues changed); only while the tab is on screen. */
+  scheduleRender(): void {
+    if (this.renderTimer || !this.panel) return;
+    this.renderTimer = setTimeout(() => {
+      this.renderTimer = null;
+      if (this.tab?.visible()) this.panel?.render();
+    }, 80);
+  }
+
+  get mk(): MarkupController | null {
+    return markupController();
+  }
+
+  // ---------------------------------------------------------------- the unified list
+
+  entries(): ViewEntry[] {
+    const mk = this.mk;
+    return buildEntries({ views: this.views, sets: mk ? mk.visibleSets().map((x) => x.set) : [], topics: bcfController()?.topics ?? [] });
+  }
+
+  entry(key: string): ViewEntry {
+    const e = findEntry(this.entries(), key);
+    if (!e) throw new Error(`No view "${key}"`);
+    return e;
+  }
+
+  activeKey(): string | null {
+    const all = this.entries();
+    if (this.activeId && all.some((e) => e.viewId === this.activeId)) return `v:${this.activeId}`;
+    const mid = this.mk?.activeId;
+    return mid ? all.find((e) => e.setId === mid)?.key ?? null : null;
+  }
+
+  setFilter(f: ViewFilter): void {
+    if (this.filterKind === f && this.issues?.viewFilter === f) return;
+    this.filterKind = f;
+    if (this.issues) {
+      this.issues.viewFilter = f;
+      this.issues.detail = null;
+    }
+    this.render();
+    this.issues?.emit();
+  }
+
+  private setOf(e: ViewEntry): MarkupSet | undefined {
+    return e.setId ? this.mk?.get(e.setId) : undefined;
+  }
+
+  /** Restore an entry: a saved view the usual way; a view with a drawing layer through the layer, so its drawings show. */
+  restoreEntry(e: ViewEntry, animate = true): RestoreResult {
+    const mk = this.mk;
+    if (e.viewId) {
+      mk?.untint();
+      const r = this.restore(this.index(e.viewId), animate);
+      if (e.setId && mk && mk.get(e.setId) && !r.skipped.includes('xr session')) {
+        mk.activeId = e.setId;
+        mk.selected = null;
+        mk.syncTint();
+        mk.emit();
+      }
+      return r;
+    }
+    if (!mk) throw new Error('Drawings are not in this build');
+    this.stop(false);
+    return mk.restore(e.id, animate);
+  }
+
+  /** The drawing layer of a view, made when it has none (a saved view that is restored first, so the layer holds its camera). */
+  async ensureSet(e: ViewEntry): Promise<MarkupSet> {
+    const mk = this.mk;
+    if (!mk) throw new Error('Drawings are not in this build');
+    const have = this.setOf(e);
+    if (have) return have;
+    const i = this.index(e.viewId ?? e.id);
+    const v = this.views[i]!;
+    this.stop(false);
+    this.restoreView(v, false);
+    this.activeId = v.id;
+    await mk.settleView();
+    const set = mk.newSet(v.name, { view: v, ...(v.thumb ? { thumb: v.thumb } : {}) });
+    this.commit(this.views.map((x, k) => (k === i ? { ...x, drawings: set.id } : x)));
+    return set;
+  }
+
+  /** Save the current state as a view that has a drawing layer. Nothing is restored: it is what is on screen. */
+  saveWithDrawings(name?: string): MarkupSet {
+    const mk = this.mk;
+    if (!mk) throw new Error('Drawings are not in this build');
+    const v = this.save(name);
+    const set = mk.newSet(v.name, { view: v, ...(v.thumb ? { thumb: v.thumb } : {}) });
+    this.commit(this.views.map((x) => (x.id === v.id ? { ...x, drawings: set.id } : x)));
+    return set;
+  }
+
+  /** Show the drawing toolbar on a view's drawing layer (the layer is made first when there is none). */
+  async drawOnEntry(e: ViewEntry): Promise<string> {
+    const set = await this.ensureSet(e);
+    const ic = this.issues;
+    if (ic) {
+      ic.openSketch(set.id);
+      ic.editSketch(set.id);
+    } else {
+      this.mk?.restore(set.id, true);
+      this.mk?.setEditing(true);
+    }
+    this.render();
+    return set.id;
+  }
+
+  async makeIssueOf(e: ViewEntry, o: { topic?: string } = {}): Promise<string> {
+    const ic = this.issues;
+    if (!ic) throw new Error('Issues are not in this build');
+    const set = await this.ensureSet(e);
+    return ic.raise(set.id, o);
+  }
+
+  savedOfSet(setId: string): SavedView | undefined {
+    return this.views.find((v) => v.drawings === setId);
   }
 
   persist(): void {
@@ -474,13 +642,43 @@ let firstModel = true;
 
 function buildApi(c: ViewsController): ViewsApi {
   return {
-    list: () => c.views.map((v) => ({ id: v.id, name: v.name, summary: viewSummary(v), hasThumb: !!v.thumb })),
+    list: () => c.entries().map(rowOf),
+    entries: (f) => filterEntries(c.entries(), { filter: f ?? 'all' }),
+    withDrawings: () => filterEntries(c.entries(), { filter: 'drawings' }).map(rowOf),
+    get filter() {
+      return c.filterKind;
+    },
+    setFilter: (f) => {
+      if (isViewFilter(f)) c.setFilter(f);
+    },
+    open: (f) => {
+      if (f && isViewFilter(f)) c.setFilter(f);
+      c.tab?.show();
+    },
+    drawOn: (key) => c.drawOnEntry(c.entry(key)),
+    drawOnCurrent: (name) => {
+      const set = c.saveWithDrawings(name);
+      const ic = c.issues;
+      if (ic) {
+        ic.openSketch(set.id, { restore: false });
+        ic.editSketch(set.id);
+      } else c.mk?.setEditing(true);
+      return set;
+    },
+    makeIssue: (key, o) => c.makeIssueOf(c.entry(key), o),
     get: (key) => {
       const i = findView(c.views, key);
       return i < 0 ? null : stripView(c.views[i]!);
     },
     save: (name) => c.save(name),
-    restore: (key, opts) => c.restore(c.index(key), opts?.animate ?? true),
+    restore: (key, opts) => {
+      const i = findView(c.views, key);
+      if (i >= 0) {
+        const e = c.entries().find((x) => x.viewId === c.views[i]!.id);
+        return e ? c.restoreEntry(e, opts?.animate ?? true) : c.restore(i, opts?.animate ?? true);
+      }
+      return c.restoreEntry(c.entry(key), opts?.animate ?? true);
+    },
     update: (key) => c.update(c.index(key)),
     rename: (key, name) => {
       const i = c.index(key);
@@ -532,65 +730,131 @@ function buildApi(c: ViewsController): ViewsApi {
   };
 }
 
+function rowOf(e: ViewEntry): ViewRow {
+  return { id: e.id, name: e.name, summary: e.summary, hasThumb: !!e.thumb, note: e.note, drawings: e.drawings, hasDrawings: e.hasDrawings, sheet: e.sheet, set: e.setId ?? null, issue: e.issue ? { topic: e.issue.topic, title: e.issue.title } : null };
+}
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
 function buildPanel(c: ViewsController, api: ViewsApi): void {
+  const note = (e: unknown): void => c.note(e instanceof Error ? e.message : String(e), false);
+  const at = (i: number): ViewEntry => {
+    const e = c.entries()[i];
+    if (!e) throw new Error('No such view');
+    return e;
+  };
   const panel = new ViewsPanel({
-    views: () => c.views,
-    activeId: () => c.activeId,
+    entries: () => c.entries(),
+    activeKey: () => c.activeKey(),
+    filter: () => c.filterKind,
+    setFilter: (f) => c.setFilter(f),
+    detailOpen: () => c.issues?.detail?.kind === 'view' && c.filterKind !== 'sheets',
     playing: () => c.playing,
-    canBcf: () => typeof w().__xrayBcf?.createTopic === 'function',
+    canIssue: () => !!c.issues,
     save: (name) => {
       try {
         api.save(name);
       } catch (e) {
-        c.note(e instanceof Error ? e.message : String(e), false);
+        note(e);
       }
     },
     restore: (i) => {
+      const e = at(i);
       c.stop(false);
-      c.restore(i);
-    },
-    update: (i) => {
       try {
-        c.update(i);
-      } catch (e) {
-        c.note(e instanceof Error ? e.message : String(e), false);
+        c.restoreEntry(e);
+        // A view with a drawing layer opens its detail; a plain view just comes back.
+        if (e.setId && !e.sheet && c.issues) c.issues.openSketch(e.setId, { restore: false });
+      } catch (err) {
+        note(err);
       }
     },
-    rename: (i, name) => api.rename(c.views[i]!.id, name),
+    update: (i) => {
+      const e = at(i);
+      try {
+        if (e.viewId) c.update(c.index(e.viewId));
+        if (e.setId && !e.sheet) c.mk?.updateView(e.setId);
+      } catch (err) {
+        note(err);
+      }
+    },
+    rename: (i, name) => {
+      const e = at(i);
+      if (e.viewId) api.rename(e.viewId, name);
+      if (e.setId) {
+        c.mk?.renameSet(e.setId, name);
+        c.render();
+      }
+    },
     duplicate: (i) => {
-      api.duplicate(c.views[i]!.id);
-      c.note(`Duplicated "${c.views[i]!.name}".`, false);
+      const e = at(i);
+      if (!e.viewId) return;
+      api.duplicate(e.viewId);
+      c.note(`Duplicated "${e.name}".`, false);
     },
     copyLink: (i) => {
-      const url = c.shareUrl(i);
-      void copyText(url).then((ok) => c.note(ok ? `Link to "${c.views[i]!.name}" copied (${url.length} characters).` : 'Could not copy to the clipboard.', false));
+      const e = at(i);
+      let url = '';
+      if (e.viewId) url = c.shareUrl(c.index(e.viewId));
+      else {
+        const set = c.mk?.get(e.id);
+        url = set ? api.shareUrlFor(set.view) : '';
+      }
+      void copyText(url).then((ok) => c.note(ok ? `Link to "${e.name}" copied (${url.length} characters).` : 'Could not copy to the clipboard.', false));
     },
-    bcf: (i) => {
-      const bcf = w().__xrayBcf;
-      if (!bcf?.createTopic) return c.note('The BCF tool is not in this build.', false);
-      const v = c.views[i]!;
-      c.stop(false);
-      c.restore(i, false);
-      // Let the ghosting settle for a moment so the snapshot shows the restored look.
-      setTimeout(() => {
+    drawOn: (i) => {
+      void c.drawOnEntry(at(i)).catch(note);
+    },
+    drawCurrent: () => {
+      const key = c.activeKey();
+      const e = key ? c.entries().find((x) => x.key === key) : undefined;
+      if (e) void c.drawOnEntry(e).catch(note);
+      else {
         try {
-          const t = bcf.createTopic({ title: v.name, description: `Saved view: ${viewSummary(v) || 'default look'}.` });
-          c.note(`BCF topic "${t.title ?? v.name}" created. Open the Issues tab to export it.`, false);
-        } catch (e) {
-          c.note(`BCF topic failed: ${e instanceof Error ? e.message : String(e)}`, false);
+          api.drawOnCurrent();
+        } catch (err) {
+          note(err);
         }
-      }, 400);
+      }
+    },
+    makeIssue: (i) => {
+      void (async () => {
+        try {
+          const set = await c.ensureSet(at(i));
+          c.issues?.openSketch(set.id);
+        } catch (e) {
+          note(e);
+        }
+      })();
+    },
+    openIssue: (i) => {
+      const e = at(i);
+      if (e.issue) c.issues?.openIssue(e.issue.topic, { apply: false });
+    },
+    details: (i) => {
+      const e = at(i);
+      if (e.setId) c.issues?.openSketch(e.setId);
     },
     remove: (i) => {
-      const name = c.views[i]!.name;
-      api.remove(c.views[i]!.id);
-      c.note(`Deleted "${name}".`, false);
+      const e = at(i);
+      if (e.setId && c.issues) {
+        const r = c.issues.removeSketch(e.setId);
+        if (r === 'confirm') c.issues.openSketch(e.setId, { restore: false }); // the detail asks first: the view is in an issue
+        else c.note(`Deleted "${e.name}".`, false);
+        return;
+      }
+      if (e.viewId) {
+        api.remove(e.viewId);
+        c.note(`Deleted "${e.name}".`, false);
+      }
     },
-    move: (from, to) => api.move(from, to),
+    move: (from, to) => {
+      const e = c.entries()[from];
+      if (!e?.viewId) return;
+      api.move(from, Math.min(to, c.views.length - 1));
+    },
     togglePlay: () => (c.playing ? c.stop() : c.play()),
     exportFile: () => {
       if (c.views.length === 0) return c.note('No views to export.', false);
@@ -650,7 +914,7 @@ export const viewsPlugin: AppPlugin = {
     registerParamSection('views', {
       share: false,
       // Without thumbnails (they are in the views export); absent when there are none.
-      collect: () => (c.views.length ? c.views.map((v) => stripView(v, false)) : undefined),
+      collect: () => (c.views.length ? c.views.map((v) => stripView(v, false, false)) : undefined),
       apply(value, bad, path) {
         const p = parseViewsDocument(value);
         if (p.error) {
@@ -745,4 +1009,53 @@ export function openBootView(key: string): boolean {
 /** The panel of the Views tab, for plugins that add a section to it (the fly-through). Null on a page without the sidebar. */
 export function viewsPanel(): ViewsPanel | null {
   return ctl?.panel ?? null;
+}
+
+/**
+ * The Issues plugin joins the Views tab: the drawings part of the tab (the detail of a view with drawings, the sheets, Open file,
+ * Other models) is built from the issues controller, and the saved views learn which sets are theirs. Returns false without a Views tab.
+ */
+export function linkViews(ic: IssuesController): boolean {
+  const c = ctl;
+  if (!c) return false;
+  c.issues = ic;
+  ic.viewFilter = c.filterKind;
+  const mk = ic.markup;
+  ic.viewsHost = {
+    savedOf: (setId) => {
+      const v = c.savedOfSet(setId);
+      return v ? { id: v.id, name: v.name } : null;
+    },
+    removeSaved: (id) => {
+      if (c.views.some((v) => v.id === id)) window.__xrayViews?.remove(id);
+    },
+    saveCurrent: (name) => c.saveWithDrawings(name),
+    renamed: (setId, title) => {
+      const v = c.savedOfSet(setId);
+      if (v && v.name !== title) c.commit(c.views.map((x) => (x.id === v.id ? { ...x, name: uniqueName(title, c.views, v.id), updated: new Date().toISOString() } : x)));
+      else c.render();
+    },
+    updated: (setId) => {
+      const v = c.savedOfSet(setId);
+      const set = mk.get(setId);
+      if (!v || !set) return;
+      const now = new Date().toISOString();
+      const fresh: SavedView = { ...JSON.parse(JSON.stringify(set.view)), id: v.id, name: v.name, created: v.created, updated: now, drawings: set.id };
+      const thumb = set.thumb ?? v.thumb;
+      if (thumb) fresh.thumb = thumb;
+      c.commit(c.views.map((x) => (x.id === v.id ? fresh : x)));
+    },
+  };
+  if (c.panel) {
+    buildIssuesPanel(c.panel.drawings, ic, 'views');
+    ic.onChange(() => {
+      c.panel?.render();
+    });
+  }
+  // A set that goes away leaves its saved view as a plain view.
+  mk.onRemoved((set) => {
+    if (c.views.some((v) => v.drawings === set.id)) c.commit(c.views.map((v) => { if (v.drawings !== set.id) return v; const { drawings: _gone, ...rest } = v; return rest; }));
+  });
+  mk.onChange(() => c.scheduleRender());
+  return true;
 }

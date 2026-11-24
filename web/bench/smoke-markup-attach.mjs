@@ -62,7 +62,7 @@ try {
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 
   async function boot(pg = page, model = 'fzk-haus') {
-    // sketches and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
+    // views and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
     await pg.evaluate(() => window.__xrayWork?.reset()).catch(() => undefined);
     await pg.goto(`http://127.0.0.1:${port}/?model=${model}`);
     await pg.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
@@ -143,9 +143,9 @@ try {
   // ------------------------------------------------------------------ part 1: attached cloud
   await boot();
   await page.keyboard.press('k');
-  await page.waitForSelector('#issues-panel');
-  await page.fill('#issues-panel [data-keep=author]', 'smoke@example.org');
-  await page.dispatchEvent('#issues-panel [data-keep=author]', 'change');
+  await page.waitForSelector('#views-drawings');
+  await page.fill('#views-drawings [data-keep=author]', 'smoke@example.org');
+  await page.dispatchEvent('#views-drawings [data-keep=author]', 'change');
   // The free part of the canvas: right of the sidebar.
   const free = await page.evaluate(() => {
     const cv = window.__xray.app.canvas.getBoundingClientRect();
@@ -172,7 +172,7 @@ try {
   const camPos = [c0[0] + along[0] * 14 + 4, c0[1] + 3, c0[2] + along[2] * 14 + 4];
   const pivot = [c0[0] - along[0] * 6, c0[1], c0[2] - along[2] * 6];
   await setCamera(camPos, pivot);
-  await page.click('#issues-panel [data-act=new-sketch]');
+  await page.click('#views-panel [data-act=draw-current]');
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 1);
   await page.waitForTimeout(300);
   const wbox = await elementBox(wallGuid);
@@ -206,7 +206,7 @@ try {
   await page.screenshot({ path: resolve(here, 'markup-attach-orbited.png') });
   keep.push('markup-attach-orbited.png');
   await page.evaluate(() => window.__xrayIssues.open('sketches'));
-  await page.waitForSelector('#issues-panel');
+  await page.waitForSelector('#views-drawings');
 
   // Behind the building the wall hides the outline: dashed and faint instead of showing through.
   check('visible from the front side: not dimmed', (await page.$(`[data-mk="${m1.id}"][data-behind]`)) === null);
@@ -221,18 +221,18 @@ try {
 
   // ------------------------------------------------------------------ part 2: change the attachment, undo
   await setCamera(camPos, pivot);
-  await page.click(`#issues-panel [data-mk-item="${m1.id}"]`);
-  await page.waitForSelector('#issues-panel [data-attach-chip]');
-  check('panel chip shows the attachment', /^Attached to:/.test(await page.textContent('#issues-panel [data-attach-chip] [data-attach-text]')));
-  await page.click('#issues-panel [data-attach-chip] [data-act=attach-change]');
-  await page.click('#issues-panel [data-attach-choice=none]');
+  await page.click(`#views-drawings [data-mk-item="${m1.id}"]`);
+  await page.waitForSelector('#views-drawings [data-attach-chip]');
+  check('panel chip shows the attachment', /^Attached to:/.test(await page.textContent('#views-drawings [data-attach-chip] [data-attach-text]')));
+  await page.click('#views-drawings [data-attach-chip] [data-act=attach-change]');
+  await page.click('#views-drawings [data-attach-choice=none]');
   await page.waitForTimeout(200);
-  check('Change > View-locked re-attaches', (await attachOf(m1.id)).attach.kind === 'none' && /View-locked/.test(await page.textContent('#issues-panel [data-attach-chip] [data-attach-text]')));
+  check('Change > View-locked re-attaches', (await attachOf(m1.id)).attach.kind === 'none' && /View-locked/.test(await page.textContent('#views-drawings [data-attach-chip] [data-attach-text]')));
   await page.evaluate(() => window.__xrayMarkup.undo());
   await page.waitForTimeout(200);
   check('Undo brings the attachment back', (await attachOf(m1.id)).attach.kind === 'surface');
-  await page.click('#issues-panel [data-attach-chip] [data-act=attach-change]');
-  await page.click('#issues-panel [data-attach-choice=region]');
+  await page.click('#views-drawings [data-attach-chip] [data-act=attach-change]');
+  await page.click('#views-drawings [data-attach-choice=region]');
   await page.waitForTimeout(200);
   check('Change > Region fits a 3D box', (await attachOf(m1.id)).attach.kind === 'region');
   await page.evaluate(() => window.__xrayMarkup.undo());
@@ -256,11 +256,11 @@ try {
   check('BCF export: the target is in the viewpoint selection', new RegExp(`<Component IfcGuid="${wallGuid}"`).test(xml) || xml.includes(wallGuid));
 
   // ------------------------------------------------------------------ part 4: view-locked cloud, fade, pin, fly back
-  await page.click('#issues-panel >> text=Close').catch(() => undefined);
+  await page.click('#views-drawings >> text=Close').catch(() => undefined);
   await setCamera([c0[0] + along[0] * 60 + 20, c0[1] + 25, c0[2] + along[2] * 60 + 20], c0);
   await page.evaluate(() => window.__xrayMarkup.setTool('select'));
-  // The sketch detail has no New sketch button (the list has): the second sketch comes from the scripting call.
-  await page.evaluate(() => window.__xrayIssues.newSketch());
+  // The second view with drawings comes from the scripting call.
+  await page.evaluate(() => window.__xrayViews.drawOnCurrent());
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 2);
   const sky = await page.evaluate(() => { const cv = window.__xray.app.canvas.getBoundingClientRect(); return { x: cv.left + cv.width * 0.62, y: cv.top + 80 }; });
   await page.click('#markup-float [data-tool-id=cloud]');
@@ -284,7 +284,7 @@ try {
   await page.waitForTimeout(500);
   await page.screenshot({ path: resolve(here, 'markup-viewlocked-pin.png') });
   await page.evaluate(() => window.__xrayIssues.open('sketches'));
-  await page.waitForSelector('#issues-panel');
+  await page.waitForSelector('#views-drawings');
   keep.push('markup-viewlocked-pin.png');
   await page.click(`[data-mk-pin="${m2.id}"] text[data-role=pin]`);
   await page.waitForTimeout(2500);
@@ -398,8 +398,8 @@ try {
   pp.on('pageerror', (e) => errors.push(`[phone pageerror] ${e.message}`));
   await boot(pp);
   await pp.evaluate(() => window.__xrayIssues.open('sketches'));
-  await pp.waitForSelector('#issues-panel');
-  await pp.click('#issues-panel [data-act=new-sketch]');
+  await pp.waitForSelector('#views-drawings');
+  await pp.click('#views-panel [data-act=draw-current]');
   await pp.waitForFunction(() => window.__xrayMarkup.list().length === 1);
   await pp.evaluate(() => window.__xrayIssues.close());
   const mm = await pp.evaluate(() => {

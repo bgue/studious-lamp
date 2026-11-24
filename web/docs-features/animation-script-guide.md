@@ -329,7 +329,7 @@ Warnings (in amber) do not stop the script. Errors (in red) do: the script does 
   text to a `.xrayanim` file that you can send to a colleague, and **Import** opens it.
 - **Check the size.** The whole script can run at most one hour and make at most 5 000 cues. Every camera move, setting change,
   caption, label and hover is one cue, and a loop makes its cues again on every pass. A long loop of many small steps is the usual
-  reason for the message "The script makes more than 5000 cues".
+  reason for the message "The script makes more than 5000 steps".
 
 ## 11. Cookbook
 

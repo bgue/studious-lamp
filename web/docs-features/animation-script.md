@@ -32,7 +32,7 @@ select nothing
   Text goes in "double quotes". A number may carry `s`, `sec`, `second` or `seconds` (`2s`, `2 seconds`).
 - 4D: `schedule` does not wait, and `at date` / `at milestone` put the statements after them at that moment of the plan's clock, even
   before the end of earlier ones (see the [grammar](animation-script-grammar.md#31-the-4d-statements) and chapter 12 of the guide).
-- Limits: a script runs at most 1 hour, makes at most 5000 cues, runs a loop at most 500 times and at most 20000 statements in all.
+- Limits: a script runs at most 1 hour, makes at most 5000 steps, runs a loop at most 500 times and at most 20000 statements in all.
 
 ## Statements
 
@@ -73,7 +73,7 @@ select nothing
 
 ### 4D schedule
 
-- `schedule "<plan>" [view planned|actual|variance] [from "<date>"] [to "<date>"] [over N seconds]`: Play a 4D plan by name over a time (default: the plan's film length). It runs in the background: the statements after it start with it. View, from and to go to the cue for the host to rebuild the plan with.
+- `schedule "<plan>" [view planned|actual|variance] [from "<date>"] [to "<date>"] [over N seconds]`: Play a 4D plan by name over a time (default: the plan's film length). It runs in the background: the statements after it start with it. View, from and to go to the step for the host to rebuild the plan with.
 - `at date "<YYYY-MM-DD[THH:MM]>"`: The statements after it start when the running schedule reaches that date, whether or not the ones before have ended.
 - `at milestone "<name>"`: The statements after it start when the running schedule reaches that milestone.
 - `tint <elements> <#rrggbb|colour name|off> [fading over N seconds]`: Colour elements, with a fade or at once; `off` takes the tint away. Names: red, orange, yellow, green, teal, cyan, blue, indigo, purple, magenta, pink, brown, grey, white, black.

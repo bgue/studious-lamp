@@ -284,7 +284,7 @@ export class BcfController {
     this.peeked.add(guid);
     this.selectedTopic = guid;
     this.markupRev++;
-    this.setStatus(`"${t.title}" was made on ${t.model ? `"${t.model.name}"` : 'another model'}; its viewpoint and markup may not fit this model`);
+    this.setStatus(`"${t.title}" was made on ${t.model ? `"${t.model.name}"` : 'another model'}; its viewpoint and drawings may not fit this model`);
     return true;
   }
   /** Re-bind a topic to the loaded model. Its annotations whose targets are missing show detached (view-locked). */
@@ -311,7 +311,7 @@ export class BcfController {
     if (this.selectedTopic === guid) this.selectedTopic = null;
     this.dirty = true;
     this.markupRev++;
-    this.setStatus(`Topic "${gone!.title}" deleted`);
+    this.setStatus(`Issue "${gone!.title}" deleted`);
     return true;
   }
 
@@ -449,7 +449,7 @@ export class BcfController {
     const n = p.topics.length;
     const vps = p.topics.reduce((s, t) => s + t.viewpoints.length, 0);
     const warn = this.lastImport?.message ? `. Warning: ${this.lastImport.message}` : '';
-    this.setStatus(`BCF ${p.versionId}: ${n} topic${n === 1 ? '' : 's'}, ${vps} viewpoint${vps === 1 ? '' : 's'}${p.warnings.length ? `, ${p.warnings.length} warning${p.warnings.length === 1 ? '' : 's'}` : ''}${warn}`);
+    this.setStatus(`BCF ${p.versionId}: ${n} issue${n === 1 ? '' : 's'}, ${vps} viewpoint${vps === 1 ? '' : 's'}${p.warnings.length ? `, ${p.warnings.length} warning${p.warnings.length === 1 ? '' : 's'}` : ''}${warn}`);
     const first = p.topics.find((t) => this.inScope(t));
     if (first && !this.selectedTopic) this.selectedTopic = first.guid;
     this.emit();
@@ -538,7 +538,7 @@ export class BcfController {
   /** Apply a viewpoint of a loaded topic. With no viewpoint guid, the first viewpoint that has data. */
   applyViewpoint(topicGuid: string, viewpointGuid?: string): ApplyReport {
     const topic = this.topic(topicGuid);
-    if (!topic) return this.fail(`No topic ${topicGuid}`);
+    if (!topic) return this.fail(`No issue ${topicGuid}`);
     if (!this.inScope(topic)) return this.fail(`"${topic.title}" was made on another model. Open it from Other models, or Move to this model.`);
     const ref = viewpointGuid ? topic.viewpoints.find((v) => v.guid === viewpointGuid) : topic.viewpoints.find((v) => v.data);
     if (!ref) return this.fail(viewpointGuid ? `No viewpoint ${viewpointGuid} in this topic` : 'This topic has no viewpoint');
@@ -794,7 +794,7 @@ export class BcfController {
     this.project.topics.push(topic);
     this.dirty = true;
     this.selectedTopic = topic.guid;
-    this.setStatus(`Topic created: ${topic.title}`);
+    this.setStatus(`Issue created: ${topic.title}`);
     return topic;
   }
 
@@ -810,14 +810,14 @@ export class BcfController {
     this.project.topics.push(topic);
     this.dirty = true;
     this.selectedTopic = topic.guid;
-    this.setStatus(`Topic created: ${topic.title}`);
+    this.setStatus(`Issue created: ${topic.title}`);
     return topic;
   }
 
   /** One more sheet viewpoint on an existing topic. */
   addSheetViewpoint(topicGuid: string, ref: BcfViewpointRef, pdf: SheetPdf): BcfTopic {
     const topic = this.topic(topicGuid);
-    if (!topic) throw new Error(`No topic ${topicGuid}`);
+    if (!topic) throw new Error(`No issue ${topicGuid}`);
     topic.viewpoints.push(ref);
     this.attachPdf(topic, pdf);
     this.markupChanged(topic);
@@ -868,7 +868,7 @@ export class BcfController {
       cancelFly();
       app.renderer.markDirty();
     }
-    this.setStatus(`${out.length} topic${out.length === 1 ? '' : 's'} created`);
+    this.setStatus(`${out.length} issue${out.length === 1 ? '' : 's'} created`);
     return out;
   }
 
@@ -930,7 +930,7 @@ export class BcfController {
 
   addComment(topicGuid: string, text: string, o: { author?: string; viewpoint?: boolean } = {}): BcfComment {
     const topic = this.topic(topicGuid);
-    if (!topic) throw new Error(`No topic ${topicGuid}`);
+    if (!topic) throw new Error(`No issue ${topicGuid}`);
     const author = this.authorOf(o);
     const c: BcfComment = { guid: newGuid(), date: nowIso(), author, text: text.trim() };
     if (o.viewpoint && this.app.loaded) {
@@ -997,7 +997,7 @@ export class BcfController {
   /** Capture the current view as one more viewpoint of a topic (with a snapshot). */
   addViewpoint(topicGuid: string): BcfViewpointRef {
     const topic = this.topic(topicGuid);
-    if (!topic) throw new Error(`No topic ${topicGuid}`);
+    if (!topic) throw new Error(`No issue ${topicGuid}`);
     if (!this.app.loaded) throw new Error('No model loaded');
     const cap = this.currentCapture();
     const png = this.snapshot();
@@ -1255,7 +1255,7 @@ export class BcfController {
   /** Pin a topic to a viewer-frame point (null removes the pin). */
   setPin(topicGuid: string, point: Vec3 | null, elementGuid?: string): void {
     const t = this.topic(topicGuid);
-    if (!t) throw new Error(`No topic ${topicGuid}`);
+    if (!t) throw new Error(`No issue ${topicGuid}`);
     if (point) t.pin = this.makePin(point, elementGuid);
     else delete t.pin;
     this.status = point ? `Pin placed for ${t.title}` : `Pin removed from ${t.title}`;
@@ -1360,9 +1360,9 @@ export class BcfController {
   /** Add an annotation to a viewpoint of a topic (default: annotationViewpoint). The annotated elements join its selection. */
   addAnnotation(topicGuid: string, spec: AnnotationSpec, viewpointGuid?: string): BcfAnnotation {
     const t = this.topic(topicGuid);
-    if (!t) throw new Error(`No topic ${topicGuid}`);
+    if (!t) throw new Error(`No issue ${topicGuid}`);
     const ref = viewpointGuid ? t.viewpoints.find((v) => v.guid === viewpointGuid) : this.annotationViewpoint(topicGuid);
-    if (!ref?.data) throw new Error('The topic has no viewpoint to annotate');
+    if (!ref?.data) throw new Error('The issue has no viewpoint to annotate');
     const sh = this.shift;
     let a: BcfAnnotation;
     const base = { guid: newGuid(), type: spec.type, offset: spec.offset ?? defaultOffset(spec.type, ref.annotations?.length ?? 0), author: this.authorOf(), date: nowIso() };
@@ -1406,9 +1406,9 @@ export class BcfController {
    */
   addShape(topicGuid: string, type: BcfShapeType, screen: ReadonlyArray<readonly [number, number]>, text = '', viewpointGuid?: string, attachment?: Attachment): BcfAnnotation {
     const t = this.topic(topicGuid);
-    if (!t) throw new Error(`No topic ${topicGuid}`);
+    if (!t) throw new Error(`No issue ${topicGuid}`);
     const ref = viewpointGuid ? t.viewpoints.find((v) => v.guid === viewpointGuid) : this.annotationViewpoint(topicGuid);
-    if (!ref?.data) throw new Error('The topic has no viewpoint to annotate');
+    if (!ref?.data) throw new Error('The issue has no viewpoint to annotate');
     const view = this.shapeView(ref);
     if (!view) throw new Error('Shapes need a perspective viewpoint camera');
     if (screen.length < 2) throw new Error('A shape needs at least 2 points');
@@ -1588,7 +1588,7 @@ export class BcfController {
     const bytes = await writeBcf(project, version, { composeSnapshot: (t, r) => this.composeSnapshot(t, r) });
     this.dirty = false;
     const n = this.project.topics.length;
-    this.setStatus(`Exported BCF ${version}: ${n} topic${n === 1 ? '' : 's'}, ${(bytes.length / 1024).toFixed(0)} KB`);
+    this.setStatus(`Exported BCF ${version}: ${n} issue${n === 1 ? '' : 's'}, ${(bytes.length / 1024).toFixed(0)} KB`);
     return bytes;
   }
 

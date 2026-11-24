@@ -1,4 +1,4 @@
-// The Sheets segment of the Issues panel: the open PDFs, their pages with thumbnails, and the sketches drawn on each page. DOM only;
+// The "On sheets" part of the Views tab: the open PDFs, their pages with thumbnails, and the drawings on each page (a page is a view). DOM only;
 // logic is in controller.ts. Built into the panel by src/plugins/sheets.ts (IssuesController.sheetsPane).
 
 import { el } from '../ui/dom';
@@ -51,7 +51,7 @@ function ensureStyles(): void {
 const count = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
 const tag = (text: string, cls = ''): HTMLSpanElement => el('span', `is-tag ${cls}`.trim(), undefined, text);
 
-/** Build the pane: `render` returns the elements for the Issues panel's Sheets segment. */
+/** Build the pane: `render` returns the elements for the Views tab on the filter On sheets. */
 export function sheetsPane(c: SheetsController, issues: IssuesController, pick: () => void, phoneClose: () => void): { render(): HTMLElement[]; status(): string } {
   ensureStyles();
   const fail = (e: unknown): void => c.setStatus(e instanceof Error ? e.message : String(e));
@@ -86,15 +86,15 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
     box.appendChild(h);
     const btns: Array<HTMLElement | null> = [];
     if (set.readonly) {
-      btns.push(act(button('Copy to editable sketch', () => { c.copyToEditable(set.id); }, { title: 'Make an editable copy of these annotations. The original stays read-only.' }), 'copy-editable'));
+      btns.push(act(button('Copy to editable drawings', () => { c.copyToEditable(set.id); }, { title: 'Make an editable copy of these annotations. The original stays read-only.' }), 'copy-editable'));
       btns.push(act(button('Show', () => { c.openSet(set); }, { title: 'Open the sheet' }), 'show'));
     } else {
-      btns.push(act(button('Edit drawing', () => { c.openSet(set); c.markup.setEditing(true); phoneClose(); }, { primary: true, title: 'Open the sheet and draw on this sketch' }), 'edit-drawing'));
-      if (!ref) btns.push(busyBtn('Raise as issue', () => issues.raise(set.id), { title: 'Make an issue of this sketch: a snapshot of the sheet region, the PDF as a document reference, and the shapes in the side file.', primary: false }, 'raise'));
-      else btns.push(act(button('Open issue', () => issues.openIssue(ref.topic.guid, { apply: false }), { title: 'Open the issue this sketch belongs to' }), 'open-issue'));
-      btns.push(busyBtn('JSON', async () => { c.markup.downloadJson([set.id]); }, { title: 'The sketch as a JSON file. Drop it on the viewer with its PDF open to get it back.' }, 'export-json'));
+      btns.push(act(button('Edit drawings', () => { c.openSet(set); c.markup.setEditing(true); phoneClose(); }, { primary: true, title: 'Open the sheet and draw on it' }), 'edit-drawing'));
+      if (!ref) btns.push(busyBtn('Make issue', () => issues.raise(set.id), { title: 'Make an issue of this page view: a snapshot of the sheet region, the PDF as a document reference, and the shapes in the side file.', primary: false }, 'raise'));
+      else btns.push(act(button('Open issue', () => issues.openIssue(ref.topic.guid, { apply: false }), { title: 'Open the issue this view is in' }), 'open-issue'));
+      btns.push(busyBtn('JSON', async () => { c.markup.downloadJson([set.id]); }, { title: 'The drawings as a JSON file. Drop it on the viewer with its PDF open to get them back.' }, 'export-json'));
     }
-    const del = act(button('Delete', () => undefined, { title: ref ? 'Remove this sketch. It belongs to an issue, so you are asked first.' : 'Remove this sketch' }), 'delete');
+    const del = act(button('Delete', () => undefined, { title: ref ? 'Delete these drawings. They are in an issue, so you are asked first.' : 'Delete these drawings' }), 'delete');
     if (ref) del.addEventListener('click', () => { issues.removeSketch(set.id); });
     else arm(del, 'Delete', () => { issues.removeSketch(set.id, true); });
     btns.push(del);
@@ -103,7 +103,7 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
     if (issues.confirmRemove === set.id && ref) {
       const conf = el('div', 'is-confirm', { 'data-confirm-remove': set.id, role: 'alertdialog' });
       conf.appendChild(el('div', undefined, undefined, `"${set.title}" is a viewpoint of the issue "${ref.topic.title}". Remove it?`));
-      conf.appendChild(row(act(button('Remove sketch', () => { issues.removeSketch(set.id, true); }), 'remove-confirm'), act(button('Keep it', () => issues.cancelRemove()), 'remove-cancel')));
+      conf.appendChild(row(act(button('Delete drawings', () => { issues.removeSketch(set.id, true); }), 'remove-confirm'), act(button('Keep it', () => issues.cancelRemove()), 'remove-cancel')));
       box.appendChild(conf);
     }
     if (set.readonly) {
@@ -133,7 +133,7 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
     btns.push(act(button(p ? 'Place again…' : 'Place in model…', () => { c.openPlace(sh.id); phoneClose(); }, { primary: !p, title: loaded ? 'Pick two points on the sheet and the same two in the model, or use the drawing scale. A geo-referenced PDF is placed by itself when the model has the same coordinate system.' : 'Open a model first' }), 'place'));
     if (p) {
       const on3 = c.shown3d.has(sh.id);
-      const b3 = act(button('Show in 3D', () => c.setShow3d(sh.id, !on3), { title: 'The sheet as a textured quad at its level in the 3D view, with its sketches drawn on it' }), 'show3d');
+      const b3 = act(button('Show in 3D', () => c.setShow3d(sh.id, !on3), { title: 'The sheet as a textured quad at its level in the 3D view, with its drawings on it' }), 'show3d');
       b3.setAttribute('aria-pressed', String(on3));
       btns.push(b3);
       if (isPlan(p)) {
@@ -142,7 +142,7 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
         bo.setAttribute('aria-pressed', String(onO));
         btns.push(bo);
       }
-      const rm = act(button('Remove placement', () => undefined, { title: 'Take the sheet out of the model. Its sketches stay on the sheet and lose their attachment to the model.' }), 'remove-placement');
+      const rm = act(button('Remove placement', () => undefined, { title: 'Take the sheet out of the model. Its drawings stay on the sheet and lose their attachment to the model.' }), 'remove-placement');
       arm(rm, 'Remove placement', () => c.place.remove(sh.id));
       btns.push(rm);
     }
@@ -159,10 +159,10 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
     h.appendChild(el('div', 'sh-name', { title: d.name }, d.name));
     h.appendChild(el('span', 'is-meta', undefined, count(d.pageCount, 'page')));
     box.appendChild(h);
-    const del = act(button('Remove', () => undefined, { title: 'Remove this PDF and its sketches from the session' }), 'remove-doc');
+    const del = act(button('Remove', () => undefined, { title: 'Remove this PDF and its drawings from the session' }), 'remove-doc');
     arm(del, 'Remove', () => { void c.removeDoc(d.id).catch(fail); });
     box.appendChild(row(
-      busyBtn('Export marked-up PDF', () => c.downloadMarkedUp(d.id), { title: 'Download a copy of the PDF with your sketches as annotations on the layer "X-ray markups". The page content is not changed.', primary: true }, 'export-pdf'),
+      busyBtn('Export marked-up PDF', () => c.downloadMarkedUp(d.id), { title: 'Download a copy of the PDF with your drawings as annotations on the layer "X-ray markups". The page content is not changed.', primary: true }, 'export-pdf'),
       del,
     ));
     const grid = el('div', 'sh-pages', { 'data-sheet-pages': d.id });
@@ -174,7 +174,7 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
       if (th) card.appendChild(el('img', undefined, { src: th, alt: `Thumbnail of ${sh.name}`, draggable: 'false' }));
       else card.appendChild(el('div', 'sh-nothumb', undefined, 'no picture'));
       card.appendChild(el('div', 'is-t', undefined, d.pageCount > 1 ? `Page ${sh.page}` : sh.name));
-      card.appendChild(el('div', 'is-meta', undefined, n ? count(n, 'sketch', 'sketches') : `${Math.round(sh.widthPt)} x ${Math.round(sh.heightPt)} pt`));
+      card.appendChild(el('div', 'is-meta', undefined, n ? count(n, 'drawing view', 'drawing views') : `${Math.round(sh.widthPt)} x ${Math.round(sh.heightPt)} pt`));
       card.appendChild(el('div', `is-meta sh-status ${sh.placement ? 'placed' : 'not'}`, undefined, placementStatus(sh.placement)));
       card.addEventListener('click', () => { c.open(sh.id); phoneClose(); });
       grid.appendChild(card);
@@ -184,7 +184,7 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
     for (const sh of sheets) {
       const sets = c.sketchesOn(sh.id).filter((s) => c.markup.inScope(s));
       if (!sets.length) continue;
-      box.appendChild(el('div', 'is-h', undefined, d.pageCount > 1 ? `Sketches, page ${sh.page}` : 'Sketches'));
+      box.appendChild(el('div', 'is-h', undefined, d.pageCount > 1 ? `Drawings, page ${sh.page}` : 'Drawings'));
       const list = el('div', 'sh-sketches', { 'data-sheet-sketches': sh.id });
       for (const s of sets) list.appendChild(sketchRow(s, sh));
       box.appendChild(list);
@@ -207,13 +207,13 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
         o.appendChild(r);
         out.push(o);
       }
-      if (!here.length) out.push(el('div', 'is-empty', undefined, 'No sheets yet. Open a PDF drawing to view it, sketch on it and raise issues from it.'));
+      if (!here.length) out.push(el('div', 'is-empty', undefined, 'No sheets yet. Open a PDF drawing to view it, draw on it and make issues from it.'));
       for (const d of here) out.push(docBlock(d));
       const orphans = c.orphans().filter((s) => c.markup.inScope(s));
       if (orphans.length) {
         const o = el('div', 'sh-doc', { 'data-orphans': '' });
         o.appendChild(el('div', 'is-t', undefined, `Waiting for their PDF (${orphans.length})`));
-        o.appendChild(el('div', 'is-meta', undefined, 'These sketches were drawn on a PDF that is not open. Open the same PDF and they find their sheet.'));
+        o.appendChild(el('div', 'is-meta', undefined, 'These drawings were made on a PDF that is not open. Open the same PDF and they find their sheet.'));
         for (const s of orphans) o.appendChild(el('div', 'is-meta', { 'data-orphan': s.id }, `${s.title}, ${count(s.markups.length, 'drawing')}`));
         out.push(o);
       }

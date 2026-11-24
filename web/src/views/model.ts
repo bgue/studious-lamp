@@ -57,6 +57,11 @@ export interface SavedView {
   params: Record<string, unknown>;
   /** data:image/jpeg URL, THUMB_W x THUMB_H. */
   thumb?: string;
+  /**
+   * Id of the markup set (src/markup) that holds the drawings of this view, or that backs it while it sits in an issue. Absent, or
+   * naming a set that is not there (deleted, another model): a plain view. Not part of a share link or of the params.
+   */
+  drawings?: string;
 }
 
 export interface ViewsDocument {
@@ -273,6 +278,8 @@ export function sanitizeView(raw: unknown, now = new Date()): SavedView | string
   if (preset) v.preset = preset;
   const thumb = str(raw['thumb']);
   if (thumb && /^data:image\/(jpeg|png|webp);base64,/.test(thumb)) v.thumb = thumb;
+  const drawings = str(raw['drawings']);
+  if (drawings && drawings.length <= 64) v.drawings = drawings;
   return v;
 }
 
@@ -334,10 +341,11 @@ export function viewsDocument(model: string, views: readonly SavedView[], withTh
   return { schema: VIEWS_SCHEMA, model, views: views.map((v) => stripView(v, withThumbs)) };
 }
 
-/** A copy of the view, optionally without the thumbnail. */
-export function stripView(v: SavedView, withThumb = true): SavedView {
+/** A copy of the view, optionally without the thumbnail and without the link to its drawings. */
+export function stripView(v: SavedView, withThumb = true, withLink = true): SavedView {
   const c = clone(v);
   if (!withThumb) delete c.thumb;
+  if (!withLink) delete c.drawings;
   return c;
 }
 
@@ -357,6 +365,7 @@ export function duplicateView(views: readonly SavedView[], index: number, now = 
   if (!src) return [...views];
   const iso = now.toISOString();
   const copy: SavedView = { ...clone(src), id: newViewId(new Set(views.map((v) => v.id))), name: uniqueName(`${src.name} copy`, views), created: iso, updated: iso };
+  delete copy.drawings; // the copy is a plain view: the drawings stay with the original
   const out = [...views];
   out.splice(index + 1, 0, copy);
   return out;
@@ -380,6 +389,8 @@ export function mergeViews(
     if (i >= 0) {
       if (v.updated > out[i]!.updated) {
         out[i] = clone(v);
+        const link = views[i]?.drawings;
+        if (link && !out[i]!.drawings) out[i]!.drawings = link; // the drawings stay with the view
         replaced++;
       }
       continue;
@@ -464,7 +475,7 @@ export function fromBase64Url(s: string): Uint8Array {
  * differ from `base` (the factory state of the page). The receiver merges them over its own factory state.
  */
 export function shareView(v: SavedView, base: Record<string, unknown> | null): SavedView {
-  const c = stripView(v, false);
+  const c = stripView(v, false, false);
   c.camera = {
     ...c.camera,
     position: roundVec(c.camera.position, 1e-4),

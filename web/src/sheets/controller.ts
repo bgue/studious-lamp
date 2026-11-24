@@ -380,9 +380,9 @@ export class SheetsController {
     const sheet = this.store.sheet(sheetId);
     if (!sheet) throw new Error(`No sheet ${sheetId}`);
     const n = this.sketchesOn(sheetId).filter((s) => !s.readonly).length + 1;
-    const set = this.makeSet(sheet, uniqueSetTitle(title?.trim() || `${sheet.name} sketch ${n}`, this.markup.sets), {});
+    const set = this.makeSet(sheet, uniqueSetTitle(title?.trim() || `${sheet.name} drawings ${n}`, this.markup.sets), {});
     this.markup.adoptSet(set, { activate: true });
-    this.markup.setStatus(`Sketch "${set.title}" created on ${sheet.name}`);
+    this.markup.setStatus(`Drawings "${set.title}" created on ${sheet.name}`);
     return set;
   }
 
@@ -629,10 +629,10 @@ export class SheetsController {
     const bcf = this.bcf;
     if (!bcf) throw new Error('The BCF tool is not available in this build');
     const set = this.markup.get(setId);
-    if (!set || !isSheetSet(set)) throw new Error(`No sheet sketch ${setId}`);
+    if (!set || !isSheetSet(set)) throw new Error(`No sheet drawings ${setId}`);
     const sheet = this.sheetOfSet(set);
     const doc = sheet ? this.store.doc(sheet.docId) : undefined;
-    if (!sheet || !doc) throw new Error('The PDF of this sketch is not open');
+    if (!sheet || !doc) throw new Error('The PDF of this view is not open');
     const bytes = await this.store.bytesOf(doc);
     if (!bytes) throw new Error(`The bytes of ${doc.name} are not stored. Open the PDF again.`);
     const region = this.snapshotRegion(set, sheet);
@@ -644,10 +644,10 @@ export class SheetsController {
     const author = this.who;
     const topic: BcfTopic = o.topic
       ? bcf.addSheetViewpoint(o.topic, ref, { filename: doc.name, data: bytes, sha256: doc.sha256 })
-      : bcf.createSheetTopic({ title: set.title, description: set.note ?? `Sketch "${set.title}" on ${sheet.name}.`, author }, ref, { filename: doc.name, data: bytes, sha256: doc.sha256 });
+      : bcf.createSheetTopic({ title: set.title, description: set.note ?? `Drawings "${set.title}" on ${sheet.name}.`, author }, ref, { filename: doc.name, data: bytes, sha256: doc.sha256 });
     set.issue = { topic: topic.guid, viewpoint: ref.guid };
     this.markup.emit();
-    this.markup.setStatus(`Sketch "${set.title}" raised as the issue "${topic.title}"`);
+    this.markup.setStatus(`View "${set.title}" made an issue: "${topic.title}"`);
     return topic.guid;
   }
 

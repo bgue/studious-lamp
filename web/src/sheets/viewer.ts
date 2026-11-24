@@ -143,7 +143,7 @@ export class SheetViewer {
     pager.append(this.prevBtn, this.pageLbl, this.nextBtn);
     const fit = el('button', '', { type: 'button', 'data-act': 'fit', title: 'Fit the page in the window', 'data-help-key': 'Sheet view/Fit' }, 'Fit');
     fit.addEventListener('click', () => this.fit());
-    this.sketchSel = el('select', 'sv-sel', { 'aria-label': 'Sketch on this sheet', 'data-sv': 'sketch', title: 'The sketch you draw on', 'data-help-key': 'Sheet view/Sketch' });
+    this.sketchSel = el('select', 'sv-sel', { 'aria-label': 'Draw on this sheet', 'data-sv': 'sketch', title: 'The drawings you draw on', 'data-help-key': 'Sheet view/Drawings' });
     this.sketchSel.addEventListener('change', () => {
       const id = this.sketchSel.value;
       if (id === '__new') { if (this.sheet) { ctl.newSketch(this.sheet.id); ctl.markup.setEditing(true); } return; }
@@ -158,7 +158,7 @@ export class SheetViewer {
       ctl.sketchToDraw(this.sheet.id);
       ctl.markup.setEditing(true);
     });
-    this.raiseBtn = el('button', '', { type: 'button', 'data-act': 'raise', title: 'Make an issue of the sketch you draw on: a snapshot of the sheet region, the PDF as a document reference, and the shapes', 'data-help-key': 'Sheet view/Raise as issue' }, 'Raise as issue');
+    this.raiseBtn = el('button', '', { type: 'button', 'data-act': 'raise', title: 'Make an issue of the view you draw on: a snapshot of the sheet region, the PDF as a document reference, and the shapes', 'data-help-key': 'Sheet view/Raise as issue' }, 'Make issue');
     this.raiseBtn.addEventListener('click', () => this.raiseOrOpen());
     bar.append(back, this.title, pager, fit, this.sketchSel, this.drawBtn, this.raiseBtn);
     // Second row: where the sheet is in the model, and the overlay of the model on it.
@@ -394,10 +394,10 @@ export class SheetViewer {
   private updateRaise(set: MarkupSet | null): void {
     const issues = window.__xrayIssues;
     const ref = set ? issues?.issueOf(set.id) ?? null : null;
-    this.raiseBtn.textContent = ref ? 'Open issue' : 'Raise as issue';
+    this.raiseBtn.textContent = ref ? 'Open issue' : 'Make issue';
     this.raiseBtn.dataset['issue'] = ref?.topic ?? '';
     this.raiseBtn.disabled = this.raising || !set || !!set.readonly || !issues;
-    this.raiseBtn.title = !set ? 'Pick or start a sketch on this sheet first' : set.readonly ? 'This sketch is read-only. Copy it to an editable sketch first.' : ref ? 'Open the issue this sketch belongs to' : 'Make an issue of the sketch you draw on: a snapshot of the sheet region, the PDF as a document reference, and the shapes';
+    this.raiseBtn.title = !set ? 'Pick or start drawings on this sheet first' : set.readonly ? 'These drawings are read-only. Copy them to editable drawings first.' : ref ? 'Open the issue this view belongs to' : 'Make an issue of the view you draw on: a snapshot of the sheet region, the PDF as a document reference, and the shapes';
   }
 
   private raiseOrOpen(): void {
@@ -551,7 +551,7 @@ export class SheetViewer {
     if (!st || cancelled) return;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const [x, y] of st.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-    if (st.pts.length < 2 || Math.max(x1 - x0, y1 - y0) < 6) { this.ctl.markup.setStatus('Drag further to draw the markup (Esc cancels)'); return; }
+    if (st.pts.length < 2 || Math.max(x1 - x0, y1 - y0) < 6) { this.ctl.markup.setStatus('Drag further to draw (Esc cancels)'); return; }
     this.addShape(st.tool, st.pts);
   }
 
@@ -788,9 +788,9 @@ export class SheetViewer {
     if (this.sketchSel.dataset['key'] !== key) {
       this.sketchSel.dataset['key'] = key;
       this.sketchSel.textContent = '';
-      this.sketchSel.appendChild(el('option', '', { value: '' }, sets.length ? 'No sketch' : 'No sketch yet'));
+      this.sketchSel.appendChild(el('option', '', { value: '' }, sets.length ? 'No drawings' : 'No drawings yet'));
       for (const s of sets) this.sketchSel.appendChild(el('option', '', { value: s.id }, `${s.title}${s.readonly ? ' (read-only)' : ''}`));
-      this.sketchSel.appendChild(el('option', '', { value: '__new' }, 'New sketch...'));
+      this.sketchSel.appendChild(el('option', '', { value: '__new' }, 'New drawings...'));
     }
     const act = this.set;
     if (this.sketchSel.value !== (act?.id ?? '')) this.sketchSel.value = act?.id ?? '';
@@ -865,7 +865,7 @@ export class SheetViewer {
     const placeable = c.place.loaded;
     this.pstat.textContent = placementStatus(p) + (p ? ` · ${p.level.name ?? `level ${p.level.elevation} m`}` : '');
     const geoNote = !p ? c.place.geoNotes.get(sh.id) : undefined;
-    this.pstat.title = geoNote ?? (p ? `${p.source}. Level at ${p.level.elevation} m.` : 'This sheet is a plain drawing: sketches on it stay on the sheet');
+    this.pstat.title = geoNote ?? (p ? `${p.source}. Level at ${p.level.elevation} m.` : 'This sheet is a plain drawing: drawings on it stay on the sheet');
     this.placeBtn.textContent = p ? 'Place again…' : 'Place in model…';
     this.placeBtn.disabled = !placeable;
     const plan = !!p && isPlan(p);
@@ -909,7 +909,7 @@ export class SheetViewer {
     this.info.textContent = '';
     const who = f.m.author && f.m.author !== 'unknown' ? f.m.author : '';
     const head = el('div', '', undefined, '');
-    head.append(el('b', '', undefined, `${f.set.readonly ? 'Imported' : 'Sketch'} · ${f.set.title}`));
+    head.append(el('b', '', undefined, `${f.set.readonly ? 'Imported' : 'Drawings'} · ${f.set.title}`));
     this.info.appendChild(head);
     if (who) this.info.appendChild(el('div', '', { 'data-sv-info': 'author' }, `Author: ${who}`));
     if (f.m.text) this.info.appendChild(el('div', '', { 'data-sv-info': 'text' }, f.m.text));

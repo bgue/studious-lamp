@@ -1,7 +1,7 @@
 // Headless check for BCF markup (topic pins and annotations) on /?model=fzk-haus:
 //   - select a window, create an issue through the New issue dialog of the Issues tab with "click the model to place the pin" ticked, click a
 //     wall on the canvas: the pin lands there (Escape cancels a second placement without closing anything);
-//   - measure two points with the measure tool API, then with the drawing toolbar on the issue's sketch (the BCF drawer and its annotation buttons are gone: a viewpoint's drawing is its sketch): a callout on an element (canvas click), a linked
+//   - measure two points with the measure tool API, then with the drawing toolbar on the issue's view (the BCF drawer and its annotation buttons are gone: a viewpoint's drawing is its view): a callout on an element (canvas click), a linked
 //     measurement, a note; drag a callout text box with the mouse;
 //   - export 2.1 and 3.0 with the Issues panel buttons, validate both against the official XSDs, extract the burned snapshot;
 //   - reload, import the 3.0 file, compare pins and annotations with the state before export (exact), apply the viewpoint
@@ -82,7 +82,7 @@ try {
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 
   async function boot() {
-    // sketches and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
+    // views and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
     await page.evaluate(() => window.__xrayWork?.reset()).catch(() => undefined);
     await page.goto(`http://127.0.0.1:${port}/?model=fzk-haus`);
     await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
@@ -163,18 +163,18 @@ try {
   }, setup.win.centre);
   check('a measurement exists', meas.length === 1, JSON.stringify(meas));
 
-  // The drawing of the viewpoint is its sketch: Edit drawing makes it (linked to the issue) and shows the toolbar.
+  // The drawing of the viewpoint is its view: Edit drawing makes it (linked to the issue) and shows the toolbar.
   await page.click('#issues-panel [data-viewpoint] [data-act=edit-drawing]');
   await page.waitForSelector('#markup-float', { state: 'visible' });
   await page.click('#markup-float [data-tool-id=callout]');
-  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Reveal 3 cm too small');
+  await page.fill('#markup-float [aria-label="Text for the next drawing"]', 'Reveal 3 cm too small');
   await settle();
   const win = await screenOf(setup.win.centre);
   await page.mouse.click(win.x, win.y);
-  // The measurement joins the sketch through the scripting call (the Link a measurement list is covered in smoke-markup).
+  // The measurement joins the view through the scripting call (the Link a measurement list is covered in smoke-markup).
   await page.evaluate((id) => window.__xrayMarkup.add({ kind: 'measure', measurementId: id }), meas[0].id);
   await page.click('#markup-float [data-tool-id=text]');
-  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Check sill on site');
+  await page.fill('#markup-float [aria-label="Text for the next drawing"]', 'Check sill on site');
   const notePt = await screenOf([setup.win.centre[0] - 1.2, setup.win.centre[1] - 0.6, setup.win.centre[2]]);
   await page.mouse.click(notePt.x, notePt.y);
   await settle();
@@ -196,12 +196,12 @@ try {
     };
   });
   console.log('    annotations:', JSON.stringify(anns.list));
-  // Assertion changed: the annotations are now the projection of the sketch, whose labels carry the markup number ("1. text").
+  // Assertion changed: the annotations are now the projection of the view, whose labels carry the markup number ("1. text").
   check('callout anchored on an element', anns.list.some((a) => a.type === 'callout' && a.kind === 'element' && a.el && a.text === '1. Reveal 3 cm too small'));
   check('measurement linked with its label', anns.list.some((a) => a.kind === 'measurement' && /m$/.test(a.m ?? '')));
   check('note on a free point', anns.list.some((a) => a.type === 'note' && a.kind === 'point' && a.text === '3. Check sill on site'));
-  // Assertion changed: the markup view draws the sketch (data-mk); the BCF overlay draws none of a linked viewpoint (no double drawing).
-  check('the sketch draws the 3 annotations, the BCF overlay none, and the viewpoint links to the sketch', anns.drawn === 3 && anns.bcfDrawn === 0 && anns.linked, `drawn ${anns.drawn}, bcf ${anns.bcfDrawn}, linked ${anns.linked}`);
+  // Assertion changed: the markup view draws the view (data-mk); the BCF overlay draws none of a linked viewpoint (no double drawing).
+  check('the view draws the 3 annotations, the BCF overlay none, and the viewpoint links to the view', anns.drawn === 3 && anns.bcfDrawn === 0 && anns.linked, `drawn ${anns.drawn}, bcf ${anns.bcfDrawn}, linked ${anns.linked}`);
   check('annotated element joins the viewpoint selection', anns.sel.length >= 2, `${anns.sel.length} selected`);
 
   // drag a callout text box (the topmost box at the centre of the element callout's box)
@@ -273,7 +273,7 @@ try {
   await page.waitForTimeout(2500);
   await settle();
   const act = await page.evaluate(() => ({ status: window.__xrayBcf.status, drawn: document.querySelectorAll('svg.xray-svg-overlay [data-mk]').length, sel: document.querySelector('#issues-panel .is-item.sel') !== null }));
-  // Assertion changed: the imported viewpoint became a sketch; once the viewpoint is applied the markup view draws it.
+  // Assertion changed: the imported viewpoint became a view; once the viewpoint is applied the markup view draws it.
   check('clicking the pin applies the viewpoint and shows the annotations', /Viewpoint applied/.test(act.status) && act.drawn === 3 && act.sel, `${act.status}; drawn ${act.drawn}`);
   await page.waitForTimeout(400);
   await page.screenshot({ path: resolve(here, 'bcf-markup-reimport.png') });

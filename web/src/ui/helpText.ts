@@ -82,7 +82,7 @@ export const GLOSSARY: ReadonlyArray<{ term: string; definition: string }> = [
   { term: 'palette', definition: 'A named set of colours for an imaging style. It sets the ground, the tone of the material and the glow.' },
   { term: 'radiograph', definition: 'An imaging style that draws the context by accumulated material thickness through an attenuation curve. The focus is bright and glows.' },
   { term: 'slab slice', definition: 'A thin slab through the focus in the MRI style. The slab draws grey and crisp and the surroundings draw faint.' },
-  { term: 'viewpoint', definition: 'A saved camera pose with selected, hidden and coloured elements and clip planes. A BCF topic stores it.' },
+  { term: 'viewpoint', definition: 'A saved camera pose with selected, hidden and coloured elements and clip planes. An issue stores it as a view.' },
 ];
 
 /** Folder entries, in panel order. */
@@ -353,36 +353,31 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Select an object. Turn the colouring on. Set the limits for tight and ok.',
     'Report: Appendix J, Coordination tools',
   ),
-  BCF: h(
-    'The folder controls BIM Collaboration Format issues. A BCF topic stores a title, comments and viewpoints.',
-    'These controls read, write and share issue notes with other people in the project team.',
-    'Click Open BCF to read a file. Click Create topic from view to note a new issue.',
+  Issues: h(
+    'The folder controls issues and their BCF files. An issue stores a title, comments and the views that show it.',
+    'These controls read, write and share notes with other people in the project team.',
+    'Click Open BCF to read a file. Click New issue to note a new issue.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Markup': h(
-    'The folder controls markup sets. A set is 1 saved view with clouds, notes, highlights and shapes.',
+  'Drawings': h(
+    'The folder controls the drawings on views. A view with drawings holds clouds, notes, highlights and shapes.',
     'These controls save a view, open a shared file and write a PDF for your team.',
-    'Click New markup set from view. Open the Markup tool to draw.',
+    'Click Draw on this view in the Views tab. Pick a tool to draw.',
     'Report: Appendix J, Coordination tools',
   ),
   'Sidebar/Issues tab': h(
-    'The tab lists the issues and the sketches of this model. A switch at the top changes the list.',
-    'Click and the left side shows what your team must fix, and the drawings that show where.',
-    'Click the tab. Click an item to open it and bring its view back.',
+    'The tab lists the issues of this model. An issue points at the views that show the problem.',
+    'Click and the left side shows what your team must fix, with the pictures that show where.',
+    'Click the tab. Click an issue to open it and bring its view back.',
     'Report: Appendix J, Coordination tools',
   ),
   'Issues panel': h(
-    'The panel holds the issue list, the sketch list and the detail of the chosen item.',
+    'The panel holds the issue list and the detail of the chosen issue. The detail lists the views of the issue.',
     'This column shows what is wrong, who owns it and where it sits.',
-    'Pick Issues or Sketches. Search or filter. Click an item to read it.',
+    'Search or filter. Click an issue to read it.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Issues panel/Segments': h(
-    'The switch picks the list. Issues carry a status and comments. Sketches are saved views with drawings. Sheets hold the pages of PDF drawings.',
-    'Click and the column swaps between the problems of your team, the drawn views and the paper drawings.',
-    'Click Issues, Sketches or Sheets.',
-    'Report: Appendix J, Coordination tools',
-  ),
+
   'Issues panel/Phone sheet': h(
     'On a small screen the list and the detail rise from the bottom edge of the view.',
     'The list leaves the top of the picture free. It steps aside while you draw.',
@@ -390,13 +385,13 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Drawing toolbar': h(
-    'The bar floats over the view while you draw on a sketch. It holds the tools, the colours, the line weights and Done.',
+    'The bar floats over the view while you draw on it. It holds the tools, the colours, the line weights and Done.',
     'This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done.',
     'Pick a tool. Drag on the view. Press Done when the drawing is ready.',
     'Report: Appendix J, Coordination tools',
   ),
   'Issues panel/Clear everything': h(
-    'The button deletes the sketches and the issues of the open model, and the copy this browser keeps. Sketches on sheets stay.',
+    'The button deletes the drawings and the issues of the open model, and the copy this browser keeps. Saved views and sheet drawings stay.',
     'Click twice and your marks and your team tasks for this building are gone for good. Other buildings keep theirs.',
     'Click the button. Click again within 8 seconds to confirm.',
     'Report: Appendix J, Coordination tools',
@@ -419,10 +414,10 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Click the button after you zoom in too far.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Sheet view/Sketch': h(
-    'The list picks the sketch that you draw on. A read-only sketch cannot change.',
+  'Sheet view/Drawings': h(
+    'The list picks the drawings that you edit. Read-only drawings cannot change.',
     'Pick one and your marks go into it. Pick the last choice to start a new one.',
-    'Pick a sketch from the list.',
+    'Pick drawings from the list.',
     'Report: Appendix J, Coordination tools',
   ),
   'Sheet view/Draw': h(
@@ -432,9 +427,9 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Sheet view/Raise as issue': h(
-    'The button makes an issue of the sketch you draw on. The issue gets a snapshot of the sheet region and the PDF. When the sketch already has an issue, the button opens that issue.',
+    'The button makes an issue of the view you draw on. The issue gets a snapshot of the sheet region and the PDF. When the view already has an issue, the button opens that issue.',
     'Click and your marks on the drawing go to your team as a task that they can follow.',
-    'Pick a sketch from the list. Click the button.',
+    'Pick drawings from the list. Click the button.',
     'Report: Appendix J, Coordination tools',
   ),
   'Sheet view/Drawing toolbar': h(
@@ -474,7 +469,7 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Issues panel/View switch': h(
-    'The control shows a sketch in 3D, in plan or in section. It appears when a drawing sits on a part of the model.',
+    'The control shows a view in 3D, in plan or in section. It appears when a drawing sits on a part of the model.',
     'Click Plan and the picture turns to a cut from above. Click Section for a cut from the side. Click 3D to go back.',
     'Click 3D, Plan or Section. Your own cut returns when you click 3D.',
     'Report: Appendix J, Coordination tools',
@@ -486,13 +481,13 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Issues panel/Raise issues from results': h(
-    'The block turns each result of the check into an issue. Each issue frames both elements and holds a sketch tied to them.',
+    'The block turns each result of the check into an issue. Each issue frames both elements and holds drawings tied to them.',
     'A second run adds only the new finds. A find that vanishes gets a note, and you can close it.',
     'Run the check. Click Raise issues from results. Click Close to close the issues that are gone.',
     'Report: Appendix J, Coordination tools',
   ),
   'Drawing toolbar/View switch': h(
-    'The control shows the sketch in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model.',
+    'The control shows the view in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model.',
     'Click Plan and the picture shows a cut from above, with your marks on the same part. Click Section for a cut from the side.',
     'Click 3D, Plan or Section. Draw on any of them.',
     'Report: Appendix J, Coordination tools',
@@ -501,12 +496,6 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'The button counts the open issues of this model. An issue is open until it is resolved or closed.',
     'Click and the left side lists the problems that still need work.',
     'Click the button.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer': h(
-    'The heading names the Markup drawer. The drawer holds the sets, the drawing tools and the list of markups.',
-    'This panel lets you sketch on a saved view for your team without an issue topic.',
-    'Make a set. Pick a tool. Draw on the view. Export a PDF.',
     'Report: Appendix J, Coordination tools',
   ),
   Keyboard: h(
@@ -569,10 +558,10 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Drag the right edge to change the width. Press Escape to close the drawer.',
     'Report: Onboarding checklist',
   ),
-  'BCF topic dialog': h(
-    'The dialog collects the title, type, status, priority, labels and assignee of a new BCF topic.',
+  'New issue dialog': h(
+    'The dialog collects the title, type, status, priority, labels and assignee of a new issue.',
     'This window asks a few short questions and then saves a note that remembers what you see now.',
-    'Fill in the title. Click Create topic to store the topic with a snapshot.',
+    'Fill in the title. Click Create issue to store the issue with a snapshot.',
     'Report: Appendix J, Coordination tools',
   ),
   'Command palette': h(
@@ -610,12 +599,6 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'The heading names the Measure drawer. Clicks on the canvas measure while the drawer is open.',
     'This panel turns the mouse into a ruler. Dimension lines stay on the model after you close it.',
     'Choose a mode. Click 2 points or 2 elements. Press Escape to cancel a pending point.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer': h(
-    'The heading names the BCF drawer. The drawer lists BCF topics and shows the detail of the chosen topic.',
-    'This panel lists issue notes and lets you open, read, add and share them.',
-    'Click Open BCF or drop a file on the page. Click a topic to read it.',
     'Report: Appendix J, Coordination tools',
   ),
   'Clearance drawer': h(
@@ -1679,9 +1662,9 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   // ------------------------------------------------------------------ Sidebar: saved views (src/plugins/views.ts)
   'Sidebar/Views tab': h(
-    'The tab shows the saved views of this model. A saved view keeps the camera, the cuts, the modes and the selection.',
+    'The tab lists the views of this model. A view keeps the camera, the cuts, the modes and the selection. It can carry drawings.',
     'Click and the left side lists your bookmarked camera angles with their cuts and looks. One click brings a shot back.',
-    'Click the tab to save, restore, play, share or reorder views.',
+    'Click the tab to save, restore, draw on, share or reorder views.',
     'Report: Onboarding checklist',
   ),
   'Sidebar/View name box': h(
@@ -1727,7 +1710,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Onboarding checklist',
   ),
   'Sidebar/View filter box': h(
-    'The box filters the list of views by name or preset id.',
+    'The box filters the list of views by name, note or issue title.',
     'Type a few letters and the list shrinks to the bookmarks that match. A small number tells you how many match.',
     'Type part of a name. Press Escape to clear the box.',
     'Report: Onboarding checklist',
@@ -1739,7 +1722,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Onboarding checklist',
   ),
   'Sidebar/View menu': h(
-    'The menu holds the commands for 1 view: update, rename, duplicate, copy link, BCF topic and delete.',
+    'The menu holds the commands for 1 view: update, draw, make issue, details, rename, duplicate, copy link and delete.',
     'Click and a short list of extra commands opens for this bookmark.',
     'Click the button. Select a command.',
     'Report: Onboarding checklist',
@@ -1774,12 +1757,43 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the command. Paste the link into a chat or an email.',
     'Report: Onboarding checklist',
   ),
-  'Sidebar/View as BCF topic': h(
-    'The command restores the view and creates a BCF topic with a snapshot from it.',
-    'Click and the app turns this bookmark into an issue with a picture, ready to send to another design tool.',
-    'Click the command. Open the Issues tab to add comments or to export the topic.',
-    'Report: Onboarding checklist',
+  'Sidebar/View chips': h(
+    'The chips filter the list. The choices are All, With drawings, On sheets and In an issue.',
+    'Click a label and the list shows only the items of that kind. The number tells how many there are.',
+    'Click a chip. Click All to see every view.',
+    'Report: Appendix J, Coordination tools',
   ),
+  'Sidebar/Draw on view': h(
+    'The command shows the drawing toolbar on this view. A view without drawings gets a drawing layer first.',
+    'Click and the picture comes back and a small bar of marker tools appears over it.',
+    'Click the command. Pick a tool and drag on the picture.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sidebar/Make issue': h(
+    'The command makes an issue of this view, or adds the view to an issue. The issue points at the view.',
+    'Click and a form offers a new task or an existing one. The task then shows this picture.',
+    'Click the command. Choose New issue or Add to, then press Make issue.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sidebar/Open issue of view': h(
+    'The command opens the issue that holds this view.',
+    'Click and the left side shows the task with its status and its comments.',
+    'Click the command.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sidebar/View details': h(
+    'The command opens the detail of the view. The detail holds the note, the exports and the list of drawings.',
+    'Click and the list gives way to a page with the note, the files you can save and the marks.',
+    'Click the command. Click Views at the top to come back.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Views panel/Drawings': h(
+    'The area below the list holds the detail of a view with drawings, the sheet pages and the file button.',
+    'This part shows the note, the exports and the marks of the item you picked.',
+    'Click a view with drawings in the list. Read or change it here.',
+    'Report: Appendix J, Coordination tools',
+  ),
+
   // ------------------------------------------------------------------ Sidebar: fly-through (src/plugins/flythrough.ts)
   'Fly-through/Open the Views tab': h(
     'The button opens the Views tab, where you build and edit the fly-through.',
@@ -2773,37 +2787,37 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Read the line after each change.',
     'Report: Appendix J, Coordination tools',
   ),
-  'BCF/Open BCF': h(
+  'Issues/Open BCF': h(
     'The button opens a file picker for a BCF file. You can also drop a file on the page.',
-    'Click and pick an issue file from your computer. Its notes appear in the list.',
+    'Click and pick a file of notes from your computer. Its notes appear in the list.',
     'Click the button. Choose a .bcf or .bcfzip file.',
     'Report: Appendix J, Coordination tools',
   ),
-  'BCF/Create topic from view': h(
-    'The button asks for a title and details. It then stores a topic with a snapshot and a viewpoint of the current camera.',
+  'Issues/New issue': h(
+    'The button asks for a title and details. It then stores an issue with a snapshot and a view of the current camera.',
     'Click and fill in a short form. The app saves a note that remembers what you see now.',
     'Frame the issue in the picture. Click the button. Fill in the form.',
     'Report: Appendix J, Coordination tools',
   ),
-  'BCF/Export BCF 2.1': h(
-    'The button downloads every topic as a BCF 2.1 file.',
-    'Click and all issue notes go into one file that most programs can read.',
+  'Issues/Export BCF 2.1': h(
+    'The button downloads every issue as a BCF 2.1 file.',
+    'Click and all notes go into one file that most programs can read.',
     'Select this version for the widest support.',
     'Report: Appendix J, Coordination tools',
   ),
-  'BCF/Export BCF 3.0': h(
-    'The button downloads every topic as a BCF 3.0 file.',
-    'Click and all issue notes go into one file in the newer layout.',
+  'Issues/Export BCF 3.0': h(
+    'The button downloads every issue as a BCF 3.0 file.',
+    'Click and all notes go into one file in the newer layout.',
     'Select this version when all partners read BCF 3.0.',
     'Report: Appendix J, Coordination tools',
   ),
-  'BCF/Clear viewpoint': h(
+  'Issues/Clear viewpoint': h(
     'The button undoes what the viewpoint changed. It shows the elements that BCF hid and removes its colours and clip planes.',
-    'Click and the parts that an issue note hid come back with their normal colours and no cuts. Your camera stays.',
-    'Click the button after you review a topic.',
+    'Click and the parts that a note hid come back with their normal colours and no cuts. Your camera stays.',
+    'Click the button after you review an issue.',
     'Report: Appendix J, Coordination tools',
   ),
-  'BCF/BCF status': h(
+  'Issues/BCF status': h(
     'The read-only field shows what the last BCF step did, such as what applied and what it skipped.',
     'A short text tells you what the last step did and what it had to skip.',
     'Read the line after you apply a viewpoint.',
@@ -3361,268 +3375,52 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the button. Click 2 points on the model.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Markup/New markup set from view': h(
-    'The button saves the current view as a new markup set.',
-    'Click and the camera, cuts and look go into storage. You can draw at once.',
+  'Drawings/New drawings from view': h(
+    'The button saves the current view as a view with drawings.',
+    'Click and the camera, cuts and look go into storage. You can add marks at once.',
     'Frame the view. Click the button.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Markup/Open markup file': h(
-    'The button opens a file picker for a markup PDF or JSON file. You can also drop a file on the page.',
+  'Drawings/Open drawings file': h(
+    'The button opens a file picker for a drawings PDF or JSON file. You can also drop a file on the page.',
     'Click and the picture and the notes of the shared document come back.',
     'Click the button. Choose the file.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Markup/Export markup PDF': h(
-    'The button downloads a PDF of all sets. The PDF shows the clean view, the marked view and a table of comments.',
+  'Drawings/Export drawings PDF': h(
+    'The button downloads a PDF of all views with drawings. The PDF shows the clean view, the view with drawings and a table of comments.',
     'Click and you get a page file to print or to send. It also carries the data to restore the notes.',
-    'Click the button after you finish the markup.',
+    'Click the button after you finish the drawings.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Markup/Export markup JSON': h(
-    'The button downloads all sets as a JSON file.',
+  'Drawings/Export drawings JSON': h(
+    'The button downloads all views with drawings as a JSON file.',
     'Click and you get a small file. Drop it on the viewer to restore the view and the notes.',
     'Click the button. Send the file with the model name.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Markup/Markup page size': h(
+  'Drawings/Drawings page size': h(
     'The list sets the page size of the PDF. Both sizes are landscape.',
     'The choice changes the paper of the next PDF.',
     'Select A4 or Letter.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Markup/Markup view-locked in 3D': h(
-    'The list sets how a markup that is not attached to the model shows in 3D. It has 3 choices: near view and pin, pin only, hidden.',
-    'A drawing that only fits the angle where you made it shows in full there. Away from that angle it fades and leaves a small flag.',
+  'Drawings/View-locked drawings in 3D': h(
+    'The list sets how a drawing that is not attached to the model shows in 3D. It has 3 choices: near view and pin, pin only, hidden.',
+    'A shape that only fits the angle where you made it shows in full there. Away from that angle it fades and leaves a small flag.',
     'Select near view and pin. Select pin only to see pins at all times. Select hidden to hide them.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Markup/Markup status': h(
-    'The read-only field shows the last message of the Markup tool.',
+  'Drawings/Drawings status': h(
+    'The read-only field shows the last message of the drawing tools.',
     'A short text tells you what the tool did or why it did not.',
     'Read the line after each action.',
     'Report: Appendix J, Coordination tools',
   ),
-  'Tool strip/Markup': h(
-    'The button opens the Markup drawer. The key K does the same.',
-    'The drawer lets you draw clouds, notes, highlights and shapes on a saved view.',
-    'Click the button or press K.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/New set from view': h(
-    'The button saves the current view as a new markup set.',
-    'Click and a card appears in the list with a small picture.',
-    'Frame the view. Click the button.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Open file': h(
-    'The button opens a markup PDF or JSON file.',
-    'Click and the sheets of the shared document join the list. The first one comes back on screen.',
-    'Click the button. Choose the file.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Restore view': h(
-    'The button brings back the camera, cuts and look of the set.',
-    'Click and the model looks as it did when you made the card.',
-    'Click the button after you move the camera.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Export PDF': h(
-    'The button downloads a PDF of this set. It has the clean view, the marked view and the comment table.',
-    'Click and the viewer renders both pictures. The file carries the data to bring back the notes.',
-    'Click the button. Wait for the download.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Export JSON': h(
-    'The button downloads this set as a JSON file.',
-    'Click and you get a small file that brings back the notes on the same model.',
-    'Click the button.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/PDF of all sets': h(
-    'The button downloads a single PDF with every set.',
-    'Click and each card gets its own pages in the file.',
-    'Click the button when you have more than 1 set.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Convert to BCF topic': h(
-    'The button makes a BCF topic from the set. The topic has the viewpoint, the annotations and the comments.',
-    'Click and the sheet joins the issue list. You can then send it as an issue file.',
-    'Click the button. Open the Issues tab to export it.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Delete set': h(
-    'The button removes the set and its markups from the session.',
-    'Click twice and the card is gone. Save a file first if you need it later.',
-    'Click the button. Click again to confirm.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Undo': h(
-    'The button undoes the last change to the markups. The keys are Ctrl+Z.',
-    'Click and the last change goes back.',
-    'Click the button or press Ctrl+Z.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Redo': h(
-    'The button repeats the change that you undid. The keys are Ctrl+Shift+Z.',
-    'Click and the change comes back.',
-    'Click the button or press Ctrl+Shift+Z.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Finish': h(
-    'The button ends a polyline or polygon with the corners so far.',
-    'Click and the shape stays on the view.',
-    'Click the button. You can also press Enter.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Cancel drawing': h(
-    'The button drops the corners that you placed.',
-    'Click and the unfinished shape disappears from the view.',
-    'Click the button. You can also press Escape.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Add comment': h(
-    'The button adds your comment to the chosen markup.',
-    'Click and your note shows with your name and the time.',
-    'Type the comment. Click the button.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Page size': h(
-    'The list sets the page size of the PDF. Both sizes are landscape.',
-    'The choice changes the paper of the next PDF.',
-    'Select A4 or Letter.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Show markups on the model': h(
-    'The tick shows or hides the markups of the active set.',
-    'Clear the tick and only the plain building remains.',
-    'Clear the tick to see the plain model.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Fill': h(
-    'The tick fills closed shapes with a light colour.',
-    'Tick it and clouds, rectangles, ellipses and polygons get a tint.',
-    'Tick it before you draw. Or select a shape and tick it.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Tool button': h(
-    'The button picks a drawing tool. Press the tool again to go back to Select.',
-    'The next drag or click on the picture makes that shape.',
-    'Click a tool. Draw on the view.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Colour swatch': h(
-    'The swatch sets the colour of the next markup or of the chosen item.',
-    'Each tool keeps its own hue. Clouds start red and highlights start yellow.',
-    'Click a colour.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Line weight': h(
-    'The button sets the line weight of the next markup or of the chosen item.',
-    'A higher number makes a thicker stroke.',
-    'Click a weight.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Attachment chip': h(
-    'The chip tells what the shape is attached to in 3D. A shape is attached to elements, a surface, a region, a measurement or a penetration. Else it is view-locked.',
-    'An attached shape stays on its target when you orbit. A view-locked shape stays with the view where you drew it.',
-    'Select a markup to see its chip. Read the text. Click change to pick another attachment.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Change attachment': h(
-    'The link opens a menu of attachments. You can use the selected elements, the surface, a 3D region, a measurement, a penetration or view-locked.',
-    'The shape moves to the new target. Undo brings the old target back.',
-    'Click change. Pick a choice. For a measurement or penetration, click it in the view.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Set card': h(
-    'The card shows a set with its picture and its counts.',
-    'Click and the view comes back with its notes.',
-    'Click a card.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Other models (group)': h(
-    'The group lists the sets made on other models. It starts closed.',
-    'Those sets stay out of the view, so an old note never sits on the wrong building.',
-    'Click the heading to open the group. Pick Open, Move to this model or Delete.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Open': h(
-    'The button shows a set of another model on this model.',
-    'The set joins the list until you load a model again. Its shapes can sit in the wrong place.',
-    'Click the button. Check where the notes land.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Move to this model': h(
-    'The button makes the set belong to the model on screen.',
-    'The set joins the list for good. Shapes whose parts are missing here lock to the screen and show a warning.',
-    'Click the button. Read the status line for the count of locked shapes.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Model tag': h(
-    'The tag says the set comes from a revised model, or from a file that names none.',
-    'A new revision can move or remove the parts that a shape holds on to. Those shapes lock to the screen.',
-    'Hover the tag to read why. Move to this model when the set belongs here.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Markup row': h(
-    'The row shows a single markup with its number, kind, status and text.',
-    'Click and the entry opens. It shows the comments.',
-    'Click a row. Edit the text.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Sets (heading)': h(
-    'The heading names the list of markup sets.',
-    'The list shows each card with a picture.',
-    'Read the cards.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Tools (heading)': h(
-    'The heading names the drawing tools.',
-    'Each one makes a different kind of mark.',
-    'Pick a tool.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Markups (heading)': h(
-    'The heading names the list of markups of the active set.',
-    'Each row has a number that matches the number on the view and in the PDF.',
-    'Click a row to edit it.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Status line': h(
-    'The line shows the last message of the Markup tool.',
-    'A short text tells you what the tool did or why it did not.',
-    'Read the line after each action.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup/Markup PDF resolution (dpi)': h(
+  'Drawings/Drawings PDF resolution (dpi)': h(
     'The list sets the picture quality of the PDF in dots per inch. Screen uses the pixels of your window.',
     'A higher number gives sharper pages and a bigger file.',
     'Select 200 for most prints. Select 300 for fine detail.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Picture quality': h(
-    'The list sets the picture quality of the PDF in dots per inch. Screen uses the pixels of your window.',
-    'A higher number gives sharper pages and a bigger file.',
-    'Select 200 for most prints. Select 300 for fine detail.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Update view': h(
-    'The button captures the view of the set again from the current camera, cuts and look.',
-    'Click and the set opens from this angle. The marks follow your choice of the list beside it.',
-    'Move the camera. Click the button. Press Ctrl+Z to go back.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Markup drawer/Shapes stay': h(
-    'The list sets where drawn shapes go when you update the view. They stay on the model or on the screen.',
-    'The first choice keeps each mark on the part that it covers. The second keeps its place in the window.',
-    'Select on the model for most cases.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'Tool strip/BCF': h(
-    'The button opens the drawer of the BCF tool. The drawer opens, reviews, creates and exports BCF topics.',
-    'Click to open the issue list. You can read, add and share notes tied to views of the building.',
-    'Click the button. Click Open BCF. Click a topic to review it.',
     'Report: Appendix J, Coordination tools',
   ),
   'Tool strip/Clearance': h(
@@ -3801,19 +3599,19 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the cell. Press the new keys.',
     'Report: Appendix I, Presets and keyboard',
   ),
-  'BCF topic dialog/Field': h(
-    'The field holds a detail of the new topic, such as the title, description, type, status or priority.',
-    'Type a short text or pick from the list. These details travel with the issue note.',
+  'New issue dialog/Field': h(
+    'The field holds a detail of the new issue, such as the title, description, type, status or priority.',
+    'Type a short text or pick from the list. These details travel with the note.',
     'Fill in the title at least.',
     'Report: Appendix J, Coordination tools',
   ),
-  'BCF topic dialog/Create topic': h(
-    'The button stores the topic with a snapshot and a viewpoint of the current camera.',
+  'New issue dialog/Create issue': h(
+    'The button stores the issue with a snapshot and a view of the current camera.',
     'Click and the note joins the list, with a small picture of what you see now.',
     'Fill in the title. Click the button.',
     'Report: Appendix J, Coordination tools',
   ),
-  'BCF topic dialog/Cancel': h(
+  'New issue dialog/Cancel': h(
     'The button closes the dialog and stores nothing.',
     'Click and the window goes away. No note gets made.',
     'Click the button to stop.',
@@ -3999,7 +3797,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   'Clearance drawer/Issues (heading)': h(
     'The heading starts the block that turns the clearance results into issues.',
-    'You get a record per result with both elements, a view on the pair and a sketch tied to them.',
+    'You get a record per result with both elements, a view on the pair and marks tied to them.',
     'Run the check first, then use the buttons below.',
     'Report: Appendix J, Coordination tools',
   ),
@@ -4023,7 +3821,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   'Penetrations drawer/Issues (heading)': h(
     'The heading starts the block that turns the penetration results into issues.',
-    'You get a record per result with both elements, a view on the pair and a sketch tied to them.',
+    'You get a record per result with both elements, a view on the pair and marks tied to them.',
     'Run the check first, then use the buttons below.',
     'Report: Appendix J, Coordination tools',
   ),
@@ -4101,12 +3899,6 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
 
   // ------------------------------------------------------------------ drawer: Penetrations
-  'Penetrations drawer/Create BCF topics': h(
-    'The button creates 1 BCF topic for each selected row, or for each filtered row when none is selected.',
-    'Click and each crossing becomes an issue note with a picture, ready to send to the team.',
-    'Click the rows to select them. Click the button. The button is off when BCF is not available.',
-    'Report: Appendix J, Coordination tools',
-  ),
   'Penetrations drawer/Status (heading)': h(
     'The heading names the status filter. The chips below filter the rows by opening status.',
     'The chips below let you keep only the crossings with a cut-out, without one or not known.',
@@ -4223,180 +4015,6 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
 
   // ------------------------------------------------------------------ drawer: BCF
-  'BCF drawer/Apply': h(
-    'The button applies 1 viewpoint of the topic. It moves the camera, selects, hides and colours elements and sets clip planes.',
-    'Click and the picture jumps to what the issue note shows, with the same cuts and colours.',
-    'Click the button on a viewpoint. Read the status line for skipped parts.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Clear': h(
-    'The button clears the applied viewpoint. It is on only for the viewpoint that is active.',
-    'Click and the picture returns to your own state, without the hides, colours and cuts of the note.',
-    'Click the button after you review a viewpoint.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Add comment': h(
-    'The button adds your comment to the topic. It can attach the current view as a new viewpoint.',
-    'Click and your text joins the thread of the issue note, with a picture if you ask for it.',
-    'Type a comment. Tick attach current view if needed. Click the button.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Status filter': h(
-    'The list filters the topics by status.',
-    'Pick a state and only the issue notes in that state stay on the list.',
-    'Select All statuses to see every topic.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Search box': h(
-    'The text box filters the topics by title, description, assignee, labels and comments.',
-    'Type a word and only the issue notes that hold it stay on the list.',
-    'Type part of a word. Clear the box to see every topic.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Topic row': h(
-    'The row shows 1 topic with its status, priority and counts. A click selects the topic.',
-    'Each item is an issue note. A click opens its picture, text and comments below.',
-    'Click the row to read the topic.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Other models (group)': h(
-    'The group lists the topics made on other models. It starts closed.',
-    'Those topics stay out of the view, so an old marker never sits on the wrong building.',
-    'Click the heading to open the group. Pick Open, Move to this model or Delete topic.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Open': h(
-    'The button shows a topic of another model on this model.',
-    'The topic joins the list until you load a model again. Its markers can sit in the wrong place.',
-    'Click the button. Check where the markers land.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Move to this model': h(
-    'The button makes the topic belong to the model on screen.',
-    'The topic joins the list for good. Notes whose parts are missing here lock to the screen.',
-    'Click the button. Read the status line for the count of locked notes.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Delete topic': h(
-    'The button removes a topic of another model from the session.',
-    'Click twice and it is gone. Export a file first if you need it later.',
-    'Click the button. Click again to confirm.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Topic status list': h(
-    'The list sets the status of the selected topic.',
-    'Pick a value and the issue note changes state, for example from open to closed.',
-    'Select the new status. Export the topics to share the change.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Snapshot': h(
-    'The picture shows the snapshot that the first viewpoint of the topic stores.',
-    'The small picture shows what the author saw when they made the note.',
-    'Look at the picture. Click Apply to see it live.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Viewpoints (heading)': h(
-    'The heading names the list of viewpoints of the selected topic.',
-    'The buttons below jump to the views that the author saved.',
-    'Click Apply on a viewpoint.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Comments (heading)': h(
-    'The heading names the comments of the selected topic. The number is the count.',
-    'The notes below are the talk about this issue, oldest first.',
-    'Read the comments. Add your own below.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Show pins': h(
-    'The button shows or hides the numbered markers of the topics on the model while this drawer is open. The markers follow the topic filter. With the drawer closed only the marker of the applied viewpoint shows.',
-    'Click and the numbered dots of the issue notes appear on the building or go away.',
-    'Click the button to turn the markers on or off. Click a marker to open its topic.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Place pin': h(
-    'The button starts the placement of the topic marker. The next click on the model sets the 3D point of the topic.',
-    'Click it, then click the building, and a numbered dot marks that spot for the issue note.',
-    'Click the button. Click a surface of the model. Press Esc to stop.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Remove pin': h(
-    'The button removes the marker from the selected topic.',
-    'Click and the numbered dot of this issue note goes away from the building.',
-    'Click the button. Click Place pin to set a new marker.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Add callout': h(
-    'The button starts a callout on the active viewpoint. The next click selects the target element and the anchor point.',
-    'Click it, then click a part of the building, and a text box with a line points at that part.',
-    'Type the text first. Click the button. Click an element of the model.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Add note': h(
-    'The button starts a text note on the active viewpoint. The next click sets a free 3D point for the note.',
-    'Click it, then click the building, and a yellow sticky text stays at that spot.',
-    'Type the text first. Click the button. Click the model where the note goes.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Add arrow': h(
-    'The button starts an arrow on the active viewpoint. The arrow points at the element that you click next.',
-    'Click it, then click a part of the building, and a red pointer aims at that part.',
-    'Click the button. Click an element of the model. Drag the label to move the tail.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Add rectangle': h(
-    'The button starts a rectangle on the active viewpoint. You drag on the view to draw the rectangle.',
-    'Drag a box around a problem area and the issue note marks that area in its picture.',
-    'Type the text first if you want a label. Click the button. Drag on the view. Press Esc to stop.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Draw freehand': h(
-    'The button starts a freehand line on the active viewpoint. You drag on the view to draw the line.',
-    'Circle or underline a problem area by hand and the issue note keeps the line in its picture.',
-    'Type the text first if you want a label. Click the button. Drag on the view. Press Esc to stop.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Link measurement': h(
-    'The button lists the current measurements. A click on 1 measurement copies its end points and length into a callout.',
-    'Pick a distance you took with the ruler and it stays on the issue note with its value.',
-    'Measure with the Measure tool first. Click the button. Click a row of the list.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Delete': h(
-    'The button removes 1 annotation from the viewpoint.',
-    'Click and that text box and its line go away from the picture.',
-    'Click the button on the row of the annotation.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Markup (heading)': h(
-    'The heading names the markup of the selected topic: the topic marker and the annotations of its viewpoints.',
-    'The tools below put numbered dots, text boxes and arrows on the building for this issue.',
-    'Click a button below. Click a row to see the annotation. Drag a text box to move it.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Comment': h(
-    'The box shows 1 comment with its author, date and text.',
-    'Each box is one message in the talk about the issue.',
-    'Read the comment.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Comment box': h(
-    'The text box holds the comment that you add to the topic.',
-    'Type your reply here. It joins the issue note when you click the add button.',
-    'Type a comment. Click Add comment.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Attach view tick': h(
-    'The tick attaches the current camera, selection and clip planes to your comment as a new viewpoint.',
-    'Mark it and your reply carries a picture of what you see now.',
-    'Tick the box when the comment is about the current view.',
-    'Report: Appendix J, Coordination tools',
-  ),
-  'BCF drawer/Status line': h(
-    'The text line shows what the last BCF step did, such as what applied and what it skipped.',
-    'A short text tells you what the last step did and what it had to skip.',
-    'Read the line after you open a file or apply a viewpoint.',
-    'Report: Appendix J, Coordination tools',
-  ),
 
   // ------------------------------------------------------------------ drawer: Large model, Imaging, Section, Scan
   'Large model drawer/Model (heading)': h(
@@ -4582,7 +4200,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Appendix M, WebXR',
   ),
   'WebXR/snapshots to BCF': h(
-    'The switch turns each field snapshot into a BCF topic when the session ends.',
+    'The switch turns each field snapshot into an issue when the session ends.',
     'On: every picture you take on site becomes an issue with your position, ready to send.',
     'Turn the switch on to report site issues. Turn it off to keep the pictures in this page only.',
     'Report: Appendix M, WebXR',
@@ -6188,9 +5806,6 @@ const DRAWER_ALIASES: Record<string, string> = {
   'Penetrations drawer/Analyse': 'Penetrations/Analyse penetrations',
   'Penetrations drawer/Export CSV': 'Penetrations/Export penetrations CSV',
   'Penetrations drawer/Markers on the model': 'Penetrations/markers',
-  'BCF drawer/New topic': 'BCF/Create topic from view',
-  'BCF drawer/Export 2.1': 'BCF/Export BCF 2.1',
-  'BCF drawer/Export 3.0': 'BCF/Export BCF 3.0',
   'Cleanup drawer/Floating elements': 'Floating/enabled',
   'Cleanup drawer/Tiny elements': 'Tiny/enabled',
   'Cleanup drawer/Distant strays': 'Distant strays/enabled',

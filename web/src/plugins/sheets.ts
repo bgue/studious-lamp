@@ -1,8 +1,8 @@
 // Sheets plugin: PDF drawing sheets next to the 3D model. Opening or dropping a PDF adds it as a sheet set (one sheet per page);
 // the viewer covers the 3D canvas area with the page (the model stays loaded under it) and "Back to model" returns. Sketches on a
 // sheet are markup sets with a sheet frame, drawn with the same toolbar. Export writes a marked-up copy of the PDF with the
-// sketches as annotations on their own layer; opening a PDF reads the annotations it already has. The PDF libraries load only on
-// first use (src/sheets/pdfRuntime.ts). This file wires the controller, the Sheets segment of the Issues panel, the file input,
+// drawings as annotations on their own layer; opening a PDF reads the annotations it already has. The PDF libraries load only on
+// first use (src/sheets/pdfRuntime.ts). This file wires the controller, the On sheets filter of the Views tab, the file input,
 // the actions and window.__xraySheets. Logic in src/sheets. Docs: docs-features/sheets.md.
 
 import type { AppPlugin, ViewerApp } from '../app';
@@ -23,6 +23,7 @@ import { attachmentOf, newMarkup } from '../markup/model';
 import { attachGuids } from '../bcf/attach';
 import { fitSimilarity } from '../sheets/placement';
 import { markupController } from './markup';
+import { collapseSidebar } from './sidebar';
 import { bcfController } from './bcf';
 
 declare global {
@@ -145,7 +146,7 @@ export const sheetsPlugin: AppPlugin = {
 
     // ---- the Sheets segment of the Issues panel, the issue link
     const phone = (): boolean => !!window.matchMedia?.('(max-width: 700px)').matches;
-    issues.sheetsPane = sheetsPane(c, issues, pick, () => { if (phone()) window.__xrayIssues?.close(); });
+    issues.sheetsPane = sheetsPane(c, issues, pick, () => { if (phone()) { window.__xrayIssues?.close(); collapseSidebar(); } });
     issues.sheetRaise = (id, o) => c.raise(id, o);
     if (bcf) bcf.beforeExportAsync = () => c.refreshIssueViewpoints();
     c.onChange(() => issues.emit());
@@ -173,7 +174,7 @@ export const sheetsPlugin: AppPlugin = {
     };
 
     registerAction({ id: 'sheets.open', label: 'Sheets: open a PDF', group: 'Markup', keys: [], description: 'Open a PDF drawing as sheets (the model stays loaded)', run: () => { window.__xrayIssues?.open('sheets'); pick(); } });
-    registerAction({ id: 'sheets.list', label: 'Sheets: open the Sheets segment', group: 'Panels', keys: [], description: 'Open the Issues tab on the Sheets segment', run: () => window.__xrayIssues?.open('sheets') });
+    registerAction({ id: 'sheets.list', label: 'Views: show the sheet pages', group: 'Panels', keys: [], description: 'Open the Views tab on the filter On sheets', run: () => window.__xrayIssues?.open('sheets') });
     registerAction({ id: 'sheets.back', label: 'Sheets: back to the model', group: 'Markup', keys: [], description: 'Close the sheet view and return to the 3D model', run: () => c.close() });
 
     window.__xraySheets = {
@@ -194,7 +195,7 @@ export const sheetsPlugin: AppPlugin = {
       newSketch: (id, t) => c.newSketch(id, t),
       add: (setId, spec) => {
         const set = mk.get(setId);
-        if (!set) throw new Error(`No sketch ${setId}`);
+        if (!set) throw new Error(`No view ${setId}`);
         const author = mk.author.trim() || 'unknown';
         let m: Markup;
         if (spec.kind === 'text' || spec.kind === 'callout') {
