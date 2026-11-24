@@ -23,7 +23,7 @@ what the designer meant, only what the model says.
 
 ### Try it
 
-1. Open **Sample Projects** and choose **Synth 5k**. It is a synthetic 5,000-element building with services.
+1. Open **Sample Projects** and choose **Synthetic 5k**. It is a synthetic 5,000-element building with services.
 2. Open the **Penetrations** tool in the tool strip. A wide drawer opens and analyses once.
 3. Read the summary counts at the top. Under them are filter chips for status, storey and host class.
 4. Click a column header to sort. Use the filter chips to narrow the list by status, storey or host class.
@@ -33,7 +33,7 @@ what the designer meant, only what the model says.
    data. The `markers` option turns them on and off.
 7. Press **Export CSV** to save the filtered rows.
 
-On Synth 5k every crossing shows as `opening` with a gap of 10 mm. That is by construction: the sample was built with an
+On Synthetic 5k every crossing shows as `opening` with a gap of 10 mm. That is by construction: the sample was built with an
 opening 10 mm larger than each overlap. It shows you what a clean result looks like. On a real model you will see
 `none`.
 
@@ -93,7 +93,7 @@ reader, produce them, and a test compares both.
 - A host that has openings in the IFC but whose data lacks the opening boxes reads `unknown`. Reconvert the file with the
   current converter, or open the IFC file in the browser.
 - Size and gap are approximate for inclined runs.
-- Sample models `building` and `plumbing` have no opening relations. Synth 5k and Debris demo have synthetic ones.
+- Sample models `building` and `plumbing` have no opening relations. Synthetic 5k and Debris demo have synthetic ones.
 
 ## 11.2 Raise findings as issues
 
@@ -105,11 +105,7 @@ Raising again only adds new pairs. A pair that the new analysis no longer report
 and **Close n not found** closes them. Above 200 new rows the viewer asks, and offers the 200 worst, the ones with no
 opening first. The rules for these issues, including how pairs are matched between runs, are in chapter 15.3.
 
-The drawer also has a button that exports the selected rows, or the filtered rows, as BCF issues for another tool.
-Chapter 17 describes the BCF file.
-
-> Check: the source docs name the button `Create BCF topics` and call the issues "BCF issues" and the drawing a "sketch".
-> After the Views and Issues change, confirm the button labels and wording on screen.
+The drawer has a second button, labelled **Create BCF topics**. It also makes one issue for each selected or filtered row, but it is the older route: it does not match pairs between runs, so raising twice makes duplicates. Its label still uses the old word "topic". Use **Raise issues from results**. To send issues to another tool, export them as BCF (chapter 17).
 
 ## See also
 

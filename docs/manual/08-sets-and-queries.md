@@ -249,7 +249,7 @@ estimated.
 Values are in the unit of the model, which is metres for every loader today, and shown as `m`, `m²`, `m³`, `kg`.
 Small numbers show more decimals (`0.125 m³`), large ones fewer (`2 310 m`).
 
-On a model with no quantity properties, `sum` and `avg` rely on the estimates. FZK-Haus carries `BaseQuantities.*`; Synth 5k
+On a model with no quantity properties, `sum` and `avg` rely on the estimates. FZK-Haus carries `BaseQuantities.*`; Synthetic 5k
 and Building carry `Qto_*BaseQuantities.*`.
 
 ### Right-click to write a query
@@ -311,8 +311,8 @@ same parser. Chapter 23 lists the differences.
 
 ### How it works
 
-A criteria set stores the query and also the GlobalIds it found last time. That is why an older version of the viewer,
-or the older cinematic tour, still sees it as a plain list. When you open the model the viewer runs the query again,
+A criteria set stores the query and also the GlobalIds it found last time. That is why an older version of the viewer
+still sees it as a plain list. When you open the model the viewer runs the query again,
 and the list is refreshed. If it finds fewer elements than before, the model changed.
 
 The export file and the `selectionSets` part of the parameters document hold the same data. A hand-written criteria set

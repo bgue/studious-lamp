@@ -36,10 +36,8 @@ counting the elements that satisfy the condition. The language of those conditio
 5. Click the eye icon at the right end of a storey row. Everything on that storey hides, and the eye changes
    to a crossed eye. Click it again to show them.
 6. Press `Alt+F`. The cursor jumps to the filter box above the tree. Type `door`. The tree shrinks to the matching
-   elements, with every branch open, and a count appears beside the box (`7 matches`, for example). Press `Escape` to clear
+   elements, with every branch open, and a count appears beside the box (`5 matches` for `door` in FZK-Haus: its five IfcDoor elements). Press `Escape` to clear
    the filter and give the keys back to the page.
-
-> Check: the number of door matches in FZK-Haus is not in the source docs. Run step 6 and replace the example count.
 
 ### How it works
 
@@ -84,7 +82,7 @@ Hidden elements are not drawn, cannot be picked and are removed from the selecti
 
 1. Press `/` or `Ctrl+K`. The cursor goes into the search box in the top bar. On a phone, tap the search icon first.
 2. Type `wall`. Results appear after a short pause, grouped under headers: **Elements**, **Commands**, **Presets**,
-   **Saved views** and so on. The group with the best match is on top.
+   **Views** and so on. The group with the best match is on top.
 3. Press the Down arrow. The first element row is highlighted in the 3D view while it is the active row.
 4. Press `Enter`. The element is selected and the camera frames it.
 5. Open the box again, type `rdct`. It finds `Rectangular Duct`: letters can be an abbreviation of the start of
@@ -103,13 +101,10 @@ Hidden elements are not drawn, cannot be picked and are removed from the selecti
 | Elements | name, class, GlobalId, storey, material, property values | selects the element and frames it |
 | Commands | every action, with its keys | runs the action |
 | Presets | the presets (chapter 4.5) | applies the preset |
-| Saved views | the views of this model | restores the view |
+| Views | the views of this model: saved views, views that only have drawings, sheet pages; by name and note | restores the view |
 | Selection sets | the sets of this model (chapter 8) | selects the set and frames it |
-| Issues and sketches | issues and drawn views, by title, note or comment | opens the **Issues** tab on it |
+| Issues | issues of this model, by title, description or comment | opens the **Issues** tab on it and brings its view back |
 | Settings | every named control of the parameter panel | opens it and flashes it |
-
-> Check: the last section is labelled "Issues and sketches" in `web/docs-features/search.md`. After the views-and-issues
-> change lands, replace the label with the one on screen.
 
 `Shift+Enter` adds to the selection instead of replacing it, and leaves the camera alone. Elements show up to 50
 rows and then `N more…`. Another `Enter` or a click on that row shows up to 200. Other sections show 5 to 8 rows.

@@ -111,7 +111,7 @@ class floor for columns is 0.50.
 
 **Hide.** Select parts and click **Hide selected** (key `H`). A hidden part is not drawn and does not block any sightline.
 `Alt+H` brings back everything you hid. `Shift+H` hides everything except the selection (an isolate). **Clear pins/hides**
-undoes both pins and hides. Pins and hides refer to elements by GlobalId, so a saved view can carry them.
+undoes both pins and hides. Pins and hides refer to elements by GlobalId, so a view can carry them.
 
 **Class styles.** A style sets a look for all parts of one class or one material. In the **Class styles** folder, open
 **Classes**, then a class (the number shows how many parts it has). The fields are:
@@ -132,11 +132,8 @@ viewer. Precedence, lowest first: that file, the model's own styles, then your e
 **Try it.** In the Building model, select a column. Click **Pin selected**. Orbit so that a wall is in front of it. The
 column stays clearly visible. Click **Clear pins/hides**.
 
-> Check: README says that with x-ray off "user hides are not applied". Confirm that this also holds for `H` and the
-> tree's hide, or only for the X-ray panel's **Hide selected**, before this section is final.
-
 **Limits and gotchas.** A pin keeps a part at or above a floor. It does not make a part solid if the floor is below 1. A
-hidden part is not deleted and returns with `Alt+H` or Clear pins/hides. In the Radiograph and MRI looks only `hidden` of
+hidden part is not deleted and returns with `Alt+H` or **Clear pins/hides**. With x-ray off, no hide applies, whichever way you hid the part (`H`, **Hide selected** or the Model tree): everything is drawn. The hides apply again when you switch x-ray on. In the Radiograph and MRI looks only `hidden` of
 the class styles still applies.
 
 ## 4.4 Top-bar modes
@@ -165,10 +162,7 @@ VR and AR.
 
 ## 4.5 Presets and keys 1 to 9
 
-A mode is the top step of a ladder: **mode, preset, view, keyframe, share link**. Each step stores more than the one
-before. A *mode* is one click on a preset. A *preset* is a saved look: settings only, never a camera position. A *view*
-adds the camera, the selection and what is hidden. A *keyframe* is a view with timing. A *share link* is a view as a web
-address. Chapter 13 has the table of what each step stores.
+A *mode* is one click on a preset. A *preset* is a saved look: settings only, never a camera position. A view, a keyframe and a share link store more (see chapter 13).
 
 **Try it.**
 
@@ -206,9 +200,7 @@ factory values, so a preset does not stack on the one before. It never changes t
 store a camera. Four presets (`behind-only`, `peelback`, `peel-only` and `section-focus`) also move the camera to frame the
 selection when applied, and they show nothing useful with nothing selected.
 
-> Check: README and the presets doc say "thirteen" presets, but the built-in list in the code has 14 (the nine on keys,
-> plus `presentation`, `clearance-review`, `plain`, `solid`, `focus-glow`). The TOC appendix D says 13. This chapter lists
-> them without a total; decide what the number is.
+The built-in list holds 14 presets: the nine on keys, and `presentation`, `clearance-review`, `plain`, `solid` and `focus-glow`.
 
 **Limits and gotchas.** The active mark on a preset is a comparison of settings. A setting that changes by itself (a running
 animation) clears it. A shared preset runs its actions too, so open links only from people you trust.

@@ -122,7 +122,7 @@ site between devices as a file. A site of another model is refused.
 
 ### iPhone and iPad
 
-Safari and every browser on an iPhone or iPad has no WebXR. The viewer offers **Open in AR Quick Look** (or **Download USDZ**
+Safari and every other browser on an iPhone or iPad have no WebXR. The viewer offers **Open in AR Quick Look** (or **Download USDZ**
 where that is not supported). It exports what you see to a 3D file and opens it in Apple's viewer. The model stands on a
 surface you tap, at real size.
 

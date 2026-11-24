@@ -17,11 +17,14 @@ lines that are different, and you keep your earlier ticks on the rest.
 
 ### Try it
 
-The samples ship no pair of versions, so you need two files of your own: version 1 and version 2 of one model.
+The **Sample Projects** list has no pair of versions, but the source repository has one. Version 1 is `models/AC20-FZK-Haus.ifc`.
+Version 2 is `web/tests/fixtures/ifc/fzk-v2.ifc`. It was made from version 1: a few elements moved, one turned, 4 deleted,
+3 added, and 6 given new GlobalIds. `fzk-v2.truth.json` next to it lists every change. The viewer file and the packed pages do not
+include version 2, so you need a checkout of the repository. For your own model, export two versions from your authoring tool.
 
-1. Open version 1. Classify it and review it (chapter 18). The viewer keeps a small snapshot in this browser after each classify
+1. Open version 1 with **Open IFC or glb file**. Classify it and review it (chapter 18). The viewer keeps a small snapshot in this browser after each classify
    run and each commit. The snapshot holds numbers, names, properties and results. It holds no geometry and no pictures.
-2. Open version 2.
+2. Open version 2 the same way.
 3. If it looks like a revision, a banner says: `This looks like a revision of <name> (saved <date>, <n> reviewed)`. The test is the same
    file name, 30 % or more of the same element ids, or a similar name with the same mix of classes.
 4. Click **Review changes**. Nothing is carried over before you click.
@@ -30,8 +33,6 @@ The samples ship no pair of versions, so you need two files of your own: version
 
 The command palette has the same actions: *Revision: review changes (walk)* (key `Shift+V`), *Revision: compare with an earlier
 model...* and *Revision: export the report*.
-
-> Check: no sample pair of IFC versions ships with the viewer; confirm whether one exists, so this chapter can use a sample.
 
 ### How it works
 
@@ -140,7 +141,7 @@ stored differences, puts the cursor back, and classifies only new or affected el
 It is stored in the browser's database `xray-revisions`: snapshots (3 per file name, 300 MB in all, the oldest dropped first;
 a snapshot of an open review is kept), sessions and ghost meshes. It is not in settings, presets, views, links or packed pages.
 
-After a walk, **Save IFC** (chapter 19.3) can write the result into the new file. Each element of version 2 gets
+After a walk, **Save IFC** (see 19.3) can write the result into the new file. Each element of version 2 gets
 `RevisionStatus` (new, changed, rematched or unchanged) and `RevisionBaseline` (the name of the base). Deleted elements are not in
 the new file, so they appear in the report only.
 
@@ -152,4 +153,4 @@ the new file, so they appear in the report only.
 
 ### See also
 
-Chapter 18 (review log and walk), chapter 19.3 (writing `RevisionStatus` into the IFC), chapter 15 (raising issues).
+Chapter 18 (review log and walk), 19.3 (writing `RevisionStatus` into the IFC), chapter 15 (raising issues).

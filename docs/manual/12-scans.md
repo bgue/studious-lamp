@@ -24,7 +24,7 @@ tolerance turn green, points up to twice the tolerance turn amber, points furthe
 
 1. Open **Sample Projects** and choose **Building (Simple-Scene)**.
 2. Open the **Scan** tool in the tool strip. In the drawer press **Open point cloud**, or drop a scan file anywhere on the viewer.
-   Use the file `building-scan.las` from the samples folder of the served app.
+   Use the file `building-scan.las`. The scans are not in the **Sample Projects** menu and the single file does not carry them. You find them in the folder `web/public/samples` of the source or of the zip.
 3. The status line shows the file's point count, how many are shown, the format and the parse time. The points appear in
    the model.
 4. Look at `coordinates`. The sample is in project coordinates (what survey tools write), so it is set to `project` and
@@ -37,9 +37,6 @@ tolerance turn green, points up to twice the tolerance turn amber, points furthe
 7. The drawer lists the leftover error of each pair and the overall RMS. Press **Apply alignment**.
 8. Press **Refine (ICP)**. The cloud settles onto the surfaces. The status line reports how far it moved and the remaining error.
 9. If you slip, **Undo alignment** steps back through the last 20 actions. **Reset alignment** clears everything.
-
-> Check: the sample scan files sit in `web/public/samples` and are not in the **Sample Projects** menu. Confirm how a
-> reader gets them in the served app and in the single file.
 
 ### Formats
 
@@ -107,9 +104,6 @@ probably drifted: a long phone walk bends slowly. A rigid fit cannot fix that. T
    mostly green.
 4. Select the duct. Set `deviation scope` to `focus only` and compute again. Now every point is measured against the duct
    only. The rest of the room turns grey, because it is not near the duct.
-
-> Check: the duct's colour on screen is from the source docs (displaced 80 mm, about 57 mm off each face). Confirm on
-> the real screen, and check that the colours read as described.
 
 ### Reading the colours
 

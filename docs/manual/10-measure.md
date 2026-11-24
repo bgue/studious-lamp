@@ -105,8 +105,7 @@ GlobalIds, a view with the camera on the pair, and a drawing tied to the pair. T
 selected. Chapter 15.3 explains what happens when you raise again: only new pairs are added, and pairs that a later run
 no longer finds are marked, so you can close them.
 
-> Check: the source docs call the drawing a "sketch" and the labels `clash` and `clearance`. Confirm the wording of the
-> issue after the Views and Issues change, and the button label.
+The issues carry the labels `clash` or `clearance`. The button is **Raise issues from results**.
 
 ### Limits and gotchas
 
@@ -122,4 +121,4 @@ no longer finds are marked, so you can close them.
 
 - 11 Penetrations: where MEP crosses structure, and the opening.
 - 15.3 Issues from checks.
-- 4.1 Focus, context and the x-ray.
+- 1.1 Focus, context and the x-ray.

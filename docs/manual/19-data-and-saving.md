@@ -58,7 +58,7 @@ An element in an IFC file carries more than a name. It carries property sets (fi
 
 The tab follows the selection and refreshes four times a second. Two settings of the Hover info folder decide what shows: whether
 all properties appear in the sidebar, and which property names the filter lets through. The viewer shows what the file
-contains. A large model opened with the lighter `properties` option shows fewer (chapter 2.4).
+contains. A large model opened with the lighter `properties` option shows fewer (see 2.4).
 
 Classification results join the list as the `XR_Classification` set, because they are written as ordinary properties.
 
@@ -163,8 +163,8 @@ Nothing you exported goes with it.
 | **Browser storage**, per model (local storage and IndexedDB) | Saved views, selection sets, fly-throughs and their on-screen display, saved scripts, classification cache, manual overrides, review log, revision snapshots and sessions, 4D mapping and links, drawings, issues, sheets; the reviewer name; the panel fold state | Only this browser profile, on this computer |
 | **Share link** | A small part of the settings, as differences from the factory state; one view; or one preset | Anyone with the link, who needs the same model |
 | **Parameters file** (`xray-params/1`) | All settings, sets, class styles, shortcuts and saved views (no thumbnails) | Whoever you give it to |
-| **Exports of a feature** | Views (`xray-views/1`), fly-throughs (`xray-flythroughs/1`), scripts (`.xrayanim`), 4D plan data (`.4d.json`), the 4D links as a LinkML dataset, classification results (CSV, JSON), the review log, the revision report, a view with its drawings as PDF or JSON | Whoever you give it to |
-| **Packed page** (`xray-pack`) | The model, plus only what you name on the command line: parameters, preset, selection, camera, views, fly-throughs, scripts | Whoever opens the page |
+| **Exports of a feature** | Views (`xray-views/1`), fly-throughs (`xray-flythroughs/1`), scripts (`.xrayanim`), the 4D configuration (`.4d.json`), the 4D links as a LinkML dataset, classification results (CSV, JSON), the review log, the revision report, a view with its drawings as PDF or JSON | Whoever you give it to |
+| **Packed page** (`xray-pack`) | The model, plus only what you name on the command line: parameters, preset, selection, camera, views, fly-throughs, scripts, 4D plans | Whoever opens the page |
 | **Never written anywhere** | API keys (Jev, d3), the Hugging Face token, pictures of elements (never in any file the viewer writes), the original IFC bytes (only a handle) | Nobody |
 
 Browser storage is keyed by the model's identity (its name, its element count and a hash of its GlobalIds), not by its file name.

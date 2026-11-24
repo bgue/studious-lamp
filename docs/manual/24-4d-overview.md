@@ -87,7 +87,7 @@ Each stage hands a file or a table to the next. Nothing is hidden inside the fil
 - Links are stored as **activity links**: an activity, a role (build or remove), the elements, a confidence and the
   reasons.
 - The plan is a table of intervals per element: from date, to date, state, and which activity.
-- The film is one cue for the player that reads the plan each frame. Chapter 27 covers it.
+- The film is one item on the player's timeline. It reads the plan on every frame. Chapter 27 covers it.
 
 You can keep every stage inside the viewer's 4D tab (chapters 25 to 27), run them from a command line (chapter 32), let an
 agent do the labour (chapter 33), or work with the records in a database (chapter 34). They read and write the same

@@ -34,7 +34,7 @@ Controls that do not apply right now are dimmed. For example the imaging control
 
 ## Names to know when you read the file
 
-- The file still uses some old names. "Markup", "BCF" and "Classify drawer" are now tabs and segments. The glossary (appendix E) lists the old names and the current ones. Where the two differ, the viewer is right.
+- The file still has folders with old names: `BCF`, `Markup`, `BCF drawer`, `Markup drawer`, `Classify drawer`, and rows that say "sketch". Their controls now live in the **Views**, **Issues** and **Classification** tabs. Appendix E lists the old names. Where the two differ, the viewer is right.
 - The file has a glossary of its own (terms such as occluder, buffer, tier). Appendix E gives short versions.
 - Some folder names in the contents list appear cut short (for example the simplify folders). That is how the generator wrote them; the text of the rows is complete.
 - Names with a slash, such as `Sheet view/Fit`, are a control inside a folder.
@@ -64,7 +64,7 @@ the left edge) has one button per tool and each opens a drawer. Drawers and fold
 | Distance and clearance | **Measure**, **Clearance** tools | Measure, Clearance, and their drawers | 10 |
 | Penetrations | **Penetrations** tool | Penetrations, Penetrations drawer | 11 |
 | Point clouds | **Scan** tool | Point cloud, Scan drawer | 12 |
-| Issues, drawings, PDF sheets | **Issues** tab of the left sidebar | Sidebar/Issues tab, Issues panel, Drawing toolbar, Sheet view | 13 to 17 |
+| Views, drawings, issues, PDF sheets | **Views** and **Issues** tabs of the left sidebar | Sidebar/Views tab, Views panel, Sidebar/Issues tab, Issues panel, Drawing toolbar, Sheet view | 13 to 17 |
 | Classification (discipline) | **Classification** tab of the right sidebar | Right sidebar, Classify drawer | 18 |
 | 4D mapping and schedule | **4D** tab | 4D tab | 24 to 28 |
 | Animation scripts | **Script** tab | Script tab | 23 |
@@ -75,8 +75,6 @@ the left edge) has one button per tool and each opens a drawer. Drawers and fold
 | Search | Top bar | Search bar | 7 |
 | Large files | **Large model** tool | Large model drawer | 2 |
 | All settings as a file | **Export / import** folder | Export / import | 29 |
-
-> Check: The file uses the old folder names `Markup`, `BCF` and `Classify drawer`; the manual's Part V is being rewritten for the Views and Issues model. Re-check the Issues and Sheets rows of this table once chapters 13 to 17 are final.
 
 ## Saving settings
 
@@ -110,8 +108,6 @@ Keys the viewer does not know are reported once in the browser console (chapter 
 ## Where the defaults come from
 
 Factory values are the report's defaults (for example `alphaMin 0.15`, `alphaMax 0.85`, `gamma 0.5`, `smoothingRate 0.20`,
-`bufferBase 0.30 m`). Two defaults differ on purpose from the report: `farWeight` is 0.7, and `layerWeighting` is `front`.
+`bufferBase 0.30 m`). Some defaults differ on purpose from the report. `occluderScope` is `all`, so a Far part that blocks the view ghosts, with `farWeight` 0.7. `layerWeighting` is `front`. Chapter 4 explains both.
 An installation can change the factory look with `web/public/xray.config.json` (class styles) and `web/public/xray.presets.json`
 (presets). Those files are for administrators and appear in chapter 35.
-
-> Check: the two deliberate deviations from the report are listed in SPEC.md as "deviation, see README". Confirm they are still accurate for this build before leaving them in a user manual.

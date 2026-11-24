@@ -11,7 +11,7 @@ limits. A reader should finish a chapter able to do the thing and able to explai
 2. **The idea** (one or two paragraphs). The simplest true explanation, with an everyday comparison when it helps
    (x-ray: "a radiologist sees the bone because the flesh is made faint, not removed"). Define every new word here, once.
 3. **Try it** (a numbered walk-through on a sample model that ships with the viewer: FZK-Haus, Process plant, Building,
-   Synth 5k, Debris demo, or the FZK-Haus 4D sample). Real button labels in **bold**, keys in `code`, what you should see
+   Synthetic 5k, Debris demo, or the FZK-Haus 4D sample). Real button labels in **bold**, keys in `code`, what you should see
    after each step.
 4. **How it works** (the mechanism in plain words: what is computed, what is stored, what is not). No code, no internal
    names, unless the reader is a developer ([D] sections may name files and `window.__xray…` hooks).
@@ -55,7 +55,7 @@ appear only in [D] sections.
 ## Format
 
 - Markdown, one file per chapter: `docs/manual/NN-short-name.md` (two-digit chapter number), appendices `A-keys.md` etc.
-- Title `# NN. Title`, sections `## NN.M Title` matching the TOC numbers.
+- Headings use the chapter number without a leading zero: `# 1. Title`, `## 1.1 Title`, matching the TOC numbers. File names keep two digits (`01-what-it-is.md`).
 - Reader tags from the TOC ([C], [P], [D]) on sections that are only for one kind of reader.
 - Tables for comparisons (what each thing stores, which tool for which job). At most one table per section.
 - No screenshots in this pass; where a picture would help, write `> Picture: <what it should show>` on its own line.

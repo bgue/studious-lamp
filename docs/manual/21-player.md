@@ -32,7 +32,7 @@ Use the **FZK-Haus 4D** sample for the 4D film, or any model with a few saved vi
    **Fly-through**, add two keyframes and press **Play**. Or open the FZK-Haus 4D sample, which leaves the **4D** tab on **Play**.
 2. While it plays, press `Space`. It pauses, and the picture holds. Press `Space` again to resume.
 3. In a fly-through, click or drag on the timeline bar at the bottom of the section. The model jumps to that moment and
-   continues from there. `Right` and `Left` jump to the next and previous keyframe.
+   continues from there. Press `Right` and `Left` to jump to the next and previous keyframe.
 4. Play it again and, halfway, click or turn the wheel on the 3D view. Playing stops and the camera stays where you took it.
    Everything else goes back.
 5. Play it once more and let it end. The camera, selection, hidden elements, settings, explode and the active preset
@@ -63,7 +63,7 @@ its item runs.
 | Key | Action |
 | --- | --- |
 | `Space` | Pause or resume |
-| `Right`, `Left` | Next or previous keyframe (a fly-through) |
+| `Right`, `Left` | Next or previous keyframe of the active fly-through |
 | `Esc` | Stop, and put everything back |
 | a press or wheel on the 3D view | Stop, keep the camera, put the rest back |
 
@@ -92,19 +92,18 @@ model and apply to scripts as well.
 
 - **Loop** repeats a fly-through or a script. A packed kiosk page takes `--loop`.
 - The on-screen display options above.
-- Cinematic effects that apply during play are depth of field and motion blur, set in the **Cinematic** folder (chapter 6.3).
+- Cinematic effects that apply during play are depth of field and motion blur, set in the **Cinematic** folder (see 6.3).
 - Video export (22.3) takes size, frame rate, quality and format.
 
 ### Limits and gotchas
 
 - Space, Left, Right and Esc work only while the player plays and the cursor is not in a text box. Typing a caption does not trigger them.
+- `Left` and `Right` know only fly-through keyframes. During a script or a 4D film they jump to the keyframe times of the active fly-through, and do nothing when it has none. Use `Space` and `Esc`, or the date slider of a 4D film, instead.
+- When the timeline bar has the focus, `Left` and `Right` move it by 1 s (`Shift` for 5 s).
 - The sightline algorithm (x-ray ghosting) runs on timers after the camera moves, so a frame can show the ghosting of a nearby
   pose. Expect a slight lag on a slow machine.
 - Opening another model while it plays abandons the run without restoring, because the old state no longer exists.
 - The older Cinematic tour and the saved-view slide show have simple players of their own. They are not this one.
-- Video export is off inside a headset session.
-
-> Check: `Left` and `Right` step between keyframes of the active fly-through; confirm what they do while a script or a 4D film plays.
 
 ### See also
 

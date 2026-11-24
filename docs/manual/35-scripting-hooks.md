@@ -28,7 +28,7 @@ supported way to drive the viewer from the outside.
 Open the viewer, choose the **FZK-Haus 4D** sample, then open the browser's developer console.
 
 1. Check the tab is there: `window.__xray4dSchedule.summary()` returns the project, data date and counts.
-2. Read the film state: `window.__xray4dSchedule.links().length` gives the number of links; `window.__xray4dSchedule.report()`
+2. Read the links: `window.__xray4dSchedule.links().length` gives the number of links; `window.__xray4dSchedule.report()`
    gives the coverage.
 3. Find out which tools are in the strip: `window.__xrayToolbar.tools()`.
 4. Open the 4D tab on the Play section: `window.__xray4dSchedule.open('play')`, then `window.__xray4dSchedule.play()`.
@@ -41,22 +41,27 @@ one, because saved data is restored asynchronously.
 
 | Object | Feature |
 | --- | --- |
-| `__xray` | the core: controller, settings, model |
+| `__xray` | the core: `app`, `renderer`, `classification`, `stats` |
 | `__xrayViewModes`, `__xrayImaging`, `__xraySection` | peel and behind-only, imaging looks, section box and plane |
 | `__xrayCleanup`, `__xrayPresets` | cleanup rules, presets |
 | `__xrayPenetrations`, `__xrayMeasure`, `__xrayClearance` | checks (chapters 10 and 11) |
-| `__xrayBcf`, `__xrayIssues`, `__xrayMarkup`, `__xraySheets` | issues, drawings and PDF sheets |
+| `__xrayViews`, `__xrayFlythrough`, `__xrayScript`, `__xrayRecord` | views, fly-throughs, animation scripts, video export |
+| `__xrayIssues`, `__xrayMarkup`, `__xraySheets`, `__xrayBcf`, `__xrayWork`, `__xrayIssueReport`, `__xrayClash` | issues, drawings, PDF sheets, BCF files, their store, the issue report, check results as issues |
+| `__xrayClassify`, `__xrayRevision`, `__xrayIfcSave` | classification, revision walk, Save IFC |
+| `__xraySearch`, `__xrayUndo`, `__xrayPointer`, `__xrayTopBar`, `__xrayRightSidebar`, `__xrayGizmo` | search bar, undo, pointer modes, top bar, right sidebar tabs, view cube |
+| `__xrayMap` | the map under the model (not the 4D mapping) |
 | `__xrayPointCloud`, `__xrayXr` | scans, AR and VR |
 | `__xrayToolbar` | `open(id)`, `close()`, `toggle()`, `tools()` |
 | `__xrayParams`, `__xrayHelp` | the params document, help |
-| `__xray4dMap` | 4D mapping: `values`, `assign`, `clear`, `suggest`, `proposals`, `accept`, `reject`, `coverage`, `exportJson`, `importJson`, `open` |
+| `__xray4dMap` | 4D mapping: `values`, `assign`, `clear`, `suggest`, `proposals`, `accept`, `reject`, `coverage`, `colourBy`, `selectUnassigned`, `exportJson`, `importJson`, `open` |
 | `__xray4dSchedule` | 4D workflow: `load`, `summary`, `config`, `link`, `links`, `report`, `decide`, `exportLinks`, `importLinks`, `plan`, `play`, `stop`, `seekDate`, `record`, `open`, `loadSample` |
-| `__xray4d` | 4D playback: `registerPlan`, `demoPlan`, `play`, `state`, `live`, `bench` |
+| `__xray4d`, `__xray4dFilm` | 4D playback: `registerPlan`, `demoPlan`, `play`, `state`, `live`, `bench`; the film builder that `xray-4d render` calls |
 | `__xrayBoot` | read once at start by a packed page: model, preset, params, camera, selection, tools, autoplay |
+| `__xrayReady`, `__xrayError`, `__xrayInfo` | flags a test waits on: `__xrayReady` is true after the first frame, `__xrayError` holds a start-up error |
 
-> Check: the list of objects is assembled from SPEC.md, the toolbar, issues and 4D documents. `__xrayIssues`, `__xrayMarkup`
-> and `__xraySheets` are named in README.md; confirm the list against a running viewer (`Object.keys(window).filter(k =>
-> k.startsWith('__xray'))`) before publishing.
+The table follows the source (`window.__xray…` assignments in `web/src/plugins` and `web/src/anim`). Each plugin file lists the
+methods of its object in the comment at its top. In a running viewer, `Object.keys(window).filter(k => k.startsWith('__xray'))`
+shows what is there. Some objects (embedded models, the IFC reader, credits) are for the build and are not listed.
 
 A few calls you will use most, from the 4D documents:
 
@@ -81,7 +86,7 @@ Plugins are compiled into the viewer. They are not loaded at run time. You add o
 5. Write `web/tests/myThing-*.test.ts` for the pure part, and a document in `web/docs-features/myThing.md`. Add help text in
    `web/src/ui/helpText.ts` and run `npm run docs`.
 
-A sketch of step 2:
+An outline of step 2:
 
 ```ts
 import type { AppPlugin } from '../app';

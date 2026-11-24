@@ -115,7 +115,7 @@ Without a GPU, the software renderer is slow. Measured on the FZK-Haus sample: 2
 and 10 s at 640x360 and 24 fps in 54 s (about 0.2 s per frame). Larger sizes cost more.
 
 `pack` is `xray-pack` with the plan, the autoplay and the kiosk options. The page plays itself, and a press or a wheel turn
-stops it. `--loop` plays it again and again. If you give a script, its cues are added to the plan's film.
+stops it. `--loop` plays it again and again. If you give a script, its camera moves and captions are added to the plan's film.
 
 ### all
 
@@ -127,8 +127,8 @@ xray-4d all model.ifc schedule.xer --config map.4d.json -o out/ [--no-render] [-
 It writes `out/links.json`, `link-report.html`, `build.4d.json`, `build.mp4` and `build.html`, and `model.4d.ifc` with
 `--write-ifc`. It stops at the first failing step with that step's exit code.
 
-> Check: `all` does not list `script` among its steps in `--help`. It passes `--script F` through. Confirm that `all` does
-> not run the director on its own.
+`all` does not run the director. Its steps are link, plan, render and pack. For a directed film, run `xray-4d script` first
+and pass the file as `--script F`. `all` hands it to `render` and `pack`.
 
 ## 32.3 A weekly run
 

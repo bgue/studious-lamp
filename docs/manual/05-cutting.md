@@ -131,7 +131,7 @@ factor`, `Min push (m)` and `Duration (ms)` shape the move.
 
 **Limits and gotchas.** Picking stays at the unexploded positions. A click on an exploded part selects what lies at its
 original place, so a pick next to a cut of an exploded part can differ from what you see. A change of the selection
-collapses the explosion. A saved view can remember that the model was exploded.
+collapses the explosion. A view can remember that the model was exploded.
 
 ## 5.4 One clipping system
 
@@ -144,7 +144,7 @@ you get the same cut, the same hatched caps, and the same `Clear` button.
 | Section tool and view cube strip | Box (6 planes), plane (1) | You switch them on |
 | An issue's view (in a BCF file, a viewpoint) | Whatever planes it carries | You apply the view. It clips and caps. Creating an issue captures the current planes, a box counting as six. |
 | **3D · Plan · Section** switch on a view with drawings attached to the model | Plan: one horizontal cut at the storey level + 1.2 m. Section: one vertical cut through the middle of the target | You press **Plan** or **Section** |
-| A saved view | Its section settings, and the planes of an applied issue view | You restore the view |
+| A view | Its section settings, and the planes of an applied issue view | You restore the view |
 
 The Plan and Section switch looks straight down (Plan, north at the top) or straight at the cut (Section) in the viewer's
 approximate orthographic projection. When you leave **3D**, the viewer remembers the section you had and puts it back when
@@ -161,9 +161,7 @@ you press **3D** again.
 - **Undo.** A change of planes that stays still for 0.4 s is one undo step. Applying an issue's view with a camera move is
   one step, and so is the Plan or Section switch.
 
-> Check: the Plan and Section switch is described in the source as a feature of "sketches", the old name. Part V is being
-> rewritten around views and issues, so the exact wording and place of the **3D · Plan · Section** control in the new
-> interface must be confirmed before this section is final (see also 13.3).
+The **3D · Plan · Section** switch appears in the detail of a view, in the detail of an issue's view and in the drawing toolbar. It appears only when the view has drawings that are attached to the model (14.2). A view with only view-locked drawings has no switch. Chapter 13 describes it from the view's side.
 
 **Limits and gotchas.** Up to 8 planes at one time. While an issue's planes are applied, they replace the section tool's own
 planes until you change a section setting. The Map under the model is not cut by section planes: it is the ground the model stands on.

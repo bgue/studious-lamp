@@ -27,7 +27,7 @@ block on the next save and never edits what was in the file. Reviewer names go i
 | --- | --- | --- | --- |
 | BCF zip (`.bcf`, `.bcfzip`) | BCF 2.0, 2.1, 3.0 | BCF 2.1 (default), 3.0 | Issues with camera, selected, hidden and coloured elements, clip planes and a picture. Drawings go in a side file inside each issue, which other tools ignore. |
 | PDF (`.pdf`) | yes | yes, a marked-up copy | A drawing set: one sheet per page. Drawings are written as real PDF annotations. Encrypted PDFs are not supported. |
-| Drawings of a view (`xray-markup-set/1`) | yes | yes | The file of drawings. The name is the old one; the viewer still reads and writes it. Also embedded in a PDF report so it can be read back. |
+| Drawings of a view (`xray-markup-set/1`) | yes | yes | The file of drawings. The format name is the old one and stays, so older files keep working. Also embedded in a PDF report so it can be read back. |
 | Issue report | no | PDF and CSV | For a meeting. |
 
 ## Point clouds
@@ -51,7 +51,7 @@ The kind of file is taken from its first bytes, so a wrongly named file still op
 | --- | --- | --- | --- |
 | Primavera P6 export (`.xer`) | yes | no | The schedule. One at a time. |
 | 4D configuration (`.4d.json`, `xray-4d-config/1`) | yes | yes | How activity codes, user fields and WBS levels map to location, trade and zone. Dropping one on the viewer loads it as a configuration. |
-| 4D plan (`xray-4d-plan/1`) | yes | yes | What each element does at each date. Used by the player and by `xray-4d`. |
+| 4D plan (`xray-4d-plan/1`) | `xray-4d`, packed pages | `xray-4d plan` | What each element does at each date. Used by the player and by `xray-4d`. It also ends in `.4d.json`, like the configuration. The `schema` field tells them apart. |
 | LinkML dataset (JSON) | yes | yes | Assignments, activity links and ties, with their review state. See below. |
 | IFC 4D (`Xray_4D`, `IfcTask`) | yes | yes | Accepted values inside an IFC copy. |
 
@@ -85,10 +85,6 @@ The schema is `schema/linkml/xray_4d.yaml`. Two files are made from it: `xray_4d
 | Cleanup report | `xray-cleanup/1` | **Export report** | Elements the cleanup found and why. |
 | Revision report | CSV | Revision walk, **Report** | One row per changed element with the verdict. |
 | Video | MP4, WebM, PNG sequence | **Rec**, **Record** | Fly-throughs, scripts, 4D films. |
-
-> Check: the names `xray-markup-set/1` and the BCF side file are the old internal names for drawings. Decide in chapters 14 and 17 whether to show them here under their file names only (as above) or to rename the formats.
-
-> Check: `xray-4d-config/1` and `xray-4d-plan/1` were found in the code, not in `4d-schedule.md`. Confirm the names and that `.4d.json` plans use `xray-4d-plan/1`.
 
 ### Version rules
 

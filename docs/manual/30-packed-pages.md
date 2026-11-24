@@ -113,16 +113,16 @@ A kiosk page runs without anyone touching it: a screen in a site office, a stand
 
 ### Try it: a looping fly-through
 
-1. In the viewer, load FZK-Haus. Build a fly-through in the **Views** tab (chapter 22). Name it "Tour".
-2. In the fly-through section, click **Export file**. You get an `xray-flythroughs/1` file, say `tour.json`.
+1. In the viewer, load FZK-Haus. Build a fly-through in the **Views** tab (chapter 22). Name it "Overview".
+2. In the fly-through section, click **Export file**. You get an `xray-flythroughs/1` file, say `overview.json`.
 3. Pack the model with the film.
 
    ```
    node tools/xray-pack.mjs ../models/AC20-FZK-Haus.ifc -o kiosk.html --kiosk \
-     --flythroughs tour.json --autoplay flythrough:Tour --loop
+     --flythroughs overview.json --autoplay flythrough:Overview --loop
    ```
 
-4. Open `kiosk.html`. The panels are folded and "Tour" plays. It starts again from the beginning when it ends.
+4. Open `kiosk.html`. The panels are folded and "Overview" plays. It starts again from the beginning when it ends.
 5. Press or turn the wheel on the canvas. The film stops. That is the way out of a kiosk loop.
 
 ### The options
@@ -136,12 +136,10 @@ A kiosk page runs without anyone touching it: a screen in a site office, a stand
 | `--loop` | With `--autoplay`: play again and again. |
 
 `--autoplay` needs the matching `--flythroughs`, `--scripts` or `--plans` with that name. With `plan:`, the first `--scripts`
-file adds its cues to the film of the plan. The command `xray-4d pack` (chapter 32) makes this kiosk page for you.
+file adds its camera moves and captions to the film of the plan. The command `xray-4d pack` (chapter 32) makes this kiosk page for you.
 
-Scripts and fly-through captions are your own text. They stay out of a link, a view and a preset. They go into a packed page
-only when you name the file yourself.
-
-> Check: `--plans` and `plan:` autoplay are in the `xray-4d pack` section of xray-4d.md and in the code, but not in the options table of xray-pack.md. Confirm they are meant to be public.
+Scripts and fly-through captions are your own text. They go into a packed page only when you name the file yourself (chapter 29
+lists what never travels).
 
 ### Size
 

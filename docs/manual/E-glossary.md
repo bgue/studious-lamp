@@ -20,7 +20,7 @@ in `docs/SETTINGS.md` and in the console. Use the new names in your own writing.
 | **clash** | Two elements that overlap. The clearance colouring paints it red. |
 | **context** | Elements that may ghost: slabs, walls, beams, columns on nearby storeys. |
 | **drawing** | A cloud, arrow, text, callout, shape or pen line on a view. Formerly: *markup*, *annotation* (PDF annotations keep that word). |
-| **far** | Context that is neither host nor near. It is drawn normally or hidden, and never ghosted. |
+| **far** | Context that is neither host nor near. By default it is drawn solid. It ghosts, with `far weight`, when it blocks the view of the focus (chapter 4). With `far mode` set to `hidden` it is not drawn. |
 | **federate** | Open several IFC files as one model. |
 | **fly-through** | A sequence of views with timing, played as a film. Formerly: *tour* (an older feature that the manual mentions only in its limits). |
 | **focus** | The elements you are looking at, such as the selected duct run. They are drawn solid and in front. |
@@ -33,7 +33,7 @@ in `docs/SETTINGS.md` and in the console. Use the new names in your own writing.
 | **link (4D)** | An activity together with the elements it builds or removes. |
 | **mode** | One of the five top-bar looks: Solid, Ghost, Radiograph, Glow, Cutaway. Not to be confused with the view modes (behind-only, peelback). |
 | **near** | Context inside the buffer of the focus that is not host. |
-| **occluder** | Context that blocks the line of sight to the focus: host and near. Only occluders change opacity. |
+| **occluder** | Context that blocks the line of sight to the focus: host, near and, with the default `occluder scope` `all`, far. Only occluders change opacity. |
 | **orbit** | Turn the camera around a point. |
 | **pin** | A rule that keeps an element's opacity above a floor. |
 | **player** | What plays fly-throughs, scripts and 4D films. Formerly: *score player*. |
@@ -58,25 +58,24 @@ in `docs/SETTINGS.md` and in the console. Use the new names in your own writing.
 
 | Formerly | Now | Where you may still see the old name |
 | --- | --- | --- |
-| sketch | view with drawings | action names such as `markup.new`, files `xray-markup-set/1` |
+| sketch | view with drawings; the old **New sketch** is **Draw on this view** | action names such as `markup.new`, files `xray-markup-set/1` |
 | markup set | view with drawings | the PDF report text, the file name |
 | markup | drawing | `docs/SETTINGS.md`, console messages |
+| annotation | drawing | PDF files still use the word for the drawings written into them |
 | topic, BCF topic | issue | BCF files, the BCF dialog |
 | viewpoint | view | BCF files only |
-| BCF drawer | the **Issues** tab | `docs/SETTINGS.md`; action `tool.bcf` still opens the Issues tab |
-| Markup drawer | the **Issues** tab, drawings | action `tool.markup`; key `k` |
+| BCF drawer | the **Issues** tab | `docs/SETTINGS.md`; action `tool.bcf` opens the Issues tab |
+| Markup drawer | the **Views** tab on the filter **With drawings** | action `tool.markup`; key `k` opens the same place |
 | Classify drawer | the **Classification** tab of the right sidebar | `docs/SETTINGS.md`; action `tool.classify` |
-| score | script, or fly-through | internal names, `window.__xray…` |
+| score | script, fly-through or 4D film, whichever it plays | internal names, `window.__xray…` |
 | score player | player | internal names |
-| sheet sketch | drawing on a sheet | files, `docs/SETTINGS.md` |
+| sheet sketch | a view on a sheet (filter **On sheets**) | files, `docs/SETTINGS.md` |
 | tour | fly-through | the settings folder named **Tour** (a different, older feature) |
 | selection set | set | first use only |
-
-> Check: The final word for what a "view with drawings" is called in the UI depends on the Views and Issues change (decided 2026-11-23). Re-check the rows for sketch, markup set and Markup drawer once chapters 13 to 15 are final.
 
 ## Words of the x-ray in one picture
 
 You select a duct. The duct and what connects to it are the **focus**. Slabs, walls, beams and columns around it are the
 **context**. The context that crosses the focus is **host**. The context within a small distance is **near**. The context far away
-is **far**. Host and near that also block your view are **occluders**. Only occluders become see-through, and by how much they
-block and how close they are. A radiologist does the same: the bone shows because the flesh is made faint, not removed.
+is **far**. Host and near parts that block your view are **occluders**, and so are far parts that block it. Only occluders become
+see-through, by how much they block and how close they are. A radiologist does the same: the bone shows because the flesh is made faint, not removed.

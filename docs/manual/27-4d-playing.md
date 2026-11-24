@@ -51,8 +51,7 @@ While the film runs, the HUD draws:
   actuals.
 - **Data-date tick** on the progress bar: an amber mark where the data date sits in the film.
 
-Each item can be switched off in the On-screen display block of the fly-through section of the Views tab. They are saved
-with the other HUD options.
+The display options are the ones of 21.1 (the **On-screen display** block of the Views tab).
 
 ## 27.2 Style choices that matter
 
@@ -90,7 +89,7 @@ That is why the date on screen moves fast in quiet weeks and slowly when the wal
 
 ## 27.3 The director
 
-With **Camera: director**, a director adds cues to the film: where the camera goes, when the building explodes by storey,
+With **Camera: director**, the director adds to the film: where the camera goes, when the building explodes by storey,
 when a section box clips to one storey, which captions appear and which activities are labelled. Its rules in short:
 
 - The camera looks at where the work will be in the next 4 s. It chooses wide, medium or close by the size of that region,
@@ -111,6 +110,9 @@ shot, move a caption or add `mode cutaway` for an interior phase, then run it in
 `xray-4d render --script`. Check the script after editing: the Script tab and `xray-4d` both compile it, and show errors
 with line numbers.
 
+The command line does not use the director by itself. `xray-4d render`, `pack` and `all` play the plan with the current camera,
+unless you give them a script made by `xray-4d script`.
+
 ## 27.4 Record
 
 **Record** opens the video export dialog for the same film (chapter 22). Export is frame by frame, so the speed of your
@@ -119,10 +121,10 @@ is slow; short windows and small sizes are kind to it.
 
 ## 27.5 How it works
 
-The film is one cue for the player, `schedule4d`, that reads the plan every frame. A frame costs the number of elements
-that change, not the number of elements. A seek, or any step back, evaluates from scratch, so the picture never depends on
-how the time got there. When the play ends, visibility, tints, glow, the quiet selection, explode offsets and the section
-box go back as they were.
+The film is one item on the player's timeline (chapter 21). It reads the plan on every frame. A frame costs the number of
+elements that change, not the number of elements. A seek, or any step back, evaluates from scratch, so the picture never
+depends on how the time got there. When the play ends, visibility, tints, glow, the quiet selection, explode offsets and the
+section box go back as they were.
 
 ## 27.6 Limits and gotchas
 

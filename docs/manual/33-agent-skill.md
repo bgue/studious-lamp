@@ -114,11 +114,9 @@ changes, it starts again from the original file.
 - The agent's proposals are only as good as the names in your model and schedule. Reading "Wand-Ext-ERDG-2" works if the
   agent knows German; a model with names like "Generic - 200" gives it nothing.
 - An agent can be wrong, and sure of itself. That is why proposals are never accepted for you.
-- The bundled linker reads the same configuration format as the viewer, but it is a separate program in Python. Do not
-  assume it gives the same result as the viewer on every input.
-
-> Check: no source document says whether the Python linker and the viewer's linker give identical links on every input.
-> The text says not to assume it. Confirm with the authors.
+- The bundled linker (`scripts/link.py`) is a separate program in Python. It reads the same configuration format as the viewer.
+  On the FZK-Haus sample it gives the same links as the viewer's linker (`web/src/schedule/link.ts`). That was checked. No
+  other model has been compared, so look at the coverage and the ties on your own model.
 
 ## See also
 

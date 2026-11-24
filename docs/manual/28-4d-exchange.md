@@ -14,13 +14,13 @@ work, you need files.
 | --- | --- | --- | --- |
 | Configuration (`xray-4d-config/1`), for example `fzk-haus.4d.json` | what the schedule's codes mean, value translations, trade queries, split rules, film style | **Export .4d.json** in Configure | **Import .4d.json**, or drop it on the viewer; `xray-4d --config` |
 | Link dataset (LinkML) | model and schedule references, activities, elements, assignments, links, ties | **Export JSON** (mapping), **Export links** (links) | **Import JSON**, **Import links**; `xray-4d --prior`, `--assignments` |
-| 4D plan (`xray-4d-plan/1`), for example `build.4d.json` | per element: states over time, the time map, milestones | `xray-4d plan` | `xray-4d render`, `pack`, `script` |
+| 4D plan (`xray-4d-plan/1`), for example `build.4d.json` | per element: states over time, the time map, milestones | `xray-4d plan` | `xray-4d render`, `pack`, `script`, and packed pages (`xray-pack --plans`) |
 
 The configuration is a recipe. The link dataset is the work you reviewed. The plan is a calculation from both, and you can
 rebuild it at any time. Keep the first two; the third follows.
 
-> Check: the plan file `build.4d.json` is not documented as something the viewer's 4D tab loads. Only the command line and
-> packed pages read it. Confirm before telling readers to drop a plan on the viewer.
+The 4D tab cannot open a plan file. It builds its own plan from the accepted links when you press **Play**, and keeps it in
+memory. Plan files are for the command line and for packed pages.
 
 ### Try it
 

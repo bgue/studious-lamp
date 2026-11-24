@@ -149,9 +149,7 @@ storeys, relations or full property sets, so its tree is grouped by class only.
 - Run **Instances** after the other tools. Copies that were decimated differently do not match.
 - Mirrored copies are not instanced.
 - Hidden interior is conservative on purpose, and windows, spaces and openings never block a ray.
-
-> Check: `web/docs-features/cleanup.md` also describes writing simplified meshes back into IFC behind
-> `?experimental=simplifiedIfc`. Left out of the manual text. Decide whether chapter 19 should mention it.
+- Writing the simplified meshes back into the IFC is experimental. It is off unless the page address has `?experimental=simplifiedIfc`. This manual does not cover it.
 
 ## See also
 

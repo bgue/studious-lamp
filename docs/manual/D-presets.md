@@ -1,13 +1,11 @@
 # Appendix D. Presets
 
 A preset is a saved look: a set of settings, never the camera. Applying one never changes the model or the selection. Keys `1`
-to `9` apply the first nine. Four of them are also behind the buttons of the top bar (chapter 4). You can add your own presets
+to `9` apply the first nine. Five presets are also the buttons of the top bar (chapter 4). You can add your own presets
 (chapter 4.5).
 
 The viewer ships with 14 built-in presets. They all start from the factory values of the sections they touch, so applying one
 switches the previous one off instead of piling on top of it.
-
-> Check: the TOC and README say 13 presets. `web/src/presets/builtin.ts` and `web/public/xray.presets.json` both hold 14 (`focus-glow` was added for the top bar). This table lists 14.
 
 ## The table
 
@@ -76,7 +74,6 @@ itself (a running animation that writes into the section) can clear the light. A
 - Your presets are kept in this browser. They are settings only: no API keys, tokens or names.
 - An installation can replace or add presets with `web/public/xray.presets.json`. A replacement with a built-in id (for example `radiograph`) also changes the top bar mode that uses it.
 
-## Where presets sit in the ladder
+## Where presets sit
 
-Mode = one click on a preset. Preset = look only. View = camera, look, selection and hides. Fly-through keyframe = a view with
-timing. Share link = a view as an address. Chapter 13 has the table of what each stores.
+A preset stores a look only. A view also stores the camera, the selection and the hides (see chapter 13).

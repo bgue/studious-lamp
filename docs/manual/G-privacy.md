@@ -6,7 +6,7 @@ A few optional features talk to other servers, and only when you switch them on.
 ## What the viewer never does
 
 - It never uploads your model, your views, your issues, your drawings or your settings to a server of the viewer.
-- With the map off and no classifier provider that talks to a server chosen, it makes no network request. The single-file build is checked for this, and opens from `file://` without any request.
+- With the map off and no classifier provider that talks to a server chosen, it makes no request to any other server. The single-file build is checked for this, and opens from `file://` without any request.
 
 Everything below is either stored on your own computer, or sent somewhere because you chose a feature that needs it.
 
@@ -27,12 +27,12 @@ Export what you want to keep.
 ### Local storage (small settings and lists)
 
 Keys are per model where they say so. A model is recognised by its name, its element count and a hash of its GlobalIds, so a
-renamed copy of the same model finds its fly-throughs and sketches again, and a different model with the same name does not.
+renamed copy of the same model finds its fly-throughs and views again, and a different model with the same name does not.
 
 | What | Key |
 | --- | --- |
 | Sets and class style changes | `xray.sets.<model>`, `xray.classStyles.<model>` |
-| Saved views | `xray.views.<model>`, `xray.views.ui` (list or grid) |
+| Views | `xray.views.<model>`, `xray.views.ui` (list or grid) |
 | Packed views already offered | `xray.viewsPacked.<model>` |
 | Presets you saved | `xray.presets` |
 | Fly-throughs | `xray.flythroughs.<model identity>`, `xray.flythrough.ui` |
@@ -49,7 +49,7 @@ renamed copy of the same model finds its fly-throughs and sketches again, and a 
 | Classification: reviewer name | `xray.classify.reviewer.v1` |
 | Map: which providers you accepted the notice for | `xray.map.noticeAck` |
 
-> Check: the exact keys for sets and class styles are `xray.sets.` and `xray.classStyles.` in the source (prefix only); confirm the full key names and whether `xray.toggle`, `xray.probe` and `xray.dock` need listing.
+The key `xray.probe` is only a test that local storage works. It holds nothing. `xray.toggle` is an action name, not a storage key.
 
 The reviewer name and the issue author are names of people. They are kept only in this browser. They are in no link, view, preset,
 parameters file or packed page (see below).
@@ -58,7 +58,7 @@ parameters file or packed page (see below).
 
 | Database | Holds |
 | --- | --- |
-| `xray-work` | 3D drawings (sketches), issues and the links between them, one record per model |
+| `xray-work` | Drawings, issues and the links between them, one record per model |
 | `xray-sheets` | PDF files you opened (the bytes), and sheet data and sheet drawings (no bytes in the data record) |
 | `xray-4d-map` | 4D assignments (location, trade, zone), value lists, class table |
 | `xray-4d-schedule` | 4D configuration, links with review state, and the `.xer` as it was read (not stored above 24 MB) |
@@ -112,7 +112,7 @@ With **provider = off** or with rules only, nothing leaves the browser. Other pr
 Read the facts that are sent before you use a service with a real project. Names and property sets of your elements are
 project information. Use a proxy in your own network, or a decision model in the browser, if that is not allowed.
 
-> Check: the line "Hugging Face (or the mirror you set)" for `d3` and `decision` is from classify.md. Confirm that a download of weights from Hugging Face sends no information about your model beyond the request itself.
+Downloading weights is an ordinary web request. The code of the viewer sends no data from your model with it. Hugging Face sees what any web server sees: your network address, the browser name and which files you ask for (and the token, if you set one).
 
 ### Fly-through video
 
@@ -122,11 +122,11 @@ The video encoder is a library that is loaded the first time you export, with no
 
 None. The viewer asks for no fonts, scripts or updates.
 
-> Check: confirm that no external font, script or analytics request exists in the served build (the single-file build is stated to make none).
+The served build asks only the server it came from, for the model files, `xray.config.json` and `xray.presets.json`. The page loads no fonts, scripts or analytics from elsewhere. The single file makes no request at all when opened from disk. Anything that talks to another server is something you switch on: the map (chapter 6), the classification providers above, a custom endpoint you type.
 
-## What share links, saved views, presets and packed pages never contain
+## What share links, views, presets and packed pages never contain
 
-| Never in a link, a saved view, a preset, a parameters file or a packed page | Why |
+| Never in a link, a view, a preset, a parameters file or a packed page | Why |
 | --- | --- |
 | API keys and tokens (Jev key, d3 key, Hugging Face token, map key, custom tile URL) | A page that holds a key can be read by anyone it is sent to. A parameters file that has a key field is refused. |
 | Reviewer names, issue author names | Personal data. |
@@ -140,7 +140,7 @@ None. The viewer asks for no fonts, scripts or updates.
 What a link or a view does hold: the model's name, camera, settings, and (for a view) the GlobalIds of selected, hidden and pinned
 elements. Treat a view link like the model's name plus a hint about what you looked at.
 
-Unit tests check these rules on the parameters document, the share link, the saved views and the packed output.
+Unit tests check these rules on the parameters document, the share link, the views and the packed output.
 
 ## What goes into an IFC you save
 

@@ -111,7 +111,7 @@ name the step, such as "Undo zoom" or "Undo selection".
 
 Four kinds of change are on one stack:
 
-- **Camera.** A whole wheel gesture, an orbit, a click on the cube or a jump to a saved view is one step. The camera is
+- **Camera.** A whole wheel gesture, an orbit, a click on the cube or a jump to a view is one step. The camera is
   recorded when it has been still for 0.4 s.
 - **Section.** Moving a cut plane (a drag of a handle is one step), or switching a cut on or off.
 - **Selection.** Each change of the selected set.

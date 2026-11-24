@@ -8,9 +8,12 @@ you already saved, play at a meeting, tune, and turn into a video file.
 
 ### The idea
 
-A **fly-through** is a sequence of **keyframes** with timing. A keyframe is a saved view (camera, section, selection, hides, settings,
-preset) plus how long to take to get there and how long to stay. The viewer draws a smooth camera path through all the
-keyframes. Between them it blends the settings and fades elements in and out.
+A **fly-through** is a sequence of **keyframes** with timing. A keyframe starts from a saved view (chapter 13) and takes its
+camera, section, selection, hides, settings and preset. It adds how long to take to get there and how long to stay. The keyframe
+keeps its own copy of the view: editing the view later does not change it, and **Update** retakes it from the current view. The
+viewer draws a smooth camera path through all the keyframes. Between them it blends the settings and fades elements in and out.
+
+Drawings on a view (chapter 14) are not drawn during playback. The keyframe takes the camera and the look only.
 
 Think of a film storyboard. Each frame is a place you chose. The viewer is the camera crew that works out the move between the frames.
 
@@ -21,7 +24,7 @@ section, and a view of the heating pipes in the cellar.
 
 1. Open the **Views** tab of the left sidebar. Find the **Fly-through** section.
 2. Click **New**. A fly-through is a named list, and a model can hold several.
-3. Click **From views**. It replaces the keyframes with one per saved view. (**From sets** does the same with one per selection
+3. Click **From views**. It replaces the keyframes with one per saved view. The list next to **Add keyframe** adds one view. (**From sets** does the same with one per selection
    set, the camera framed on the set.) To add one at a time, orbit to a place and click **Add keyframe**.
 4. Each keyframe is a card with a thumbnail, its name and the move (`to 2 s`, `hold 1 s`). Click a card to go there. Drag the grip,
    use the arrow buttons or press `Alt+Left` and `Alt+Right` to reorder. `Delete` removes the card.
@@ -84,22 +87,19 @@ You will play the same fly-through many times while you tune it. The transport b
 1. Click **Play**. It starts from the beginning. **From** starts from the selected keyframe, which is how you tune a single move
    without watching the rest.
 2. Press `Space` or click **Pause**. Click or drag on the timeline bar to jump. A tick marks each keyframe, and the bar shows the holds.
-3. Press `Left` and `Right` for the previous and next keyframe. If you are in the middle of a move, `Left` goes back to the
-   keyframe that began it.
+3. Press `Left` and `Right` for the previous and next keyframe. If you are more than 0.6 s into a move, `Left` goes back to the
+   keyframe that began it. With the timeline bar in focus, they move it by 1 s instead.
 4. Click **Stop** or press `Esc`. Camera, selection, hides, settings and preset go back as they were.
 5. Click on the 3D view during play: it stops, and keeps the camera where you took it.
 
 ### How it works
 
-This is the shared player. Chapter 21 has the details: pause and seek replay from the start state; restore at the end; the
-on-screen display comes from one layer. The bar shows the running time. In a fly-through, the chapters of the progress bar are
-the keyframes.
+This is the shared player: chapter 21 explains pause, seek, restore and the on-screen display. In a fly-through, the chapters of
+the progress bar are the keyframes.
 
 ### Limits and gotchas
 
-- Sightline ghosting is recomputed on a timer after the camera moves. A frame in the video may show the result for a nearby
-  pose. Slow machines show it most.
-- Depth of field and motion blur (the **Cinematic** folder, **Fly-through**) apply during playback.
+- Ghosting lags a little behind the camera, and depth of field and motion blur apply during playback (see 21.1).
 
 ## 22.3 Export a video
 

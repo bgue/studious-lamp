@@ -98,13 +98,11 @@ Pressing a lit top bar mode again switches to Solid. Solid itself does nothing w
 | Show or hide the model tree | `[` |
 | Show or hide the right sidebar | `]` |
 | Show or hide the tool strip | `t` |
-| Open the Issues tab on Sketches | `k` |
+| Open the Views tab on the filter **With drawings** | `k` |
 | Save a view | `Ctrl+Shift+s` |
-| Previous, next saved view | `Shift+PageUp`, `Shift+PageDown` |
+| Previous, next view | `Shift+PageUp`, `Shift+PageDown` |
 | Classify: start the review walk | `Shift+r` |
 | Revision: start the review walk | `Shift+v` |
-
-> Check: The cheat sheet in keyboard.md says `k` opens "Sketches"; the manual's word list says "drawing" and "issue". Confirm what the key opens in the final Views and Issues UI (chapters 13 to 15).
 
 ### Keys inside a review walk
 
@@ -115,7 +113,7 @@ While a walk is open it takes its own keys. They are not rebindable here.
 | `Enter`, `y` | Accept | Accept |
 | `2` | Accept with the other classification | Accept with the other classification |
 | `e` | Edit the classification, then accept | Edit the classification, then accept |
-| `n` | Skip (`Shift+n` skips the rest of the item) | Skip (`Shift+n` skips the rest of the item) |
+| `n`, `ArrowRight` | Skip (`Shift+n` skips the rest of the item) | Skip (`Shift+n` skips the rest of the item) |
 | `?` | Mark the decision unsure | Mark the decision unsure |
 | `ArrowLeft` | Back | Back |
 | `[`, `]` | Step to another element of the item | Step to another element of the item |
@@ -125,10 +123,6 @@ While a walk is open it takes its own keys. They are not rebindable here.
 | `r` | | Reject (dispute) |
 | `g` | | Cycle the ghost: both, head only, base only |
 | `b` | | Open the bulk rules |
-
-In the revision walk, `ArrowRight` also skips.
-
-> Check: classification walk keys are summarised in keyboard.md ("Enter or Y, 2, E, N, ?, arrows, [, ], A, U and Esc"); the revision column is from `src/revision/keys.ts`. Confirm the two tables once chapters 18 and 20 are written.
 
 ## Actions without a key
 

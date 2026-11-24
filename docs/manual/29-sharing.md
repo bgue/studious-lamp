@@ -20,12 +20,8 @@ There are three sizes of sharing, from light to heavy:
 A link is like a recipe card: it names the dish and the steps, but you still need a kitchen. A single file is the finished meal in
 a box. Both are useful. The question is always what you want the receiver to be able to do with it.
 
-This chapter uses these words, defined once here:
-
-- **share link**: a web address with a `#` part that holds settings, encoded as text.
-- **view**: a captured moment: camera, what is shown, hidden, cut and selected (chapter 13).
-- **preset**: a saved look, settings only, never the camera (chapter 4).
-- **single file**: one `.html` file that holds the viewer, and optionally a model.
+Two words are defined here. A **share link** is a web address with a `#` part that holds settings, encoded as text. A **single
+file** is one `.html` file that holds the viewer, and optionally a model. For **view** see chapter 13, for **preset** chapter 4.
 
 ## 29.1 Share link: what it carries and what it never carries
 
@@ -35,7 +31,7 @@ There are three kinds of link. Each comes from a different place and carries a d
 | --- | --- | --- | --- |
 | Settings link (`#p=`) | **Export / import** folder, **Copy share URL** | Model name, x-ray and classification settings, sightlines, display, camera position and target, and the settings of view modes, imaging and section | Selection, hides, sets, class styles, views, drawings, issues, key bindings |
 | View link (`#view=`) | A view's **⋯** menu, **Copy link** | One view: camera, selection, hides, pins, and the settings that differ from the factory look | Thumbnail, other views, drawings |
-| Preset link (`#preset=`) | **Presets** drawer, **Share** | One preset (a look) and its actions | Camera, selection, model state |
+| Preset link (`#preset=`) | **Presets** folder, **Share** on a preset | One preset (a look) and its actions | Camera, selection, model state |
 
 Try it on the FZK-Haus. It takes about two minutes.
 
@@ -45,7 +41,7 @@ Try it on the FZK-Haus. It takes about two minutes.
 2. Click the roof, then press `f` to frame it. Press `x` if the x-ray is off.
 3. Press `Ctrl+Shift+S` to save a view. Give it the name "Roof".
 4. Open the **Views** tab in the left sidebar. Click **⋯** on the row "Roof", then **Copy link**. The address is now on your clipboard.
-5. Open a new browser tab and paste the address. The viewer loads FZK-Haus and applies the view once, with no animation. The status bar says "Press Save view to keep it".
+5. Open a new browser tab and paste the address. The viewer loads FZK-Haus and applies the view once, with no animation. The status bar says `Shared view "Roof" applied. Press Save view to keep it.`
 6. Look at the address bar. The `#` part is gone. The viewer removed it, so a reload does not undo what you did after.
 
 A view link is typically 300 to 900 characters. It fits in an email or a chat message.
@@ -69,10 +65,9 @@ This list matters when you post a link in a public channel or a ticket.
 - **The model itself.** A link names the model. It does not contain it.
 
 The last point is the one people forget. If you opened an IFC file from disk, the model is named `file:<name>`, and the receiver
-has no such file. The link opens the viewer and says nothing useful. For a sample model (`fzk-haus`, `building`), the link works
+has no such file. The link opens the viewer on whatever model is loaded there. If its name differs from the one in the link, the status bar says
+`Shared view "Roof" belongs to model "file:<name>"; "<loaded model>" is loaded. Camera and elements may not match.` For a sample model (`fzk-haus`, `building`), the link works
 for everyone. For your own project, either send the model file too, or send a single file (29.2).
-
-> Check: Share link of a view for a model opened from disk: the saved-views doc says "a link for another model says so in the status bar". Confirm the exact message the receiver sees when the model is not loaded.
 
 ### Safe to open?
 
@@ -117,13 +112,11 @@ and everyone else only opens it.
 | Views | **Views** tab, **Export** | `xray-views/1` |
 | Fly-throughs | **Views** tab, fly-through section, **Export file** | `xray-flythroughs/1` |
 | Animation scripts | **Script** tab, **Export** | `.xrayanim` text |
-| Presets | **Presets** drawer, export | `xray-presets/1` |
+| Presets | **Presets** folder, **Export presets** | `xray-presets/1` |
 | Sets | **Sets** tab, **Export** | `xray-sets/1` |
 | Shortcuts | **Edit shortcuts**, **Export JSON** | `xray-keymap/1` |
 
 Appendix C lists these formats. The receiver imports each file in the same place where you exported it.
-
-> Check: The exact button label for exporting presets in the Presets drawer ("export" vs "Export presets"); docs-features/presets.md names the format `xray-presets/1` but the 'Persistence' section was not read in full.
 
 ## How it works
 

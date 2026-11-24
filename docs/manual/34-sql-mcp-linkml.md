@@ -96,11 +96,11 @@ WHERE s.status = 'accepted'
 ```
 
 To accept a proposal, update its status. Then export the rows back into a `LinkDataset` JSON and import it in the viewer
-(chapter 28), or give it to the agent skill (chapter 33) as `--links`. The script needs only `model`, `activities`, `links`
-(with `elements` as GlobalId lists) and `assignments`.
+(chapter 28), or give it to the agent skill (chapter 33) as `--links` of `apply_links.py` or `anim_write.py`. The file needs
+only `model`, `activities`, `links` (with `elements` as GlobalId lists) and `assignments`.
 
-> Check: the table and column names in the queries come from the skill's SQL reference and the generated `xray_4d.sql`.
-> The join table is named `ActivityLink_elements` with column `elements_global_id`. Confirm against your generator's version.
+The table and column names above are those of the generated `xray_4d.sql`. The list of elements of a link is the join table
+`ActivityLink_elements`, with the column `elements_global_id`. If you regenerate the SQL from a changed schema, check them again.
 
 ## 34.5 The JSON Schema
 

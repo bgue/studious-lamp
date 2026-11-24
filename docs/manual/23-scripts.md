@@ -77,8 +77,9 @@ not know gives a warning with the nearest real names, and the line is skipped.
 
 ### Limits and gotchas
 
-- A script runs at most 1 hour, makes at most 5,000 cues (one cue is one camera move, setting change, caption, label or hover), runs a
-  loop at most 500 times and executes at most 20,000 statements. A long loop of small steps is the usual way to hit the 5,000.
+- A script runs at most 1 hour, makes at most 5,000 timeline items (one is a camera move, setting change, caption, label or hover;
+  the error message calls them cues), runs a loop at most 500 times and executes at most 20,000 statements. A long loop of small
+  steps is the usual way to hit the 5,000.
 - A script is your own text. It is never part of parameters, share links, saved views or presets. A packed page carries a script
   only if you name its exported file (chapter 30).
 - The elements and set names in quotes must match the model exactly.
@@ -201,7 +202,8 @@ The full grammar is in `web/docs-features/animation-script-grammar.md`. This is 
 | `repeat for each set in sets` ... `end repeat` | Once per stored set; `it` is its name | n/a |
 | `put <number> into <name>` | Keep a number; `+ - * /` and brackets | instant |
 
-The 4D statements are used with a plan (chapter 27):
+The 4D statements are used with a plan (chapter 27). A plan name is one the viewer knows: the 4D tab registers the plan it builds
+as `4d:<model name>`, and a packed page registers each plan by its file name (chapter 30).
 
 | Statement | What it does | Default time |
 | --- | --- | --- |

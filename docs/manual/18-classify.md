@@ -25,7 +25,7 @@ odd ones go to a person who has to think. Here the steps are:
    ("which of these 11 disciplines?") and gives a probability for every option. That probability is the **confidence**.
 
 Why a decision model and not a chat model? A chat model writes text that must be parsed, and its "I am 90 % sure" is whatever
-it wrote. A decision model can only pick from your list, and its numbers are real scores.
+it wrote. A decision model can only pick from your list, and its numbers are real probabilities.
 
 An answer **needs review** when any of its three confidences is below the minimum confidence (default 0.6), when the top two
 options are close (under 0.15 apart), or when the model is unsure whether the element is a building element at all.
@@ -55,7 +55,7 @@ model** to *off* if you want to see the model answer every kind of element.
 **The decision model.** The default is a small zero-shot language-inference model (a DeBERTa family model from Hugging Face)
 that runs in your page. For each option it reads the element's description (class, type, name, key properties, system,
 material, storey) as a premise and a sentence such as "This building element belongs to the Mechanical and HVAC discipline" as a
-hypothesis, and scores how well they fit. The scores of all options become probabilities. The element data stays in the page;
+hypothesis, and rates how well they fit. The ratings of all options become probabilities. The element data stays in the page;
 only the model files are downloaded. With WebGPU it is fast. Without it the model runs on the processor and the tab says so.
 
 **Other providers.** The tab also offers Decision 3.0 d3-edge (in the browser with WebGPU after a large download, or on a
@@ -91,9 +91,7 @@ requests. A repeated run costs zero requests, because the cache answers.
 - Software rendering without WebGPU makes the decision model slow: about 10 s per kind in one measurement.
 - A process plant and a hospital use the same words differently. The rules decide "process context" for the whole model,
   conservatively, from line numbers, plant-only services and process equipment.
-- The WebGPU path of the in-browser model was not run by the authors. Treat its speed as untested.
-
-> Check: the manual says the WebGPU path was not run; confirm whether that is still true before release.
+- The authors have not run the WebGPU path of the in-browser model (no GPU on their test machine). Treat its speed as untested.
 
 ## 18.2 Review: Accept, Change, Unsure
 
