@@ -286,6 +286,27 @@ async function runScene(browser, model) {
   }
   const rows = await page.evaluate(() => [...document.querySelectorAll('.vw-row .vw-name')].map((e) => e.textContent));
   check(`${model}: 3 rows in the Views tab`, rows.length === 3, rows.join(' | '));
+  // Views and Issues: one list with chips; a saved view takes drawings and goes into an issue; then it is all taken down again.
+  {
+    const chipText = () => page.evaluate(() => [...document.querySelectorAll('#views-panel [data-view-filter]')].map((b) => b.textContent));
+    const c0 = await chipText();
+    check(`${model}: chips All / With drawings / On sheets / In an issue`, JSON.stringify(c0) === JSON.stringify(['All 3', 'With drawings 0', 'On sheets 0', 'In an issue 0']), c0.join(','));
+    const setId = await page.evaluate((id) => window.__xrayViews.drawOn(id), expected[0].id);
+    await page.waitForFunction(() => window.__xrayMarkup.editing);
+    check(`${model}: Draw on this view gave the saved view a drawing layer; still 3 rows`, await page.evaluate((a) => window.__xrayViews.get(a.id).drawings === a.set && window.__xrayViews.list().length === 3, { id: expected[0].id, set: setId }));
+    await page.evaluate(() => window.__xrayMarkup.add({ kind: 'rect', fractions: { points: [[0.3, 0.3], [0.5, 0.45]], depth: 8 } }));
+    await page.evaluate(() => window.__xrayIssues.stopEditing());
+    await page.evaluate(() => window.__xrayIssues.controller.emit());
+    await page.waitForFunction(() => [...document.querySelectorAll('#views-panel [data-view-filter]')].some((b) => b.textContent === 'With drawings 1'));
+    check(`${model}: the row shows its drawings, and With drawings lists it`, await page.evaluate(() => !!document.querySelector('#views-panel .vw-row [data-tag=drawings]') && window.__xrayViews.entries('drawings').length === 1));
+    const guid = await page.evaluate((id) => window.__xrayViews.makeIssue(id), expected[0].id);
+    await page.waitForFunction(() => [...document.querySelectorAll('#views-panel [data-view-filter]')].some((b) => b.textContent === 'In an issue 1'));
+    await page.evaluate(() => window.__xrayViews.setFilter('issue'));
+    check(`${model}: Make issue: the row is tagged Issue and In an issue lists only it`, await page.evaluate((id) => document.querySelectorAll('#views-panel .vw-row').length === 1 && !!document.querySelector('#views-panel .vw-row [data-tag=issue]') && window.__xrayViews.list().find((v) => v.id === id).issue.topic !== '', expected[0].id));
+    await page.evaluate((a) => { window.__xrayIssues.controller.deleteIssue(a.guid); window.__xrayMarkup.deleteSet(a.set); window.__xrayViews.setFilter('all'); window.__xrayIssues.controller.detail = null; window.__xrayIssues.controller.emit(); }, { guid, set: setId });
+    await page.waitForFunction(() => window.__xrayViews.list().length === 3 && window.__xrayViews.entries('drawings').length === 0);
+    check(`${model}: taking the layer and the issue away leaves 3 plain views`, await page.evaluate(() => window.__xrayViews.list().every((v) => !v.hasDrawings && !v.set && !v.issue)));
+  }
   // QA wave 7: the hover thumbnail moves out from under the help popover of the row's name button.
   {
     const nameBtn = page.locator('.vw-row .vw-name').nth(1);

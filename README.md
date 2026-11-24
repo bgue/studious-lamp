@@ -194,29 +194,31 @@ fit used when fly-to is off. Whole-model views and Tab keep their own framing.
   (amber), ok (blue ramp).
 - **Penetrations** ([penetrations.md](web/docs-features/penetrations.md)). A schedule of where MEP elements pass through slabs,
   walls and beams, with orientation, size and opening status; markers on the model, CSV export, and BCF topics from rows.
-- **Issues and sketches** ([issues.md](web/docs-features/issues.md)). The sidebar tab `Issues` has two lists. **Issues** are BCF topics:
-  status, priority, assignee, due date, comments and history, filter chips, search, "Other models (n)", and a count `N open issues` in the
-  status bar. **Sketches** are a saved view plus drawings and a one-line note. One drawing engine serves both: a floating toolbar (key `K`)
-  with revision clouds (box or freehand), callouts, text boxes, pointers, linked measurements, highlighter strokes and boxes, rectangles,
-  ellipses, lines, arrows, polylines, polygons and a pen, in five colours with line weights and fill, undo and redo. A drawing is attached to
-  the model in 3D or view-locked. `Raise as issue` makes an issue (or adds a viewpoint to one) whose viewpoint links to the sketch by id, so
-  editing the sketch updates the issue. On a phone the lists are a bottom sheet. The top-bar search finds issues and sketches. Old sets with
-  comments or a status are offered as issues by a banner. Scripting: `window.__xrayIssues`.
+- **Views and issues** ([saved-views.md](web/docs-features/saved-views.md), [issues.md](web/docs-features/issues.md)). Two nouns. A **view** is a
+  captured moment (camera, section, selection, hides, look) that may carry drawings; a page of a PDF sheet is a view too. The sidebar tab
+  `Views` lists every view with the chips `All / With drawings / On sheets / In an issue`, and `Draw on this view` starts a floating toolbar
+  (key `K`) with revision clouds (box or freehand), callouts, text boxes, pointers, linked measurements, highlighter strokes and boxes,
+  rectangles, ellipses, lines, arrows, polylines, polygons and a pen, in five colours with line weights and fill, undo and redo. A drawing
+  is attached to the model in 3D or view-locked. An **issue** is a BCF topic: status, priority, assignee, due date, comments and history,
+  filter chips, search, "Other models (n)", and a count `N open issues` in the status bar. It points at views and is made from one:
+  `Make issue` on a view (a new issue, or one more view of an issue), or `New issue` in the Issues tab, which captures the current view first.
+  Editing the drawings updates the issue. On a phone the Issues tab is a bottom sheet. The top-bar search finds issues and views. Old
+  sketches with comments or a status are offered as issues by a banner. Scripting: `window.__xrayViews`, `window.__xrayIssues`.
 - **BCF** ([bcf.md](web/docs-features/bcf.md)). Open or drop `.bcf` / `.bcfzip`, apply viewpoints (camera, selection, hides,
   colours, clip planes), create issues with snapshots, comment, export BCF 2.1 or 3.0. Issues are pinned to a 3D point (numbered
-  markers on the model); the drawing of a viewpoint (callouts, notes, arrows, linked measurements, shapes) is its sketch, and opening a file
-  makes a sketch of each drawn viewpoint. The drawing lives in a side file `xray-markup.json` per topic folder (the BCF XML still
+  markers on the model); the drawing of a viewpoint (callouts, notes, arrows, linked measurements, shapes) is the drawings of its view, and opening a file
+  makes a view of each drawn viewpoint. The drawing lives in a side file `xray-markup.json` per topic folder (the BCF XML still
   validates) and is burned into the exported snapshot.
 - **Sheets** ([sheets.md](web/docs-features/sheets.md)). Open or drop a PDF drawing as sheets (one per page) next to the model, in the
-  `Sheets` segment of the Issues tab. A 2D sheet view covers the 3D area (`Back to model` returns) with pan, wheel and pinch zoom and
-  pdf.js pages that sharpen when the zoom settles. Sketch on a sheet with the same toolbar (shapes are PDF points and stay put), raise it
-  as an issue (snapshot of the region, a DocumentReference to the PDF in the BCF 2.1 or 3.0 zip), and `Export marked-up PDF`: a copy of
-  the PDF with your sketches as real annotations (cloud, square, circle, line, arrow, ink, free text, callout) on the optional content
+  `On sheets` filter of the Views tab. A 2D sheet view covers the 3D area (`Back to model` returns) with pan, wheel and pinch zoom and
+  pdf.js pages that sharpen when the zoom settles. Draw on a sheet with the same toolbar (shapes are PDF points and stay put), make an issue
+  of it (snapshot of the region, a DocumentReference to the PDF in the BCF 2.1 or 3.0 zip), and `Export marked-up PDF`: a copy of
+  the PDF with your drawings as real annotations (cloud, square, circle, line, arrow, ink, free text, callout) on the optional content
   layer `X-ray markups`, re-export replaces them. Annotations already in a PDF come in: ours editable, others read-only. The PDF libraries
   load on first use only. Scripting: `window.__xraySheets`.
-- **Markup** ([markup.md](web/docs-features/markup.md)). The drawing engine behind sketches: export a landscape A4 or Letter PDF (clean
-  view, view with numbered markups, table of drawings, "how to get back" block) that carries the sketch as an embedded JSON file, or the
-  JSON alone (`xray-markup-set/1`), at 150, 200 or 300 dpi rendered off screen. `Update view` re-captures a sketch from the current camera.
+- **Markup** ([markup.md](web/docs-features/markup.md)). The drawing engine behind views with drawings: export a landscape A4 or Letter PDF (clean
+  view, view with numbered markups, table of drawings, "how to get back" block) that carries the drawings as an embedded JSON file, or the
+  JSON alone (`xray-markup-set/1`), at 150, 200 or 300 dpi rendered off screen. `Update view` re-captures a view from the current camera.
   Drop either on the viewer to restore the view and the drawings; unknown GlobalIds and a different model are reported. Scripting:
   `window.__xrayMarkup`.
 - **Point cloud** ([pointcloud.md](web/docs-features/pointcloud.md)). Open LAS, E57, PLY, PCD, XYZ or PTS scans, align them (Align by 3 points and Refine (ICP) with oriented point normals, room by room with `align within`, also for phone LiDAR scans), and colour
@@ -279,15 +281,15 @@ value or the same property, copy the value, or save the equivalent query as a cr
 in `localStorage` (`xray.sets.<model>`) and exported as `xray-sets/1` JSON; criteria sets add `kind` and `query` and stay
 readable by older versions as static sets.
 
-## Saved views
+## Views
 
-The **Views** tab of the sidebar keeps named viewpoints per model ([saved-views.md](web/docs-features/saved-views.md)).
+The **Views** tab of the sidebar keeps named viewpoints per model and lists them with the views that carry drawings and the pages of PDF sheets, one list with filters ([saved-views.md](web/docs-features/saved-views.md)).
 **Save view** (`Ctrl+Shift+S`) stores the camera (with roll, field of view and the orthographic flag), the section box and
 plane, the selection, hides, pins and isolate, the exploded state, x-ray, view modes, imaging and the other look settings,
 plus a small thumbnail. Click a row to restore it (the camera turns there; elements are matched by GlobalId, and missing ones
 are reported in the status bar); `Shift+PageUp` / `Shift+PageDown` step through the views and **Play** shows them as a
-slideshow with a dwell time. Each row has **⋯** for Update, Rename, Duplicate, Copy link (`#view=`, one view), Save as BCF
-topic and Delete; rows reorder by dragging and a grid toggle shows the thumbnails. Views are stored in `localStorage`
+slideshow with a dwell time. Each row has **⋯** for Update, Rename, Duplicate, Copy link (`#view=`, one view),
+Draw on this view, Make issue and Delete; rows reorder by dragging and a grid toggle shows the thumbnails. Views are stored in `localStorage`
 (`xray.views.<model>`), exported and imported as `xray-views/1` JSON, and packed with
 `xray-pack ... --views views.json --open-view "Name"`.
 

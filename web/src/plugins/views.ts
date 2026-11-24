@@ -808,6 +808,18 @@ function buildPanel(c: ViewsController, api: ViewsApi): void {
     drawOn: (i) => {
       void c.drawOnEntry(at(i)).catch(note);
     },
+    drawCurrent: () => {
+      const key = c.activeKey();
+      const e = key ? c.entries().find((x) => x.key === key) : undefined;
+      if (e) void c.drawOnEntry(e).catch(note);
+      else {
+        try {
+          api.drawOnCurrent();
+        } catch (err) {
+          note(err);
+        }
+      }
+    },
     makeIssue: (i) => {
       void (async () => {
         try {

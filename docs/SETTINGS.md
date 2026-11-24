@@ -58,7 +58,6 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Markup](#markup)
 - [Sidebar/Issues tab](#sidebarissues-tab)
 - [Issues panel](#issues-panel)
-- [Issues panel/Segments](#issues-panelsegments)
 - [Issues panel/Phone sheet](#issues-panelphone-sheet)
 - [Drawing toolbar](#drawing-toolbar)
 - [Issues panel/Clear everything](#issues-panelclear-everything)
@@ -107,6 +106,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Scan drawer](#scan-drawer)
 - [WebXR drawer](#webxr-drawer)
 - [Classify drawer](#classify-drawer)
+- [Views panel](#views-panel)
 - [Simplif](#simplif)
 - [Decimate mes](#decimate-mes)
 - [Small detail](#small-detail)
@@ -520,7 +520,7 @@ Impact follows the same sentence rules and adds these:
 | Preview matches | The button selects and frames the objects that match the query, without a save. | Click and the parts that fit the rules light up, so you can check them before you keep the group. | Click the button to check the result. Change the rules if needed. | Report: Onboarding checklist |
 | Save criteria set | The button stores the criteria set with its name and query. The set list shows it with a funnel icon. | Click and the group joins your list. It keeps its rules, so it stays current when the building changes. | Enter a name. Fix any error. Click the button. | Report: Onboarding checklist |
 | Property menu | The button opens actions for this row: select by value or by presence, copy the value, save a criteria set. | Click, or right-click the row, to pick every part with the same entry, such as all outside walls. | Click the button or right-click a row. Pick an action. | Report: Onboarding checklist |
-| Views tab | The tab shows the saved views of this model. A saved view keeps the camera, the cuts, the modes and the selection. | Click and the left side lists your bookmarked camera angles with their cuts and looks. One click brings a shot back. | Click the tab to save, restore, play, share or reorder views. | Report: Onboarding checklist |
+| Views tab | The tab lists the views of this model. A view keeps the camera, the cuts, the modes and the selection. It can carry drawings. | Click and the left side lists your bookmarked camera angles with their cuts and looks. One click brings a shot back. | Click the tab to save, restore, draw on, share or reorder views. | Report: Onboarding checklist |
 | View name box | The box holds the name for the next saved view. An empty box gives the names View 1, View 2 and so on. | Type a label for the next bookmark here. Leave it empty and the app numbers the bookmarks for you. | Type a name. Press Enter to save the view. | Report: Onboarding checklist |
 | Save view | The button stores the current state as a new view. The view keeps the camera, the cuts, the modes, the selection and the hides. | Click and the app keeps this camera angle, the cuts and the look as a bookmark with a small picture. | Set up the camera, the cuts and the modes. Click the button or press Ctrl+Shift+S. | Report: Onboarding checklist |
 | Play views | The button steps through the saved views in list order. Each view stays on screen for the dwell time. | Click and the camera glides from one bookmark to the next, like a slide show. Press Escape to stop. | Click the button to present the views. Click it again, press Escape or click the model to stop. | Report: Onboarding checklist |
@@ -528,15 +528,19 @@ Impact follows the same sentence rules and adds these:
 | View grid toggle | The button switches the list between 1 line per view and a grid of thumbnails. | Click and the list turns into small pictures, so you can spot a shot at a glance. Click again for the short rows. | Click the button on a phone or when the names alone do not help. | Report: Onboarding checklist |
 | Export views | The button downloads the saved views of this model as a JSON file with thumbnails. | Click and your browser stores a small file with all your bookmarks. Send it to a colleague or keep it as a backup. | Click the button to back up or share the views. | Report: Onboarding checklist |
 | Import views | The button adds views from a JSON file. A view with the same id replaces the older copy. | Pick a file from a colleague and their bookmarks join your list. Your own bookmarks stay. | Click the button and select a views file. | Report: Onboarding checklist |
-| View filter box | The box filters the list of views by name or preset id. | Type a few letters and the list shrinks to the bookmarks that match. A small number tells you how many match. | Type part of a name. Press Escape to clear the box. | Report: Onboarding checklist |
+| View filter box | The box filters the list of views by name, note or issue title. | Type a few letters and the list shrinks to the bookmarks that match. A small number tells you how many match. | Type part of a name. Press Escape to clear the box. | Report: Onboarding checklist |
 | Restore view | The name restores the view. The camera moves smoothly to the stored pose and the stored state comes back. | Click and the camera glides back to the stored angle. The cuts, the look and the picked parts return too. | Click a name to go back to the view. Press Shift+PageUp or Shift+PageDown to step through the views. | Report: Onboarding checklist |
-| View menu | The menu holds the commands for 1 view: update, rename, duplicate, copy link, BCF topic and delete. | Click and a short list of extra commands opens for this bookmark. | Click the button. Select a command. | Report: Onboarding checklist |
+| View menu | The menu holds the commands for 1 view: update, draw, make issue, details, rename, duplicate, copy link and delete. | Click and a short list of extra commands opens for this bookmark. | Click the button. Select a command. | Report: Onboarding checklist |
 | View drag handle | The handle moves a view to a new place in the list. The play order follows the list. | Grab the dots and pull the row up or down to change the order of the slide show. | Drag the handle to a new place. Press Alt+ArrowUp or Alt+ArrowDown on a row for the same move. | Report: Onboarding checklist |
 | Update view | The command replaces the stored state of the view with the current state. The name stays. | Click and the bookmark takes on the camera angle and look you have now, with a fresh picture. | Adjust the camera or the cuts. Then click the command. | Report: Onboarding checklist |
 | Rename view | The command changes the name of the view. | Click and you can type a new label for the bookmark. Press Enter to keep it. | Type the new name. Press Enter to accept or Escape to cancel. | Report: Onboarding checklist |
 | Duplicate view | The command makes a copy of the view below it. | Click and a second bookmark appears right under this one. Change the copy and keep the original. | Click the command, then update the copy. | Report: Onboarding checklist |
 | Copy view link | The command copies a link that opens the viewer in this view. The link holds the view itself, not the thumbnail. | Click and a web address lands on your clipboard. A colleague who opens it sees the same camera angle and look. | Click the command. Paste the link into a chat or an email. | Report: Onboarding checklist |
-| View as BCF topic | The command restores the view and creates a BCF topic with a snapshot from it. | Click and the app turns this bookmark into an issue with a picture, ready to send to another design tool. | Click the command. Open the Issues tab to add comments or to export the topic. | Report: Onboarding checklist |
+| View chips | The chips filter the list. The choices are All, With drawings, On sheets and In an issue. | Click a label and the list shows only the items of that kind. The number tells how many there are. | Click a chip. Click All to see every view. | Report: Appendix J, Coordination tools |
+| Draw on view | The command shows the drawing toolbar on this view. A view without drawings gets a drawing layer first. | Click and the picture comes back and a small bar of marker tools appears over it. | Click the command. Pick a tool and drag on the picture. | Report: Appendix J, Coordination tools |
+| Make issue | The command makes an issue of this view, or adds the view to an issue. The issue points at the view. | Click and a form offers a new task or an existing one. The task then shows this picture. | Click the command. Choose New issue or Add to, then press Make issue. | Report: Appendix J, Coordination tools |
+| Open issue of view | The command opens the issue that holds this view. | Click and the left side shows the task with its status and its comments. | Click the command. | Report: Appendix J, Coordination tools |
+| View details | The command opens the detail of the view. The detail holds the note, the exports and the list of drawings. | Click and the list gives way to a page with the note, the files you can save and the marks. | Click the command. Click Views at the top to come back. | Report: Appendix J, Coordination tools |
 | Fly-through section | The section holds the keyframe timeline of the Views tab. Open it to build, edit and play a camera trip. | Click the title to open or close the film tools. With the tools showing, a dashed line in the 3D scene marks the camera route. | Click the title to open the section. Add keyframes, then click Play. | Report: Onboarding checklist |
 | Fly-through list | The list picks the active fly-through. A model can hold several named fly-throughs. | Pick another name and the strip below shows that trip instead. Each trip keeps its own stops and timing. | Select a name from the list. Click New to add a trip. | Report: Onboarding checklist |
 | Fly-through new | The button creates an empty fly-through and makes it active. | Click and you get a blank trip with a fresh name. Your other trips stay as they are. | Click the button. Then add keyframes to the empty trip. | Report: Onboarding checklist |
@@ -781,7 +785,7 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Markup* | The folder controls markup sets. A set is 1 saved view with clouds, notes, highlights and shapes. | These controls save a view, open a shared file and write a PDF for your team. | Click New markup set from view. Open the Markup tool to draw. | Report: Appendix J, Coordination tools |
+| *Folder: Markup* | The folder controls the drawings on views. A view with drawings holds clouds, notes, highlights and shapes. | These controls save a view, open a shared file and write a PDF for your team. | Click Draw on this view in the Views tab. Pick a tool to draw. | Report: Appendix J, Coordination tools |
 | New markup set from view | The button saves the current view as a new markup set. | Click and the camera, cuts and look go into storage. You can draw at once. | Frame the view. Click the button. | Report: Appendix J, Coordination tools |
 | Open markup file | The button opens a file picker for a markup PDF or JSON file. You can also drop a file on the page. | Click and the picture and the notes of the shared document come back. | Click the button. Choose the file. | Report: Appendix J, Coordination tools |
 | Export markup PDF | The button downloads a PDF of all sets. The PDF shows the clean view, the marked view and a table of comments. | Click and you get a page file to print or to send. It also carries the data to restore the notes. | Click the button after you finish the markup. | Report: Appendix J, Coordination tools |
@@ -795,19 +799,13 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Sidebar/Issues tab* | The tab lists the issues and the sketches of this model. A switch at the top changes the list. | Click and the left side shows what your team must fix, and the drawings that show where. | Click the tab. Click an item to open it and bring its view back. | Report: Appendix J, Coordination tools |
+| *Folder: Sidebar/Issues tab* | The tab lists the issues of this model. An issue points at the views that show the problem. | Click and the left side shows what your team must fix, with the pictures that show where. | Click the tab. Click an issue to open it and bring its view back. | Report: Appendix J, Coordination tools |
 
 ## Issues panel
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Issues panel* | The panel holds the issue list, the sketch list and the detail of the chosen item. | This column shows what is wrong, who owns it and where it sits. | Pick Issues or Sketches. Search or filter. Click an item to read it. | Report: Appendix J, Coordination tools |
-
-## Issues panel/Segments
-
-| Setting | Intent | Impact | Use | Ref |
-| --- | --- | --- | --- | --- |
-| *Folder: Issues panel/Segments* | The switch picks the list. Issues carry a status and comments. Sketches are saved views with drawings. Sheets hold the pages of PDF drawings. | Click and the column swaps between the problems of your team, the drawn views and the paper drawings. | Click Issues, Sketches or Sheets. | Report: Appendix J, Coordination tools |
+| *Folder: Issues panel* | The panel holds the issue list and the detail of the chosen issue. The detail lists the views of the issue. | This column shows what is wrong, who owns it and where it sits. | Search or filter. Click an issue to read it. | Report: Appendix J, Coordination tools |
 
 ## Issues panel/Phone sheet
 
@@ -819,13 +817,13 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Drawing toolbar* | The bar floats over the view while you draw on a sketch. It holds the tools, the colours, the line weights and Done. | This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done. | Pick a tool. Drag on the view. Press Done when the drawing is ready. | Report: Appendix J, Coordination tools |
+| *Folder: Drawing toolbar* | The bar floats over the view while you draw on it. It holds the tools, the colours, the line weights and Done. | This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done. | Pick a tool. Drag on the view. Press Done when the drawing is ready. | Report: Appendix J, Coordination tools |
 
 ## Issues panel/Clear everything
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Issues panel/Clear everything* | The button deletes the sketches and the issues of the open model, and the copy this browser keeps. Sketches on sheets stay. | Click twice and your marks and your team tasks for this building are gone for good. Other buildings keep theirs. | Click the button. Click again within 8 seconds to confirm. | Report: Appendix J, Coordination tools |
+| *Folder: Issues panel/Clear everything* | The button deletes the drawings and the issues of the open model, and the copy this browser keeps. Saved views and sheet drawings stay. | Click twice and your marks and your team tasks for this building are gone for good. Other buildings keep theirs. | Click the button. Click again within 8 seconds to confirm. | Report: Appendix J, Coordination tools |
 
 ## Sheet view
 
@@ -849,7 +847,7 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Sheet view/Sketch* | The list picks the sketch that you draw on. A read-only sketch cannot change. | Pick one and your marks go into it. Pick the last choice to start a new one. | Pick a sketch from the list. | Report: Appendix J, Coordination tools |
+| *Folder: Sheet view/Sketch* | The list picks the drawings that you edit. Read-only drawings cannot change. | Pick one and your marks go into it. Pick the last choice to start a new one. | Pick drawings from the list. | Report: Appendix J, Coordination tools |
 
 ## Sheet view/Draw
 
@@ -861,7 +859,7 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Sheet view/Raise as issue* | The button makes an issue of the sketch you draw on. The issue gets a snapshot of the sheet region and the PDF. When the sketch already has an issue, the button opens that issue. | Click and your marks on the drawing go to your team as a task that they can follow. | Pick a sketch from the list. Click the button. | Report: Appendix J, Coordination tools |
+| *Folder: Sheet view/Raise as issue* | The button makes an issue of the view you draw on. The issue gets a snapshot of the sheet region and the PDF. When the view already has an issue, the button opens that issue. | Click and your marks on the drawing go to your team as a task that they can follow. | Pick drawings from the list. Click the button. | Report: Appendix J, Coordination tools |
 
 ## Sheet view/Drawing toolbar
 
@@ -903,7 +901,7 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Issues panel/View switch* | The control shows a sketch in 3D, in plan or in section. It appears when a drawing sits on a part of the model. | Click Plan and the picture turns to a cut from above. Click Section for a cut from the side. Click 3D to go back. | Click 3D, Plan or Section. Your own cut returns when you click 3D. | Report: Appendix J, Coordination tools |
+| *Folder: Issues panel/View switch* | The control shows a view in 3D, in plan or in section. It appears when a drawing sits on a part of the model. | Click Plan and the picture turns to a cut from above. Click Section for a cut from the side. Click 3D to go back. | Click 3D, Plan or Section. Your own cut returns when you click 3D. | Report: Appendix J, Coordination tools |
 
 ## Issues panel/Export report
 
@@ -915,13 +913,13 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Issues panel/Raise issues from results* | The block turns each result of the check into an issue. Each issue frames both elements and holds a sketch tied to them. | A second run adds only the new finds. A find that vanishes gets a note, and you can close it. | Run the check. Click Raise issues from results. Click Close to close the issues that are gone. | Report: Appendix J, Coordination tools |
+| *Folder: Issues panel/Raise issues from results* | The block turns each result of the check into an issue. Each issue frames both elements and holds drawings tied to them. | A second run adds only the new finds. A find that vanishes gets a note, and you can close it. | Run the check. Click Raise issues from results. Click Close to close the issues that are gone. | Report: Appendix J, Coordination tools |
 
 ## Drawing toolbar/View switch
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Drawing toolbar/View switch* | The control shows the sketch in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model. | Click Plan and the picture shows a cut from above, with your marks on the same part. Click Section for a cut from the side. | Click 3D, Plan or Section. Draw on any of them. | Report: Appendix J, Coordination tools |
+| *Folder: Drawing toolbar/View switch* | The control shows the view in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model. | Click Plan and the picture shows a cut from above, with your marks on the same part. Click Section for a cut from the side. | Click 3D, Plan or Section. Draw on any of them. | Report: Appendix J, Coordination tools |
 
 ## Status bar/Open issues
 
@@ -933,7 +931,7 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Markup drawer* | The heading names the Markup drawer. The drawer holds the sets, the drawing tools and the list of markups. | This panel lets you sketch on a saved view for your team without an issue topic. | Make a set. Pick a tool. Draw on the view. Export a PDF. | Report: Appendix J, Coordination tools |
+| *Folder: Markup drawer* | The heading names the Markup drawer. The drawer holds the sets, the drawing tools and the list of markups. | This panel lets you mark a view for your team without an issue. | Make a set. Pick a tool. Draw on the view. Export a PDF. | Report: Appendix J, Coordination tools |
 | New set from view | The button saves the current view as a new markup set. | Click and a card appears in the list with a small picture. | Frame the view. Click the button. | Report: Appendix J, Coordination tools |
 | Open file | The button opens a markup PDF or JSON file. | Click and the sheets of the shared document join the list. The first one comes back on screen. | Click the button. Choose the file. | Report: Appendix J, Coordination tools |
 | Restore view | The button brings back the camera, cuts and look of the set. | Click and the model looks as it did when you made the card. | Click the button after you move the camera. | Report: Appendix J, Coordination tools |
@@ -1291,7 +1289,7 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Clearance drawer* | The heading names the Clearance drawer. The drawer sets the bands and shows the counts per band. | This panel paints nearby walls and slabs by how close they sit to the selected item. | Select an object. Turn the colouring on. Read the counts in the status line. | Report: Appendix J, Coordination tools |
-| Issues (heading) | The heading starts the block that turns the clearance results into issues. | You get a record per result with both elements, a view on the pair and a sketch tied to them. | Run the check first, then use the buttons below. | Report: Appendix J, Coordination tools |
+| Issues (heading) | The heading starts the block that turns the clearance results into issues. | You get a record per result with both elements, a view on the pair and marks tied to them. | Run the check first, then use the buttons below. | Report: Appendix J, Coordination tools |
 | Raise issues from results | The button makes an issue of each clearance result. Results already raised are skipped. | New records appear in the panel at the left. A second run adds only the new finds. | Run the check. Click the button. Confirm when it asks about many results. | Report: Appendix J, Coordination tools |
 | Close not found | The button closes the issues that the latest run no longer reports. The number says how many. | Their status changes, and they stay in the list with their history. | Run the check again after a fix. Click the button to close what is gone. | Report: Appendix J, Coordination tools |
 | Stop | The button stops raising issues after the current result. | You keep every record made up to now. The remaining results wait for the next run. | Click it while a long run is busy. Raise again later to add the rest. | Report: Appendix J, Coordination tools |
@@ -1305,7 +1303,7 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Penetrations drawer* | The heading names the Penetrations drawer. The drawer holds the penetration schedule with filters and a sortable table. | This panel lists where pipes and ducts go through slabs and walls, with a cut-out check for each. | Click Analyse. Filter the rows with the chips. Click a row to fly to the crossing. | Report: Appendix J, Coordination tools |
-| Issues (heading) | The heading starts the block that turns the penetration results into issues. | You get a record per result with both elements, a view on the pair and a sketch tied to them. | Run the check first, then use the buttons below. | Report: Appendix J, Coordination tools |
+| Issues (heading) | The heading starts the block that turns the penetration results into issues. | You get a record per result with both elements, a view on the pair and marks tied to them. | Run the check first, then use the buttons below. | Report: Appendix J, Coordination tools |
 | Raise issues from results | The button makes an issue of each penetration result. Results already raised are skipped. | New records appear in the panel at the left. A second run adds only the new finds. | Run the check. Click the button. Confirm when it asks about many results. | Report: Appendix J, Coordination tools |
 | Close not found | The button closes the issues that the latest run no longer reports. The number says how many. | Their status changes, and they stay in the list with their history. | Run the check again after a fix. Click the button to close what is gone. | Report: Appendix J, Coordination tools |
 | Stop | The button stops raising issues after the current result. | You keep every record made up to now. The remaining results wait for the next run. | Click it while a long run is busy. Raise again later to add the rest. | Report: Appendix J, Coordination tools |
@@ -1523,6 +1521,12 @@ Impact follows the same sentence rules and adds these:
 | Calibrate on rules | The button fits a temperature for each question. It uses the parts that the rules label with confidence as proxy labels. | The model runs once for each kind of part. Afterwards the table shows the numbers before and after for a held-out share. | Click the button on a model with many parts that the rules know. Read the table. A rule can be wrong. | Report: Limitations and extensions, classification |
 | Forget fit | The button deletes the fitted temperatures of the chosen model from this browser. | The list then falls back to the shipped numbers. Stored answers stay. | Click the button before you fit again on other data. | Report: Limitations and extensions, classification |
 | Status line | The line shows the last message, such as the number of results and calls. | It tells you what happened and whether something failed. | Read the line after each run. | Report: Limitations and extensions, classification |
+
+## Views panel
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Drawings | The area below the list holds the detail of a view with drawings, the sheet pages and the file button. | This part shows the note, the exports and the marks of the item you picked. | Click a view with drawings in the list. Read or change it here. | Report: Appendix J, Coordination tools |
 
 ## Simplif
 

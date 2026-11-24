@@ -30,6 +30,8 @@ export interface ViewsHost {
   copyLink(index: number): void;
   /** Draw on the view: it gets a drawing layer if it has none, and the drawing toolbar comes up. */
   drawOn(index: number): void;
+  /** The button at the top: draw on the marked view, or on the current state (saved as a view first) when none is marked. */
+  drawCurrent(): void;
   /** Make an issue of the view: the detail opens with the chooser New issue / Add to. */
   makeIssue(index: number): void;
   openIssue(index: number): void;
@@ -176,6 +178,7 @@ export class ViewsPanel {
     this.prefs = readPrefs();
     host.setDwellMs(this.prefs.dwell);
     this.root = el('div', 'vw');
+    this.root.id = 'views-panel';
     const top = el('div', 'vw-top');
     this.nameInput = el('input', 'inp', { type: 'text', placeholder: 'View name (optional)', 'aria-label': 'New view name', ...help('View name box', 'View name box') });
     const save = el('button', 'btn primary', { type: 'button', title: 'Save the camera, cuts, modes and selection as a view (Ctrl+Shift+S)', ...help('Save view', 'Save view') }, 'Save view');
@@ -198,8 +201,11 @@ export class ViewsPanel {
     this.fileInput.style.display = 'none';
     const row2 = el('div', 'row');
     row2.append(this.playBtn, this.dwellSel, el('span', 'vw-spacer'), this.gridBtn, exp, imp, this.fileInput);
+    const draw = el('button', 'btn', { type: 'button', 'data-act': 'draw-current', title: 'Show the drawing toolbar on the marked view. With no view marked, the current state is saved as a view first.', ...help('Draw on view', 'Draw on this view') }, 'Draw on this view');
+    const row3 = el('div', 'row');
+    row3.append(draw);
     this.msg = el('div', 'vw-msg', { 'aria-live': 'polite' });
-    top.append(row1, row2, this.msg);
+    top.append(row1, row2, row3, this.msg);
 
     this.filterRow = el('div', 'vw-filter');
     this.filterInput = el('input', 'inp', { type: 'search', placeholder: 'Filter views', 'aria-label': 'Filter the views by name or note', ...help('View filter box', 'Filter views') });
@@ -234,6 +240,7 @@ export class ViewsPanel {
       writePrefs(this.prefs);
       this.render();
     });
+    draw.addEventListener('click', () => host.drawCurrent());
     exp.addEventListener('click', () => host.exportFile());
     imp.addEventListener('click', () => this.fileInput.click());
     this.fileInput.addEventListener('change', () => {

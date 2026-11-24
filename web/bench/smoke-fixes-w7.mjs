@@ -52,7 +52,7 @@ try {
     page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
   };
   const boot = async (page, model) => {
-    // sketches and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
+    // views and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
     await page.evaluate(() => window.__xrayWork?.reset()).catch(() => undefined);
     await page.goto(`http://127.0.0.1:${port}/?model=${model}`);
     await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 300000 });
@@ -189,7 +189,7 @@ try {
   check('6 new topics get pin numbers 1 and 2', made.nA === 1 && made.nB === 2, `${made.nA}, ${made.nB}`);
   check('3 the annotated wall joins the viewpoint selection for other tools', made.sel.includes(setup.wall.gid) && made.sel.includes(setup.win.gid), made.sel.join(','));
   await frames(page, 4);
-  // Assertions changed in 7, 5 and 4: the drawing of a viewpoint is its sketch, so the markup view draws it (data-mk, same guid) and
+  // Assertions changed in 7, 5 and 4: the drawing of a viewpoint is its view, so the markup view draws it (data-mk, same guid) and
   // the BCF overlay draws none; the annotation text carries the markup number ("N. text").
   const mmText = await page.evaluate((g) => [...document.querySelectorAll(`svg.xray-svg-overlay [data-mk="${g}"] text`)].map((t) => t.textContent), made.link);
   check('7 the linked measurement shows in mm (the measure tool unit)', mmText.some((t) => /^\d+ mm$/.test(t)), JSON.stringify(mmText));

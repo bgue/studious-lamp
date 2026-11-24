@@ -1,15 +1,15 @@
 // Headless check for placing PDF sheets in the model (src/sheets placement, stage 2) on /?model=fzk-haus:
 //   - a sheet is made from FZK-Haus's own ground-floor plan cut (the outlines of what a plane 1.2 m above the storey slices), drawn with
 //     a known scale (1:100) and a 20 degree turn, so the overlay check means something; it opens as an unplaced sheet ("Not placed")
-//     that works as in stage 1 (a sketch on it stays on the sheet, no attachment, nothing in 3D);
+//     that works as in stage 1 (a view on it stays on the sheet, no attachment, nothing in 3D);
 //   - "Place in model..." opens the split view: the sheet and the plan of the storey; two real clicks on the sheet and two on the model
 //     (snapping to wall corners) give a transform close to the known one, shown at once as the model overlay on the sheet;
 //   - Accept: the sheet is placed; the model overlay lines up with the drawing (the overlay pixels lie on dark pixels of the page); a
 //     third point gives a least-squares fit with a misfit in millimetres; "Use drawing scale" gives the same transform from one pair;
 //   - a cloud drawn over a wall on the sheet is attached to that wall's GlobalId; a text on a wall is a `point`; a rectangle over
 //     nothing is a `region`;
-//   - Show in 3D: a quad at the level; picks ignore it; the sketches are drawn on it; the 3D · Plan · Section switch works for the
-//     sketch;
+//   - Show in 3D: a quad at the level; picks ignore it; the views are drawn on it; the 3D · Plan · Section switch works for the
+//     view;
 //   - raised as an issue the viewpoint has the wall's GlobalId as a component and a camera, the bcfzip has Plan and Section views;
 //   - geo auto placement (the model gets an IfcMapConversion in the page: FZK-Haus has none) from bench/fixtures/geo-sheet.pdf, and the
 //     refusal when the CRS differ;
@@ -126,18 +126,18 @@ try {
   const sheet = (await page.evaluate(() => window.__xraySheets.sheets()))[0];
   const sheetId = sheet.id;
   check('the new sheet is "Not placed" and has no geo data', sheet.placement === undefined && !sheet.geo);
-  await page.waitForSelector(`#issues-panel [data-sheet-place="${sheetId}"]`);
-  const status0 = await page.textContent(`#issues-panel [data-placement-status="${sheetId}"]`);
-  check('the Sheets segment says "Not placed" and offers Place in model...', status0 === 'Not placed' && !!(await page.$(`#issues-panel [data-sheet-place="${sheetId}"] [data-act=place]`)));
-  const noOthers = await page.evaluate((id) => ({ show: !!document.querySelector(`#issues-panel [data-sheet-place="${id}"] [data-act=show3d]`), rm: !!document.querySelector(`#issues-panel [data-sheet-place="${id}"] [data-act=remove-placement]`) }), sheetId);
+  await page.waitForSelector(`#views-drawings [data-sheet-place="${sheetId}"]`);
+  const status0 = await page.textContent(`#views-drawings [data-placement-status="${sheetId}"]`);
+  check('the Views tab (On sheets) says "Not placed" and offers Place in model...', status0 === 'Not placed' && !!(await page.$(`#views-drawings [data-sheet-place="${sheetId}"] [data-act=place]`)));
+  const noOthers = await page.evaluate((id) => ({ show: !!document.querySelector(`#views-drawings [data-sheet-place="${id}"] [data-act=show3d]`), rm: !!document.querySelector(`#views-drawings [data-sheet-place="${id}"] [data-act=remove-placement]`) }), sheetId);
   check('an unplaced sheet offers no Show in 3D, overlay or Remove placement', !noOthers.show && !noOthers.rm);
 
-  // an unplaced sheet works exactly as before: a sketch stays on the sheet, with no attachment and nothing in 3D
-  await page.click(`#issues-panel [data-sheet="${sheetId}"]`);
+  // an unplaced sheet works exactly as before: a view stays on the sheet, with no attachment and nothing in 3D
+  await page.click(`#views-drawings [data-sheet="${sheetId}"]`);
   await page.waitForSelector('#sheet-view.on');
   await page.waitForFunction(() => window.__xraySheets.view()?.renders.base >= 1, null, { timeout: 60000 });
   const plain = await page.evaluate((id) => { const s = window.__xraySheets.newSketch(id, 'Plain'); const m = window.__xraySheets.add(s.id, { kind: 'rect', points: [[300, 300], [380, 360]] }); return { set: s.id, attach: m.attach?.kind, status: window.__xraySheets.view().overlayDrawn }; }, sheetId);
-  check('on an unplaced sheet a sketch is sheet-only: view-locked, no attachment', plain.attach === 'none');
+  check('on an unplaced sheet a view is sheet-only: view-locked, no attachment', plain.attach === 'none');
   check('the viewer shows the stage 1 controls: no overlay or misfit on an unplaced sheet', await page.evaluate(() => { const q = (s) => document.querySelector(`#sheet-view ${s}`); return q('[data-act=overlay]').hidden && q('[data-sv=misfit]').hidden && q('[data-sv=placement]').textContent.startsWith('Not placed'); }));
   await page.evaluate((id) => window.__xraySheets.controller.markup.deleteSet(id), plain.set);
 
@@ -299,7 +299,7 @@ try {
   await page.click('#sheet-place [data-act=cancel]');
   await page.waitForFunction(() => !document.querySelector('#sheet-place.on'));
 
-  // ------------------------------------------------------------------ sketches attach to the elements under them
+  // ------------------------------------------------------------------ views attach to the elements under them
   // a wall that nothing else comes near: a cloud over the middle of it
   const walls = polys.filter((e) => /Wall/.test(e.cls));
   const near = (a, b, m) => !(a[2] + m < b[0] || b[2] + m < a[0] || a[3] + m < b[1] || b[3] + m < a[1]);
@@ -358,7 +358,7 @@ try {
   await page.click('#sheet-float [data-act=done]');
   const setId = setAfter.id;
 
-  // ------------------------------------------------------------------ Show in 3D: the quad, picks, the sketches on it
+  // ------------------------------------------------------------------ Show in 3D: the quad, picks, the views on it
   await page.click('#sheet-view [data-act=back]');
   await page.waitForFunction(() => !document.querySelector('#sheet-view.on'));
   const grid = [];
@@ -366,8 +366,8 @@ try {
   const picks = () => page.evaluate((g) => g.map(([x, y]) => window.__xray.app.renderer.pick(x, y)), grid);
   const picksBefore = await picks();
   await page.evaluate(() => window.__xrayIssues.open('sheets'));
-  await page.waitForSelector(`#issues-panel [data-sheet-place="${sheetId}"] [data-act=show3d]`);
-  await page.click(`#issues-panel [data-sheet-place="${sheetId}"] [data-act=show3d]`);
+  await page.waitForSelector(`#views-drawings [data-sheet-place="${sheetId}"] [data-act=show3d]`);
+  await page.click(`#views-drawings [data-sheet-place="${sheetId}"] [data-act=show3d]`);
   await page.waitForFunction((id) => window.__xraySheets.quad(id).exists, sheetId, { timeout: 60000 });
   const q = await page.evaluate((id) => window.__xraySheets.quad(id), sheetId);
   check('Show in 3D makes a quad in the scene at the elevation of the level', q.exists && q.inScene && Math.abs(q.elevation - 0.03) < 1e-6 && q.corners.length === 4, JSON.stringify([q.elevation, q.opacity]));
@@ -379,15 +379,15 @@ try {
   await page.setViewportSize({ width: 1500, height: 821 });
   await page.evaluate(() => window.__xraySheets.setQuadOpacity(0.55));
   check('the global opacity control sets the quad opacity', Math.abs((await page.evaluate((id) => window.__xraySheets.quad(id).opacity, sheetId)) - 0.55) < 1e-6);
-  // 3D view of the sketch: the switch frames what it is attached to
+  // 3D view of the view: the switch frames what it is attached to
   const tied = await page.evaluate((id) => window.__xrayIssues.controller.views.tied(window.__xraySheets.controller.markup.get(id)), setId);
-  check('the sketch on the placed sheet has the 3D · Plan · Section switch', tied === true);
+  check('the view on the placed sheet has the 3D · Plan · Section switch', tied === true);
   await page.evaluate((id) => window.__xrayIssues.controller.views.apply(id, '3d'), setId);
   await page.waitForTimeout(900);
   const drawn = await page.evaluate(() => window.__xraySheets.scene3d());
-  check('the sketches are drawn in 3D on the quad, with the attached-markup layout', drawn.drawn >= 3, JSON.stringify(drawn));
+  check('the views are drawn in 3D on the quad, with the attached-markup layout', drawn.drawn >= 3, JSON.stringify(drawn));
   check('the quad texture was drawn once at least', drawn.renders.base >= 1);
-  // an oblique view from outside: the quad lies on the ground floor around the house, the sketches on it
+  // an oblique view from outside: the quad lies on the ground floor around the house, the views on it
   await page.evaluate(() => { const r = window.__xray.app.renderer; r.camera.position.set(16, 17, 24); r.controls.target.set(2, 0, -2); r.controls.update(); r.markDirty(); });
   await page.waitForTimeout(700);
   await page.screenshot({ path: resolve(here, 'sheets-3d.png') });
@@ -452,7 +452,7 @@ try {
   const o = applyT(gp.transform, [0, 0]);
   check('the geo transform puts the sheet corner 100 m east and 10 m north of the model origin', Math.abs(o[0] - 100) < 0.01 && Math.abs(o[1] - 10) < 0.01 && Math.abs(gp.transform.scale / MPP - 1) < 1e-4, JSON.stringify(o));
   await page.evaluate(() => window.__xrayIssues.open('sheets'));
-  check('the status says Placed (geo)', (await page.textContent(`#issues-panel [data-placement-status="${geoSheet.id}"]`)) === 'Placed (geo)');
+  check('the status says Placed (geo)', (await page.textContent(`#views-drawings [data-placement-status="${geoSheet.id}"]`)) === 'Placed (geo)');
   await page.evaluate((id) => window.__xraySheets.removeDoc(id), geoSheet.docId);
   // the CRS differ: not placed, the detected info is shown, manual placement is offered
   await page.evaluate(() => { window.__xray.app.loaded.model.mapConversion.crs = { epsg: 31467, name: 'EPSG:31467' }; });
@@ -462,8 +462,8 @@ try {
   const g2 = await page.evaluate((id) => window.__xraySheets.geo(id), geoSheet2.id);
   check('a PDF in another CRS than the model is not placed and says so, with what it found', !geoSheet2.placement && /EPSG:25832/.test(g2.note) && /EPSG:31467/.test(g2.note) && /Place it by hand/.test(g2.note), g2.note);
   await page.evaluate(() => window.__xrayIssues.open('sheets'));
-  await page.waitForSelector(`#issues-panel [data-sheet-place="${geoSheet2.id}"] [data-geo-note]`);
-  check('the panel shows the detected info next to Place in model...', /ISO 32000/.test(await page.evaluate((id) => document.querySelector(`#issues-panel [data-sheet-place="${id}"] [data-geo-note]`).textContent, geoSheet2.id)) || /EPSG:25832/.test(await page.textContent(`#issues-panel [data-sheet-place="${geoSheet2.id}"] [data-geo-note]`)));
+  await page.waitForSelector(`#views-drawings [data-sheet-place="${geoSheet2.id}"] [data-geo-note]`);
+  check('the panel shows the detected info next to Place in model...', /ISO 32000/.test(await page.evaluate((id) => document.querySelector(`#views-drawings [data-sheet-place="${id}"] [data-geo-note]`).textContent, geoSheet2.id)) || /EPSG:25832/.test(await page.textContent(`#views-drawings [data-sheet-place="${geoSheet2.id}"] [data-geo-note]`)));
   await page.evaluate((id) => window.__xraySheets.removeDoc(id), geoSheet2.docId);
   await page.evaluate(() => { delete window.__xray.app.loaded.model.mapConversion; });
 
@@ -491,10 +491,10 @@ try {
   await phone.evaluate(() => window.__xrayIssues.open('sheets'));
   await phone.setInputFiles('input[data-sheets=open]', { name: 'fzk-erdgeschoss.pdf', mimeType: 'application/pdf', buffer: sheetBytes });
   await phone.waitForFunction(() => window.__xraySheets.docs().length === 1 && /opened/.test(window.__xraySheets.status), null, { timeout: 90000 });
-  await phone.waitForSelector('#issues-sheet.on [data-sheet-place] [data-act=place]');
-  const rowFit = await phone.evaluate(() => { const r = document.querySelector('#issues-sheet [data-sheet-place]'); const b = r.getBoundingClientRect(); const v = document.querySelector('#issues-sheet').getBoundingClientRect(); return { inside: b.left >= v.left - 1 && b.right <= v.right + 1, noScroll: r.scrollWidth <= r.clientWidth + 1 }; });
-  check('on a 360 px phone the placement row of the Sheets segment fits', rowFit.inside && rowFit.noScroll, JSON.stringify(rowFit));
-  await phone.tap('#issues-sheet [data-sheet-place] [data-act=place]');
+  await phone.waitForSelector('#views-drawings [data-sheet-place] [data-act=place]');
+  const rowFit = await phone.evaluate(() => { const r = document.querySelector('#views-drawings [data-sheet-place]'); const b = r.getBoundingClientRect(); const v = document.querySelector('#views-panel').getBoundingClientRect(); return { inside: b.left >= v.left - 1 && b.right <= v.right + 1, noScroll: r.scrollWidth <= r.clientWidth + 1 }; });
+  check('on a 360 px phone the placement row of the On sheets filter fits', rowFit.inside && rowFit.noScroll, JSON.stringify(rowFit));
+  await phone.tap('#views-drawings [data-sheet-place] [data-act=place]');
   await phone.waitForSelector('#sheet-place.on');
   await phone.waitForFunction(() => { const s = window.__xraySheets.place.state(); return s && s.elements > 5; }, null, { timeout: 60000 });
   await phone.waitForTimeout(800);

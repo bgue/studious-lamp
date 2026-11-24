@@ -89,7 +89,7 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Show or hide the top bar | `Shift+t` |
 | Classify: review walk, to confirm classifications ([classify.md](classify.md#review-walk)); while it is open it also takes Enter or Y, 2, E, N (skip; Shift+N the other skip in a type), `?` (flag the next action as unsure, a guess), the arrow keys, `[`, `]`, A, U and Esc; the panel handles these itself | `Shift+r` |
 | Revision: review changes between an earlier model and this one, to confirm what differs ([revision.md](revision.md)); while the walk is open it also takes Enter or Y, 2, E, R (reject), N (skip), `?`, the arrow keys, `[`, `]`, A, U, G (ghost), B (bulk rules) and Esc; the panel handles these itself | `Shift+v` |
-| Sketches: open the Issues tab on the Sketches segment ([issues.md](issues.md)); the palette also has `issues.open`, `issues.sketches`, `issues.edit`, `issues.done`, and `tool.bcf` / `tool.markup` as aliases of the old drawer actions | `k` |
+| Views: open the Views tab on the filter With drawings ([issues.md](issues.md)); the palette also has `issues.open`, `issues.sketches`, `issues.edit`, `issues.done`, and `tool.bcf` / `tool.markup` as aliases of the old drawer actions | `k` |
 | Save view; previous / next saved view ([saved-views.md](saved-views.md)) | `Ctrl+Shift+s`; `Shift+PageUp` / `Shift+PageDown` |
 
 The top bar keys avoid the digits (presets), `Alt+<digit>` (views) and the numpad: `Shift+0` to `Shift+4` match by physical key, so they work on layouts where Shift+digit types another symbol. They are actions `topbar.mode.solid`, `topbar.mode.ghost`, `topbar.mode.radiograph`, `topbar.mode.glow`, `topbar.mode.cutaway` and `topbar.toggle`, rebindable like any other.

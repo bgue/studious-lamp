@@ -5,7 +5,7 @@ A fly-through is a camera trip through **keyframes**. A keyframe is a full saved
 ## The timeline
 
 - **Fly-through list**, **New**, and **⋯** (rename, duplicate, export, import, delete). A model keeps several named fly-throughs; the active one is shown.
-- **Add keyframe** adds the current view (camera, cuts, modes, selection, hides, settings) with a thumbnail. The list next to it adds a saved view. **From views** replaces the keyframes with one per saved view; **From sets** with one per selection set, the camera framed on the set (the fly-to framing).
+- **Add keyframe** adds the current view (camera, cuts, modes, selection, hides, settings) with a thumbnail. The list next to it adds a saved view. **From views** replaces the keyframes with one per saved view (the drawings of a view are not drawn during playback: the keyframe takes the camera and the look); **From sets** with one per selection set, the camera framed on the set (the fly-to framing).
 - **Cards** show the thumbnail, name and the move (`to 2 s`, `hold 1 s`). Click a card to select it and go to it. Reorder by dragging the grip, with the arrow buttons on the card, or Alt+Left / Alt+Right; Delete removes the card.
 - **Transport**: Play (from the start), Pause, Stop, **From** (play from the selected keyframe), **Rec** (record a video: options dialog, see Export). The bar shows the running time, a tick per keyframe, the holds and a playhead; click or drag it to jump.
 - **Timing**: *Constant speed* (default, metres per second, by arc length of the camera path; the turn of the view direction counts too) or *Seconds per move* (the same time for each move). **Look at selection** keeps the camera pointed at the selection of each keyframe. **Loop** repeats it.

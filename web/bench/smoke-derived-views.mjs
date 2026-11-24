@@ -1,12 +1,12 @@
-// Headless check for the 3D · Plan · Section switch of a sketch that is tied to a 3D construct, on /?model=fzk-haus
+// Headless check for the 3D · Plan · Section switch of a view that is tied to a 3D construct, on /?model=fzk-haus
 // (docs-features/issues.md, "Plan and Section views"):
-//   - a cloud drawn on a wall is attached; the sketch detail and the drawing toolbar show the switch, a view-locked sketch does not;
+//   - a cloud drawn on a wall is attached; the view detail and the drawing toolbar show the switch, a view-locked view does not;
 //   - Plan: an orthographic camera looking straight down, one horizontal clip plane at the storey + 1.2 m, and the cloud still on
 //     screen over the wall; Section: two vertical clip planes (cut and back) and a horizontal camera; 3D: the authored camera
 //     is back and the clips the switch added are gone;
 //   - a section the user had (a section plane) comes back after Plan and 3D; a section the user sets while in Plan stays;
-//   - raising the sketch and exporting BCF 2.1 and 3.0 writes the Plan and Section as orthogonal viewpoints with clip planes,
-//     marked as derived; opening the file again makes one sketch, not three, and a second export does not double them;
+//   - raising the view and exporting BCF 2.1 and 3.0 writes the Plan and Section as orthogonal viewpoints with clip planes,
+//     marked as derived; opening the file again makes one view, not three, and a second export does not double them;
 //   - phone width (360 px): the switch fits in the sheet and in the toolbar;
 //   - fails on any console error.
 // Screenshots: bench/derived-plan.png, derived-section.png, derived-phone.png.
@@ -60,7 +60,7 @@ try {
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 
   async function boot(pg = page) {
-    // sketches and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
+    // views and issues are kept in this browser (IndexedDB): forget them so that this boot starts clean
     await pg.evaluate(() => window.__xrayWork?.reset()).catch(() => undefined);
     await pg.goto(`http://127.0.0.1:${port}/?model=fzk-haus`);
     await pg.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
@@ -138,18 +138,18 @@ try {
     return { set, wallGuid, info, markup: mk };
   }
 
-  // ------------------------------------------------------------------ part 1: tied sketch, the switch, Plan, Section, 3D
+  // ------------------------------------------------------------------ part 1: tied view, the switch, Plan, Section, 3D
   await boot();
   await page.keyboard.press('k');
-  await page.waitForSelector('#issues-panel');
+  await page.waitForSelector('#views-panel');
   const A = await sketchOnWall();
   check('the cloud drawn on the wall is attached (surface)', A.markup.attach === 'surface', A.markup.attach);
   await page.waitForTimeout(400);
   const authored = await page.evaluate((id) => { const s = window.__xrayMarkup.get(id); return { cam: s.view.camera, aspect: s.camera.aspect }; }, A.set);
   const cam3d = await live();
-  check('3D is the starting mode and the sketch has the switch', await page.evaluate((id) => window.__xrayIssues.viewMode(id) === '3d' && window.__xrayIssues.viewSwitchAvailable(id), A.set));
+  check('3D is the starting mode and the view has the switch', await page.evaluate((id) => window.__xrayIssues.viewMode(id) === '3d' && window.__xrayIssues.viewSwitchAvailable(id), A.set));
 
-  // the switch in the drawing toolbar (the sketch is being edited) and a view-locked sketch has none
+  // the switch in the drawing toolbar (the view is being edited) and a view-locked view has none
   await page.waitForSelector('#markup-float [data-view-switch]');
   const tbModes = await page.evaluate(() => [...document.querySelectorAll('#markup-float [data-view-switch] [data-view-mode]')].map((b) => `${b.dataset.viewMode}:${b.getAttribute('aria-pressed')}`));
   check('the drawing toolbar shows 3D · Plan · Section with 3D pressed', JSON.stringify(tbModes) === JSON.stringify(['3d:true', 'plan:false', 'section:false']), tbModes.join(','));
@@ -160,14 +160,14 @@ try {
     return s.id;
   });
   await page.waitForTimeout(200);
-  check('a view-locked sketch has no switch', await page.evaluate((id) => !window.__xrayIssues.viewSwitchAvailable(id) && !document.querySelector('#markup-float [data-view-switch]'), lockedId));
+  check('a view-locked view has no switch', await page.evaluate((id) => !window.__xrayIssues.viewSwitchAvailable(id) && !document.querySelector('#markup-float [data-view-switch]'), lockedId));
   await page.evaluate((id) => window.__xrayMarkup.deleteSet(id), lockedId);
   await page.evaluate((id) => { window.__xrayMarkup.restore(id, { animate: false }); }, A.set);
   await page.evaluate(() => window.__xrayIssues.stopEditing());
   await setCamera(cam3d.pos, await page.evaluate(() => { const t = window.__xray.app.renderer.controls.target; return [t.x, t.y, t.z]; }));
   await page.evaluate((id) => window.__xrayIssues.openSketch(id), A.set);
-  await page.waitForSelector('#issues-panel [data-view-switch-row]');
-  check('the sketch detail shows the switch', (await page.textContent('#issues-panel [data-view-switch-row]')).replace(/\s+/g, '') === 'View3DPlanSection');
+  await page.waitForSelector('#views-drawings [data-view-switch-row]');
+  check('the view detail shows the switch', (await page.textContent('#views-drawings [data-view-switch-row]')).replace(/\s+/g, '') === 'View3DPlanSection');
   await page.evaluate(() => window.__xrayIssues.editSketch(window.__xrayIssues.detail.id));
   await page.waitForSelector('#markup-float [data-view-switch]');
   await page.evaluate(() => window.__xrayIssues.close());
@@ -186,7 +186,7 @@ try {
   await page.waitForTimeout(500);
   const planOutline = await outlineBox(A.markup.id);
   const planWall = await elementBox(A.wallGuid);
-  check('Plan: the sketch shape is still on screen, over the wall', onElement(planOutline, planWall), JSON.stringify({ planOutline, planWall }));
+  check('Plan: the view shape is still on screen, over the wall', onElement(planOutline, planWall), JSON.stringify({ planOutline, planWall }));
   await page.mouse.move(2, 2);
   await page.waitForTimeout(400);
   await page.screenshot({ path: resolve(here, 'derived-plan.png') });
@@ -206,7 +206,7 @@ try {
     `view axis ${along} wall thin axis ${wallThin} depth ${sv.depth?.toFixed(2)} basis ${sv.basis}`);
   await page.waitForTimeout(500);
   const secOutline = await outlineBox(A.markup.id);
-  check('Section: the sketch is still drawn', !!secOutline, JSON.stringify(secOutline));
+  check('Section: the view is still drawn', !!secOutline, JSON.stringify(secOutline));
   await page.mouse.move(2, 2);
   await page.waitForTimeout(400);
   await page.screenshot({ path: resolve(here, 'derived-section.png') });
@@ -281,7 +281,7 @@ try {
   const issueGuid = await page.evaluate((id) => window.__xrayIssues.raise(id), A.set);
   await page.evaluate((g) => window.__xrayIssues.openIssue(g, { apply: false }), issueGuid);
   await page.waitForSelector('#issues-panel [data-view-switch-row]');
-  check('the issue detail shows the switch on the sketch row', true);
+  check('the issue detail shows the switch on the view row', true);
   await page.click('#issues-panel [data-view-switch-row] [data-view-mode=section]');
   await frames(3);
   check('the issue detail switch drives the live view', (await live()).clips.length === 2);
@@ -303,14 +303,14 @@ try {
     check(`BCF ${v}: Plan and Section are written as orthogonal viewpoints with clip planes, marked derived`, o.n === 3 && o.derived.length === 2 && o.derived[0].kind === 'plan' && o.derived[1].kind === 'section' && o.derived.every((d) => d.cam === 'orthogonal' && d.scale > 0 && d.planes >= 1 && d.sel === o.srcSel) && o.derived[0].planes === 1 && o.derived[1].planes === 2, JSON.stringify({ ...o, bytes: undefined }));
   }
   check('the session project is not changed by the export (no derived viewpoint is stored)', await page.evaluate(() => window.__xrayBcf.topics[0].viewpoints.length === 1));
-  // a fresh session: no sketches, open the file
+  // a fresh session: no views, open the file
   const reopened = await page.evaluate(async (bytes) => {
     for (const s of window.__xrayMarkup.list({ all: true })) window.__xrayMarkup.deleteSet(s.id);
     await window.__xrayBcf.load(new Uint8Array(bytes));
     const t = window.__xrayBcf.topics[0];
     return { topics: window.__xrayBcf.topics.length, vps: t.viewpoints.length, derived: t.viewpoints.filter((v) => v.derived).length, sketches: window.__xrayMarkup.list().length, derivedSketch: t.viewpoints.filter((v) => v.derived && v.sketchId).length, linked: !!t.viewpoints[0].sketchId };
   }, out['3.0'].bytes);
-  check('opening the file again: 1 sketch, linked to the source viewpoint; the 2 derived viewpoints are views of it, not sketches', reopened.topics === 1 && reopened.vps === 3 && reopened.derived === 2 && reopened.sketches === nSketches && reopened.derivedSketch === 0 && reopened.linked, JSON.stringify(reopened));
+  check('opening the file again: 1 sketch, linked to the source viewpoint; the 2 derived viewpoints are views of it, not views', reopened.topics === 1 && reopened.vps === 3 && reopened.derived === 2 && reopened.sketches === nSketches && reopened.derivedSketch === 0 && reopened.linked, JSON.stringify(reopened));
   const again = await page.evaluate(async () => {
     const bytes = await window.__xrayBcf.exportZip('3.0');
     const { parseBcf } = await import('/src/bcf/parse.ts');
@@ -346,13 +346,13 @@ try {
   await pp.click('#markup-float [data-view-mode="3d"]');
   await frames(3, pp);
   await pp.evaluate(() => { window.__xrayIssues.stopEditing(); window.__xrayIssues.openSketch(window.__xrayIssues.detail?.id ?? window.__xrayMarkup.list()[0].id); });
-  await pp.waitForSelector('#issues-sheet.on [data-view-switch]');
-  const sw = await rect('#issues-sheet [data-view-switch]', pp);
-  const sheet = await rect('#issues-sheet', pp);
-  check('phone: the switch fits the bottom sheet at 360 px', !!sw && sw.x >= 0 && sw.r <= 360.5 && !!sheet && sheet.r <= 360.5 && sw.h >= 28, JSON.stringify({ sw, sheet }));
-  await pp.click('#issues-sheet [data-view-mode=plan]');
+  await pp.waitForSelector('#views-drawings [data-view-switch]');
+  const sw = await rect('#views-drawings [data-view-switch]', pp);
+  const sheet = await rect('#views-panel', pp);
+  check('phone: the switch fits the Views tab at 360 px', !!sw && sw.x >= 0 && sw.r <= 360.5 && !!sheet && sheet.r <= 360.5 && sw.h >= 28, JSON.stringify({ sw, sheet }));
+  await pp.click('#views-drawings [data-view-mode=plan]');
   await frames(4, pp);
-  check('phone: Plan from the sheet', (await live(pp)).clips.length === 1 && (await pp.evaluate(() => document.querySelector('#issues-sheet [data-view-mode=plan]').getAttribute('aria-pressed') === 'true')));
+  check('phone: Plan from the view detail', (await live(pp)).clips.length === 1 && (await pp.evaluate(() => document.querySelector('#views-drawings [data-view-mode=plan]').getAttribute('aria-pressed') === 'true')));
   check('phone: no horizontal page scroll', await pp.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
   await pp.evaluate(() => document.activeElement?.blur?.());
   await pp.mouse.move(2, 2);

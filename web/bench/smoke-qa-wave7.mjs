@@ -67,7 +67,7 @@ const state = (page) => page.evaluate(() => {
     planes: planes ? planes.length : 0,
     box: sec.box.enabled, plane: sec.plane.enabled,
     pins: document.querySelectorAll('svg.xray-svg-overlay [data-bcf-pin]').length,
-    // A viewpoint's drawing is its sketch (docs-features/issues.md): the markup view draws it (data-mk) and the BCF overlay draws none of it.
+    // A viewpoint's drawing is its view (docs-features/issues.md): the markup view draws it (data-mk) and the BCF overlay draws none of it.
     anns: document.querySelectorAll('svg.xray-svg-overlay [data-bcf-ann], svg.xray-svg-overlay [data-mk]').length,
     hidden: app.controller.settings.overrides.userHides.size,
     sel: app.selection.length,
