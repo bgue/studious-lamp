@@ -48,7 +48,7 @@ Roll and turn are also palette actions without default keys: `gizmo.rollCw`, `gi
 ## Pointer mode and history row
 
 Under the cube is a row with the Arrow / Hand toggle (a two-button segmented control, `aria-pressed`, keys `r` / `g`, see
-[pointer-modes.md](pointer-modes.md)), the walk button (`xg-walk`, `aria-pressed`, key `Shift+w`, turns Walk mode on and off, see
+[pointer-modes.md](pointer-modes.md)), the walk button (`xg-walk`, `aria-pressed`, key `Shift+w` enters, `Esc` leaves; the button turns Walk mode on and off, see
 [keyboard.md](keyboard.md); a "Walk · Esc to exit" chip shows at the top of the view while it is on) and the Undo and Redo
 buttons (see [undo.md](undo.md)). The row is as wide as its three groups need (it no longer has the width of the cube). The row is visible in the full
 layout and in the "nav" fit layout (the section strip dropped), and beside the cube button when the gizmo is collapsed, which is

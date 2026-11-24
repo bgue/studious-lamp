@@ -255,11 +255,22 @@ try {
   check('Esc leaves Walk mode and keeps the selection', !wi.shown && wi.walk === undefined && wi.pressed === 'false' && wi.enabled === true && (await sel()) === 1, JSON.stringify(wi));
   await page.keyboard.press('Escape');
   check('the next Esc clears the selection', (await sel()) === 0);
-  // Shift+W and the gizmo button toggle it; leaving keeps a sane orbit (target in front of the eye).
+  // Shift+W enters; while walking it is "run forward" (Shift with w), not a toggle. The gizmo button toggles; leaving keeps a sane
+  // orbit (target in front of the eye).
   await page.keyboard.press('Shift+w');
   check('Shift+W enters again', (await walkInfo()).shown);
-  await page.keyboard.press('Shift+w');
-  check('Shift+W leaves', !(await walkInfo()).shown);
+  const runA = await pose();
+  await page.keyboard.down('Shift');
+  await page.keyboard.down('w');
+  await page.waitForTimeout(400);
+  await page.keyboard.up('w');
+  await page.keyboard.up('Shift');
+  await page.waitForTimeout(100);
+  const runB = await pose();
+  const runD = Math.hypot(runB.p[0] - runA.p[0], runB.p[2] - runA.p[2]);
+  check('while walking, Shift then w runs forward and stays in Walk mode', (await walkInfo()).shown && runD > 0.01 && Math.abs(runB.p[1] - runA.p[1]) < 1e-6, JSON.stringify({ runD, dy: runB.p[1] - runA.p[1] }));
+  await page.keyboard.press('Escape');
+  check('Esc leaves', !(await walkInfo()).shown);
   await page.locator('#xray-gizmo .xg-walk').click();
   check('the gizmo button enters Walk mode', (await walkInfo()).shown);
   await page.locator('#xray-gizmo .xg-walk').click();

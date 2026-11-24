@@ -772,11 +772,12 @@ export function registerNavigationActions(): void {
 
   registerAction({
     id: 'nav.walk',
-    label: 'Walk mode (on / off)',
+    label: 'Walk mode',
     group: 'Navigation',
     keys: ['Shift+w'],
-    enabled: (app) => navSettings.enabled && !!app.loaded,
-    description: 'Walk through the model: w s and Up Down move on the floor, a d strafe, Left Right turn, q e change the eye height, drag looks around, Esc leaves.',
+    // Only enters: while walking, Shift+w is "run forward" (Shift with a move key), so the chord must fall through to nav.forward.
+    enabled: (app) => navSettings.enabled && !!app.loaded && !isWalking(),
+    description: 'Walk through the model: w s and Up Down move on the floor, a d strafe, Left Right turn, q e change the eye height, Shift runs, drag looks around. Esc, the chip or the gizmo button leaves.',
     run: toggleWalking,
   });
 

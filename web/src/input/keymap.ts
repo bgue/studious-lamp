@@ -487,7 +487,8 @@ export class Keymap {
 
   // ------------------------------------------------------------------ dispatch
 
-  /** Enabled-agnostic candidate actions for an event: exact chord matches first, then loose-modifier matches. */
+  /** Enabled-agnostic candidate actions for an event: exact chord matches first, then loose-modifier matches (always listed, so a
+   *  disabled exact chord such as Shift+w while walking does not hide the held w with Shift). */
   lookup(ev: KeyLike): XrayAction[] {
     this.rebuildIndexOnly();
     const out: XrayAction[] = [];
@@ -497,7 +498,7 @@ export class Keymap {
         if (a && !out.includes(a)) out.push(a);
       }
     }
-    if (out.length === 0) {
+    {
       for (const a of this.byId.values()) {
         if (!a.modifiers || a.modifiers.length === 0) continue;
         for (const ch of this.bindingsOf(a.id)) {
@@ -524,6 +525,15 @@ export class Keymap {
     if (ev.isComposing) return false;
     this.noteMods(ev);
     if (isTypingTarget(ev.target)) {
+      // F6 / Shift+F6 move between regions from anywhere, a text box included (no character to type there).
+      if (ev.key === 'F6' && !ev.ctrlKey && !ev.altKey && !ev.metaKey) {
+        const f6 = this.lookup(ev).find((a) => a.id === (ev.shiftKey ? 'focus.prevRegion' : 'focus.nextRegion') && (!a.enabled || a.enabled(app)));
+        if (f6) {
+          f6.run(app, ev as KeyboardEvent);
+          ev.preventDefault?.();
+          return true;
+        }
+      }
       if (ev.key === 'Escape') {
         (ev.target as { blur?: () => void }).blur?.();
       }

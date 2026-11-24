@@ -198,13 +198,44 @@ describe('conflicts', () => {
     km.setBinding('b', ['j']);
     expect(km.conflicts()).toHaveLength(0);
   });
-  it('an exact chord wins over a loose modifier match', () => {
+  it('an exact chord wins over a loose modifier match, which is still listed after it', () => {
+    const allRun = vi.fn();
     const km = new Keymap({
-      actions: () => [action('fly', ['a'], { hold: () => undefined, modifiers: ['ctrl'] }), action('all', ['Ctrl+a'])],
+      actions: () => [action('fly', ['a'], { hold: () => undefined, modifiers: ['ctrl'] }), action('all', ['Ctrl+a'], { run: allRun })],
     });
-    expect(km.lookup(ev('a', { ctrlKey: true })).map((a) => a.id)).toEqual(['all']);
+    expect(km.lookup(ev('a', { ctrlKey: true })).map((a) => a.id)).toEqual(['all', 'fly']);
     expect(km.lookup(ev('a')).map((a) => a.id)).toEqual(['fly']);
     expect(km.lookup(ev('a', { ctrlKey: true, shiftKey: true })).map((a) => a.id)).toEqual([]);
+    expect(km.handleKeyDown(ev('a', { ctrlKey: true, target: { tagName: 'CANVAS' } }), app)).toBe(true);
+    expect(allRun).toHaveBeenCalledTimes(1);
+    expect(km.heldCount).toBe(0);
+  });
+  it('a disabled exact chord lets the loose hold action take the key (Shift+w while walking runs forward)', () => {
+    const walkRun = vi.fn();
+    let walking = true;
+    const km = new Keymap({
+      actions: () => [
+        action('forward', ['w'], { hold: () => undefined, modifiers: ['ctrl', 'shift'] }),
+        action('walk', ['Shift+w'], { run: walkRun, enabled: () => !walking }),
+      ],
+    });
+    expect(km.handleKeyDown(ev('W', { shiftKey: true, code: 'KeyW', target: { tagName: 'CANVAS' } }), app)).toBe(true);
+    expect(walkRun).not.toHaveBeenCalled();
+    expect(km.heldCount).toBe(1);
+    km.clearPressed();
+    walking = false;
+    expect(km.handleKeyDown(ev('W', { shiftKey: true, code: 'KeyW', target: { tagName: 'CANVAS' } }), app)).toBe(true);
+    expect(walkRun).toHaveBeenCalledTimes(1);
+  });
+  it('F6 moves between regions from inside a text field', () => {
+    const next = vi.fn();
+    const typed = vi.fn();
+    const km = new Keymap({ actions: () => [action('focus.nextRegion', ['F6'], { run: next }), action('t', ['t'], { run: typed })] });
+    const target = { tagName: 'INPUT', type: 'text' };
+    expect(km.handleKeyDown(ev('F6', { target }), app)).toBe(true);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(km.handleKeyDown(ev('t', { target }), app)).toBe(false);
+    expect(typed).not.toHaveBeenCalled();
   });
 });
 

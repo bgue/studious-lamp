@@ -46,7 +46,7 @@ cheat sheet still work (the cheat sheet labels them "(Walk mode)").
 | Fly forward / back (Walk mode, or the Game style) | `w` / `s` |
 | Fly left / right (Walk mode, or the Game style) | `a` / `d` |
 | Fly down / up (Walk mode, or the Game style) | `q` / `e` |
-| Walk mode on / off, see [Walk mode](#walk-mode-and-navigation-style) | `Shift+w`; `Esc` leaves |
+| Walk mode, see [Walk mode](#walk-mode-and-navigation-style) | `Shift+w` enters; `Esc` leaves |
 | Zoom in (15 %) | `=`, `+`, `code:NumpadAdd` |
 | Zoom out (15 %) | `-`, `code:NumpadSubtract` |
 | Storey up / down | `PageUp` / `PageDown` |
@@ -123,12 +123,12 @@ the share link, a saved view, a preset or a packed page, and a new model leaves 
 | Left drag, one finger | Look around from the eye (yaw and pitch, pitch within 85 degrees); no pointer lock, so it works in an iframe and on a phone |
 | Wheel | Walk forward / back |
 | Click | Still selects |
-| `Esc`, `Shift+w`, the chip, the gizmo button | Leave Walk mode (Esc comes before "clear selection"; an open cheat sheet or palette closes first) |
+| `Esc`, the chip, the gizmo button | Leave Walk mode (Esc comes before "clear selection"; an open cheat sheet or palette closes first) |
 
 Speeds scale with the model size (the `move speed` and `orbit speed` settings). The orbit target is kept a fixed distance in front of
 the eye, so leaving Walk mode leaves a sane orbit. There is no gravity and no collision, and a high aerial view is a fine place to
 start. A walk is one camera step in the undo stack ([undo.md](undo.md)), like a held key. While a fly-through, a script or a 4D film
-plays, Walk mode is left and `Shift+w` does nothing. A held `w` followed by `Shift` is a sprint; `Shift` then `w` toggles the mode.
+plays, Walk mode is left and `Shift+w` does nothing. While walking, `Shift+w` is not a toggle: `Shift` with `w` runs forward, whichever key goes down first (`nav.walk` is enabled only outside Walk mode, and the keymap always lists the loose-modifier matches after the exact ones, so the held `w` with `Shift` reaches `nav.forward`).
 
 **Navigation style** (`navigation style` in the `Keyboard` folder, stored with the other keyboard settings in `localStorage`
 `xray.keynav`, not in the params or a share link): `BIM` (default) or `Game`. In `Game` the keys `w a s d q e` fly the camera and its
@@ -161,8 +161,8 @@ Views list and the Sets list). While focus is inside one, the keymap plugin (`sr
 
 Focus goes to the list widget of the active tab (the model tree, the first row of Sets or Views), the active right sidebar pane, the
 lit mode button of the top bar, or the canvas. A collapsed sidebar or a hidden top bar is skipped (open it with `[` or `]` first). The
-region shows a focus ring (`data-region-ring`) until focus leaves it or a pointer is used. F6 is a global action: it does not run in a
-text field (press `Escape` first). Both actions are in the cheat sheet and rebindable; help texts: `Keyboard/Next region`,
+region shows a focus ring (`data-region-ring`) until focus leaves it or a pointer is used. F6 also works from inside a text
+field such as the tree filter (it is the one global key that does; it types nothing). Both actions are in the cheat sheet and rebindable; help texts: `Keyboard/Next region`,
 `Keyboard/Previous region` in `src/ui/helpText.ts`.
 
 ### Model tree keys
