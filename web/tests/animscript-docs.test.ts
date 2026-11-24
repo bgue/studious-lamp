@@ -36,7 +36,7 @@ describe('docs-features/animation-script.md', () => {
   });
   it('states the timing rules and the limits of the reference', () => {
     expect(doc).toMatch(/Each starts when the one before it has ended/);
-    for (const n of [/1 hour/, /5000 cues/, /500 times/]) expect(doc).toMatch(n);
+    for (const n of [/1 hour/, /5000 steps/, /500 times/]) expect(doc).toMatch(n);
     expect(TIMING_NOTES.length).toBeGreaterThan(3);
   });
   it('names the editor features and the leak rule', () => {

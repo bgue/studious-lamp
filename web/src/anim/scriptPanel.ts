@@ -487,7 +487,7 @@ export class ScriptPanel {
     if (!this.running) {
       if (errs > 0) this.setStatus(`${errs} error${errs === 1 ? '' : 's'}${warns ? `, ${warns} warning${warns === 1 ? '' : 's'}` : ''}. Click one to jump to it.`, 'bad');
       else if (text.trim().length === 0) this.setStatus('');
-      else this.setStatus(`No errors: ${r.score!.cues.length} cue${r.score!.cues.length === 1 ? '' : 's'}, ${Math.round(r.score!.duration * 10) / 10} seconds${warns ? `, ${warns} warning${warns === 1 ? '' : 's'}` : ''}.`, 'good');
+      else this.setStatus(`No errors: ${r.score!.cues.length} step${r.score!.cues.length === 1 ? '' : 's'}, ${Math.round(r.score!.duration * 10) / 10} seconds${warns ? `, ${warns} warning${warns === 1 ? '' : 's'}` : ''}.`, 'good');
     }
     this.updateButtons();
     return r;

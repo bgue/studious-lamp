@@ -58,7 +58,7 @@ export interface ToolInfo {
 }
 
 export const TOOLS: readonly ToolInfo[] = [
-  { id: 'select', label: 'Select', kind: null, how: 'none', group: 'Select', hint: 'Select and move markups. The orbit works as usual.' },
+  { id: 'select', label: 'Select', kind: null, how: 'none', group: 'Select', hint: 'Select and move drawings. The orbit works as usual.' },
   { id: 'cloud', label: 'Cloud', kind: 'cloud', how: 'drag', group: 'Cloud', hint: 'Drag a rectangle. The cloud has scalloped edges.' },
   { id: 'cloudFree', label: 'Cloud draw', kind: 'cloud', how: 'free', group: 'Cloud', hint: 'Draw a closed outline. The cloud follows it.' },
   { id: 'callout', label: 'Callout', kind: 'callout', how: 'click', group: 'Annotate', hint: 'Click an element. A text box with a leader line follows it.' },
@@ -189,7 +189,7 @@ export class MarkupController {
   pdfResolution: PdfResolution = 200;
   /** Update view: shapes stay on the model (default) or on the screen. */
   updateKeep: 'model' | 'screen' = 'model';
-  status = 'No markup sets yet';
+  status = 'No drawings yet';
   /** Show the markups of the active set on the model. */
   visible = true;
   /** Bumped on every change: views re-render on it. */
@@ -397,7 +397,7 @@ export class MarkupController {
     this.peeked.add(id);
     this.activeId = id;
     this.selected = null;
-    this.setStatus(`"${set.title}" was made on ${set.model ? `"${set.model.name}"` : 'another model'}; its markups may not fit this model. Move to this model to re-attach them`);
+    this.setStatus(`"${set.title}" was made on ${set.model ? `"${set.model.name}"` : 'another model'}; its drawings may not fit this model. Move to this model to re-attach them`);
     return true;
   }
   /**
@@ -413,7 +413,7 @@ export class MarkupController {
     const r = this.migrateSet(set);
     set.updated = nowIso();
     const detached = set.markups.filter((m) => this.describe(m, set).detached).length;
-    this.setStatus(`"${set.title}" now belongs to ${modelLabel(set.model)}${detached ? `; ${detached} markup${detached === 1 ? '' : 's'} could not attach and show${detached === 1 ? 's' : ''} view-locked` : ''}`);
+    this.setStatus(`"${set.title}" now belongs to ${modelLabel(set.model)}${detached ? `; ${detached} drawing${detached === 1 ? '' : 's'} could not attach and show${detached === 1 ? 's' : ''} view-locked` : ''}`);
     return { ...r, detached };
   }
   hasGuid(g: string): boolean {
@@ -504,7 +504,7 @@ export class MarkupController {
 
   restore(id: string, animate = true): RestoreResult {
     const set = this.get(id);
-    if (!set) throw new Error(`No markup set ${id}`);
+    if (!set) throw new Error(`No drawings ${id}`);
     if (isSheetSet(set)) {
       this.activeId = set.id;
       this.selected = null;
@@ -588,7 +588,7 @@ export class MarkupController {
    */
   updateView(id: string, keep: 'model' | 'screen' = this.updateKeep): { shapes: number; moved: number; kept: number } {
     const set = this.get(id);
-    if (!set) throw new Error(`No markup set ${id}`);
+    if (!set) throw new Error(`No drawings ${id}`);
     if (isSheetSet(set)) throw new Error('Drawings on a PDF sheet have no 3D view to update');
     if (!this.loaded) throw new Error('No model loaded');
     this.cancelDrawing?.();
@@ -652,7 +652,7 @@ export class MarkupController {
 
   /** Add a finished markup to the active set (numbered, undoable, selected). */
   add(m: Markup, set: MarkupSet | null = this.active): Markup {
-    if (!set) throw new Error('No markup set: create one from the view first');
+    if (!set) throw new Error('No drawings: draw on a view first');
     if (set.readonly) throw new Error(`"${set.title}" is read-only (annotations that were already in the PDF). Copy it to editable drawings first.`);
     if (needsAttach(m)) this.migrateMarkup(m, set);
     this.record(set);
@@ -1232,7 +1232,7 @@ export class MarkupController {
   /** JSON document of some sets (default all), as text. */
   exportJson(ids?: readonly string[]): ExportedFile {
     const sets = this.pick(ids);
-    if (!sets.length) throw new Error('No markup set to export');
+    if (!sets.length) throw new Error('No drawings to export');
     const link = this.shareLinkOf(sets[0]!);
     const doc = buildMarkupDoc(this.modelIdentity(), sets, link ? { link } : {});
     const bytes = new TextEncoder().encode(markupDocJson(doc));
@@ -1274,7 +1274,7 @@ export class MarkupController {
     let note = '';
     let size = { w: 0, h: 0 };
     const sets = this.pick(o.ids);
-    if (!sets.length) throw new Error('No markup set to export');
+    if (!sets.length) throw new Error('No drawings to export');
     const keep = this.views.capture('before export');
     const keepActive = this.activeId;
     const keepTool = this.tool;
@@ -1372,7 +1372,7 @@ export class MarkupController {
       rep.restored = first.title;
     }
     const n = rep.markups;
-    this.setStatus(`Markup opened: ${p.sets.length} set${p.sets.length === 1 ? '' : 's'}, ${n} markup${n === 1 ? '' : 's'}${warnings.length ? `. Warning: ${warnings.join(' ')}` : ''}`);
+    this.setStatus(`Drawings opened: ${p.sets.length} view${p.sets.length === 1 ? '' : 's'}, ${n} drawing${n === 1 ? '' : 's'}${warnings.length ? `. Warning: ${warnings.join(' ')}` : ''}`);
     return rep;
   }
 
@@ -1411,9 +1411,9 @@ export class MarkupController {
     const bcf = window.__xrayBcf;
     if (!bcf) throw new Error('The BCF tool is not available in this build');
     const set = this.get(setId);
-    if (!set) throw new Error(`No markup set ${setId}`);
+    if (!set) throw new Error(`No drawings ${setId}`);
     const list = markupId ? set.markups.filter((m) => m.id === markupId) : set.markups;
-    if (markupId && !list.length) throw new Error(`No markup ${markupId} in "${set.title}"`);
+    if (markupId && !list.length) throw new Error(`No drawing ${markupId} in "${set.title}"`);
     this.restore(set.id, false);
     await this.settleView();
     const open = list.some((m) => m.status === 'open');
@@ -1458,7 +1458,7 @@ export class MarkupController {
       }
       for (const c of m.comments) bcf.addComment(topic.guid, `${m.number}. ${c.text}`, { author: c.author });
     }
-    this.setStatus(`BCF topic created from "${set.title}". Open the BCF tool to review and export it.`);
+    this.setStatus(`Issue made from "${set.title}". Open the Issues tab to review and export it.`);
     return topic.guid;
   }
 

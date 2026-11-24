@@ -629,7 +629,7 @@ export class SheetsController {
     const bcf = this.bcf;
     if (!bcf) throw new Error('The BCF tool is not available in this build');
     const set = this.markup.get(setId);
-    if (!set || !isSheetSet(set)) throw new Error(`No sheet sketch ${setId}`);
+    if (!set || !isSheetSet(set)) throw new Error(`No sheet drawings ${setId}`);
     const sheet = this.sheetOfSet(set);
     const doc = sheet ? this.store.doc(sheet.docId) : undefined;
     if (!sheet || !doc) throw new Error('The PDF of this view is not open');

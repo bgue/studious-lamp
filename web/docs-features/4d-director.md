@@ -26,7 +26,7 @@ const text = scriptFromPlan(plan, { cues, notes, noteTimes }, { planName: 'Tower
   or its size changed a lot. The film opens with a wide shot.
 - **Comfort.** The camera never moves while the building explodes or collapses; camera moves start at least 3 s apart (shots are
   4 s apart); the up axis is never touched. In a gap of 8 s or more with no move there is a slow orbit (4 degrees a second, at most 90).
-  Style `camera: 'fixed'` and `'none'` emit no camera cues.
+  Style `camera: 'fixed'` and `'none'` emit no camera moves.
 - **Explode.** When the interest set is on 3 or more storeys at once (a storey counts with 5 % of the active elements, at least one),
   for 6 s or more, `explode storeys by 1.5` (2 s), a hold, and `collapse` (2 s) when the work concentrates again. A model with two
   storeys explodes when both have work and the upper storey roofs over the lower work. The camera reframes wide after the explode.

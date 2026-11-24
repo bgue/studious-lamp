@@ -70,7 +70,7 @@ describe('director: camera', () => {
     for (const camera of ['fixed', 'none'] as const) {
       const x = directFourD({ ...s.plan, style: { ...s.plan.style, camera } }, s.model);
       expect(of(x, 'camera')).toEqual([]);
-      expect(x.notes.join('\n')).toMatch(/no camera cues/);
+      expect(x.notes.join('\n')).toMatch(/no camera moves/);
     }
   });
 

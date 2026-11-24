@@ -143,7 +143,7 @@ export class SheetViewer {
     pager.append(this.prevBtn, this.pageLbl, this.nextBtn);
     const fit = el('button', '', { type: 'button', 'data-act': 'fit', title: 'Fit the page in the window', 'data-help-key': 'Sheet view/Fit' }, 'Fit');
     fit.addEventListener('click', () => this.fit());
-    this.sketchSel = el('select', 'sv-sel', { 'aria-label': 'Sketch on this sheet', 'data-sv': 'sketch', title: 'The sketch you draw on', 'data-help-key': 'Sheet view/Sketch' });
+    this.sketchSel = el('select', 'sv-sel', { 'aria-label': 'Draw on this sheet', 'data-sv': 'sketch', title: 'The drawings you draw on', 'data-help-key': 'Sheet view/Drawings' });
     this.sketchSel.addEventListener('change', () => {
       const id = this.sketchSel.value;
       if (id === '__new') { if (this.sheet) { ctl.newSketch(this.sheet.id); ctl.markup.setEditing(true); } return; }
@@ -397,7 +397,7 @@ export class SheetViewer {
     this.raiseBtn.textContent = ref ? 'Open issue' : 'Make issue';
     this.raiseBtn.dataset['issue'] = ref?.topic ?? '';
     this.raiseBtn.disabled = this.raising || !set || !!set.readonly || !issues;
-    this.raiseBtn.title = !set ? 'Pick or start drawings on this sheet first' : set.readonly ? 'These drawings are read-only. Copy them to editable drawings first.' : ref ? 'Open the issue this sketch belongs to' : 'Make an issue of the view you draw on: a snapshot of the sheet region, the PDF as a document reference, and the shapes';
+    this.raiseBtn.title = !set ? 'Pick or start drawings on this sheet first' : set.readonly ? 'These drawings are read-only. Copy them to editable drawings first.' : ref ? 'Open the issue this view belongs to' : 'Make an issue of the view you draw on: a snapshot of the sheet region, the PDF as a document reference, and the shapes';
   }
 
   private raiseOrOpen(): void {
@@ -551,7 +551,7 @@ export class SheetViewer {
     if (!st || cancelled) return;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const [x, y] of st.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-    if (st.pts.length < 2 || Math.max(x1 - x0, y1 - y0) < 6) { this.ctl.markup.setStatus('Drag further to draw the markup (Esc cancels)'); return; }
+    if (st.pts.length < 2 || Math.max(x1 - x0, y1 - y0) < 6) { this.ctl.markup.setStatus('Drag further to draw (Esc cancels)'); return; }
     this.addShape(st.tool, st.pts);
   }
 

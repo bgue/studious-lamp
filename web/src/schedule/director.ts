@@ -269,7 +269,7 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
     }
   }
   if (!Number.isFinite(modelBox[0])) {
-    notes.push({ t: 0, text: `${mmss(t0)}  ${isoDate(pt(0))}  no element of the model has a bounding box: the director has nothing to frame, no cues`, order: order++ });
+    notes.push({ t: 0, text: `${mmss(t0)}  ${isoDate(pt(0))}  no element of the model has a bounding box: the director has nothing to frame, no camera moves`, order: order++ });
     return { cues: [], notes: notes.map((n) => n.text), noteTimes: [t0] };
   }
   const modelDiag = diagOf(modelBox);
@@ -559,7 +559,7 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
       note(s, `slow orbit of ${deg} degrees over ${r3(d)} s: a quiet stretch with no shot change`);
     }
   } else {
-    note(0, `no camera cues: the style's camera is "${style.camera}"`);
+    note(0, `no camera moves: the style's camera is "${style.camera}"`);
   }
 
   // ---- captions at the milestones

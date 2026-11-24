@@ -82,7 +82,7 @@ try {
   await boot();
   check('Issues tab and BCF API present, no BCF drawer in the tool strip', await page.evaluate(() => !!window.__xrayIssues && !window.__xrayToolbar.tools().includes('bcf') && typeof window.__xrayBcf?.createTopics === 'function'));
   const guiNames = await page.evaluate(() => [...document.querySelectorAll('.lil-gui .lil-name, .lil-gui .name, .lil-gui .lil-title, .lil-gui .title')].map((e) => e.textContent.trim()));
-  for (const n of ['BCF', 'Open BCF', 'Create topic from view', 'Export BCF 2.1', 'Export BCF 3.0', 'Clear viewpoint', 'BCF status']) check(`lil-gui entry "${n}"`, guiNames.includes(n));
+  for (const n of ['Issues', 'Open BCF', 'New issue', 'Export BCF 2.1', 'Export BCF 3.0', 'Clear viewpoint', 'BCF status']) check(`lil-gui entry "${n}"`, guiNames.includes(n));
   const actionsOk = await page.evaluate(async () => {
     const { getAction } = await import('/src/input/actions.ts');
     return ['bcf.open', 'bcf.create', 'bcf.export', 'bcf.clear'].every((id) => { const a = getAction(id); return a && a.keys.length === 0; });
@@ -123,7 +123,7 @@ try {
     const v = t[0]?.viewpoints[0];
     return { n: t.length, snap: v?.snapshot?.length ?? 0, mime: v?.snapshotMime, sel: v?.data?.selection.length, vis: v?.data?.visibility, author: t[0]?.creationAuthor, stored: localStorage.getItem('xray.bcf.author') };
   });
-  check('topic created from view with snapshot', created.n === 1 && created.snap > 2000 && created.mime === 'image/png', `snapshot ${created.snap} bytes`);
+  check('issue created from view with snapshot', created.n === 1 && created.snap > 2000 && created.mime === 'image/png', `snapshot ${created.snap} bytes`);
   check('viewpoint selects the two windows and keeps the user hide as exception', created.sel === 2 && created.vis?.defaultVisibility === true && created.vis.exceptions.length === 1);
   check('author remembered', created.author === 'smoke@example.org' && created.stored === 'smoke@example.org');
 

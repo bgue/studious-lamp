@@ -214,7 +214,7 @@ describe('keys of the later folders', () => {
     const keys = [
       'View modes', 'Behind only', 'Peelback', 'Behind only/front treatment', 'Peelback/radius (m)', 'Model cleanup', 'Floating', 'Tiny',
       'Distant strays', 'Duplicates', 'Degenerate', 'Floating/size metric', 'Hover info', 'Hover info/property filter', 'Presets',
-      'Presets/Apply preset', 'Penetrations', 'Measure', 'Clearance', 'BCF', 'Keyboard', 'Keyboard/Reset shortcuts', 'Imaging', 'MRI slice',
+      'Presets/Apply preset', 'Penetrations', 'Measure', 'Clearance', 'Issues', 'Keyboard', 'Keyboard/Reset shortcuts', 'Imaging', 'MRI slice',
       'Imaging/bone glow', 'MRI slice/scan speed', 'Section', 'Section/Fit box to selection', 'Section/Clear section', 'Point cloud',
       'Point cloud/Compute deviation', 'Point cloud/Point cloud status', 'Open model/edges', 'Open model/properties', 'Open model/Model stats',
       'Tool strip/Presets', 'Tool strip/Scan', 'Tool drawer', 'Peelback drawer'.replace('Peelback', 'View modes'),

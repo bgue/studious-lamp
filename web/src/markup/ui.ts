@@ -36,11 +36,11 @@ export async function openFile(c: MarkupController, f: File): Promise<void> {
   try {
     const r = await c.importFile(f);
     if (r.warnings.length || !r.ok) {
-      c.app.showMessage(r.ok ? `Markup opened. ${r.warnings[0]}` : (r.error ?? 'Could not open the markup file'));
+      c.app.showMessage(r.ok ? `Markup opened. ${r.warnings[0]}` : (r.error ?? 'Could not open the drawings file'));
       setTimeout(() => c.app.showMessage(null), 7000);
     }
   } catch (e) {
-    c.setStatus(`Could not open the markup file: ${e instanceof Error ? e.message : String(e)}`);
+    c.setStatus(`Could not open the drawings file: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

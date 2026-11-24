@@ -444,7 +444,7 @@ export interface SanitizedSet {
 /** One set, cleaned (unknown fields dropped, ids and numbers filled in); a string says why the set was refused. */
 export function sanitizeSet(raw: unknown): SanitizedSet | string {
   if (!isObj(raw)) return 'not an object';
-  const title = str(raw['title'], 300)?.trim() || 'Markup';
+  const title = str(raw['title'], 300)?.trim() || 'Drawings';
   const sheetFrame = isObj(raw['frame']) && raw['frame']['kind'] === 'sheet';
   const view = sanitizeView(isObj(raw['view']) ? { name: title, ...raw['view'] } : sheetFrame ? SHEET_VIEW(title) : null);
   if (typeof view === 'string') return `"${title}": view: ${view}`;
@@ -603,12 +603,12 @@ export function mergeSets(have: readonly MarkupSet[], incoming: readonly MarkupS
 }
 
 export function uniqueSetTitle(title: string, sets: readonly MarkupSet[], except?: string): string {
-  const base = title.trim() || 'Markup';
+  const base = title.trim() || 'Drawings';
   let t = base;
   for (let n = 2; sets.some((x) => x.title === t && x.id !== except); n++) t = `${base} (${n})`;
   return t;
 }
 
 export function defaultSetTitle(sets: readonly MarkupSet[]): string {
-  for (let n = sets.length + 1; ; n++) if (!sets.some((x) => x.title === `Markup ${n}`)) return `Markup ${n}`;
+  for (let n = sets.length + 1; ; n++) if (!sets.some((x) => x.title === `Drawings ${n}`)) return `Drawings ${n}`;
 }

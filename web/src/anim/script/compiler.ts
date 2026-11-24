@@ -271,7 +271,7 @@ class Compiler {
       throw new Abort();
     }
     if (this.cues.length >= this.lim.maxCues) {
-      this.report(this.err(`The script makes more than ${this.lim.maxCues} cues.`, at, 'Use fewer or smaller loops.'));
+      this.report(this.err(`The script makes more than ${this.lim.maxCues} steps.`, at, 'Use fewer or smaller loops.'));
       throw new Abort();
     }
     cue.line = at.line;

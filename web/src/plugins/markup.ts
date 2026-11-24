@@ -177,7 +177,7 @@ export const markupPlugin: AppPlugin = {
 
     const sets = (): MarkupSet => {
       const s = c.active;
-      if (!s) throw new Error('No markup set: create one first');
+      if (!s) throw new Error('No drawings: draw on a view first');
       return s;
     };
     window.__xrayMarkup = {
@@ -197,7 +197,7 @@ export const markupPlugin: AppPlugin = {
       create: (t) => c.newSet(t),
       add: (spec, setId) => {
         const set = setId ? c.get(setId) : sets();
-        if (!set) throw new Error(`No markup set ${setId}`);
+        if (!set) throw new Error(`No drawings ${setId}`);
         if (set.id !== c.activeId) c.activeId = set.id;
         const tool = TOOL_FOR_KIND(spec.kind, spec.points?.length ?? 0);
         const style = { ...(spec.colour ? { colour: spec.colour } : {}), ...(spec.weight ? { weight: spec.weight } : {}), ...(spec.fill !== undefined ? { fill: spec.fill } : {}), ...(spec.text ? { text: spec.text } : {}) };
@@ -207,8 +207,8 @@ export const markupPlugin: AppPlugin = {
         } else if (spec.measurementId !== undefined) m = c.linkMeasurement(spec.measurementId, spec.text ?? '');
         else if (spec.points) m = c.addShape(tool, spec.points, style);
         else if (spec.at) m = c.addAnchored(tool, spec.at[0], spec.at[1], spec.text ?? '', style);
-        else throw new Error('A markup needs points, fractions, at or measurementId');
-        if (!m) throw new Error('The markup could not be placed');
+        else throw new Error('A drawing needs points, fractions, at or measurementId');
+        if (!m) throw new Error('The drawing could not be placed');
         // spec.status, assignee and due are legacy review data: a sketch takes none. Kept in the type so old scripts still run.
         return m;
       },
@@ -289,7 +289,7 @@ function TOOL_FOR_KIND(kind: MarkupKind, nPoints: number): ToolId {
 }
 
 function buildGui(gui: GUI, c: MarkupController): void {
-  const folder = gui.addFolder('Markup');
+  const folder = gui.addFolder('Drawings');
   folder.close();
   const actions = {
     open: () => pickMarkupFile(c),
@@ -297,14 +297,14 @@ function buildGui(gui: GUI, c: MarkupController): void {
     pdf: () => void c.downloadPdf().catch((e) => c.setStatus(e instanceof Error ? e.message : String(e))),
     json: () => { try { c.downloadJson(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } },
   };
-  folder.add(actions, 'create').name('New markup set from view');
-  folder.add(actions, 'open').name('Open markup file');
-  folder.add(actions, 'pdf').name('Export markup PDF');
-  folder.add(actions, 'json').name('Export markup JSON');
-  folder.add(c, 'page', ['A4', 'Letter']).name('Markup page size');
-  folder.add(c, 'pdfResolution', ['screen', 150, 200, 300]).name('Markup PDF resolution (dpi)');
-  folder.add(c, 'viewLocked3d', [...VIEWLOCK_MODES]).name('Markup view-locked in 3D').onChange((v: string) => c.setViewLocked3d(v));
+  folder.add(actions, 'create').name('New drawings from view');
+  folder.add(actions, 'open').name('Open drawings file');
+  folder.add(actions, 'pdf').name('Export drawings PDF');
+  folder.add(actions, 'json').name('Export drawings JSON');
+  folder.add(c, 'page', ['A4', 'Letter']).name('Drawings page size');
+  folder.add(c, 'pdfResolution', ['screen', 150, 200, 300]).name('Drawings PDF resolution (dpi)');
+  folder.add(c, 'viewLocked3d', [...VIEWLOCK_MODES]).name('View-locked drawings in 3D').onChange((v: string) => c.setViewLocked3d(v));
   const st = new Proxy({} as { status: string }, { get: () => c.status, set: () => true });
-  const ctrl = folder.add(st, 'status').name('Markup status').disable();
+  const ctrl = folder.add(st, 'status').name('Drawings status').disable();
   c.onChange(() => ctrl.updateDisplay());
 }

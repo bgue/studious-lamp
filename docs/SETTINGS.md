@@ -54,8 +54,8 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Penetrations](#penetrations)
 - [Measure](#measure)
 - [Clearance](#clearance)
-- [BCF](#bcf)
-- [Markup](#markup)
+- [Issues](#issues)
+- [Drawings](#drawings)
 - [Sidebar/Issues tab](#sidebarissues-tab)
 - [Issues panel](#issues-panel)
 - [Issues panel/Phone sheet](#issues-panelphone-sheet)
@@ -64,7 +64,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Sheet view](#sheet-view)
 - [Sheet view/Back to model](#sheet-viewback-to-model)
 - [Sheet view/Fit](#sheet-viewfit)
-- [Sheet view/Sketch](#sheet-viewsketch)
+- [Sheet view/Drawings](#sheet-viewdrawings)
 - [Sheet view/Draw](#sheet-viewdraw)
 - [Sheet view/Raise as issue](#sheet-viewraise-as-issue)
 - [Sheet view/Drawing toolbar](#sheet-viewdrawing-toolbar)
@@ -78,7 +78,6 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Issues panel/Raise issues from results](#issues-panelraise-issues-from-results)
 - [Drawing toolbar/View switch](#drawing-toolbarview-switch)
 - [Status bar/Open issues](#status-baropen-issues)
-- [Markup drawer](#markup-drawer)
 - [Keyboard](#keyboard)
 - [Map](#map)
 - [Imaging](#imaging)
@@ -89,14 +88,13 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [WebXR](#webxr)
 - [Tool strip](#tool-strip)
 - [Tool drawer](#tool-drawer)
-- [BCF topic dialog](#bcf-topic-dialog)
+- [New issue dialog](#new-issue-dialog)
 - [Command palette](#command-palette)
 - [Shortcut sheet](#shortcut-sheet)
 - [Shortcut editor](#shortcut-editor)
 - [Presets drawer](#presets-drawer)
 - [View modes drawer](#view-modes-drawer)
 - [Measure drawer](#measure-drawer)
-- [BCF drawer](#bcf-drawer)
 - [Clearance drawer](#clearance-drawer)
 - [Penetrations drawer](#penetrations-drawer)
 - [Large model drawer](#large-model-drawer)
@@ -179,7 +177,7 @@ The texts use these terms with one meaning each.
 | palette | A named set of colours for an imaging style. It sets the ground, the tone of the material and the glow. |
 | radiograph | An imaging style that draws the context by accumulated material thickness through an attenuation curve. The focus is bright and glows. |
 | slab slice | A thin slab through the focus in the MRI style. The slab draws grey and crisp and the surroundings draw faint. |
-| viewpoint | A saved camera pose with selected, hidden and coloured elements and clip planes. A BCF topic stores it. |
+| viewpoint | A saved camera pose with selected, hidden and coloured elements and clip planes. An issue stores it as a view. |
 
 ## Writing rules
 
@@ -769,31 +767,31 @@ Impact follows the same sentence rules and adds these:
 | max range (m) | The slider sets the range in metres up to which the colouring reaches. Elements beyond the range keep their colour. | Move the slider right and parts that sit further away get a colour too. Move it left and only close parts get one. | Decrease the value to speed up the check. The default is 0.5 m. | Report: Appendix J, Coordination tools |
 | Clearance status | The read-only field shows the number of elements in each band and the compute time. | A short text counts the red, amber and blue parts and says how long the check took. | Read the line after each change. | Report: Appendix J, Coordination tools |
 
-## BCF
+## Issues
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: BCF* | The folder controls BIM Collaboration Format issues. A BCF topic stores a title, comments and viewpoints. | These controls read, write and share issue notes with other people in the project team. | Click Open BCF to read a file. Click Create topic from view to note a new issue. | Report: Appendix J, Coordination tools |
-| Open BCF | The button opens a file picker for a BCF file. You can also drop a file on the page. | Click and pick an issue file from your computer. Its notes appear in the list. | Click the button. Choose a .bcf or .bcfzip file. | Report: Appendix J, Coordination tools |
-| Create topic from view | The button asks for a title and details. It then stores a topic with a snapshot and a viewpoint of the current camera. | Click and fill in a short form. The app saves a note that remembers what you see now. | Frame the issue in the picture. Click the button. Fill in the form. | Report: Appendix J, Coordination tools |
-| Export BCF 2.1 | The button downloads every topic as a BCF 2.1 file. | Click and all issue notes go into one file that most programs can read. | Select this version for the widest support. | Report: Appendix J, Coordination tools |
-| Export BCF 3.0 | The button downloads every topic as a BCF 3.0 file. | Click and all issue notes go into one file in the newer layout. | Select this version when all partners read BCF 3.0. | Report: Appendix J, Coordination tools |
-| Clear viewpoint | The button undoes what the viewpoint changed. It shows the elements that BCF hid and removes its colours and clip planes. | Click and the parts that an issue note hid come back with their normal colours and no cuts. Your camera stays. | Click the button after you review a topic. | Report: Appendix J, Coordination tools |
+| *Folder: Issues* | The folder controls issues and their BCF files. An issue stores a title, comments and the views that show it. | These controls read, write and share notes with other people in the project team. | Click Open BCF to read a file. Click New issue to note a new issue. | Report: Appendix J, Coordination tools |
+| Open BCF | The button opens a file picker for a BCF file. You can also drop a file on the page. | Click and pick a file of notes from your computer. Its notes appear in the list. | Click the button. Choose a .bcf or .bcfzip file. | Report: Appendix J, Coordination tools |
+| New issue | The button asks for a title and details. It then stores an issue with a snapshot and a view of the current camera. | Click and fill in a short form. The app saves a note that remembers what you see now. | Frame the issue in the picture. Click the button. Fill in the form. | Report: Appendix J, Coordination tools |
+| Export BCF 2.1 | The button downloads every issue as a BCF 2.1 file. | Click and all notes go into one file that most programs can read. | Select this version for the widest support. | Report: Appendix J, Coordination tools |
+| Export BCF 3.0 | The button downloads every issue as a BCF 3.0 file. | Click and all notes go into one file in the newer layout. | Select this version when all partners read BCF 3.0. | Report: Appendix J, Coordination tools |
+| Clear viewpoint | The button undoes what the viewpoint changed. It shows the elements that BCF hid and removes its colours and clip planes. | Click and the parts that a note hid come back with their normal colours and no cuts. Your camera stays. | Click the button after you review an issue. | Report: Appendix J, Coordination tools |
 | BCF status | The read-only field shows what the last BCF step did, such as what applied and what it skipped. | A short text tells you what the last step did and what it had to skip. | Read the line after you apply a viewpoint. | Report: Appendix J, Coordination tools |
 
-## Markup
+## Drawings
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Markup* | The folder controls the drawings on views. A view with drawings holds clouds, notes, highlights and shapes. | These controls save a view, open a shared file and write a PDF for your team. | Click Draw on this view in the Views tab. Pick a tool to draw. | Report: Appendix J, Coordination tools |
-| New markup set from view | The button saves the current view as a new markup set. | Click and the camera, cuts and look go into storage. You can draw at once. | Frame the view. Click the button. | Report: Appendix J, Coordination tools |
-| Open markup file | The button opens a file picker for a markup PDF or JSON file. You can also drop a file on the page. | Click and the picture and the notes of the shared document come back. | Click the button. Choose the file. | Report: Appendix J, Coordination tools |
-| Export markup PDF | The button downloads a PDF of all sets. The PDF shows the clean view, the marked view and a table of comments. | Click and you get a page file to print or to send. It also carries the data to restore the notes. | Click the button after you finish the markup. | Report: Appendix J, Coordination tools |
-| Export markup JSON | The button downloads all sets as a JSON file. | Click and you get a small file. Drop it on the viewer to restore the view and the notes. | Click the button. Send the file with the model name. | Report: Appendix J, Coordination tools |
-| Markup page size | The list sets the page size of the PDF. Both sizes are landscape. | The choice changes the paper of the next PDF. | Select A4 or Letter. | Report: Appendix J, Coordination tools |
-| Markup view-locked in 3D | The list sets how a markup that is not attached to the model shows in 3D. It has 3 choices: near view and pin, pin only, hidden. | A drawing that only fits the angle where you made it shows in full there. Away from that angle it fades and leaves a small flag. | Select near view and pin. Select pin only to see pins at all times. Select hidden to hide them. | Report: Appendix J, Coordination tools |
-| Markup status | The read-only field shows the last message of the Markup tool. | A short text tells you what the tool did or why it did not. | Read the line after each action. | Report: Appendix J, Coordination tools |
-| Markup PDF resolution (dpi) | The list sets the picture quality of the PDF in dots per inch. Screen uses the pixels of your window. | A higher number gives sharper pages and a bigger file. | Select 200 for most prints. Select 300 for fine detail. | Report: Appendix J, Coordination tools |
+| *Folder: Drawings* | The folder controls the drawings on views. A view with drawings holds clouds, notes, highlights and shapes. | These controls save a view, open a shared file and write a PDF for your team. | Click Draw on this view in the Views tab. Pick a tool to draw. | Report: Appendix J, Coordination tools |
+| New drawings from view | The button saves the current view as a view with drawings. | Click and the camera, cuts and look go into storage. You can add marks at once. | Frame the view. Click the button. | Report: Appendix J, Coordination tools |
+| Open drawings file | The button opens a file picker for a drawings PDF or JSON file. You can also drop a file on the page. | Click and the picture and the notes of the shared document come back. | Click the button. Choose the file. | Report: Appendix J, Coordination tools |
+| Export drawings PDF | The button downloads a PDF of all views with drawings. The PDF shows the clean view, the view with drawings and a table of comments. | Click and you get a page file to print or to send. It also carries the data to restore the notes. | Click the button after you finish the drawings. | Report: Appendix J, Coordination tools |
+| Export drawings JSON | The button downloads all views with drawings as a JSON file. | Click and you get a small file. Drop it on the viewer to restore the view and the notes. | Click the button. Send the file with the model name. | Report: Appendix J, Coordination tools |
+| Drawings page size | The list sets the page size of the PDF. Both sizes are landscape. | The choice changes the paper of the next PDF. | Select A4 or Letter. | Report: Appendix J, Coordination tools |
+| View-locked drawings in 3D | The list sets how a drawing that is not attached to the model shows in 3D. It has 3 choices: near view and pin, pin only, hidden. | A shape that only fits the angle where you made it shows in full there. Away from that angle it fades and leaves a small flag. | Select near view and pin. Select pin only to see pins at all times. Select hidden to hide them. | Report: Appendix J, Coordination tools |
+| Drawings status | The read-only field shows the last message of the drawing tools. | A short text tells you what the tool did or why it did not. | Read the line after each action. | Report: Appendix J, Coordination tools |
+| Drawings PDF resolution (dpi) | The list sets the picture quality of the PDF in dots per inch. Screen uses the pixels of your window. | A higher number gives sharper pages and a bigger file. | Select 200 for most prints. Select 300 for fine detail. | Report: Appendix J, Coordination tools |
 
 ## Sidebar/Issues tab
 
@@ -843,11 +841,11 @@ Impact follows the same sentence rules and adds these:
 | --- | --- | --- | --- | --- |
 | *Folder: Sheet view/Fit* | The button scales the page so that the whole page shows in the window. | Click and the whole drawing shows at once, centred in the area. | Click the button after you zoom in too far. | Report: Appendix J, Coordination tools |
 
-## Sheet view/Sketch
+## Sheet view/Drawings
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Sheet view/Sketch* | The list picks the drawings that you edit. Read-only drawings cannot change. | Pick one and your marks go into it. Pick the last choice to start a new one. | Pick drawings from the list. | Report: Appendix J, Coordination tools |
+| *Folder: Sheet view/Drawings* | The list picks the drawings that you edit. Read-only drawings cannot change. | Pick one and your marks go into it. Pick the last choice to start a new one. | Pick drawings from the list. | Report: Appendix J, Coordination tools |
 
 ## Sheet view/Draw
 
@@ -926,46 +924,6 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Status bar/Open issues* | The button counts the open issues of this model. An issue is open until it is resolved or closed. | Click and the left side lists the problems that still need work. | Click the button. | Report: Appendix J, Coordination tools |
-
-## Markup drawer
-
-| Setting | Intent | Impact | Use | Ref |
-| --- | --- | --- | --- | --- |
-| *Folder: Markup drawer* | The heading names the Markup drawer. The drawer holds the sets, the drawing tools and the list of markups. | This panel lets you mark a view for your team without an issue. | Make a set. Pick a tool. Draw on the view. Export a PDF. | Report: Appendix J, Coordination tools |
-| New set from view | The button saves the current view as a new markup set. | Click and a card appears in the list with a small picture. | Frame the view. Click the button. | Report: Appendix J, Coordination tools |
-| Open file | The button opens a markup PDF or JSON file. | Click and the sheets of the shared document join the list. The first one comes back on screen. | Click the button. Choose the file. | Report: Appendix J, Coordination tools |
-| Restore view | The button brings back the camera, cuts and look of the set. | Click and the model looks as it did when you made the card. | Click the button after you move the camera. | Report: Appendix J, Coordination tools |
-| Export PDF | The button downloads a PDF of this set. It has the clean view, the marked view and the comment table. | Click and the viewer renders both pictures. The file carries the data to bring back the notes. | Click the button. Wait for the download. | Report: Appendix J, Coordination tools |
-| Export JSON | The button downloads this set as a JSON file. | Click and you get a small file that brings back the notes on the same model. | Click the button. | Report: Appendix J, Coordination tools |
-| PDF of all sets | The button downloads a single PDF with every set. | Click and each card gets its own pages in the file. | Click the button when you have more than 1 set. | Report: Appendix J, Coordination tools |
-| Convert to BCF topic | The button makes a BCF topic from the set. The topic has the viewpoint, the annotations and the comments. | Click and the sheet joins the issue list. You can then send it as an issue file. | Click the button. Open the Issues tab to export it. | Report: Appendix J, Coordination tools |
-| Delete set | The button removes the set and its markups from the session. | Click twice and the card is gone. Save a file first if you need it later. | Click the button. Click again to confirm. | Report: Appendix J, Coordination tools |
-| Undo | The button undoes the last change to the markups. The keys are Ctrl+Z. | Click and the last change goes back. | Click the button or press Ctrl+Z. | Report: Appendix J, Coordination tools |
-| Redo | The button repeats the change that you undid. The keys are Ctrl+Shift+Z. | Click and the change comes back. | Click the button or press Ctrl+Shift+Z. | Report: Appendix J, Coordination tools |
-| Finish | The button ends a polyline or polygon with the corners so far. | Click and the shape stays on the view. | Click the button. You can also press Enter. | Report: Appendix J, Coordination tools |
-| Cancel drawing | The button drops the corners that you placed. | Click and the unfinished shape disappears from the view. | Click the button. You can also press Escape. | Report: Appendix J, Coordination tools |
-| Add comment | The button adds your comment to the chosen markup. | Click and your note shows with your name and the time. | Type the comment. Click the button. | Report: Appendix J, Coordination tools |
-| Page size | The list sets the page size of the PDF. Both sizes are landscape. | The choice changes the paper of the next PDF. | Select A4 or Letter. | Report: Appendix J, Coordination tools |
-| Show markups on the model | The tick shows or hides the markups of the active set. | Clear the tick and only the plain building remains. | Clear the tick to see the plain model. | Report: Appendix J, Coordination tools |
-| Fill | The tick fills closed shapes with a light colour. | Tick it and clouds, rectangles, ellipses and polygons get a tint. | Tick it before you draw. Or select a shape and tick it. | Report: Appendix J, Coordination tools |
-| Tool button | The button picks a drawing tool. Press the tool again to go back to Select. | The next drag or click on the picture makes that shape. | Click a tool. Draw on the view. | Report: Appendix J, Coordination tools |
-| Colour swatch | The swatch sets the colour of the next markup or of the chosen item. | Each tool keeps its own hue. Clouds start red and highlights start yellow. | Click a colour. | Report: Appendix J, Coordination tools |
-| Line weight | The button sets the line weight of the next markup or of the chosen item. | A higher number makes a thicker stroke. | Click a weight. | Report: Appendix J, Coordination tools |
-| Attachment chip | The chip tells what the shape is attached to in 3D. A shape is attached to elements, a surface, a region, a measurement or a penetration. Else it is view-locked. | An attached shape stays on its target when you orbit. A view-locked shape stays with the view where you drew it. | Select a markup to see its chip. Read the text. Click change to pick another attachment. | Report: Appendix J, Coordination tools |
-| Change attachment | The link opens a menu of attachments. You can use the selected elements, the surface, a 3D region, a measurement, a penetration or view-locked. | The shape moves to the new target. Undo brings the old target back. | Click change. Pick a choice. For a measurement or penetration, click it in the view. | Report: Appendix J, Coordination tools |
-| Set card | The card shows a set with its picture and its counts. | Click and the view comes back with its notes. | Click a card. | Report: Appendix J, Coordination tools |
-| Other models (group) | The group lists the sets made on other models. It starts closed. | Those sets stay out of the view, so an old note never sits on the wrong building. | Click the heading to open the group. Pick Open, Move to this model or Delete. | Report: Appendix J, Coordination tools |
-| Open | The button shows a set of another model on this model. | The set joins the list until you load a model again. Its shapes can sit in the wrong place. | Click the button. Check where the notes land. | Report: Appendix J, Coordination tools |
-| Move to this model | The button makes the set belong to the model on screen. | The set joins the list for good. Shapes whose parts are missing here lock to the screen and show a warning. | Click the button. Read the status line for the count of locked shapes. | Report: Appendix J, Coordination tools |
-| Model tag | The tag says the set comes from a revised model, or from a file that names none. | A new revision can move or remove the parts that a shape holds on to. Those shapes lock to the screen. | Hover the tag to read why. Move to this model when the set belongs here. | Report: Appendix J, Coordination tools |
-| Markup row | The row shows a single markup with its number, kind, status and text. | Click and the entry opens. It shows the comments. | Click a row. Edit the text. | Report: Appendix J, Coordination tools |
-| Sets (heading) | The heading names the list of markup sets. | The list shows each card with a picture. | Read the cards. | Report: Appendix J, Coordination tools |
-| Tools (heading) | The heading names the drawing tools. | Each one makes a different kind of mark. | Pick a tool. | Report: Appendix J, Coordination tools |
-| Markups (heading) | The heading names the list of markups of the active set. | Each row has a number that matches the number on the view and in the PDF. | Click a row to edit it. | Report: Appendix J, Coordination tools |
-| Status line | The line shows the last message of the Markup tool. | A short text tells you what the tool did or why it did not. | Read the line after each action. | Report: Appendix J, Coordination tools |
-| Picture quality | The list sets the picture quality of the PDF in dots per inch. Screen uses the pixels of your window. | A higher number gives sharper pages and a bigger file. | Select 200 for most prints. Select 300 for fine detail. | Report: Appendix J, Coordination tools |
-| Update view | The button captures the view of the set again from the current camera, cuts and look. | Click and the set opens from this angle. The marks follow your choice of the list beside it. | Move the camera. Click the button. Press Ctrl+Z to go back. | Report: Appendix J, Coordination tools |
-| Shapes stay | The list sets where drawn shapes go when you update the view. They stay on the model or on the screen. | The first choice keeps each mark on the part that it covers. The second keeps its place in the window. | Select on the model for most cases. | Report: Appendix J, Coordination tools |
 
 ## Keyboard
 
@@ -1114,7 +1072,7 @@ Impact follows the same sentence rules and adds these:
 | cut radius (m) | The slider sets the half size of the section box around you in a field session, in metres. The value 0 switches it off. | A small value hides what lies more than a few metres away, so the view stays clear. | Set 4 to 8 metres indoors. Set 0 to see the whole storey. | Report: Appendix M, WebXR |
 | storey cut | The switch cuts the model at the ceiling of the storey where you stand and 1 m below its floor. | On: the levels above and below you vanish, so only the services around your room remain. | Turn the switch on in a building with several levels. Turn it off to look up a shaft. | Report: Appendix M, WebXR |
 | restore saved site | The switch makes a field session start from the newest saved registration of this model. | On: the building lines up again by itself on a headset with anchors, or after 2 taps on a phone. | Turn the switch on when you come back to the same building. Turn it off to register from scratch. | Report: Appendix M, WebXR |
-| snapshots to BCF | The switch turns each field snapshot into a BCF topic when the session ends. | On: every picture you take on site becomes an issue with your position, ready to send. | Turn the switch on to report site issues. Turn it off to keep the pictures in this page only. | Report: Appendix M, WebXR |
+| snapshots to BCF | The switch turns each field snapshot into an issue when the session ends. | On: every picture you take on site becomes an issue with your position, ready to send. | Turn the switch on to report site issues. Turn it off to keep the pictures in this page only. | Report: Appendix M, WebXR |
 | Export site | The button saves the registration of this model on site as a file. | Click to keep the alignment as a file that a colleague or another device can load. | Click the button after a good registration. Send the file to the next person on site. | Report: Appendix M, WebXR |
 | Import site | The button loads a registration file. The next field session starts from it. | Click to reuse an alignment that someone made earlier on the same building. | Click the button and choose the file. Then start the field session. | Report: Appendix M, WebXR |
 | Download notes | The button saves the snapshots of the last field session as a file, with the position of each. | Click to keep the pictures from site with the place where you stood for each one. | Click the button after the session. Attach the file to your report. | Report: Appendix M, WebXR |
@@ -1132,8 +1090,6 @@ Impact follows the same sentence rules and adds these:
 | X-ray | The button turns the x-ray on or off. The tool has no drawer. The button shows blue while x-ray is on. | Click and the walls and slabs in the way fade, or they turn solid again. | Click the button or press the X key. | Report: Purpose |
 | View modes | The button opens the drawer of the View modes tool. The drawer holds the main controls of behind only and peelback. | Click to open quick controls that cut holes in what hides the selected item. | Select an object. Click the button. Turn a cut on. | Report: Appendix F, View modes |
 | Measure | The button opens the drawer of the Measure tool. Clicks on the canvas then measure distances. | Click to turn the mouse into a ruler. Click on the building to read a length. | Click the button. Click 2 points on the model. | Report: Appendix J, Coordination tools |
-| Markup | The button opens the Markup drawer. The key K does the same. | The drawer lets you draw clouds, notes, highlights and shapes on a saved view. | Click the button or press K. | Report: Appendix J, Coordination tools |
-| BCF | The button opens the drawer of the BCF tool. The drawer opens, reviews, creates and exports BCF topics. | Click to open the issue list. You can read, add and share notes tied to views of the building. | Click the button. Click Open BCF. Click a topic to review it. | Report: Appendix J, Coordination tools |
 | Clearance | The button opens the drawer of the Clearance tool. The button shows blue while the colouring is on. | Click to open the closeness check. It paints parts red, amber or blue by their distance to the selected item. | Select an object. Click the button. Turn the colouring on. | Report: Appendix J, Coordination tools |
 | Penetrations | The button opens the drawer of the Penetrations tool. The drawer holds the penetration schedule. | Click to open the list of places where pipes and ducts go through slabs and walls. | Click the button. Click Analyse. Click a row to fly to the crossing. | Report: Appendix J, Coordination tools |
 | Large model | The button opens the drawer of the Large model tool. The drawer shows the size, the buffers and the stage timings of the last model. | Click to see how big the building is and which load step took the longest. | Open a file first. Click the button. Read the figures. | Report: Appendix K, Packaging, point clouds and large models |
@@ -1152,13 +1108,13 @@ Impact follows the same sentence rules and adds these:
 | Close button | The button closes the drawer. The tool keeps its settings. Press Escape for the same action. | Click and the side panel slides away and gives the picture more room. | Click the button when you finish with the tool. | Report: Onboarding checklist |
 | Resize edge | The edge changes the width of the drawer when you drag it. The viewer keeps the width for later drawers. | Drag it and the side panel gets wider or narrower. A wide panel shows long tables better. | Drag the edge left or right. | Report: Onboarding checklist |
 
-## BCF topic dialog
+## New issue dialog
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: BCF topic dialog* | The dialog collects the title, type, status, priority, labels and assignee of a new BCF topic. | This window asks a few short questions and then saves a note that remembers what you see now. | Fill in the title. Click Create topic to store the topic with a snapshot. | Report: Appendix J, Coordination tools |
-| Field | The field holds a detail of the new topic, such as the title, description, type, status or priority. | Type a short text or pick from the list. These details travel with the issue note. | Fill in the title at least. | Report: Appendix J, Coordination tools |
-| Create topic | The button stores the topic with a snapshot and a viewpoint of the current camera. | Click and the note joins the list, with a small picture of what you see now. | Fill in the title. Click the button. | Report: Appendix J, Coordination tools |
+| *Folder: New issue dialog* | The dialog collects the title, type, status, priority, labels and assignee of a new issue. | This window asks a few short questions and then saves a note that remembers what you see now. | Fill in the title. Click Create issue to store the issue with a snapshot. | Report: Appendix J, Coordination tools |
+| Field | The field holds a detail of the new issue, such as the title, description, type, status or priority. | Type a short text or pick from the list. These details travel with the note. | Fill in the title at least. | Report: Appendix J, Coordination tools |
+| Create issue | The button stores the issue with a snapshot and a view of the current camera. | Click and the note joins the list, with a small picture of what you see now. | Fill in the title. Click the button. | Report: Appendix J, Coordination tools |
 | Cancel | The button closes the dialog and stores nothing. | Click and the window goes away. No note gets made. | Click the button to stop. | Report: Appendix J, Coordination tools |
 
 ## Command palette
@@ -1246,44 +1202,6 @@ Impact follows the same sentence rules and adds these:
 | Snap to vertices (12 px) | The switch moves a click to the nearest vertex of the hit triangle when the vertex lies within 12 px. | On: your click jumps to the closest corner of the surface if one lies close. Off: the click lands exactly where you point. | Turn the switch on to measure from corner to corner. Turn it off to measure at any spot. | Report: Appendix J, Coordination tools |
 | Clear | The button deletes all dimension lines from the model. | Click and every dimension line disappears from the model. | Export the measurements first if you need them. Click the button to start again. | Report: Appendix J, Coordination tools |
 
-## BCF drawer
-
-| Setting | Intent | Impact | Use | Ref |
-| --- | --- | --- | --- | --- |
-| *Folder: BCF drawer* | The heading names the BCF drawer. The drawer lists BCF topics and shows the detail of the chosen topic. | This panel lists issue notes and lets you open, read, add and share them. | Click Open BCF or drop a file on the page. Click a topic to read it. | Report: Appendix J, Coordination tools |
-| Apply | The button applies 1 viewpoint of the topic. It moves the camera, selects, hides and colours elements and sets clip planes. | Click and the picture jumps to what the issue note shows, with the same cuts and colours. | Click the button on a viewpoint. Read the status line for skipped parts. | Report: Appendix J, Coordination tools |
-| Clear | The button clears the applied viewpoint. It is on only for the viewpoint that is active. | Click and the picture returns to your own state, without the hides, colours and cuts of the note. | Click the button after you review a viewpoint. | Report: Appendix J, Coordination tools |
-| Add comment | The button adds your comment to the topic. It can attach the current view as a new viewpoint. | Click and your text joins the thread of the issue note, with a picture if you ask for it. | Type a comment. Tick attach current view if needed. Click the button. | Report: Appendix J, Coordination tools |
-| Status filter | The list filters the topics by status. | Pick a state and only the issue notes in that state stay on the list. | Select All statuses to see every topic. | Report: Appendix J, Coordination tools |
-| Search box | The text box filters the topics by title, description, assignee, labels and comments. | Type a word and only the issue notes that hold it stay on the list. | Type part of a word. Clear the box to see every topic. | Report: Appendix J, Coordination tools |
-| Topic row | The row shows 1 topic with its status, priority and counts. A click selects the topic. | Each item is an issue note. A click opens its picture, text and comments below. | Click the row to read the topic. | Report: Appendix J, Coordination tools |
-| Other models (group) | The group lists the topics made on other models. It starts closed. | Those topics stay out of the view, so an old marker never sits on the wrong building. | Click the heading to open the group. Pick Open, Move to this model or Delete topic. | Report: Appendix J, Coordination tools |
-| Open | The button shows a topic of another model on this model. | The topic joins the list until you load a model again. Its markers can sit in the wrong place. | Click the button. Check where the markers land. | Report: Appendix J, Coordination tools |
-| Move to this model | The button makes the topic belong to the model on screen. | The topic joins the list for good. Notes whose parts are missing here lock to the screen. | Click the button. Read the status line for the count of locked notes. | Report: Appendix J, Coordination tools |
-| Delete topic | The button removes a topic of another model from the session. | Click twice and it is gone. Export a file first if you need it later. | Click the button. Click again to confirm. | Report: Appendix J, Coordination tools |
-| Topic status list | The list sets the status of the selected topic. | Pick a value and the issue note changes state, for example from open to closed. | Select the new status. Export the topics to share the change. | Report: Appendix J, Coordination tools |
-| Snapshot | The picture shows the snapshot that the first viewpoint of the topic stores. | The small picture shows what the author saw when they made the note. | Look at the picture. Click Apply to see it live. | Report: Appendix J, Coordination tools |
-| Viewpoints (heading) | The heading names the list of viewpoints of the selected topic. | The buttons below jump to the views that the author saved. | Click Apply on a viewpoint. | Report: Appendix J, Coordination tools |
-| Comments (heading) | The heading names the comments of the selected topic. The number is the count. | The notes below are the talk about this issue, oldest first. | Read the comments. Add your own below. | Report: Appendix J, Coordination tools |
-| Show pins | The button shows or hides the numbered markers of the topics on the model while this drawer is open. The markers follow the topic filter. With the drawer closed only the marker of the applied viewpoint shows. | Click and the numbered dots of the issue notes appear on the building or go away. | Click the button to turn the markers on or off. Click a marker to open its topic. | Report: Appendix J, Coordination tools |
-| Place pin | The button starts the placement of the topic marker. The next click on the model sets the 3D point of the topic. | Click it, then click the building, and a numbered dot marks that spot for the issue note. | Click the button. Click a surface of the model. Press Esc to stop. | Report: Appendix J, Coordination tools |
-| Remove pin | The button removes the marker from the selected topic. | Click and the numbered dot of this issue note goes away from the building. | Click the button. Click Place pin to set a new marker. | Report: Appendix J, Coordination tools |
-| Add callout | The button starts a callout on the active viewpoint. The next click selects the target element and the anchor point. | Click it, then click a part of the building, and a text box with a line points at that part. | Type the text first. Click the button. Click an element of the model. | Report: Appendix J, Coordination tools |
-| Add note | The button starts a text note on the active viewpoint. The next click sets a free 3D point for the note. | Click it, then click the building, and a yellow sticky text stays at that spot. | Type the text first. Click the button. Click the model where the note goes. | Report: Appendix J, Coordination tools |
-| Add arrow | The button starts an arrow on the active viewpoint. The arrow points at the element that you click next. | Click it, then click a part of the building, and a red pointer aims at that part. | Click the button. Click an element of the model. Drag the label to move the tail. | Report: Appendix J, Coordination tools |
-| Add rectangle | The button starts a rectangle on the active viewpoint. You drag on the view to draw the rectangle. | Drag a box around a problem area and the issue note marks that area in its picture. | Type the text first if you want a label. Click the button. Drag on the view. Press Esc to stop. | Report: Appendix J, Coordination tools |
-| Draw freehand | The button starts a freehand line on the active viewpoint. You drag on the view to draw the line. | Circle or underline a problem area by hand and the issue note keeps the line in its picture. | Type the text first if you want a label. Click the button. Drag on the view. Press Esc to stop. | Report: Appendix J, Coordination tools |
-| Link measurement | The button lists the current measurements. A click on 1 measurement copies its end points and length into a callout. | Pick a distance you took with the ruler and it stays on the issue note with its value. | Measure with the Measure tool first. Click the button. Click a row of the list. | Report: Appendix J, Coordination tools |
-| Delete | The button removes 1 annotation from the viewpoint. | Click and that text box and its line go away from the picture. | Click the button on the row of the annotation. | Report: Appendix J, Coordination tools |
-| Markup (heading) | The heading names the markup of the selected topic: the topic marker and the annotations of its viewpoints. | The tools below put numbered dots, text boxes and arrows on the building for this issue. | Click a button below. Click a row to see the annotation. Drag a text box to move it. | Report: Appendix J, Coordination tools |
-| Comment | The box shows 1 comment with its author, date and text. | Each box is one message in the talk about the issue. | Read the comment. | Report: Appendix J, Coordination tools |
-| Comment box | The text box holds the comment that you add to the topic. | Type your reply here. It joins the issue note when you click the add button. | Type a comment. Click Add comment. | Report: Appendix J, Coordination tools |
-| Attach view tick | The tick attaches the current camera, selection and clip planes to your comment as a new viewpoint. | Mark it and your reply carries a picture of what you see now. | Tick the box when the comment is about the current view. | Report: Appendix J, Coordination tools |
-| Status line | The text line shows what the last BCF step did, such as what applied and what it skipped. | A short text tells you what the last step did and what it had to skip. | Read the line after you open a file or apply a viewpoint. | Report: Appendix J, Coordination tools |
-| New topic | The button asks for a title and details. It then stores a topic with a snapshot and a viewpoint of the current camera. | Click and fill in a short form. The app saves a note that remembers what you see now. | Frame the issue in the picture. Click the button. Fill in the form. | Report: Appendix J, Coordination tools |
-| Export 2.1 | The button downloads every topic as a BCF 2.1 file. | Click and all issue notes go into one file that most programs can read. | Select this version for the widest support. | Report: Appendix J, Coordination tools |
-| Export 3.0 | The button downloads every topic as a BCF 3.0 file. | Click and all issue notes go into one file in the newer layout. | Select this version when all partners read BCF 3.0. | Report: Appendix J, Coordination tools |
-
 ## Clearance drawer
 
 | Setting | Intent | Impact | Use | Ref |
@@ -1307,7 +1225,6 @@ Impact follows the same sentence rules and adds these:
 | Raise issues from results | The button makes an issue of each penetration result. Results already raised are skipped. | New records appear in the panel at the left. A second run adds only the new finds. | Run the check. Click the button. Confirm when it asks about many results. | Report: Appendix J, Coordination tools |
 | Close not found | The button closes the issues that the latest run no longer reports. The number says how many. | Their status changes, and they stay in the list with their history. | Run the check again after a fix. Click the button to close what is gone. | Report: Appendix J, Coordination tools |
 | Stop | The button stops raising issues after the current result. | You keep every record made up to now. The remaining results wait for the next run. | Click it while a long run is busy. Raise again later to add the rest. | Report: Appendix J, Coordination tools |
-| Create BCF topics | The button creates 1 BCF topic for each selected row, or for each filtered row when none is selected. | Click and each crossing becomes an issue note with a picture, ready to send to the team. | Click the rows to select them. Click the button. The button is off when BCF is not available. | Report: Appendix J, Coordination tools |
 | Status (heading) | The heading names the status filter. The chips below filter the rows by opening status. | The chips below let you keep only the crossings with a cut-out, without one or not known. | Click a chip to filter. Click it again to clear the filter. | Report: Appendix J, Coordination tools |
 | Storey (heading) | The heading names the storey filter. The chips below filter the rows by the storey of the host. | The chips below let you look at one level of the building at a time. | Click a chip to filter. Click it again to clear the filter. | Report: Appendix J, Coordination tools |
 | Host class (heading) | The heading names the host class filter. The chips below filter the rows by the class of the host. | The chips below let you look at slabs, walls or beams one kind at a time. | Click a chip to filter. Click it again to clear the filter. | Report: Appendix J, Coordination tools |

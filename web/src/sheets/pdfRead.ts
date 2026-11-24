@@ -210,7 +210,7 @@ export function specFromDict(lib: Lib, dict: PdfLib.PDFDict): AnnotSpec | null {
       fill: dict.lookup(N('XrayFill')) === lib.PDFBool.True,
       number: (() => { const n = dict.lookup(N('XrayNumber')); return n instanceof lib.PDFNumber ? n.asNumber() : 0; })(),
       set: text(lib, dict.lookup(N('XraySet'))) ?? '',
-      title: text(lib, dict.lookup(N('XrayTitle'))) ?? 'Sketch',
+      title: text(lib, dict.lookup(N('XrayTitle'))) ?? 'Drawings',
     };
     const hex = text(lib, dict.lookup(N('XrayHex')));
     if (hex && /^#[0-9a-fA-F]{6}$/.test(hex)) meta.hex = hex.toLowerCase();

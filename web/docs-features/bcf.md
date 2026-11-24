@@ -4,7 +4,7 @@ Open, review, create and export BCF topics. Reads BCF 2.0, 2.1 and 3.0; writes 2
 
 BCF topics are the **issues** of the `Issues` tab, and an issue's viewpoints are **views** (a captured moment that may carry drawings, [saved-views.md](saved-views.md), [markup.md](markup.md)). The whole restructure is described in [issues.md](issues.md); this page keeps the BCF details (file formats, viewpoints, pins, scope, export). Raising a view as an issue links the viewpoint to the view by id.
 
-Where: the `Issues` tab of the left sidebar, (issues only; a bottom sheet on a phone; the BCF drawer of the tool strip is gone), the `BCF` folder in the parameter panel, and the command palette (`tool.bcf` opens the tab). Scripting: `window.__xrayBcf` for the data, `window.__xrayIssues` for the panel.
+Where: the `Issues` tab of the left sidebar, (issues only; a bottom sheet on a phone; the BCF drawer of the tool strip is gone), the `Issues` folder in the parameter panel, and the command palette (`tool.bcf` opens the tab). Scripting: `window.__xrayBcf` for the data, `window.__xrayIssues` for the panel.
 
 ## Workflow
 
@@ -12,12 +12,12 @@ Where: the `Issues` tab of the left sidebar, (issues only; a bottom sheet on a p
 2. The Issues list shows the topics of the loaded model with status and priority chips and the number of views. Filter with the `All / Open / Closed` chips, search title, description, assignee, labels and comments. Click a topic: its detail opens in the same column, shows the snapshot with the drawing burned in, status, priority, assignee, due date, description, the views (viewpoints), comments and history, and its view is applied.
 3. `Apply` on a viewpoint moves the camera, selects its elements, hides and colours elements and sets clip planes. The status line says what was applied and what was skipped (unknown GlobalIds are counted, not silently dropped).
 4. `Clear viewpoint` undoes what BCF changed: the elements it hid (and only those: elements you hid yourself stay hidden), its colours and its clip planes (unless the section tool took the planes over since; a section box or plane that was on before the viewpoint comes back). Camera and selection stay where they are.
-5. `New topic` (or `Create topic from view`) asks for title, description, type, status, priority, labels, assignee and author, then stores a topic with a snapshot and a viewpoint of the current view. The author is remembered (localStorage `xray.bcf.author`) and is also the author of comments.
+5. `New issue` (the Issues tab, the panel folder or the palette) asks for title, description, type, status, priority, labels, assignee and author, then (`Create issue`) stores an issue with a snapshot and a viewpoint of the current view. The author is remembered (localStorage `xray.bcf.author`) and is also the author of comments.
 6. `Add comment` on any topic. `Add current view` adds the current view as one more viewpoint (a view of the issue).
 7. `Place pin` pins the topic. The drawing of a viewpoint is made with the drawing toolbar: `Edit drawings` on a view row applies the viewpoint and opens the toolbar (callouts, text, pointers, rectangles, pen, clouds and the rest, see [markup.md](markup.md)). The scripting calls `addAnnotation`, `addShape` and `linkMeasurement` still add BCF annotations; a viewpoint whose drawing is such a set of annotations becomes a view on the next change (see [issues.md](issues.md), "BCF import").
 8. `Export 2.1` / `Export 3.0` download a `.bcfzip` of every topic in the list (loaded and created).
 
-Panel entries (`BCF` folder): `Open BCF`, `Create topic from view`, `Export BCF 2.1`, `Export BCF 3.0`, `Clear viewpoint`, read-only `BCF status`. Palette actions, without default keys: `bcf.open`, `bcf.create`, `bcf.export` (uses the default export version), `bcf.clear`. The params document has a `bcf` section with the default author and the default export version.
+Panel entries (`Issues` folder; the params path stays `bcf`): `Open BCF`, `New issue`, `Export BCF 2.1`, `Export BCF 3.0`, `Clear viewpoint`, read-only `BCF status`. Palette actions, without default keys: `bcf.open`, `bcf.create`, `bcf.export` (uses the default export version), `bcf.clear`. The params document has a `bcf` section with the default author and the default export version.
 
 ## Which model an item belongs to
 

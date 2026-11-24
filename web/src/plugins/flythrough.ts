@@ -754,9 +754,11 @@ export const flythroughPlugin: AppPlugin = {
           if (c.player.paused) c.player.resume();
           else c.player.pause();
           c.panel?.render();
-        } else if (e.key === 'ArrowRight') c.step(1);
-        else if (e.key === 'ArrowLeft') c.step(-1);
-        else handled = false;
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          // Keyframe stepping is for a fly-through only: a script or a 4D film that plays keeps the arrow keys to itself.
+          if (c.player.current?.source?.kind !== 'keyframes') return;
+          c.step(e.key === 'ArrowRight' ? 1 : -1);
+        } else handled = false;
         if (handled) {
           e.preventDefault();
           e.stopPropagation();

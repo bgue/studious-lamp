@@ -362,7 +362,7 @@ try {
   const camBack = await cam();
   check('selecting a view restores its view', dist3(camBack.p, cam0.p) < 0.05 && dist3(camBack.t, cam0.t) < 0.05, `${dist3(camBack.p, cam0.p).toFixed(4)}`);
 
-  // away from the view: markups stay on their plane in 3D, the "Return to markup view" button shows
+  // away from the view: markups stay on their plane in 3D, the "Return to the drawing view" button shows
   const before = await page.evaluate(() => document.querySelector('#markup-return').style.display);
   await page.evaluate(() => { const app = window.__xray.app; app.renderer.camera.position.set(14, 8, 3); app.renderer.controls.update(); app.controller.settle(); });
   await page.waitForTimeout(500);
@@ -373,7 +373,7 @@ try {
   await page.click('#markup-return');
   await page.waitForTimeout(1500);
   const camRet = await cam();
-  check('Return to markup view brings the camera back', dist3(camRet.p, cam0.p) < 0.05, `${dist3(camRet.p, cam0.p).toFixed(4)}`);
+  check('Return to the drawing view brings the camera back', dist3(camRet.p, cam0.p) < 0.05, `${dist3(camRet.p, cam0.p).toFixed(4)}`);
 
   // ------------------------------------------------------------------ part 2: export
   const [pdfDl] = await Promise.all([page.waitForEvent('download'), page.click('#views-drawings >> text=Export PDF')]);

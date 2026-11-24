@@ -364,9 +364,6 @@ function panel(box: HTMLElement, app: ViewerApp): (() => void) | void {
   if (!t.hasRunFor(app.modelName)) t.analyse();
 
   const status = statusLine(t.statusText);
-  const bcfBtn = button('Create BCF topics', () => {
-    void t.createBcf().then((n) => status.set(`Created ${n} BCF topics`));
-  }, { title: 'One topic per selected (or filtered) row' });
   const exportBtn = button('Export CSV', () => {
     const n = t.exportCsv();
     status.set(`Exported ${n} rows`);
@@ -376,7 +373,7 @@ function panel(box: HTMLElement, app: ViewerApp): (() => void) | void {
   const markers = check('Markers on the model', () => t.opts.markers, (v) => { t.opts.markers = v; t.onChangeMarkers(); });
 
   const clash = buildClashSection('penetration');
-  box.append(row(analyseBtn, exportBtn, bcfBtn), scope.root, markers.root, status, clash.root);
+  box.append(row(analyseBtn, exportBtn), scope.root, markers.root, status, clash.root);
   scope.update();
   markers.update();
 
@@ -441,8 +438,6 @@ function panel(box: HTMLElement, app: ViewerApp): (() => void) | void {
     if (rows.length > MAXROWS) tableWrap.appendChild(el('div', 'xt-note', undefined, `Showing the first ${MAXROWS} of ${rows.length} rows; filter or export the rest.`));
     if (rows.length === 0) tableWrap.appendChild(el('div', 'xt-note', undefined, t.rows.length === 0 ? 'No penetrations found.' : 'No rows match the filters.'));
     exportBtn.textContent = `Export CSV (${rows.length})`;
-    const why = t.bcfDisabledReason();
-    bcfBtn.setDisabled(why ?? false);
   };
 
   const renderFilters = (): void => {
@@ -475,10 +470,8 @@ function panel(box: HTMLElement, app: ViewerApp): (() => void) | void {
   };
   refresh();
   const off = t.onChange(refresh);
-  const timer = setInterval(() => bcfBtn.setDisabled(t.bcfDisabledReason() ?? false), 1000);
   return () => {
     off();
-    clearInterval(timer);
   };
 }
 

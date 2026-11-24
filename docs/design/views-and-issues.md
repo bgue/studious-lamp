@@ -57,5 +57,5 @@ Nothing is moved. The two stores stay, the Views tab presents them as one list.
 
 ## Left as it is
 
-- Fly-through keyframes point at saved views; drawings are not drawn during playback.
+- Fly-through keyframes store a copy of the camera and the look (`viewId` is informational, not a link); drawings are not drawn during playback.
 - Viewpoints of an issue that have no set (a script created them, no drawing layer yet) show in the issue detail only, not in the Views list; "Edit drawings" gives them a set, then they list.

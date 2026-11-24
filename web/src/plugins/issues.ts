@@ -317,8 +317,8 @@ export const issuesPlugin: AppPlugin = {
     registerAction({ id: 'issues.sketches', label: 'Views: show the views with drawings', group: 'Panels', keys: [], description: 'Open the Views tab on the filter With drawings', run: () => api.open('sketches') });
     registerAction({ id: 'issues.edit', label: 'Drawings: edit the drawings of the active view', group: 'Markup', keys: [], description: 'Show the drawing toolbar for the active view', run: () => { const s = mk.active; if (s) c.editSketch(s.id); } });
     registerAction({ id: 'issues.done', label: 'Drawings: finish drawing', group: 'Markup', keys: [], description: 'Hide the drawing toolbar', run: () => mk.setEditing(false) });
-    registerAction({ id: 'tool.bcf', label: 'Tool: BCF', group: 'Panels', keys: [], description: 'Open the Issues tab (formerly the BCF drawer)', run: () => api.open('issues') });
-    registerAction({ id: 'tool.markup', label: 'Tool: Markup', group: 'Panels', keys: [], description: 'Open the Views tab on the filter With drawings (formerly the Markup drawer)', run: () => api.open('sketches') });
+    registerAction({ id: 'tool.bcf', label: 'Tool: Issues', group: 'Panels', keys: [], description: 'Open the Issues tab (formerly the BCF drawer)', run: () => api.open('issues') });
+    registerAction({ id: 'tool.markup', label: 'Tool: Drawings', group: 'Panels', keys: [], description: 'Open the Views tab on the filter With drawings (formerly the Markup drawer)', run: () => api.open('sketches') });
   },
 
   onModel(): void {
