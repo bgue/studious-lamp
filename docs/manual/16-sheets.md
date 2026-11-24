@@ -18,7 +18,9 @@ All sheets live behind one chip of the Views tab, **On sheets**.
 **Try it.** The repository holds two sample PDFs for this. `sample-sheet.pdf` has 2 pages, with walls, a title block and three
 annotations that someone else made. Any PDF drawing works as well.
 
-> Check: the sample PDFs are in the samples folder of the repository (`web/public/samples/sample-sheet.pdf` and `geo-sheet.pdf`), but I found no menu entry that opens them. Confirm how a reader gets them (single file build, download page).
+The sample PDFs are not in the **Sample Projects** menu. They come with the source: `web/public/samples/sample-sheet.pdf` and
+`geo-sheet.pdf` in the source zip or the repository. When you run the viewer from source, they are also served at
+`/samples/sample-sheet.pdf`, so you can download one from your own viewer's address and open it.
 
 1. Open **FZK-Haus** so that a model is loaded. The model stays loaded under the sheet.
 2. In the left sidebar, open the **Views** tab and click the chip **On sheets**. The list is replaced by the sheets pane.

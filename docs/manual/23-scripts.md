@@ -78,7 +78,7 @@ not know gives a warning with the nearest real names, and the line is skipped.
 ### Limits and gotchas
 
 - A script runs at most 1 hour, makes at most 5,000 timeline items (one is a camera move, setting change, caption, label or hover;
-  the error message calls them cues), runs a loop at most 500 times and executes at most 20,000 statements. A long loop of small
+  the error message calls them steps), runs a loop at most 500 times and executes at most 20,000 statements. A long loop of small
   steps is the usual way to hit the 5,000.
 - A script is your own text. It is never part of parameters, share links, saved views or presets. A packed page carries a script
   only if you name its exported file (chapter 30).
@@ -160,7 +160,7 @@ The messages you will meet:
 | `There is no selection set named "Pmps"` | The message suggests the nearest names |
 | `I do not know the setting "..."; the player skips it` | A warning. Fix the name or leave the line |
 | `The margin 7 is outside 1 to 6` | A margin is between 1 and 6 |
-| `The script makes more than 5000 cues` | Shorten the loop or split the script |
+| `The script makes more than 5000 steps.` | Use fewer or smaller loops, or split the script |
 
 ### Choices and settings
 

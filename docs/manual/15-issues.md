@@ -35,14 +35,12 @@ Two quick ways to start:
 6. Back in the Views tab, click **In an issue** to list the views that issues point at.
 
 Now try the other direction: select a different element, then in the Issues tab click **New issue**. The dialog is headed
-**Create topic from view** (see the check at the end of this section). Fill **Title** and **Description**. Pick **Type**,
+**New issue**. Fill **Title** and **Description**. Pick **Type**,
 **Status** and **Priority**. Add **Labels** and **Assigned to**. **Author** is remembered. Two options sit below:
 **Attach a snapshot of the current view**, on by default, and **Click the model to place the pin (else: middle of the
-selection)**. Click **Create topic**. You get a second issue with its own view.
+selection)**. Click **Create issue**. You get a second issue with its own view.
 
 > Picture: the Issues tab with two issues. The first is open with its snapshot, the drawing burned in, and the views block under it.
-
-> Check: the dialog opened by New issue is still headed "Create topic from view", with the button "Create topic" (code, `web/src/bcf/ui.ts`). The design note calls it the topic dialog. The editor may want these labels changed before the manual ships.
 
 ## 15.2 Status, priority, assignee, due date, comments, history
 

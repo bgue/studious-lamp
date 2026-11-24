@@ -98,10 +98,8 @@ unclear stays view-locked.
 **After an orbit.** An attached drawing is always drawn at its target and never fades. If its target is hidden or isolated away,
 it is drawn dim with a `target hidden` hint, so it does not float in space. A view-locked drawing is at full strength while
 the view direction is within 10 degrees and the eye within 20 % of the scene scale. It fades to nothing at 25 degrees or
-50 %, and a pin remains. A setting in the Parameters tab chooses how view-locked drawings show in 3D: `near view +
-pin` (the default), `pin only` or `hidden`.
-
-> Check: the label of that setting is still "Markup view-locked in 3D" in the code. The editor may want to rename it or keep it in Appendix B only.
+50 %, and a pin remains. The setting **View-locked drawings in 3D** (Parameters tab, folder **Drawings**) chooses how they show:
+`near view + pin` (the default), `pin only` or `hidden`.
 
 **After a revision.** A drawing remembers which element it sits on and where, relative to that element. If a new revision moves
 the element, the drawing moves with it. If the element is reshaped (a longer wall), the viewer projects the outline onto the

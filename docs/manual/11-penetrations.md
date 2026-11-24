@@ -105,7 +105,8 @@ Raising again only adds new pairs. A pair that the new analysis no longer report
 and **Close n not found** closes them. Above 200 new rows the viewer asks, and offers the 200 worst, the ones with no
 opening first. The rules for these issues, including how pairs are matched between runs, are in chapter 15.3.
 
-The drawer has a second button, labelled **Create BCF topics**. It also makes one issue for each selected or filtered row, but it is the older route: it does not match pairs between runs, so raising twice makes duplicates. Its label still uses the old word "topic". Use **Raise issues from results**. To send issues to another tool, export them as BCF (chapter 17).
+**Raise issues from results** is the only way from this drawer to issues. To send the issues to another tool, export them as
+BCF (chapter 17).
 
 ## See also
 
