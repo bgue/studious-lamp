@@ -212,7 +212,7 @@ export class ViewsPanel {
     this.filterInfo = el('span', 'vw-filter-info');
     this.filterRow.append(this.filterInput, this.filterInfo);
     this.chips = el('div', 'vw-chips', { role: 'group', 'aria-label': 'Show', ...help('View chips', 'View filters') });
-    this.list = el('div', 'vw-list', { role: 'list', 'aria-label': 'Views' });
+    this.list = el('div', 'vw-list', { role: 'list', 'aria-label': 'Views', 'data-keys-own': 'nav' });
     this.drawings = el('div', 'vw-drawings');
     this.root.append(top, this.chips, this.filterRow, this.list, this.drawings);
     this.peek = el('div', 'vw-peek');

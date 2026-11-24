@@ -129,7 +129,7 @@ export class SetsView {
     });
     this.filterInfo = el('span', 'sets-filter-info');
     this.filterRow.append(this.filterInput, this.filterInfo);
-    this.list = el('div', 'sets-list', { role: 'list', 'aria-label': 'Selection sets' });
+    this.list = el('div', 'sets-list', { role: 'list', 'aria-label': 'Selection sets', 'data-keys-own': 'nav' });
 
     this.editor = new CriteriaEditor({
       model: () => this.model,

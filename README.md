@@ -309,6 +309,7 @@ every button of the parameter panel.
 | Arrow keys, `W A S D Q E` | Orbit; fly |
 | `+` / `-`, `PageUp` / `PageDown` | Zoom; storey up and down |
 | `Tab`, `Shift+Tab` | Next and previous selected element |
+| `F6`, `Shift+F6` | Move focus between the 3D view, the left sidebar, the right sidebar and the top bar; in the model tree arrows, `Enter`, `Space` and type-ahead work ([keyboard.md](web/docs-features/keyboard.md#focus-rules)) |
 | `Alt+Left`, `Alt+Right` | View history back and forward |
 | Numpad `1` `3` `7` `0` `5` | Front, right, top, isometric, perspective or orthographic (`Ctrl` for the opposite side) |
 | `Ctrl+A`, `Ctrl+I`, `Alt+S` | Select all visible, invert, same class |

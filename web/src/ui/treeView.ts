@@ -5,6 +5,8 @@ import type { ElementId, SceneModel } from '../types';
 import { allParentKeys, buildTree, defaultExpanded, elementPath, filterTree, flattenTree } from './treeModel';
 import type { FlatRow, TreeNode } from './treeModel';
 import { esc } from './dom';
+import { EMPTY_TYPE_AHEAD, TYPE_AHEAD_MS, isTypeAheadChar, leftMove, moveActive, rightMove, siblingKeysToOpen, typeAhead } from './treeKeys';
+import type { TypeAheadState } from './treeKeys';
 
 export const ROW_H = 22;
 const OVERSCAN = 6;
@@ -16,7 +18,11 @@ export interface TreeHost {
   select(ids: ElementId[], additive: boolean): void;
   setHidden(ids: ElementId[], hide: boolean): void;
   hover(id: ElementId | null): void;
+  /** True when an enabled global action would take this key: the tree then leaves the letter to it instead of type-ahead. */
+  isGlobalKey?(e: KeyboardEvent): boolean;
 }
+
+let uidCounter = 0;
 
 const EYE =
   '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>';
@@ -37,6 +43,10 @@ export class TreeView {
   private lastHtml = '';
   private lastStart = -1;
   private raf = 0;
+  /** Key of the active row (keyboard cursor). Survives virtualisation and rebuilds; the row is found by key. */
+  private activeKey: string | null = null;
+  private ta: TypeAheadState = EMPTY_TYPE_AHEAD;
+  private readonly uid = `tv${++uidCounter}`;
 
   constructor(private readonly host: TreeHost) {
     this.root = document.createElement('div');
@@ -44,6 +54,9 @@ export class TreeView {
     this.scroller = document.createElement('div');
     this.scroller.className = 'tv-scroll';
     this.scroller.setAttribute('role', 'tree');
+    this.scroller.setAttribute('aria-label', 'Model tree');
+    this.scroller.setAttribute('aria-multiselectable', 'true');
+    this.scroller.tabIndex = 0;
     this.spacer = document.createElement('div');
     this.spacer.className = 'tv-spacer';
     this.win = document.createElement('div');
@@ -59,6 +72,13 @@ export class TreeView {
         this.render();
       });
     });
+    this.scroller.addEventListener('keydown', (e) => this.onKey(e));
+    this.scroller.addEventListener('focus', () => this.onFocus());
+    // A pointer press sets the active row before the focus event, so the focus handler does not re-render under the click.
+    this.win.addEventListener('mousedown', (e) => {
+      const key = (e.target as HTMLElement | null)?.closest<HTMLElement>('.tr')?.dataset['key'];
+      if (key) this.activeKey = key;
+    });
     this.win.addEventListener('click', (e) => this.onClick(e));
     this.win.addEventListener('mouseover', (e) => this.onHover(e));
     this.scroller.addEventListener('mouseleave', () => host.hover(null));
@@ -67,6 +87,7 @@ export class TreeView {
   /** Rebuild for a new model. */
   setModel(model: SceneModel): void {
     this.model = model;
+    this.activeKey = null;
     this.query = '';
     this.savedExpanded = null;
     this.roots = buildTree(model);
@@ -121,6 +142,7 @@ export class TreeView {
       this.render(true);
       return false;
     }
+    this.activeKey = p.element;
     const h = this.scroller.clientHeight || 300;
     const top = i * ROW_H;
     if (top < this.scroller.scrollTop || top + ROW_H > this.scroller.scrollTop + h) {
@@ -128,6 +150,167 @@ export class TreeView {
     }
     this.render(true);
     return true;
+  }
+
+  /** The scroller element (the one Tab stop of the tree). */
+  get focusEl(): HTMLElement {
+    return this.scroller;
+  }
+
+  /** Move keyboard focus into the tree. The active row stays, else the first selected row, else the first row. */
+  focus(): void {
+    this.scroller.focus({ preventScroll: true });
+  }
+
+  /** Key of the active row, or null. For tests and scripts. */
+  get activeRowKey(): string | null {
+    return this.activeIndex() >= 0 ? this.activeKey : null;
+  }
+
+  private activeIndex(): number {
+    if (this.activeKey === null) return -1;
+    return this.rows.findIndex((r) => r.node.key === this.activeKey);
+  }
+
+  private onFocus(): void {
+    const had = this.activeIndex() >= 0;
+    if (!had) {
+      const sel = this.host.selection();
+      let i = sel.size > 0 ? this.rows.findIndex((r) => r.node.elementId !== null && sel.has(r.node.elementId)) : -1;
+      if (i < 0 && sel.size > 0) i = this.rows.findIndex((r) => r.node.count > 0 && r.node.ids.every((id) => sel.has(id)));
+      if (i < 0) i = this.rows.length > 0 ? 0 : -1;
+      this.activeKey = i >= 0 ? this.rows[i]!.node.key : null;
+      if (i >= 0) this.ensureVisible(i);
+    }
+    // The ring shows through CSS (:focus .tr.act); render only when the active row had to be chosen.
+    if (!had) this.render(true);
+  }
+
+  private ensureVisible(i: number): void {
+    const h = this.scroller.clientHeight || 300;
+    const top = i * ROW_H;
+    const st = this.scroller.scrollTop;
+    if (top < st) this.scroller.scrollTop = top;
+    else if (top + ROW_H > st + h) this.scroller.scrollTop = top + ROW_H - h;
+  }
+
+  private setActive(i: number): void {
+    const r = this.rows[i];
+    if (!r) return;
+    this.activeKey = r.node.key;
+    this.ensureVisible(i);
+    this.render(true);
+  }
+
+  private page(): number {
+    return Math.max(1, Math.floor((this.scroller.clientHeight || 300) / ROW_H) - 1);
+  }
+
+  private selectRow(i: number, how: 'replace' | 'toggle' | 'extend'): void {
+    const n = this.rows[i]?.node;
+    if (!n) return;
+    if (how === 'replace') this.host.select(n.ids, false);
+    else if (how === 'extend') this.host.select(n.ids, true);
+    else {
+      const sel = this.host.selection();
+      const all = n.ids.length > 0 && n.ids.every((id) => sel.has(id));
+      const drop = new Set(n.ids);
+      const next = all ? [...sel].filter((id) => !drop.has(id)) : [...sel, ...n.ids.filter((id) => !sel.has(id))];
+      this.host.select(next, false);
+    }
+    this.render(true);
+  }
+
+  private onKey(e: KeyboardEvent): void {
+    if (e.target !== this.scroller || e.isComposing || this.rows.length === 0) return;
+    if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === ' ') {
+      this.consume(e);
+      this.ensureActive();
+      const i = this.activeIndex();
+      if (i >= 0) this.selectRow(i, 'toggle');
+      return;
+    }
+    if (e.ctrlKey || e.metaKey) return;
+    const k = e.key;
+    if (this.ensureActive() < 0) return;
+    const i = this.activeIndex();
+    if (e.altKey) {
+      if (isTypeAheadChar(k) && !this.host.isGlobalKey?.(e)) this.typeAheadKey(e, i);
+      return;
+    }
+    if (e.shiftKey) {
+      if (k === 'ArrowUp' || k === 'ArrowDown') {
+        this.consume(e);
+        const j = moveActive(this.rows, i, k, 1);
+        this.setActive(j);
+        this.selectRow(j, 'extend');
+      } else if (isTypeAheadChar(k) && !this.host.isGlobalKey?.(e)) this.typeAheadKey(e, i);
+      else if (k === '*') {
+        this.consume(e);
+        this.setExpanded(siblingKeysToOpen(this.rows, i), true);
+      }
+      return;
+    }
+    switch (k) {
+      case 'ArrowDown':
+      case 'ArrowUp':
+      case 'Home':
+      case 'End':
+      case 'PageDown':
+      case 'PageUp':
+        this.consume(e);
+        this.setActive(moveActive(this.rows, i, k, this.page()));
+        return;
+      case 'ArrowRight':
+      case 'ArrowLeft': {
+        this.consume(e);
+        const m = k === 'ArrowRight' ? rightMove(this.rows, i) : leftMove(this.rows, i);
+        if (m.type === 'open' || m.type === 'close') this.setExpanded([m.key], m.type === 'open');
+        else if (m.type === 'move') this.setActive(m.index);
+        return;
+      }
+      case 'Enter':
+      case ' ':
+        this.consume(e);
+        this.selectRow(i, 'replace');
+        return;
+      case '*':
+        this.consume(e);
+        this.setExpanded(siblingKeysToOpen(this.rows, i), true);
+        return;
+      default:
+        if (isTypeAheadChar(k)) {
+          const continuing = this.ta.buffer !== '' && performance.now() - this.ta.at <= TYPE_AHEAD_MS;
+          if (continuing || !this.host.isGlobalKey?.(e)) this.typeAheadKey(e, i);
+        }
+    }
+  }
+
+  private ensureActive(): number {
+    if (this.activeIndex() < 0) this.onFocus();
+    return this.activeIndex();
+  }
+
+  private typeAheadKey(e: KeyboardEvent, i: number): void {
+    this.consume(e);
+    const r = typeAhead(this.rows, i, this.ta, e.key, performance.now());
+    this.ta = r.state;
+    if (r.index >= 0) this.setActive(r.index);
+  }
+
+  private consume(e: KeyboardEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  private setExpanded(keys: string[], open: boolean): void {
+    if (keys.length === 0) return;
+    for (const k of keys) {
+      if (open) this.expanded.add(k);
+      else this.expanded.delete(k);
+    }
+    this.rebuildRows();
+    this.render(true);
   }
 
   /** Re-render the visible window if anything it shows changed. Cheap enough for a 250 ms timer. */
@@ -149,16 +332,24 @@ export class TreeView {
     const sel = this.host.selection();
     const hid = this.host.hidden();
     let html = '';
-    for (let i = start; i < end; i++) html += this.rowHtml(i, this.rows[i]!, sel, hid);
+    const act = this.activeIndex();
+    for (let i = start; i < end; i++) html += this.rowHtml(i, this.rows[i]!, sel, hid, i === act);
     if (this.rows.length === 0) html = `<div class="tv-empty">${this.query ? 'No matching elements' : 'No elements'}</div>`;
     if (!force && start === this.lastStart && html === this.lastHtml) return;
     this.lastStart = start;
     this.lastHtml = html;
     this.win.style.transform = `translateY(${start * ROW_H}px)`;
     this.win.innerHTML = html;
+    this.syncActiveDescendant();
   }
 
-  private rowHtml(i: number, row: FlatRow, sel: ReadonlySet<ElementId>, hid: ReadonlySet<ElementId>): string {
+  private syncActiveDescendant(): void {
+    const i = this.activeIndex();
+    if (i >= 0 && this.win.querySelector(`#${this.uid}-${i}`)) this.scroller.setAttribute('aria-activedescendant', `${this.uid}-${i}`);
+    else this.scroller.removeAttribute('aria-activedescendant');
+  }
+
+  private rowHtml(i: number, row: FlatRow, sel: ReadonlySet<ElementId>, hid: ReadonlySet<ElementId>, active: boolean): string {
     const n = row.node;
     let selected = false;
     let hiddenAll = false;
@@ -190,7 +381,7 @@ export class TreeView {
     const cnt = n.elementId === null ? `<span class="cnt">${n.count}</span>` : '';
     const attrs = row.hasChildren ? ` aria-expanded="${row.expanded}"` : '';
     return (
-      `<div class="tr k-${n.kind}${selected ? ' sel' : ''}${hiddenAll ? ' hid' : ''}" role="treeitem" data-i="${i}" data-key="${esc(n.key)}"${attrs}` +
+      `<div class="tr k-${n.kind}${selected ? ' sel' : ''}${hiddenAll ? ' hid' : ''}${active ? ' act' : ''}" role="treeitem" id="${this.uid}-${i}" aria-selected="${selected}" aria-level="${row.depth + 1}" data-i="${i}" data-key="${esc(n.key)}"${attrs}` +
       ` style="padding-left:${4 + row.depth * 14}px" title="${esc(n.title)}">` +
       `${caret}<span class="lbl">${esc(n.label)}</span>${cnt}` +
       `<span class="eye${eyeCls}" data-act="eye" title="${hiddenAll ? 'Show' : 'Hide'}">${hiddenAll ? EYE_OFF : EYE}</span>${dot}</div>`
@@ -211,6 +402,7 @@ export class TreeView {
     if (!hit) return;
     const { row, act } = hit;
     const n = row.node;
+    this.activeKey = n.key;
     if (act === 'caret') {
       this.toggle(n.key);
     } else if (act === 'eye') {

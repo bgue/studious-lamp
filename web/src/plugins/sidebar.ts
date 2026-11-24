@@ -259,6 +259,7 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
     hover: (id) => {
       app.hoverId = id;
     },
+    isGlobalKey: (e) => (window.__keymap?.lookup(e) ?? []).some((a) => !a.enabled || a.enabled(app)),
   });
   modelPane.append(filterRow, tree.root);
 

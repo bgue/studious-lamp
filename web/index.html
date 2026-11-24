@@ -116,6 +116,13 @@
       .tr:hover { background: var(--sb-hover); }
       .tr.sel { background: var(--sb-sel); }
       .tr.sel:hover { background: #26598f; }
+      /* Keyboard cursor of the tree: an inset ring only while the tree has focus, distinct from the selection fill. */
+      .tv-scroll:focus { outline: none; }
+      .tv-scroll:focus .tr.act { outline: 2px solid var(--sb-accent); outline-offset: -2px; border-radius: 2px; }
+      /* Region focus ring (F6): set on the region's element by the keymap plugin. */
+      [data-region-ring] { outline: 2px solid var(--sb-accent, #3b9cff) !important; outline-offset: -2px; }
+      #c:focus { outline: none; }
+      #c[data-region-ring] { outline-offset: -3px; }
       .tr.hid .lbl { opacity: 0.45; text-decoration: line-through; }
       .tr.k-storey .lbl, .tr.k-systems .lbl { font-weight: 600; }
       .tr .lbl { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
