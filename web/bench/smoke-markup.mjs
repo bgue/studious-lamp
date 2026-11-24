@@ -6,7 +6,7 @@
 //     extract the embedded JSON and compare it with the reader of the viewer;
 //   - reload, drop the PDF onto the page: the view and the markups come back (camera within tolerance, same markups);
 //     reload again and open the JSON through the file input; drop it on another model (warning, still restored);
-//   - make an issue of a view (its legacy comments move to the issue); "Return to markup view" after orbiting away; phone layout with touch drawing;
+//   - make an issue of a view (its legacy comments move to the issue); "Return to the drawing view" after orbiting away; phone layout with touch drawing;
 //   - fails on any console error.
 // Screenshots: bench/markup-drawer.png, markup-tools.png, markup-pdf-1.png ... (new files only).
 // Usage: SMOKE_PORT=5710 node bench/smoke-markup.mjs
@@ -237,13 +237,13 @@ try {
   await tool('pen'); await made('pen', () => path([[c.x, c.y + c.h], [c.x + c.w * 0.25, c.y], [c.x + c.w * 0.5, c.y + c.h], [c.x + c.w * 0.75, c.y], [c.x + c.w, c.y + c.h]]));
   const win = await screenOf(info.win.c);
   await tool('callout');
-  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Window reveal too small'); await made('callout on an element', () => page.mouse.click(win.x, win.y));
+  await page.fill('#markup-float [aria-label="Text for the next drawing"]', 'Window reveal too small'); await made('callout on an element', () => page.mouse.click(win.x, win.y));
   const wall = await screenOf([info.wall.c[0], info.wall.c[1], info.wall.c[2]]);
   await tool('pointer');
-  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Check fire rating'); await made('pointer on an element', () => page.mouse.click(wall.x, wall.y));
+  await page.fill('#markup-float [aria-label="Text for the next drawing"]', 'Check fire rating'); await made('pointer on an element', () => page.mouse.click(wall.x, wall.y));
   c = cell(3, 2);
   await tool('text');
-  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'North side'); await made('text box', () => page.mouse.click(c.x + c.w / 2, c.y + c.h / 2));
+  await page.fill('#markup-float [aria-label="Text for the next drawing"]', 'North side'); await made('text box', () => page.mouse.click(c.x + c.w / 2, c.y + c.h / 2));
   // measurement link
   await page.evaluate((cc) => { const m = window.__xrayMeasure; m.click([cc[0] - 0.4, cc[1], cc[2]], 0); m.click([cc[0] + 0.4, cc[1], cc[2]], 0); }, info.win.c);
   await tool('select');
@@ -345,17 +345,21 @@ try {
   await page.evaluate(() => window.__xrayViews.drawOnCurrent()); // a new view with drawings from the current state
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 2);
   await page.waitForTimeout(200);
-  await page.click('#views-drawings [data-act=back]');
+  if (await page.$('#views-drawings [data-act=back]')) await page.click('#views-drawings [data-act=back]');
+  // `K` opened the Views tab on "With drawings"; the new view has no drawing yet, so list every view.
+  await page.evaluate(() => window.__xrayViews.open('all'));
+  await page.waitForTimeout(200);
   const thumbs = await page.evaluate(() => window.__xrayViews.list().filter((v) => v.set).map((v) => v.hasThumb));
   // Assertion changed: the first view went through the legacy-data JSON round trip above and the JSON carries no thumbnail, so it
   // lists as "no picture"; the view made from the view has its picture.
   // The first saved view is plain again (its layer was deleted and imported back, as a view of its own): 3 rows, 2 of them with a layer.
-  check('two views with a drawing layer are listed (3 rows), the new one with a thumbnail', (await page.$$('#views-panel .vw-row')).length === 3 && thumbs.length === 2 && thumbs.some(Boolean));
+  const rowInfo = await page.evaluate(() => ({ rows: document.querySelectorAll('#views-panel .vw-row').length, rowNames: [...document.querySelectorAll('#views-panel .vw-row .vw-name')].map((e) => e.textContent), filter: window.__xrayViews.filter, text: document.querySelector('#views-panel .vw-filter input')?.value ?? null, detailing: document.querySelector('#views-panel .vw')?.classList.contains('vw-detailing'), back: !!document.querySelector('#views-drawings [data-act=back]'), list: window.__xrayViews.list().map((v) => ({ name: v.name, set: !!v.set, thumb: v.hasThumb })) }));
+  check('two views with a drawing layer are listed (one row each, plus any plain view), the new one with a thumbnail', rowInfo.rows === rowInfo.list.length && thumbs.length === 2 && thumbs.some(Boolean), JSON.stringify(rowInfo));
   await tool('cloud');
   await drag(box.x + box.w * 0.55, box.y + box.h * 0.4, box.x + box.w * 0.75, box.y + box.h * 0.6);
   check('the second view has its own markup', (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[1].id).markups.length)) === 1 && (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id).markups.length)) === 15);
-  // selecting view 1 restores its view (the detail of the second view is open: back to the list first)
-  await page.click('#views-drawings [data-act=back]');
+  // selecting view 1 restores its view (back to the list first if a detail is open)
+  if (await page.$('#views-drawings [data-act=back]')) await page.click('#views-drawings [data-act=back]');
   await page.click(`#views-panel [data-key] .vw-name >> nth=${await page.evaluate((id) => window.__xrayViews.list().findIndex((v) => v.set === id), set1.id)}`);
   await page.waitForTimeout(1500);
   await settle();

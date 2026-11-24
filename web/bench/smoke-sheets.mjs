@@ -208,7 +208,7 @@ try {
   const c1 = await toPx(230, 180);
   await drag(c0, c1);
   await page.click('#sheet-float [data-tool-id=text]');
-  await page.fill('#sheet-float [aria-label="Text for the next markup"]', 'Move wall 50 mm');
+  await page.fill('#sheet-float [aria-label="Text for the next drawing"]', 'Move wall 50 mm');
   const tp = await toPx(560, 300);
   await page.mouse.click(tp[0], tp[1]);
   const mine = await page.evaluate((id) => window.__xraySheets.sketches(id).find((s) => !s.readonly), sheetId);
@@ -262,7 +262,7 @@ try {
       await page.mouse.click(m[0], m[1] + 20);
       await page.keyboard.press('Enter');
     } else {
-      await page.fill('#sheet-float [aria-label="Text for the next markup"]', 'Callout text');
+      await page.fill('#sheet-float [aria-label="Text for the next drawing"]', 'Callout text');
       await page.mouse.click(a[0], a[1]);
     }
     yy += 16;

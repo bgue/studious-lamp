@@ -333,7 +333,7 @@ try {
   check('a cloud drawn over a wall on the sheet is attached to that wall (its GlobalId)', cloud?.attach?.kind === 'elements' && JSON.stringify(cloud.attach.guids) === JSON.stringify([target.guid]) && cloud.attach.surface.pts.length >= 4, JSON.stringify({ kind: cloud?.attach?.kind, guids: cloud?.attach?.guids, want: target.guid }));
   check('the shape itself is still in PDF points of the sheet', cloud.shape.points.length === 2 && Math.abs(cloud.shape.points[0][0] - (wu[0] - hx)) < 4);
   await page.click('#sheet-float [data-tool-id=text]');
-  await page.fill('#sheet-float [aria-label="Text for the next markup"]', 'Wall to be rendered');
+  await page.fill('#sheet-float [aria-label="Text for the next drawing"]', 'Wall to be rendered');
   const tp = await toPx(wu[0], wu[1]);
   await page.mouse.click(tp[0], tp[1]);
   await page.click('#sheet-float [data-tool-id=rect]');

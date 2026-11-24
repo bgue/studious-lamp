@@ -167,14 +167,14 @@ try {
   await page.click('#issues-panel [data-viewpoint] [data-act=edit-drawing]');
   await page.waitForSelector('#markup-float', { state: 'visible' });
   await page.click('#markup-float [data-tool-id=callout]');
-  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Reveal 3 cm too small');
+  await page.fill('#markup-float [aria-label="Text for the next drawing"]', 'Reveal 3 cm too small');
   await settle();
   const win = await screenOf(setup.win.centre);
   await page.mouse.click(win.x, win.y);
   // The measurement joins the view through the scripting call (the Link a measurement list is covered in smoke-markup).
   await page.evaluate((id) => window.__xrayMarkup.add({ kind: 'measure', measurementId: id }), meas[0].id);
   await page.click('#markup-float [data-tool-id=text]');
-  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Check sill on site');
+  await page.fill('#markup-float [aria-label="Text for the next drawing"]', 'Check sill on site');
   const notePt = await screenOf([setup.win.centre[0] - 1.2, setup.win.centre[1] - 0.6, setup.win.centre[2]]);
   await page.mouse.click(notePt.x, notePt.y);
   await settle();
