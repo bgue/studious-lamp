@@ -4,7 +4,9 @@
 
 import type { AppPlugin, ViewerApp } from '../app';
 import { registerAction } from '../input/actions';
-import { Keymap, setKeymap } from '../input/keymap';
+import { Keymap, isTypingTarget, setKeymap } from '../input/keymap';
+import { focusOwnerOf, widgetOwnsKey } from '../input/focusOwner';
+import { cycleRegion, watchRegionRing } from '../input/regions';
 import {
   bindMouseHistory,
   isNavigationMoving,
@@ -64,6 +66,26 @@ export const keymapPlugin: AppPlugin = {
     registerAction({ id: 'keys.edit', label: 'Edit shortcuts', group: 'Other', keys: [], run: () => editor.open() });
     registerAction({ id: 'keys.reset', label: 'Reset shortcuts', group: 'Other', keys: [], run: () => { km.resetAll(); showToast('Shortcuts reset to the defaults'); } });
 
+    registerAction({
+      id: 'focus.nextRegion',
+      label: 'Focus next region',
+      group: 'Panels',
+      keys: ['F6'],
+      description: 'Move keyboard focus to the next region: 3D view, left sidebar, right sidebar, top bar.',
+      run: () => void cycleRegion(app.canvas, 1),
+    });
+    registerAction({
+      id: 'focus.prevRegion',
+      label: 'Focus previous region',
+      group: 'Panels',
+      keys: ['Shift+F6'],
+      description: 'Move keyboard focus to the previous region.',
+      run: () => void cycleRegion(app.canvas, -1),
+    });
+    // The canvas takes focus (keys go to the viewer, a focus ring shows after F6) without changing pointer behaviour.
+    if (app.canvas.tabIndex < 0) app.canvas.tabIndex = 0;
+    watchRegionRing();
+
     km.load();
     km.watchRegistry();
 
@@ -74,6 +96,16 @@ export const keymapPlugin: AppPlugin = {
         // Keep Tab for keyboard focus movement unless the focus is on the page itself.
         const t = e.target as HTMLElement | null;
         if (t && t !== document.body && t !== app.canvas && t !== document.documentElement) return;
+      }
+      // A focused list widget (tree, listbox, grid, data-keys-own) keeps its keys; Escape there returns to the canvas.
+      const owner = isTypingTarget(e.target) ? null : focusOwnerOf(e.target);
+      if (owner && !km.anyOverlayOpen()) {
+        if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+          app.canvas.focus({ preventScroll: true });
+          e.preventDefault();
+          return;
+        }
+        if (widgetOwnsKey(owner.mode, e)) return;
       }
       try {
         km.handleKeyDown(e, app);

@@ -1492,6 +1492,24 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Read the dot to see why an object ghosts. Select a duct to see the dots change.',
     'Report: Terminology',
   ),
+  'Sidebar/Model tree': h(
+    'The model tree takes the arrow keys when it has focus. A ring marks the active row.',
+    'Press the arrow keys and a ring moves down the list. Press Enter and the part under the ring turns blue.',
+    'Press F6 to reach the tree. Press Up and Down to move, Right and Left to open and close, Enter to select. Type a letter to jump.',
+    'Report: Onboarding checklist',
+  ),
+  'Keyboard/Next region': h(
+    'The action moves keyboard focus to the next region. The regions are the 3D view, the left sidebar, the right sidebar and the top bar.',
+    'Press the key and a coloured frame jumps on to another part of the window. Then the arrow keys work there.',
+    'Press F6 to move forward. Press Escape in a list to go back to the 3D view.',
+    'Report: Onboarding checklist',
+  ),
+  'Keyboard/Previous region': h(
+    'The action moves keyboard focus to the previous region. The order is the reverse of the next region action.',
+    'Press the key and a coloured frame jumps back to the earlier part of the window.',
+    'Press Shift and F6 to move backward.',
+    'Report: Onboarding checklist',
+  ),
   'Sidebar/Expand arrow': h(
     'The arrow opens or closes a group in the model tree.',
     'Click and the group opens to show the parts inside it. Click again and it closes.',

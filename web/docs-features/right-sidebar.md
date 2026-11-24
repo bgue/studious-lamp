@@ -13,6 +13,8 @@ folded, the state kept in `localStorage`. It is the element `#dock` (`src/ui/rig
 
 The left sidebar keeps Model, Sets, Views and Issues and gives the freed height to them.
 
+Keyboard access to the model tree on the left (arrows, type-ahead, Enter, F6 to reach it) is described in [keyboard.md](keyboard.md#model-tree-keys).
+
 ## Behaviour
 
 - **Fold.** The chevron at the top left of the column, the key `]` (action `panel.right`) or a click on the vertical label of the rail. The state is

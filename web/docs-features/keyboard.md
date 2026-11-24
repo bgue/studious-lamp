@@ -27,6 +27,7 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 - Keys are ignored while a text field (input, textarea, select, contenteditable) has focus. Escape blurs the field.
   Checkboxes, radios and buttons do not count as text fields.
 - Keys are ignored while the cheat sheet, the palette or the editor is open (they handle their own keys).
+- A focused list widget keeps its own keys, see [Focus rules](#focus-rules).
 - `preventDefault` is called only for keys an enabled action took.
 
 ## Default bindings
@@ -132,6 +133,62 @@ plays, Walk mode is left and `Shift+w` does nothing. A held `w` followed by `Shi
 **Navigation style** (`navigation style` in the `Keyboard` folder, stored with the other keyboard settings in `localStorage`
 `xray.keynav`, not in the params or a share link): `BIM` (default) or `Game`. In `Game` the keys `w a s d q e` fly the camera and its
 target at all times (the old behaviour), the middle button zooms, and the wheel zooms to the target, as before.
+
+## Focus rules
+
+A list widget is an element with `role="tree"`, `"listbox"` or `"grid"`, or with a `data-keys-own` attribute (the model tree, the
+Views list and the Sets list). While focus is inside one, the keymap plugin (`src/plugins/keymap.ts`, predicate in
+`src/input/focusOwner.ts`) lets the widget keep its keys:
+
+- Arrow keys, `Home`, `End`, `PageUp`, `PageDown`, `Enter` and `Space`, and `Shift+ArrowUp/ArrowDown`, never reach global actions.
+  So `PageUp` in the tree moves the tree cursor instead of changing storey.
+- Plain characters stay with the widget when its mode is `all` (default, also `data-keys-own="all"`). `data-keys-own="nav"` (the
+  model tree, the Views list, the Sets list) leaves letters to the global keymap; the tree takes only the letters that have no global
+  action, see below.
+- Chords with `Ctrl`, `Alt` or `Meta`, and every key the widget does not use (`f`, `h`, `x`, `Shift+h`, `[`, `?`, `Shift+ArrowLeft`...),
+  still run global actions on the current selection.
+- `Escape` in a widget moves focus to the 3D canvas and does nothing else. A second `Escape` (focus is now on the canvas) does what
+  it does globally: close overlays, then clear the selection.
+- `Tab` is unchanged: it moves browser focus, and means "next selected element" only while focus is on the page or the canvas.
+- The canvas has `tabindex="0"`; clicking it focuses it, which changes nothing for the pointer.
+
+### F6 regions
+
+| Action | Keys |
+| --- | --- |
+| `focus.nextRegion`: 3D canvas, left sidebar, right sidebar, top bar, canvas | `F6` |
+| `focus.prevRegion` | `Shift+F6` |
+
+Focus goes to the list widget of the active tab (the model tree, the first row of Sets or Views), the active right sidebar pane, the
+lit mode button of the top bar, or the canvas. A collapsed sidebar or a hidden top bar is skipped (open it with `[` or `]` first). The
+region shows a focus ring (`data-region-ring`) until focus leaves it or a pointer is used. F6 is a global action: it does not run in a
+text field (press `Escape` first). Both actions are in the cheat sheet and rebindable; help texts: `Keyboard/Next region`,
+`Keyboard/Previous region` in `src/ui/helpText.ts`.
+
+### Model tree keys
+
+The tree (`src/ui/treeView.ts`, pure logic in `src/ui/treeKeys.ts`) is one Tab stop. Its active row is tracked by key, so it survives
+the virtualised window; the scroller has `aria-activedescendant` and the active row `.act` (a ring only while the tree has focus,
+separate from the `.sel` selection fill).
+
+| Keys | Effect |
+| --- | --- |
+| `ArrowUp` / `ArrowDown`, `Home` / `End`, `PageUp` / `PageDown` | Move the active row (a page is the visible rows minus one) |
+| `ArrowRight` | Open a closed row; on an open row go to its first child |
+| `ArrowLeft` | Close an open row; else go to the parent |
+| `*` | Open all siblings of the active row |
+| `Enter`, `Space` | Select the active row's elements, replacing the selection (a click on it; a storey or class selects all its elements) |
+| `Ctrl+Space` | Toggle the row's elements in the selection |
+| `Shift+ArrowUp` / `Shift+ArrowDown` | Move and add the new row's elements to the selection |
+| Letters | Type-ahead: jump to the next row whose name starts with the typed text (buffer resets after 500 ms) |
+
+Type-ahead rule: a letter starts type-ahead only if no enabled global action is bound to that key (so `d`, `t`, `Shift+i` work; `f`, `h`,
+`x`, `i`, `Alt+f` stay global). Once a buffer is running (the last letter was less than 500 ms ago) every character joins it, so
+`Shift+I` then `fcDoor` finds `IfcDoor`. Repeating one letter cycles through the rows with that initial. Use `Shift+<letter>` for a
+letter that is bound globally. Alt chords follow the same rule (unbound ones type-ahead).
+
+The visibility (eye) button of a row has no Tab stop: `h`, `Shift+h` and `Alt+h` act on the selection. Selecting an element in 3D
+(click, search, Tab) opens its storey and class, scrolls the row into view and makes it the active row, without moving focus.
 
 ## Views and coordinates
 
