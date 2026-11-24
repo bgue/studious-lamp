@@ -12,9 +12,11 @@
 //
 //   window.__xrayPointer = { mode, setMode(m), boxSelect(rect, mode, how?), pick(rect, mode), drawing() }
 
-import { Matrix4 } from 'three';
+import { Matrix4, Raycaster, Vector2, Vector3 } from 'three';
 import type { AppPlugin, ViewerApp } from '../app';
 import { registerAction } from '../input/actions';
+import { flyToElement, frameAllNow, isWalking, navSettings, onNavStyleChange, onWalkChange } from '../input/navigation';
+import { isDoubleClick, pivotDepth, retargetAtDepth } from '../input/walk';
 import { boxModeOf, pickInRect, rectOf } from '../input/boxSelect';
 import type { BoxMode, PixelRect } from '../input/boxSelect';
 import { configureControls, loadPointerMode, savePointerMode, selectHowOf } from '../input/pointerMode';
@@ -131,10 +133,82 @@ export const pointerModePlugin: AppPlugin = {
     // a cursor of their own (crosshair) still win while they are on, and give it back as ''.
     canvas.style.removeProperty('cursor');
     applyMode = () => {
-      configureControls(app.renderer.controls, mode);
+      configureControls(app.renderer.controls, mode, navSettings.style);
       canvas.dataset['pointerMode'] = mode;
       if (mode !== 'arrow') cancelBox();
     };
+    onNavStyleChange(() => applyMode?.());
+    onWalkChange(() => cancelBox());
+
+    // ---- BIM style: orbit about what you grab, wheel zooms to the cursor, double click flies to an element or frames all.
+    const controls = app.renderer.controls;
+    let lastDown = { x: 0, y: 0, t: 0, button: 0 };
+    let lastMid: { t: number; x: number; y: number } | null = null;
+    const bim = (): boolean => navSettings.style === 'bim' && !isWalking();
+    // Capture phase: before OrbitControls reads the pointer. Zoom to the cursor is for the wheel and the trackpad pinch; two
+    // fingers on a touch screen keep zooming about their own centre as before.
+    canvas.addEventListener('pointerdown', (e) => {
+      lastDown = { x: e.clientX, y: e.clientY, t: performance.now(), button: e.button };
+      controls.zoomToCursor = e.pointerType !== 'touch' && navSettings.style === 'bim';
+    }, true);
+    canvas.addEventListener('wheel', () => {
+      controls.zoomToCursor = navSettings.style === 'bim';
+    }, { capture: true, passive: true });
+    const ray = new Raycaster();
+    const ndc = new Vector2();
+    /** Move the orbit target along the view axis to the depth of the surface under the pointer (one pick, no jump of the view). */
+    function pivotAt(clientX: number, clientY: number): void {
+      const r = canvas.getBoundingClientRect();
+      ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+      const id = app.renderer.pick(ndc.x, ndc.y);
+      if (id === null) return; // empty space: the target stays
+      const { camera } = app.renderer;
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.ray.origin.clone().addScaledVector(ray.ray.direction, app.renderer.lastPickDistance);
+      const view = camera.getWorldDirection(new Vector3());
+      const t = retargetAtDepth(camera.position, view, pivotDepth(camera.position, view, hit), controls.minDistance, controls.maxDistance);
+      if (t) controls.target.copy(t);
+    }
+    // OrbitControls dispatches `start` once it has taken a mouse button as an orbit (state 0): left in Hand mode, Shift + middle.
+    // The pivot is picked when the pointer has moved a few pixels, not on the press, so a plain click (select) leaves the camera
+    // and the undo history alone. The pick is at the pressed point, before OrbitControls has seen the first move.
+    let pendingPivot = false;
+    controls.addEventListener('start', () => {
+      pendingPivot = bim() && (controls as unknown as { state: number }).state === 0 && performance.now() - lastDown.t < 500;
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!pendingPivot) return;
+      if (Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 3) return;
+      pendingPivot = false;
+      pivotAt(lastDown.x, lastDown.y);
+    });
+    const endPivot = (): void => {
+      pendingPivot = false;
+    };
+    canvas.addEventListener('pointerup', endPivot);
+    canvas.addEventListener('pointercancel', endPivot);
+    canvas.addEventListener('dblclick', (e) => {
+      if (!bim() || e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || canvas.style.cursor) return; // a tool owns the pointer
+      if (Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) > BOX_SLOP) return; // the second press was a drag, not a click
+      const r = canvas.getBoundingClientRect();
+      const id = app.renderer.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      if (id === null) return;
+      app.selectWith([id], 'replace');
+      flyToElement(app, id);
+    });
+    // The middle button has no dblclick event: two quick clicks without a drag frame everything.
+    canvas.addEventListener('pointerup', (e) => {
+      if (e.button !== 1 || !bim() || e.pointerType === 'touch') return;
+      if (Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) > BOX_SLOP || lastDown.button !== 1) {
+        lastMid = null;
+        return;
+      }
+      const now = { t: performance.now(), x: e.clientX, y: e.clientY };
+      if (isDoubleClick(lastMid, now)) {
+        lastMid = null;
+        frameAllNow(app);
+      } else lastMid = now;
+    });
 
     // ---- the box
     let drag: { id: number; x: number; y: number; active: boolean; dead: boolean } | null = null;
@@ -166,6 +240,7 @@ export const pointerModePlugin: AppPlugin = {
         touches.add(e.pointerId);
         if (touches.size > 1) cancelBox(); // two fingers: the camera, not the box
       }
+      if (isWalking()) return; // Walk mode: a drag looks around (plugins/walk.ts)
       if (mode === 'hand') {
         if (e.button === 0) canvas.classList.add('xp-grabbing');
         return;
@@ -239,7 +314,7 @@ export const pointerModePlugin: AppPlugin = {
       label: 'Hand mode: drag moves the camera',
       group: 'Modes',
       keys: ['g'],
-      description: 'Left drag orbits, Shift or right drag pans, wheel zooms. A click still selects.',
+      description: 'Left drag orbits, right or middle drag pans, wheel zooms to the cursor. A click still selects.',
       run: () => setPointerMode('hand'),
     });
     applyMode();

@@ -9,12 +9,41 @@ What the left mouse button does in the viewport. A two-button toggle under the v
 | Click, no drag | Select | Select |
 | Shift | Shift-click adds, Shift-drag pans | Shift-click or Shift-box adds |
 | Ctrl or Cmd | Ctrl-click or Cmd-click toggles | Ctrl-click, Cmd-click or a Ctrl or Cmd box toggles |
-| Right or Shift drag | Pan | Right drag pans |
-| Middle drag, wheel | Zoom | Zoom |
+| Right drag | Pan | Pan |
+| Middle drag | Pan | Pan |
+| Shift + middle drag | Orbit about the point under the cursor | Orbit about the point under the cursor |
+| Wheel | Zoom toward the cursor | Zoom toward the cursor |
+| Double click (left) | On an element: select it and fly to it. On empty space: nothing | The same |
+| Double click (middle) | Frame everything (Home) | Frame everything (Home) |
 | Touch | One finger orbits, two fingers zoom and pan | One finger draws the box, two fingers zoom and orbit (pan: switch to Hand) |
 | Cursor | `grab`, `grabbing` while a drag runs | the default arrow |
 
 The camera is never out of reach in Arrow mode: the right and middle buttons and the wheel work, and so does the keyboard.
+
+## Navigation style: BIM (default) and Game
+
+The table above is the **BIM** style, the one of Revit, Navisworks and Solibri. The **Game** style (`navigation style` in the
+`Keyboard` folder, see [keyboard.md](keyboard.md)) is the older mapping: the middle button zooms, the wheel zooms toward the
+target, `w a s d q e` fly the camera at all times, and there is no pivot pick and no double click action. The style is a
+per-viewer convenience in `localStorage` `xray.keynav`, not in the params.
+
+- **Wheel zoom to the cursor.** OrbitControls `zoomToCursor`: the camera moves along the ray through the cursor, so the point
+  under the cursor stays under it. The orbit target is kept in front of the camera. A pinch on a touch screen zooms about its
+  own centre as before (the flag is dropped on a touch pointer and set again on the wheel).
+- **Orbit pivots on what you grab.** At the start of an orbit drag (left button in Hand mode, Shift + middle) the app picks the
+  point under the cursor with the same pick as a click (hidden elements and ghosts too faint to click are skipped). On a hit the
+  orbit target moves along the current view ray to the depth of the hit (`retargetAtDepth` in `src/input/walk.ts`; clamped to the
+  zoom limits), so the view does not jump. On a miss the target stays. It is one pick per drag start; touch is not changed.
+- **Double click.** Left on an element: select it and fly to it with the fly-to framing (Cinematic > Camera fly-to), recorded in
+  the view history. Not while a tool owns the pointer (measure) or with Shift, Ctrl or Cmd. Middle: the browser sends no `dblclick`
+  for that button, so two quick middle clicks without a drag frame everything, like `Home`.
+
+## Walk mode
+
+Walk mode (`Shift+w`, or the walk button on the gizmo) changes the left button: a drag **looks around from the eye** (yaw and pitch
+about the camera position, pitch within 85 degrees), in Hand and in Arrow mode (no selection box while it is on), and one finger
+does the same on touch. There is no pointer lock, so it works in an iframe and on a phone. The wheel walks forward and back, a click
+still selects, the cursor is an eye, and a chip "Walk · Esc to exit" shows. Details and keys: [keyboard.md](keyboard.md).
 
 ## The selection box
 
@@ -47,6 +76,7 @@ and share link). "Reset to defaults" does not touch it.
 | --- | --- |
 | Arrow mode (`pointer.select`) | `r` |
 | Hand mode (`pointer.hand`) | `g` |
+| Walk mode (`nav.walk`) | `Shift+w` |
 
 The obvious `V` and `H` are taken (`v` shows or hides the gizmo, `h` hides the selection), so the keys are `R` (rectangle) and
 `G` (grab). Both are rebindable and are in the cheat sheet and the command palette under *Modes*.
@@ -59,8 +89,9 @@ with `rect = { x0, y0, x1, y1 }` in canvas CSS pixels. `pick` returns the ids wi
 
 ## Files and tests
 
-- `src/input/boxSelect.ts` (geometry), `src/input/pointerMode.ts` (state, storage, orbit-control settings, selection
-  modifiers), `src/plugins/pointerMode.ts` (DOM, overlay, actions), the toggle in `src/plugins/gizmo.ts`.
+- `src/input/boxSelect.ts` (geometry), `src/input/pointerMode.ts` (state, storage, orbit-control settings per style, selection
+  modifiers), `src/plugins/pointerMode.ts` (DOM, overlay, actions, zoom to the cursor, pivot pick, double click), the toggle in
+  `src/plugins/gizmo.ts`; `src/input/walk.ts` (pure walk and pivot maths), `src/plugins/walk.ts` (chip, look drag, Esc).
 - Tests: `tests/box-select.test.ts`, `tests/pointer-mode.test.ts`. Smoke test: `SMOKE_PORT=5701 node bench/smoke-pointer-undo.mjs`
   writes `bench/pointer-modes-desktop.png`, `pointer-box-select.png`, `pointer-modes-phone.png`.
 

@@ -301,12 +301,13 @@ every button of the parameter panel.
 
 | Input | Action |
 | --- | --- |
-| Left drag, wheel, right drag | Orbit, zoom, pan |
+| Left drag, wheel, right or middle drag | Orbit, zoom to the cursor, pan (BIM style; `Shift`+middle drag orbits about the point under the cursor; a double click flies to an element, a middle double click frames all; see [pointer-modes.md](web/docs-features/pointer-modes.md)) |
 | Click, Shift+click | Select the element under the cursor (ghosts below 0.3 alpha are click-through); add to the selection |
-| Escape | Close overlays, then clear the selection |
+| Escape | Leave Walk mode, close overlays, then clear the selection |
 | `X` | Toggle x-ray |
 | `F`, `Home` | Frame the selection (else all); frame all |
-| Arrow keys, `W A S D Q E` | Orbit; fly |
+| Arrow keys, `Shift`+arrow keys | Orbit; pan |
+| `Shift+W` | Walk mode: `W A S D Q E` and the arrows walk, strafe and turn, a drag looks around, `Esc` leaves (the `W A S D Q E` keys also fly at all times in the Game navigation style) |
 | `+` / `-`, `PageUp` / `PageDown` | Zoom; storey up and down |
 | `Tab`, `Shift+Tab` | Next and previous selected element |
 | `Alt+Left`, `Alt+Right` | View history back and forward |

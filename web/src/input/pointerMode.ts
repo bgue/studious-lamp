@@ -51,16 +51,21 @@ export const NONE = -1;
 export interface ControlsLike {
   mouseButtons: { LEFT?: number | null; MIDDLE?: number | null; RIGHT?: number | null };
   touches: { ONE?: number | null; TWO?: number | null };
+  /** OrbitControls: the wheel dollies towards the pointer instead of the target. */
+  zoomToCursor?: boolean;
 }
 
 /**
- * Set the orbit controls for a mode. Hand: the defaults of OrbitControls (left rotates, Shift or right pans, one finger
- * rotates, two fingers zoom and pan). Arrow: the left button and one finger do nothing to the camera (the box takes them);
- * the middle button zooms, the right button pans, two fingers zoom and orbit.
+ * Set the orbit controls for a mode and a navigation style. Hand: the defaults of OrbitControls (left rotates, Shift or right
+ * pans, one finger rotates, two fingers zoom and pan). Arrow: the left button and one finger do nothing to the camera (the box
+ * takes them); the right button pans, two fingers zoom and orbit.
+ * BIM style (default): the middle button pans (Shift + middle orbits, OrbitControls turns a pan button into rotate with a
+ * modifier) and the wheel zooms to the cursor. Game style: the middle button zooms and the wheel zooms to the target, as before.
  */
-export function configureControls(c: ControlsLike, mode: PointerMode): void {
-  c.mouseButtons.MIDDLE = MOUSE_DOLLY;
+export function configureControls(c: ControlsLike, mode: PointerMode, style: 'bim' | 'game' = 'bim'): void {
+  c.mouseButtons.MIDDLE = style === 'bim' ? MOUSE_PAN : MOUSE_DOLLY;
   c.mouseButtons.RIGHT = MOUSE_PAN;
+  c.zoomToCursor = style === 'bim';
   if (mode === 'hand') {
     c.mouseButtons.LEFT = MOUSE_ROTATE;
     c.touches.ONE = TOUCH_ROTATE;

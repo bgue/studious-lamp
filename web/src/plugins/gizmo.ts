@@ -21,6 +21,7 @@ import type { Region, V3, View } from '../gizmo/maths';
 import type { SectionApi } from './section';
 import { registerParamSection } from '../ui/params';
 import { getPointerMode, onPointerModeChange, setPointerMode } from './pointerMode';
+import { isWalking, onWalkChange, toggleWalking } from '../input/navigation';
 import { onUndoChange, redoNow, undoNow, undoState } from './undo';
 
 export interface GizmoState {
@@ -229,9 +230,11 @@ const CSS = `
 #xray-gizmo .xg-tl{left:0;top:98px}#xray-gizmo .xg-tr{right:0;top:98px}
 #xray-gizmo .xg-home{left:26px;bottom:0}#xray-gizmo .xg-proj{left:54px;bottom:0}#xray-gizmo .xg-min{left:82px;bottom:0}
 #xray-gizmo .xg-main{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-#xray-gizmo .xg-tools{box-sizing:border-box;width:132px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px;
+#xray-gizmo .xg-tools{box-sizing:border-box;width:132px;display:flex;align-items:center;justify-content:space-between;gap:4px;padding:3px;
   background:rgba(20,24,32,.82);border:1px solid #2d3748;border-radius:6px}
 #xray-gizmo .xg-seg,#xray-gizmo .xg-hist{display:flex}
+#xray-gizmo .xg-tools .xg-btn{width:22px}
+#xray-gizmo.collapsed .xg-tools .xg-btn{width:26px}
 #xray-gizmo .xg-seg .xg-btn{border-radius:0}
 #xray-gizmo .xg-seg .xg-btn:first-child{border-radius:4px 0 0 4px}
 #xray-gizmo .xg-seg .xg-btn:last-child{border-radius:0 4px 4px 0;margin-left:-1px}
@@ -266,6 +269,7 @@ const ICONS = {
   clear: I('<path d="M4 4l8 8M12 4l-8 8"/>'),
   arrow: I('<path d="M3.6 2.4 12.4 6.6 8.2 8.2 6.6 12.4z"/><path d="M8.6 8.8 12 12.2"/>'),
   hand: I('<path d="M5.2 8.6V4.2a.9.9 0 0 1 1.8 0V7.4M7 7.2V2.9a.9.9 0 0 1 1.8 0V7.2M8.8 7.2V3.6a.9.9 0 0 1 1.8 0v4M10.6 7.6V5.6a.9.9 0 0 1 1.8 0v3.6c0 2.7-1.5 4.4-4 4.4-1.8 0-2.8-.8-3.7-2L2.8 8.6a.9.9 0 0 1 1.4-1.1l1 1.2"/>'),
+  walk: I('<circle cx="9.2" cy="2.8" r="1.3"/><path d="M8.6 5.2 6.6 8.2l2.2 1.8.6 3.8M6.6 8.2l-2.4 1M8.6 5.2l2.4 2.4 1.9.5M8.8 10 6.6 13.8"/>'),
   undo: I('<path d="M6.4 3.4 3.4 6.4l3 3"/><path d="M3.4 6.4h5.3a3.5 3.5 0 0 1 0 7H5.6"/>'),
   redo: I('<path d="M9.6 3.4l3 3-3 3"/><path d="M12.6 6.4H7.3a3.5 3.5 0 0 0 0 7h3.1"/>'),
 };
@@ -386,6 +390,7 @@ function build(app: ViewerApp): void {
   const ptrSel = btn('xg-ptr-select', ICONS.arrow, 'Arrow: select mode', 'Gizmo/Select mode', () => setPointerMode('arrow'));
   const ptrHand = btn('xg-ptr-hand', ICONS.hand, 'Hand: move mode', 'Gizmo/Move mode', () => setPointerMode('hand'));
   seg.append(ptrSel, ptrHand);
+  const walkB = btn('xg-walk', ICONS.walk, 'Walk mode', 'Gizmo/Walk mode', () => toggleWalking(app));
   const hist = document.createElement('div');
   hist.className = 'xg-hist';
   hist.setAttribute('role', 'group');
@@ -393,7 +398,7 @@ function build(app: ViewerApp): void {
   const undoB = btn('xg-undo', ICONS.undo, 'Undo', 'Gizmo/Undo', () => void undoNow());
   const redoB = btn('xg-redo', ICONS.redo, 'Redo', 'Gizmo/Redo', () => void redoNow());
   hist.append(undoB, redoB);
-  tools.append(seg, hist);
+  tools.append(seg, walkB, hist);
   const main = document.createElement('div');
   main.className = 'xg-main';
   main.append(nav, tools);
@@ -405,7 +410,11 @@ function build(app: ViewerApp): void {
     ptrSel.setAttribute('aria-pressed', String(m === 'arrow'));
     ptrHand.setAttribute('aria-pressed', String(m === 'hand'));
     ptrSel.title = withKeys('Arrow: select. A click selects. Drag a box: left to right picks what is inside, right to left picks what it touches. Shift adds, Ctrl or Cmd toggles, Esc cancels', 'pointer.select');
-    ptrHand.title = withKeys('Hand: move. Drag to orbit, Shift or right drag to pan, wheel to zoom. A click still selects', 'pointer.hand');
+    ptrHand.title = withKeys('Hand: move. Drag to orbit, right or middle drag to pan, wheel to zoom to the cursor. A click still selects', 'pointer.hand');
+  };
+  const refreshWalk = (): void => {
+    walkB.setAttribute('aria-pressed', String(isWalking()));
+    walkB.title = withKeys('Walk mode: w s and the arrow keys walk, a d strafe, drag looks around, the wheel walks, Esc leaves', 'nav.walk');
   };
   const refreshUndo = (): void => {
     const u = undoState();
@@ -419,8 +428,10 @@ function build(app: ViewerApp): void {
     redoB.title = withKeys(redoText, 'undo.redo');
   };
   onPointerModeChange(refreshPointer);
+  onWalkChange(refreshWalk);
   onUndoChange(refreshUndo);
   refreshPointer();
+  refreshWalk();
   refreshUndo();
 
   const titles = (): void => {
@@ -452,6 +463,7 @@ function build(app: ViewerApp): void {
   const retitle = (): void => {
     titles();
     refreshPointer();
+    refreshWalk();
     refreshUndo();
   };
   el.addEventListener('pointerenter', retitle);
