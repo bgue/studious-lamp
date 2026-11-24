@@ -33,14 +33,19 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 
 ### Navigation (hold keys act every frame; Ctrl held = slow, x0.25)
 
+`w a s d q e` do nothing in the default BIM style: they fly the camera only in Walk mode, or in the Game style. The actions
+(`nav.forward`, `nav.back`, `nav.left`, `nav.right`, `nav.down`, `nav.up`) keep their ids and chords, so custom keymaps and the
+cheat sheet still work (the cheat sheet labels them "(Walk mode)").
+
 | Action | Keys |
 | --- | --- |
 | Orbit left / right | `ArrowLeft` / `ArrowRight` |
 | Orbit up / down | `ArrowUp` / `ArrowDown` |
 | Pan left / right / up / down | `Shift+ArrowLeft/Right/Up/Down` |
-| Fly forward / back | `w` / `s` |
-| Fly left / right | `a` / `d` |
-| Fly down / up | `q` / `e` |
+| Fly forward / back (Walk mode, or the Game style) | `w` / `s` |
+| Fly left / right (Walk mode, or the Game style) | `a` / `d` |
+| Fly down / up (Walk mode, or the Game style) | `q` / `e` |
+| Walk mode on / off, see [Walk mode](#walk-mode-and-navigation-style) | `Shift+w`; `Esc` leaves |
 | Zoom in (15 %) | `=`, `+`, `code:NumpadAdd` |
 | Zoom out (15 %) | `-`, `code:NumpadSubtract` |
 | Storey up / down | `PageUp` / `PageDown` |
@@ -69,7 +74,7 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Action | Keys |
 | --- | --- |
 | Show or hide the view cube and section strip | `v` |
-| Clear selection (closes overlays first) | `Escape` |
+| Clear selection (leaves Walk mode and closes overlays first) | `Escape` |
 | Select all visible | `Ctrl+a` |
 | Invert selection | `Ctrl+i` |
 | Select all of the same class | `Alt+s` |
@@ -97,6 +102,37 @@ The top bar keys avoid the digits (presets), `Alt+<digit>` (views) and the numpa
 Other plugins register their own actions with their own keys (for example `b`, `Shift+b`, `p`, `Alt+=`, `Alt+-`, `i`);
 they show up in the cheat sheet under their group.
 
+## Walk mode and navigation style
+
+The default style is **BIM**, as in Revit, Navisworks and Solibri: arrows orbit, `Shift`+arrows pan, the mouse pans with the
+middle button, the wheel zooms to the cursor ([pointer-modes.md](pointer-modes.md)). The tank keys live in **Walk mode**, which you
+enter on purpose.
+
+**Walk mode** (`nav.walk`, `Shift+w`, or the walk button next to the Arrow / Hand toggle on the gizmo, [gizmo.md](gizmo.md)). A chip
+"Walk · Esc to exit" shows at the top of the view and the cursor becomes an eye. It is a per-viewer state: it is not in the params,
+the share link, a saved view, a preset or a packed page, and a new model leaves it.
+
+| Input in Walk mode | Effect |
+| --- | --- |
+| `w` / `s`, `ArrowUp` / `ArrowDown` | Walk forward / back along the view direction projected on the horizontal plane (the eye height stays) |
+| `a` / `d` | Strafe left / right |
+| `ArrowLeft` / `ArrowRight` | Turn the view left / right about the eye (yaw), as in Navisworks |
+| `q` / `e` | Lower / raise the eye |
+| `Shift` held | 3 times faster (also `Shift+ArrowUp` and the like); `Ctrl` held: 0.25 times |
+| Left drag, one finger | Look around from the eye (yaw and pitch, pitch within 85 degrees); no pointer lock, so it works in an iframe and on a phone |
+| Wheel | Walk forward / back |
+| Click | Still selects |
+| `Esc`, `Shift+w`, the chip, the gizmo button | Leave Walk mode (Esc comes before "clear selection"; an open cheat sheet or palette closes first) |
+
+Speeds scale with the model size (the `move speed` and `orbit speed` settings). The orbit target is kept a fixed distance in front of
+the eye, so leaving Walk mode leaves a sane orbit. There is no gravity and no collision, and a high aerial view is a fine place to
+start. A walk is one camera step in the undo stack ([undo.md](undo.md)), like a held key. While a fly-through, a script or a 4D film
+plays, Walk mode is left and `Shift+w` does nothing. A held `w` followed by `Shift` is a sprint; `Shift` then `w` toggles the mode.
+
+**Navigation style** (`navigation style` in the `Keyboard` folder, stored with the other keyboard settings in `localStorage`
+`xray.keynav`, not in the params or a share link): `BIM` (default) or `Game`. In `Game` the keys `w a s d q e` fly the camera and its
+target at all times (the old behaviour), the middle button zooms, and the wheel zooms to the target, as before.
+
 ## Views and coordinates
 
 Viewer space is Y up. The IFC front (looking north) is the camera on +Z. Top looks along -Y. Views use the cinematic
@@ -107,7 +143,7 @@ There is no renderer change, so depth precision and the far plane are adjusted b
 ## Settings (panel folder `Keyboard`)
 
 `keyboard navigation` (master switch for the Navigation and Views keys), `orbit speed (deg/s)`, `pan speed`,
-`move speed`, `invert vertical`, `smooth moves`, and the buttons `Shortcuts (?)`, `Edit shortcuts`,
+`move speed`, `invert vertical`, `smooth moves`, `navigation style` (BIM or Game), and the buttons `Shortcuts (?)`, `Edit shortcuts`,
 `Command palette (Ctrl+Shift+K)`, `Reset shortcuts`. Speeds scale with the model size (fly rate is 0.2 model diagonals per
 second times `move speed`; pan is 0.5 screen heights per second times `pan speed`). Settings persist per browser in
 `localStorage` `xray.keynav`.

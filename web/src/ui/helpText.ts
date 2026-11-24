@@ -2894,7 +2894,13 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   'Gizmo/Move mode': h(
     'The button sets the hand mode. A drag moves the camera and a click still picks 1 element. This is the default.',
     'Drag over the picture and the building turns under your hand. Click a part and it lights up.',
-    'Press G for this mode. Drag to orbit. Drag with Shift or the right button to pan. Roll the wheel to zoom.',
+    'Press G for this mode. Drag to orbit. Drag with the right or middle button to pan. Roll the wheel to zoom to the cursor.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Walk mode': h(
+    'The button turns Walk mode on or off. In Walk mode you move through the model like a person.',
+    'On: a chip shows at the top. W and S go forward and back, A and D step sideways, Q and E change the eye height. A drag looks around.',
+    'Press Shift and W for this mode. Press Esc to leave. Hold Shift to go 3 times faster.',
     'Report: Appendix I, Presets and keyboard',
   ),
   'Gizmo/Undo': h(
@@ -2955,7 +2961,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   // ------------------------------------------------------------------ Keyboard
   'Keyboard/keyboard navigation': h(
     'The switch turns the camera keys on or off.',
-    'On: the arrow keys and W A S D move the camera. Off: those keys do nothing.',
+    'On: the arrow keys move the camera. Off: those keys do nothing. W A S D work in Walk mode.',
     'Turn the switch off if you type in other tools.',
     'Report: Appendix I, Presets and keyboard',
   ),
@@ -2972,8 +2978,8 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Appendix I, Presets and keyboard',
   ),
   'Keyboard/move speed': h(
-    'The slider sets the speed factor of the fly keys W A S D Q E.',
-    'Drag the slider right and the camera flies faster when you hold a key.',
+    'The slider sets the speed factor of the keys W A S D Q E in Walk mode.',
+    'Drag the slider right and the camera goes faster when you hold a key.',
     'Increase the value for large buildings. Decrease the value for small rooms.',
     'Report: Appendix I, Presets and keyboard',
   ),
@@ -2981,6 +2987,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'The switch reverses the direction of the vertical keys.',
     'On: the up and down arrow keys swap their direction. Off: they act in the usual way.',
     'Turn the switch on if the up key feels wrong.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Keyboard/navigation style': h(
+    'The list picks how the mouse and the keys move the camera. BIM is the default. Game is the older style.',
+    'BIM: the wheel zooms to the cursor, the middle button pans, and W A S D wait for Walk mode. Game: W A S D always fly and the middle button zooms.',
+    'Choose Game if you like to fly with W A S D at all times.',
     'Report: Appendix I, Presets and keyboard',
   ),
   'Keyboard/smooth moves': h(

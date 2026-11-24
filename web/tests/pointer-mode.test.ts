@@ -63,18 +63,26 @@ describe('pointer mode state', () => {
 describe('orbit controls per mode', () => {
   const controls = () => ({ mouseButtons: { LEFT: -9 as number | null | undefined, MIDDLE: -9 as number | null | undefined, RIGHT: -9 as number | null | undefined }, touches: { ONE: -9 as number | null | undefined, TWO: -9 as number | null | undefined } });
 
-  it('hand: left orbits, middle zooms, right pans, one finger orbits, two fingers zoom and pan', () => {
-    const c = controls();
+  it('hand, BIM style (default): left orbits, middle and right pan, wheel zooms to the cursor, touch as before', () => {
+    const c = controls() as ReturnType<typeof controls> & { zoomToCursor?: boolean };
     configureControls(c, 'hand');
-    expect(c.mouseButtons).toEqual({ LEFT: MOUSE_ROTATE, MIDDLE: MOUSE_DOLLY, RIGHT: MOUSE_PAN });
+    expect(c.mouseButtons).toEqual({ LEFT: MOUSE_ROTATE, MIDDLE: MOUSE_PAN, RIGHT: MOUSE_PAN });
     expect(c.touches).toEqual({ ONE: TOUCH_ROTATE, TWO: TOUCH_DOLLY_PAN });
+    expect(c.zoomToCursor).toBe(true);
+  });
+
+  it('hand, Game style: the old mapping, middle zooms, no zoom to the cursor', () => {
+    const c = controls() as ReturnType<typeof controls> & { zoomToCursor?: boolean };
+    configureControls(c, 'hand', 'game');
+    expect(c.mouseButtons).toEqual({ LEFT: MOUSE_ROTATE, MIDDLE: MOUSE_DOLLY, RIGHT: MOUSE_PAN });
+    expect(c.zoomToCursor).toBe(false);
   });
 
   it('arrow: left and one finger leave the camera alone, the rest still move it', () => {
     const c = controls();
     configureControls(c, 'arrow');
     expect(c.mouseButtons.LEFT).toBe(NONE);
-    expect(c.mouseButtons.MIDDLE).toBe(MOUSE_DOLLY);
+    expect(c.mouseButtons.MIDDLE).toBe(MOUSE_PAN);
     expect(c.mouseButtons.RIGHT).toBe(MOUSE_PAN);
     expect(c.touches.ONE).toBe(NONE);
     expect(c.touches.TWO).toBe(TOUCH_DOLLY_ROTATE);

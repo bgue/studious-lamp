@@ -11,6 +11,16 @@ import { easeInOutCubic } from '../cinematic/easing';
 import { registerAction } from './actions';
 import type { HoldMods } from './actions';
 import { showToast } from '../ui/keymapView';
+import {
+  eyeTarget,
+  flyKeysEnabled,
+  parseNavStyle,
+  turnLook,
+  walkMove,
+  walkSpeedFactor,
+  walkTargetDistance,
+} from './walk';
+import type { NavStyle } from './walk';
 
 // ---------------------------------------------------------------------------- settings
 
@@ -25,10 +35,25 @@ export interface NavSettings {
   moveSpeed: number;
   invertVertical: boolean;
   smoothMoves: boolean;
+  /** 'bim' (default): BIM-app mouse and keys, w a s d q e only in Walk mode. 'game': w a s d q e always fly, middle drag zooms. */
+  style: NavStyle;
 }
 
 export const NAV_STORAGE_KEY = 'xray.keynav';
-export const navSettings: NavSettings = { enabled: true, orbitSpeed: 90, panSpeed: 1, moveSpeed: 1, invertVertical: false, smoothMoves: true };
+export const navSettings: NavSettings = { enabled: true, orbitSpeed: 90, panSpeed: 1, moveSpeed: 1, invertVertical: false, smoothMoves: true, style: 'bim' };
+const styleListeners = new Set<() => void>();
+
+/** Change the navigation style and tell the listeners (the pointer mapping, the cheat sheet). Not stored: see saveNavSettings. */
+export function setNavStyle(style: NavStyle): void {
+  if (navSettings.style === style) return;
+  navSettings.style = style;
+  for (const l of styleListeners) l();
+}
+
+export function onNavStyleChange(cb: () => void): () => void {
+  styleListeners.add(cb);
+  return () => styleListeners.delete(cb);
+}
 
 export function loadNavSettings(storage: { getItem(k: string): string | null } | null): void {
   try {
@@ -37,6 +62,11 @@ export function loadNavSettings(storage: { getItem(k: string): string | null } |
     if (typeof v.enabled === 'boolean') navSettings.enabled = v.enabled;
     if (typeof v.invertVertical === 'boolean') navSettings.invertVertical = v.invertVertical;
     if (typeof v.smoothMoves === 'boolean') navSettings.smoothMoves = v.smoothMoves;
+    const style = parseNavStyle(v.style);
+    if (style && style !== navSettings.style) {
+      navSettings.style = style;
+      for (const l of styleListeners) l();
+    }
     for (const k of ['orbitSpeed', 'panSpeed', 'moveSpeed'] as const) {
       const n = v[k];
       if (typeof n === 'number' && Number.isFinite(n) && n > 0) navSettings[k] = n;
@@ -374,6 +404,19 @@ export function moveToBox(app: ViewerApp, box: Box3, opts: FlyOptions & { tag?: 
   else writeView(app, view);
 }
 
+/** Select-and-fly helper for a double click: frame one element with the fly-to framing (records the view history). */
+export function flyToElement(app: ViewerApp, id: ElementId): void {
+  const box = boxOfIds(app, [id]);
+  if (!box.isEmpty()) moveToBox(app, box, { tag: 'dblclick' });
+}
+
+/** Frame the whole model (the Home key). */
+export function frameAllNow(app: ViewerApp): void {
+  pushHistory(app);
+  cancelMoves();
+  app.frameAll();
+}
+
 // ---------------------------------------------------------------------------- actions
 
 const navEnabled = (): boolean => navSettings.enabled;
@@ -400,6 +443,7 @@ function holdAction(
   keys: string[],
   hold: (app: ViewerApp, dt: number, mods: HoldMods) => void,
   description?: string,
+  opts: { enabled?: (app: ViewerApp) => boolean; modifiers?: Array<'ctrl' | 'shift' | 'alt' | 'meta'> } = {},
 ): void {
   registerAction({
     id,
@@ -407,8 +451,8 @@ function holdAction(
     group,
     keys,
     description,
-    modifiers: ['ctrl'],
-    enabled: navEnabled,
+    modifiers: opts.modifiers ?? ['ctrl'],
+    enabled: opts.enabled ?? navEnabled,
     run() {
       /* held action: see hold() */
     },
@@ -451,6 +495,99 @@ function flyBy(app: ViewerApp, fwd: number, right: number, up: number): void {
   camera.position.add(d);
   controls.target.add(d);
   controls.update();
+}
+
+// ---------------------------------------------------------------------------- Walk mode
+
+/** Walk mode: a per-viewer state (never in params, a share link, a saved view, a preset or a packed page). */
+const walkState = { active: false, dist: 1 };
+const walkListeners = new Set<() => void>();
+
+export function isWalking(): boolean {
+  return walkState.active;
+}
+
+export function onWalkChange(cb: () => void): () => void {
+  walkListeners.add(cb);
+  return () => walkListeners.delete(cb);
+}
+
+/** True while a fly-through, a script or a 4D film plays (they own the camera). */
+export function playerPlaying(): boolean {
+  try {
+    const w = typeof window !== 'undefined' ? (window as unknown as { __xrayFlythrough?: { state?(): { playing?: boolean } } }) : null;
+    return w?.__xrayFlythrough?.state?.().playing === true;
+  } catch {
+    return false;
+  }
+}
+
+/** The screen-up direction of the camera: the horizontal forward of a view that looks straight down or up. */
+function screenUp(app: ViewerApp): Vector3 {
+  return new Vector3(0, 1, 0).applyQuaternion(app.renderer.camera.quaternion);
+}
+
+function lookOf(app: ViewerApp): Vector3 {
+  return app.renderer.camera.getWorldDirection(new Vector3());
+}
+
+/** Put the orbit target a fixed distance in front of the eye, so leaving Walk mode leaves a sane orbit. */
+function syncWalkTarget(app: ViewerApp, look: Vector3): void {
+  const { camera, controls } = app.renderer;
+  controls.target.copy(eyeTarget(camera.position, look, walkState.dist));
+  controls.update();
+}
+
+/** Enter or leave Walk mode. False when it cannot be entered (no model, keys off, a film plays). */
+export function setWalking(app: ViewerApp, on: boolean): boolean {
+  if (on === walkState.active) return true;
+  const { camera, controls } = app.renderer;
+  if (on) {
+    if (!navSettings.enabled || !app.loaded || playerPlaying()) return false;
+    cancelMoves();
+    if (ortho) setPseudoOrtho(app, false);
+    const dist = camera.position.distanceTo(controls.target);
+    walkState.dist = walkTargetDistance(dist, controls.minDistance, controls.maxDistance, modelDiagonal(app));
+    camera.up.set(0, 1, 0); // a rolled view (cube roll buttons) is levelled: the eye turns about world Y
+    // From a top or bottom view the yaw comes from the screen up vector, and the pitch is clamped to 85 degrees.
+    const look = turnLook(lookOf(app), 0, 0, undefined, screenUp(app));
+    walkState.active = true;
+    controls.enabled = false;
+    syncWalkTarget(app, look);
+    showToast('Walk mode: Esc to exit');
+  } else {
+    walkState.active = false;
+    controls.enabled = true;
+    controls.update();
+  }
+  app.renderer.markDirty();
+  for (const l of walkListeners) l();
+  return true;
+}
+
+export function toggleWalking(app: ViewerApp): void {
+  if (walkState.active) setWalking(app, false);
+  else if (!setWalking(app, true)) showToast(playerPlaying() ? 'Walk mode is off while a film plays' : 'Walk mode is not available now');
+}
+
+/** Move the eye on the horizontal plane (fwd, right) and along world Y (up), metres. The orbit target moves with it. */
+export function walkBy(app: ViewerApp, fwd: number, right: number, up: number): void {
+  const { camera } = app.renderer;
+  cancelMoves();
+  const look = lookOf(app);
+  camera.position.copy(walkMove(camera.position, look, fwd, right, up, screenUp(app)));
+  syncWalkTarget(app, look);
+}
+
+/** Turn the view about the eye: radians left and up (negative: right and down). The pitch stays within 85 degrees. */
+export function walkTurn(app: ViewerApp, yaw: number, pitch: number): void {
+  cancelMoves();
+  syncWalkTarget(app, turnLook(lookOf(app), yaw, pitch, undefined, screenUp(app)));
+}
+
+/** A wheel gesture of `notches` (one notch = 100 px of delta, positive = scroll down) moves the eye back; negative moves it forward. */
+export function walkWheel(app: ViewerApp, notches: number): void {
+  walkBy(app, -notches * 0.03 * modelDiagonal(app) * navSettings.moveSpeed, 0, 0);
 }
 
 function zoomStep(app: ViewerApp, dir: 1 | -1): void {
@@ -603,24 +740,45 @@ export function registerNavigationActions(): void {
   const vSign = (): number => (navSettings.invertVertical ? -1 : 1);
   const orbitRate = (dt: number, m: HoldMods): number => navSettings.orbitSpeed * dpr() * (dt / 1000) * slow(m);
 
-  holdAction('nav.orbitLeft', 'Orbit left', 'Navigation', ['ArrowLeft'], (app, dt, m) => orbitBy(app, orbitRate(dt, m), 0), 'Orbit around the camera target. Hold the key. Ctrl is slow.');
-  holdAction('nav.orbitRight', 'Orbit right', 'Navigation', ['ArrowRight'], (app, dt, m) => orbitBy(app, -orbitRate(dt, m), 0));
-  holdAction('nav.orbitUp', 'Orbit up', 'Navigation', ['ArrowUp'], (app, dt, m) => orbitBy(app, 0, -orbitRate(dt, m) * vSign()));
-  holdAction('nav.orbitDown', 'Orbit down', 'Navigation', ['ArrowDown'], (app, dt, m) => orbitBy(app, 0, orbitRate(dt, m) * vSign()));
+  // In Walk mode the arrow keys walk and turn (Shift: 3 times faster, Ctrl: 0.25 times); the pan chords do the same, so Shift+Arrow is fast.
+  const walkRate = (app: ViewerApp, dt: number, m: HoldMods): number => navSettings.moveSpeed * 0.2 * modelDiagonal(app) * (dt / 1000) * walkSpeedFactor(m);
+  const turnRate = (dt: number, m: HoldMods): number => navSettings.orbitSpeed * dpr() * (dt / 1000) * walkSpeedFactor(m);
+  const walkingNow = (): boolean => walkState.active;
+
+  holdAction('nav.orbitLeft', 'Orbit left', 'Navigation', ['ArrowLeft'], (app, dt, m) => (walkingNow() ? walkTurn(app, turnRate(dt, m), 0) : orbitBy(app, orbitRate(dt, m), 0)), 'Orbit around the camera target. Hold the key. Ctrl is slow. In Walk mode: turn left.');
+  holdAction('nav.orbitRight', 'Orbit right', 'Navigation', ['ArrowRight'], (app, dt, m) => (walkingNow() ? walkTurn(app, -turnRate(dt, m), 0) : orbitBy(app, -orbitRate(dt, m), 0)), undefined, { modifiers: ['ctrl'] });
+  holdAction('nav.orbitUp', 'Orbit up', 'Navigation', ['ArrowUp'], (app, dt, m) => (walkingNow() ? walkBy(app, walkRate(app, dt, m), 0, 0) : orbitBy(app, 0, -orbitRate(dt, m) * vSign())), undefined, { modifiers: ['ctrl'] });
+  holdAction('nav.orbitDown', 'Orbit down', 'Navigation', ['ArrowDown'], (app, dt, m) => (walkingNow() ? walkBy(app, -walkRate(app, dt, m), 0, 0) : orbitBy(app, 0, orbitRate(dt, m) * vSign())), undefined, { modifiers: ['ctrl'] });
 
   const panRate = (dt: number, m: HoldMods): number => navSettings.panSpeed * 0.5 * (dt / 1000) * slow(m);
-  holdAction('nav.panLeft', 'Pan left', 'Navigation', ['Shift+ArrowLeft'], (app, dt, m) => panBy(app, -panRate(dt, m), 0), 'Slide the view sideways. Hold the key.');
-  holdAction('nav.panRight', 'Pan right', 'Navigation', ['Shift+ArrowRight'], (app, dt, m) => panBy(app, panRate(dt, m), 0));
-  holdAction('nav.panUp', 'Pan up', 'Navigation', ['Shift+ArrowUp'], (app, dt, m) => panBy(app, 0, panRate(dt, m) * vSign()));
-  holdAction('nav.panDown', 'Pan down', 'Navigation', ['Shift+ArrowDown'], (app, dt, m) => panBy(app, 0, -panRate(dt, m) * vSign()));
+  holdAction('nav.panLeft', 'Pan left', 'Navigation', ['Shift+ArrowLeft'], (app, dt, m) => (walkingNow() ? walkTurn(app, turnRate(dt, m), 0) : panBy(app, -panRate(dt, m), 0)), 'Slide the view sideways. Hold the key. In Walk mode: turn left, fast.');
+  holdAction('nav.panRight', 'Pan right', 'Navigation', ['Shift+ArrowRight'], (app, dt, m) => (walkingNow() ? walkTurn(app, -turnRate(dt, m), 0) : panBy(app, panRate(dt, m), 0)));
+  holdAction('nav.panUp', 'Pan up', 'Navigation', ['Shift+ArrowUp'], (app, dt, m) => (walkingNow() ? walkBy(app, walkRate(app, dt, m), 0, 0) : panBy(app, 0, panRate(dt, m) * vSign())));
+  holdAction('nav.panDown', 'Pan down', 'Navigation', ['Shift+ArrowDown'], (app, dt, m) => (walkingNow() ? walkBy(app, -walkRate(app, dt, m), 0, 0) : panBy(app, 0, -panRate(dt, m) * vSign())));
 
+  // w a s d q e: Game style flies the camera and its target at all times; BIM style (the default) only in Walk mode, where they
+  // move the eye on the horizontal plane (q and e change its height). Ids and chords stay, so custom keymaps keep working.
   const moveRate = (app: ViewerApp, dt: number, m: HoldMods): number => navSettings.moveSpeed * 0.2 * modelDiagonal(app) * (dt / 1000) * slow(m);
-  holdAction('nav.forward', 'Fly forward', 'Navigation', ['w'], (app, dt, m) => flyBy(app, moveRate(app, dt, m), 0, 0), 'Move the camera and its target together. Hold the key. Ctrl is slow.');
-  holdAction('nav.back', 'Fly back', 'Navigation', ['s'], (app, dt, m) => flyBy(app, -moveRate(app, dt, m), 0, 0));
-  holdAction('nav.left', 'Fly left', 'Navigation', ['a'], (app, dt, m) => flyBy(app, 0, -moveRate(app, dt, m), 0));
-  holdAction('nav.right', 'Fly right', 'Navigation', ['d'], (app, dt, m) => flyBy(app, 0, moveRate(app, dt, m), 0));
-  holdAction('nav.down', 'Fly down', 'Navigation', ['q'], (app, dt, m) => flyBy(app, 0, 0, -moveRate(app, dt, m)));
-  holdAction('nav.up', 'Fly up', 'Navigation', ['e'], (app, dt, m) => flyBy(app, 0, 0, moveRate(app, dt, m)));
+  const flyEnabled = (): boolean => navSettings.enabled && flyKeysEnabled(navSettings.style, walkState.active);
+  const fly = { enabled: flyEnabled, modifiers: ['ctrl', 'shift'] as Array<'ctrl' | 'shift'> };
+  const flyHold = (f: (app: ViewerApp, r: number) => void, w: (app: ViewerApp, r: number) => void) => (app: ViewerApp, dt: number, m: HoldMods): void =>
+    walkingNow() ? w(app, walkRate(app, dt, m)) : f(app, moveRate(app, dt, m));
+  holdAction('nav.forward', 'Fly forward (Walk mode)', 'Navigation', ['w'], flyHold((a, r) => flyBy(a, r, 0, 0), (a, r) => walkBy(a, r, 0, 0)), 'Game style, or Walk mode (Shift+W): move the camera and its target together. Hold the key. Ctrl is slow.', fly);
+  holdAction('nav.back', 'Fly back (Walk mode)', 'Navigation', ['s'], flyHold((a, r) => flyBy(a, -r, 0, 0), (a, r) => walkBy(a, -r, 0, 0)), 'Game style, or Walk mode.', fly);
+  holdAction('nav.left', 'Fly left (Walk mode)', 'Navigation', ['a'], flyHold((a, r) => flyBy(a, 0, -r, 0), (a, r) => walkBy(a, 0, -r, 0)), 'Game style, or Walk mode.', fly);
+  holdAction('nav.right', 'Fly right (Walk mode)', 'Navigation', ['d'], flyHold((a, r) => flyBy(a, 0, r, 0), (a, r) => walkBy(a, 0, r, 0)), 'Game style, or Walk mode.', fly);
+  holdAction('nav.down', 'Fly down (Walk mode)', 'Navigation', ['q'], flyHold((a, r) => flyBy(a, 0, 0, -r), (a, r) => walkBy(a, 0, 0, -r)), 'Game style, or Walk mode.', fly);
+  holdAction('nav.up', 'Fly up (Walk mode)', 'Navigation', ['e'], flyHold((a, r) => flyBy(a, 0, 0, r), (a, r) => walkBy(a, 0, 0, r)), 'Game style, or Walk mode.', fly);
+
+  registerAction({
+    id: 'nav.walk',
+    label: 'Walk mode (on / off)',
+    group: 'Navigation',
+    keys: ['Shift+w'],
+    enabled: (app) => navSettings.enabled && !!app.loaded,
+    description: 'Walk through the model: w s and Up Down move on the floor, a d strafe, Left Right turn, q e change the eye height, drag looks around, Esc leaves.',
+    run: toggleWalking,
+  });
 
   registerAction({ id: 'nav.zoomIn', label: 'Zoom in', group: 'Navigation', keys: ['=', '+', 'code:NumpadAdd'], repeat: true, enabled: navEnabled, description: 'Move 15 % closer to the camera target.', run: (app) => zoomStep(app, 1) });
   registerAction({ id: 'nav.zoomOut', label: 'Zoom out', group: 'Navigation', keys: ['-', 'code:NumpadSubtract'], repeat: true, enabled: navEnabled, description: 'Move 15 % further from the camera target.', run: (app) => zoomStep(app, -1) });
