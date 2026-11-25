@@ -18,9 +18,16 @@ import {
   turnLook,
   walkMove,
   walkSpeedFactor,
+  DEFAULT_EYE_HEIGHT,
+  blocksWalk,
+  collideMove,
+  parseEyeHeight,
+  standingSpot,
+  stepWalkStorey,
   walkTargetDistance,
 } from './walk';
-import type { NavStyle } from './walk';
+import type { FloorLevel, NavStyle } from './walk';
+import { storeyFloors } from '../xr/field';
 
 // ---------------------------------------------------------------------------- settings
 
@@ -37,10 +44,14 @@ export interface NavSettings {
   smoothMoves: boolean;
   /** 'bim' (default): BIM-app mouse and keys, w a s d q e only in Walk mode. 'game': w a s d q e always fly, middle drag zooms. */
   style: NavStyle;
+  /** Walk mode: eye height above the floor, metres (the model units). Per viewer, not in params. */
+  eyeHeight: number;
+  /** Walk mode: stop short of walls (off by default). */
+  walkCollision: boolean;
 }
 
 export const NAV_STORAGE_KEY = 'xray.keynav';
-export const navSettings: NavSettings = { enabled: true, orbitSpeed: 90, panSpeed: 1, moveSpeed: 1, invertVertical: false, smoothMoves: true, style: 'bim' };
+export const navSettings: NavSettings = { enabled: true, orbitSpeed: 90, panSpeed: 1, moveSpeed: 1, invertVertical: false, smoothMoves: true, style: 'bim', eyeHeight: DEFAULT_EYE_HEIGHT, walkCollision: false };
 const styleListeners = new Set<() => void>();
 
 /** Change the navigation style and tell the listeners (the pointer mapping, the cheat sheet). Not stored: see saveNavSettings. */
@@ -62,6 +73,9 @@ export function loadNavSettings(storage: { getItem(k: string): string | null } |
     if (typeof v.enabled === 'boolean') navSettings.enabled = v.enabled;
     if (typeof v.invertVertical === 'boolean') navSettings.invertVertical = v.invertVertical;
     if (typeof v.smoothMoves === 'boolean') navSettings.smoothMoves = v.smoothMoves;
+    if (typeof v.walkCollision === 'boolean') navSettings.walkCollision = v.walkCollision;
+    const eh = parseEyeHeight(v.eyeHeight);
+    if (eh !== null) navSettings.eyeHeight = eh;
     const style = parseNavStyle(v.style);
     if (style && style !== navSettings.style) {
       navSettings.style = style;
@@ -575,8 +589,101 @@ export function walkBy(app: ViewerApp, fwd: number, right: number, up: number): 
   const { camera } = app.renderer;
   cancelMoves();
   const look = lookOf(app);
-  camera.position.copy(walkMove(camera.position, look, fwd, right, up, screenUp(app)));
+  let next = walkMove(camera.position, look, fwd, right, up, screenUp(app));
+  if (navSettings.walkCollision && (fwd !== 0 || right !== 0)) {
+    // Only the horizontal part is limited; q and e (up) ignore collision. At most 3 rays, none when standing still.
+    const horiz = new Vector3(next.x - camera.position.x, 0, next.z - camera.position.z);
+    const ok = collideMove(camera.position, horiz, (o, d, max) => castWall(app, o, d, max), navSettings.eyeHeight);
+    next = new Vector3(camera.position.x + ok.x, next.y, camera.position.z + ok.z);
+  }
+  camera.position.copy(next);
   syncWalkTarget(app, look);
+}
+
+/** The nearest wall for the collision rays: visible, not ghosted, not a door. */
+function castWall(app: ViewerApp, origin: Vector3, dir: Vector3, maxDist: number): { distance: number; normal: Vector3 } | null {
+  const els = app.loaded?.model.elements;
+  if (!els) return null;
+  const { alpha, flags } = app.renderer.state;
+  const hit = app.renderer.raycastVisible(origin, dir, maxDist, (id) => blocksWalk(els[id]?.ifcClass ?? '', flags[id] ?? 0, alpha[id] ?? 1));
+  return hit ? { distance: hit.distance, normal: hit.normal } : null;
+}
+
+let floorCache: { model: SceneModel; floors: FloorLevel[] } | null = null;
+function floorsOf(app: ViewerApp): FloorLevel[] {
+  const model = app.loaded?.model;
+  if (!model) return [];
+  if (!floorCache || floorCache.model !== model) floorCache = { model, floors: storeyFloors(model).map((f) => ({ id: f.id, name: f.name, floorY: f.floorY })) };
+  return floorCache.floors;
+}
+
+function reducedMotion(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
+/** Move the eye (and the target in front of it) to `eye`, keeping the view direction: a short glide, or at once. */
+function glideEye(app: ViewerApp, eye: Vector3, look: Vector3): void {
+  const to: FlyView = { position: eye.clone(), target: eyeTarget(eye, look, walkState.dist) };
+  cancelMoves();
+  if (navSettings.smoothMoves && !reducedMotion()) startTween(app, to, VIEW_MOVE_MS);
+  else writeView(app, to);
+  app.renderer.markDirty();
+}
+
+/** The surface under a pointer (client pixels): element, point and a normal facing the camera. Null on empty space. */
+export function pickSurface(app: ViewerApp, clientX: number, clientY: number): { id: ElementId; point: Vector3; normal: Vector3 } | null {
+  const { camera, canvas } = app.renderer;
+  const r = canvas.getBoundingClientRect();
+  const nx = ((clientX - r.left) / r.width) * 2 - 1;
+  const ny = -((clientY - r.top) / r.height) * 2 + 1;
+  const id = app.renderer.pick(nx, ny);
+  if (id === null) return null;
+  camera.updateMatrixWorld();
+  const origin = camera.position.clone();
+  const dir = new Vector3(nx, ny, 0.5).unproject(camera).sub(origin).normalize();
+  return { id, point: origin.addScaledVector(dir, app.renderer.lastPickDistance), normal: app.renderer.lastPickNormal.clone() };
+}
+
+/**
+ * Drop in here: stand on the picked spot at eye height, facing the same way. Enters Walk mode first when it is off. A surface that
+ * faces up is stood on; for a wall the floor below is used (storey elevation, else a ray down). False when nothing was done.
+ */
+export function walkDropIn(app: ViewerApp, clientX: number, clientY: number): boolean {
+  if (!app.loaded) return false;
+  const surf = pickSurface(app, clientX, clientY);
+  if (!surf) return false;
+  if (!walkState.active && !setWalking(app, true)) return false;
+  let ground: number | null = null;
+  if (surf.normal.y <= 0.7 && floorsOf(app).every((f) => f.floorY > surf.point.y + 0.05)) {
+    const hit = app.renderer.raycastVisible(surf.point.clone().add(new Vector3(0, 0.05, 0)), new Vector3(0, -1, 0), 1e4);
+    ground = hit ? hit.point.y : null;
+  }
+  const spot = standingSpot(surf.point, surf.normal, floorsOf(app), navSettings.eyeHeight, ground);
+  pushHistory(app, 'walk-drop');
+  glideEye(app, spot.eye, lookOf(app));
+  return true;
+}
+
+/** PageUp / PageDown in Walk mode: the eye moves to the next storey, keeping x, z and its height above the floor. */
+function walkStoreyStep(app: ViewerApp, dir: 1 | -1): void {
+  const floors = floorsOf(app);
+  if (floors.length === 0) {
+    showToast('The model has no storeys');
+    return;
+  }
+  const { camera } = app.renderer;
+  const step = stepWalkStorey(floors, camera.position.y, dir, navSettings.eyeHeight);
+  if (!step) {
+    showToast(dir > 0 ? 'Already at the top storey' : 'Already at the bottom storey');
+    return;
+  }
+  pushHistory(app, 'storey');
+  glideEye(app, new Vector3(camera.position.x, step.eyeY, camera.position.z), lookOf(app));
+  showToast(step.level.name || `Storey ${step.level.id}`);
 }
 
 /** Turn the view about the eye: radians left and up (negative: right and down). The pitch stays within 85 degrees. */
@@ -690,6 +797,10 @@ function levelsOf(app: ViewerApp): Level[] {
 }
 
 function stepStoreyAction(app: ViewerApp, dir: 1 | -1): void {
+  if (walkState.active) {
+    walkStoreyStep(app, dir);
+    return;
+  }
   const { camera, controls } = app.renderer;
   const levels = levelsOf(app);
   if (levels.length === 0) {
@@ -849,8 +960,8 @@ export function registerNavigationActions(): void {
     },
   });
 
-  registerAction({ id: 'nav.storeyUp', label: 'Storey up', group: 'Navigation', keys: ['PageUp'], enabled: navEnabled, repeat: false, description: 'Move the camera target to the next storey above.', run: (app) => stepStoreyAction(app, 1) });
-  registerAction({ id: 'nav.storeyDown', label: 'Storey down', group: 'Navigation', keys: ['PageDown'], enabled: navEnabled, description: 'Move the camera target to the next storey below.', run: (app) => stepStoreyAction(app, -1) });
+  registerAction({ id: 'nav.storeyUp', label: 'Storey up', group: 'Navigation', keys: ['PageUp'], enabled: navEnabled, repeat: false, description: 'Move the camera target to the next storey above. In Walk mode: move the eye to the next storey, same spot and eye height.', run: (app) => stepStoreyAction(app, 1) });
+  registerAction({ id: 'nav.storeyDown', label: 'Storey down', group: 'Navigation', keys: ['PageDown'], enabled: navEnabled, description: 'Move the camera target to the next storey below. In Walk mode: move the eye to the next storey down.', run: (app) => stepStoreyAction(app, -1) });
   registerAction({
     id: 'nav.nextSelected',
     label: 'Next selected element',
@@ -893,6 +1004,7 @@ export function navigationOnModel(app: ViewerApp): void {
   tabCursor = { key: '', index: -1 };
   tween = null;
   storeyCache = null;
+  floorCache = null;
   if (ortho) {
     const o = ortho;
     ortho = null;

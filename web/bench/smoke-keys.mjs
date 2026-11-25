@@ -648,6 +648,106 @@ try {
   await page.evaluate(() => window.__keymap.resetAll());
   await page.waitForTimeout(100);
 
+  // ---- Walk mode on the FZK-Haus: drop in here, storey jump, collision (added with the drop-in feature; run with the full pass).
+  await page.goto(`http://127.0.0.1:${port}/?model=fzk-haus`);
+  await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 120000 });
+  await page.waitForTimeout(1500);
+  const fzk = await page.evaluate(() => {
+    const m = window.__xray.app.loaded.model;
+    const shift = m.originShift[2] ?? 0;
+    const st = [...m.storeys].sort((a, b) => a.elevation - b.elevation);
+    // Centre of the ground floor elements on the horizontal plane.
+    const els = m.elements.filter((e) => e.storey === st[0].id);
+    const b = els.reduce((acc, e) => [Math.min(acc[0], e.bounds[0]), Math.min(acc[2], e.bounds[2]), Math.max(acc[3], e.bounds[3]), Math.max(acc[5], e.bounds[5])], [1e9, 1e9, -1e9, -1e9]);
+    return { floorY: st[0].elevation - shift, upperY: st[1] ? st[1].elevation - shift : null, cx: (b[0] + b[2]) / 2, cz: (b[1] + b[3]) / 2 };
+  });
+  const standAt = (x, y, z, dx, dz) => page.evaluate(([x, y, z, dx, dz]) => {
+    const r = window.__xray.renderer;
+    r.camera.position.set(x, y, z);
+    r.controls.target.set(x + dx, y, z + dz);
+    r.controls.update();
+    r.markDirty();
+  }, [x, y, z, dx, dz]);
+  await standAt(fzk.cx, fzk.floorY + 1.6, fzk.cz, 0, -1);
+  await page.keyboard.press('Shift+w');
+  check('FZK-Haus: Walk mode on', (await walkInfo()).shown);
+  // Find a screen point on an up-facing surface about at the ground floor level (tilt the view down to see the floor).
+  await page.evaluate(([x, y, z]) => {
+    const r = window.__xray.renderer;
+    r.controls.target.set(x, y - 1.2, z - 1.5);
+    r.controls.update();
+    r.markDirty();
+  }, [fzk.cx, fzk.floorY + 1.6, fzk.cz]);
+  await page.waitForTimeout(300);
+  const dropSpot = await page.evaluate((floorY) => {
+    const r = window.__xray.renderer, c = r.canvas, rc = c.getBoundingClientRect();
+    for (let gy = 0.95; gy > -0.9; gy -= 0.05) for (let gx = -0.6; gx <= 0.6; gx += 0.1) {
+      const id = r.pick(gx, gy);
+      if (id !== null && r.lastPickNormal.y > 0.95) {
+        const o = r.camera.position;
+        // hit height from the pick distance
+        const v = new r.camera.position.constructor(gx, gy, 0.5).unproject(r.camera).sub(o).normalize();
+        const hy = o.y + v.y * r.lastPickDistance;
+        if (Math.abs(hy - floorY) < 0.4) return { x: rc.left + ((gx + 1) / 2) * rc.width, y: rc.top + ((1 - gy) / 2) * rc.height, hy };
+      }
+    }
+    return null;
+  }, fzk.floorY);
+  check('FZK-Haus: found a ground floor spot to drop in', dropSpot !== null, JSON.stringify(dropSpot));
+  if (dropSpot) {
+    const yawBefore = yawLook(await pose());
+    await page.mouse.dblclick(dropSpot.x, dropSpot.y);
+    await settle();
+    const dropPose = await pose();
+    check('Walk mode double click stands on the ground floor spot at ~1.6 m eye height', Math.abs(dropPose.p[1] - (dropSpot.hy + 1.6)) < 0.1 && Math.abs(dropPose.p[1] - fzk.floorY - 1.6) < 0.5, `eye=${dropPose.p[1].toFixed(3)} floor=${fzk.floorY.toFixed(3)} hit=${dropSpot.hy.toFixed(3)}`);
+    check('the drop-in keeps the horizontal facing direction', Math.abs(Math.atan2(Math.sin(yawLook(dropPose) - yawBefore), Math.cos(yawLook(dropPose) - yawBefore))) < 1e-3);
+    check('the drop-in stays in Walk mode', (await walkInfo()).shown);
+    if (fzk.upperY !== null) {
+      await page.keyboard.press('PageUp');
+      await settle();
+      const up = await pose();
+      check('PageUp in Walk mode moves the eye to the upper storey, same x and z', up.p[1] > dropPose.p[1] + 1.5 && Math.abs(up.p[1] - fzk.upperY - 1.6) < 0.5 && Math.hypot(up.p[0] - dropPose.p[0], up.p[2] - dropPose.p[2]) < 1e-6, `eye ${dropPose.p[1].toFixed(2)} -> ${up.p[1].toFixed(2)}`);
+      await page.keyboard.press('PageDown');
+      await settle();
+      const down = await pose();
+      check('PageDown comes back to the same height', Math.abs(down.p[1] - dropPose.p[1]) < 1e-3);
+    }
+  }
+  // Collision: off by default, then on: holding w toward a wall stops short of it.
+  const collisionOn = (v) => page.evaluate((v) => window.__xray.app.panel.folders.find((f) => f._title === 'Keyboard').controllers.find((c) => c.property === 'walkCollision').setValue(v), v);
+  check('Walk collision is off by default', await page.evaluate(() => window.__xray.app.panel.folders.find((f) => f._title === 'Keyboard').controllers.find((c) => c.property === 'walkCollision').getValue() === false));
+  await page.keyboard.press('Escape');
+  await standAt(fzk.cx, fzk.floorY + 1.6, fzk.cz, 0, -1);
+  const fzkWall = await page.evaluate(() => {
+    const r = window.__xray.renderer, app = window.__xray.app, els = app.loaded.model.elements;
+    const o = r.camera.position.clone();
+    let best = null;
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2, d = new o.constructor(Math.sin(a), 0, -Math.cos(a));
+      const h = r.raycastVisible(o, d, 40, (id) => els[id].ifcClass !== 'IfcDoor');
+      if (h && Math.abs(h.normal.y) < 0.3 && (!best || h.distance < best.distance)) best = { distance: h.distance, dx: d.x, dz: d.z, px: h.point.x, pz: h.point.z };
+    }
+    return best;
+  });
+  check('FZK-Haus: found a wall to walk into', fzkWall !== null, JSON.stringify(fzkWall));
+  if (fzkWall) {
+    await standAt(fzk.cx, fzk.floorY + 1.6, fzk.cz, fzkWall.dx, fzkWall.dz);
+    await collisionOn(true);
+    await page.keyboard.press('Shift+w');
+    await page.keyboard.down('Shift');
+    await page.keyboard.down('w');
+    await page.waitForTimeout(Math.min(8000, 1500 + fzkWall.distance * 700));
+    await page.keyboard.up('w');
+    await page.keyboard.up('Shift');
+    await page.waitForTimeout(200);
+    const collEnd = await pose();
+    const toFzkWall = (fzkWall.px - collEnd.p[0]) * fzkWall.dx + (fzkWall.pz - collEnd.p[2]) * fzkWall.dz; // distance still ahead of the eye
+    const moved = (collEnd.p[0] - fzk.cx) * fzkWall.dx + (collEnd.p[2] - fzk.cz) * fzkWall.dz;
+    check('with Walk collision on, holding w toward a wall stops short of it', moved > 0.05 && toFzkWall > 0.15 && toFzkWall < 0.7, `wall ${fzkWall.distance.toFixed(2)} m away, stopped ${toFzkWall.toFixed(2)} m short`);
+    await collisionOn(false);
+    await page.keyboard.press('Escape');
+  }
+
   console.log('console warnings:', warnings.length ? '\n' + warnings.join('\n') : 'none');
   console.log('console errors:', errors.length ? '\n' + errors.join('\n') : 'none');
   check('zero console errors', errors.length === 0);

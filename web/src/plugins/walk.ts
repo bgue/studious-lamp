@@ -17,10 +17,11 @@ import {
   saveNavSettings,
   setNavStyle,
   setWalking,
+  walkDropIn,
   walkTurn,
   walkWheel,
 } from '../input/navigation';
-import { lookRadiansPerPixel } from '../input/walk';
+import { EYE_HEIGHT_MAX, EYE_HEIGHT_MIN, lookRadiansPerPixel } from '../input/walk';
 import type { NavStyle } from '../input/walk';
 
 const CHIP_ID = 'xray-walk-chip';
@@ -128,6 +129,26 @@ export const walkPlugin: AppPlugin = {
       { passive: false },
     );
 
+    // ---- Drop in here: a double click in Walk mode stands on that spot; Alt + double click outside Walk mode enters Walk mode and
+    // drops in there. Capture phase, so the fly-to double click of plugins/pointerMode.ts does not also run.
+    let lastDown = { x: 0, y: 0 };
+    canvas.addEventListener('pointerdown', (e) => {
+      lastDown = { x: e.clientX, y: e.clientY };
+    }, true);
+    canvas.addEventListener(
+      'dblclick',
+      (e) => {
+        if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || canvas.style.cursor) return;
+        if (!isWalking() && !e.altKey) return;
+        if (Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) > 5) return;
+        if (walkDropIn(app, e.clientX, e.clientY)) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      },
+      true,
+    );
+
     // ---- Esc leaves Walk mode first (before the Escape that clears the selection). Capture phase, like the other Esc owners.
     window.addEventListener(
       'keydown',
@@ -156,9 +177,16 @@ export const walkPlugin: AppPlugin = {
         model.style = navSettings.style;
         ctrl.updateDisplay();
       });
+      const save = (): void => saveNavSettings(storage());
+      const eye = folder.add(navSettings, 'eyeHeight', EYE_HEIGHT_MIN, EYE_HEIGHT_MAX, 0.05).name('eye height (m)').onChange(save);
+      const col = folder.add(navSettings, 'walkCollision').name('Walk collision').onChange(save);
       const after = folder.controllers.find((c) => c.property === 'smoothMoves');
       try {
-        if (after) after.domElement.after(ctrl.domElement);
+        if (after) {
+          after.domElement.after(ctrl.domElement);
+          ctrl.domElement.after(eye.domElement);
+          eye.domElement.after(col.domElement);
+        }
       } catch {
         /* the control stays at the end of the folder */
       }
