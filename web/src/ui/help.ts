@@ -357,6 +357,11 @@ export const FOURD_RULES: ReadonlyArray<DomRule> = [
   { selector: '[data-help-key^="4D tab/"]', keys: (e) => { const k = e.getAttribute('data-help-key'); return k ? [k] : null; }, title: (e) => (e.getAttribute('data-help-key') ?? '').split('/').pop() ?? '' },
 ];
 
+/** Rule for the What's new card and its dialog (src/plugins/whatsNew.ts): the key is the attribute. */
+export const RELEASE_NOTES_RULES: ReadonlyArray<DomRule> = [
+  { selector: '[data-help-key^="Release notes/"]', keys: (e) => { const k = e.getAttribute('data-help-key'); return k ? [k] : null; }, title: (e) => (e.getAttribute('data-help-key') ?? '').split('/').pop() ?? '' },
+];
+
 /** Rules for the revision banner and panel, which sit outside the drawers. */
 export const REVISION_RULES: ReadonlyArray<DomRule> = [
   { selector: '[data-help^="Revision "]', keys: (e) => { const k = e.getAttribute('data-help'); return k ? [k] : null; }, title: (e) => (e.getAttribute('data-help') ?? '').split('/').pop() ?? '' },
@@ -365,7 +370,7 @@ export const REVISION_RULES: ReadonlyArray<DomRule> = [
 /** Match the DOM rules against one element. The first rule that matches and gives a key with a text wins; else the first key. */
 export function domTarget(e: Element): HelpTarget | null {
   const d = drawerTitleOf(e);
-  const rules = d ? TOOL_RULES : [TOOL_RULES[0]!, TOOL_RULES[1]!, ...DIALOG_RULES, ...REVISION_RULES, ...SCRIPT_RULES, ...FOURD_RULES, ...RECORD_RULES];
+  const rules = d ? TOOL_RULES : [TOOL_RULES[0]!, TOOL_RULES[1]!, ...DIALOG_RULES, ...REVISION_RULES, ...SCRIPT_RULES, ...FOURD_RULES, ...RECORD_RULES, ...RELEASE_NOTES_RULES];
   for (const r of rules) {
     if (!e.matches(r.selector)) continue;
     const keys = r.keys(e, d);
@@ -379,7 +384,7 @@ export function domTarget(e: Element): HelpTarget | null {
 /** Elements of a drawer or dialog that carry help: the check on the drawer content uses this list. */
 export const DOM_CANDIDATES =
   '.xt-btn-tool, .xt-title, .xt-close, .xt-grip, .xt-sec, .xt-table, .xt-table th, .xt-slider, .xt-select, .xt-check, .xt-chip, .xt-btn, .xt-status, .xt-item, .xp-card, .xp-key, .xp-badge, .xp-skip, .xp-form input[type=text], .pc-result, ' +
-  '.bcf-btn, .bcf-in, .bcf-h, .bcf-item, .bcf-snap, .bcf-comment, .bcf-status, .bcf-detail label, .kx-input, .kx-btn, .kx-cell, .kx-row, .kx-item, [data-help^="Revision "], [data-help-key^="Script tab/"], [data-help-key^="4D tab/"], [data-help-key^="Record dialog/"]';
+  '.bcf-btn, .bcf-in, .bcf-h, .bcf-item, .bcf-snap, .bcf-comment, .bcf-status, .bcf-detail label, .kx-input, .kx-btn, .kx-cell, .kx-row, .kx-item, [data-help^="Revision "], [data-help-key^="Script tab/"], [data-help-key^="4D tab/"], [data-help-key^="Record dialog/"], [data-help-key^="Release notes/"]';
 
 // ---------------------------------------------------------------- popover
 

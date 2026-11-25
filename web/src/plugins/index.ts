@@ -43,6 +43,7 @@ import { awesomeBarPlugin } from './awesomeBar';
 import { mapPlugin } from './map';
 import { animScriptPlugin } from './animScript';
 import { map4dPlugin } from './map4d';
+import { whatsNewPlugin } from './whatsNew';
 
 // animScript before help (its tab controls carry help keys) and anywhere before rightSidebar: tabs added early are queued.
 // work (the saved sketches and issues of each model) right after sheets: it waits for the sheets store and joins the controllers.
@@ -56,7 +57,8 @@ import { map4dPlugin } from './map4d';
 // so what boot changed is the starting state, not history.
 // revision right after classify: it reads the classify service and its onModel runs after the classifier took the new model.
 // map4d (the 4D tab) before help and rightSidebar: its tab controls carry help keys; it reads the classifier, so it follows classify.
+// whatsNew after boot (its card is for the normal viewer: it checks window.__xrayBoot itself) and before undo.
 // help runs after every panel-building plugin so it can see all controls; rightSidebar last so it wraps the finished panel.
 // topBar first: it creates the bar and the #xray-topbar-search host that the awesomeBar plugin mounts into, and its onModel
 // takes the factory settings hash before any other plugin changes the state.
-export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, mapPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, ifcSavePlugin, revisionPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, walkPlugin, exportParamsPlugin, viewsPlugin, flythroughPlugin, recordPlugin, issuesPlugin, issueToolsPlugin, sheetsPlugin, workPlugin, animScriptPlugin, map4dPlugin, helpPlugin, rightSidebarPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];
+export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, mapPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, ifcSavePlugin, revisionPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, walkPlugin, exportParamsPlugin, viewsPlugin, flythroughPlugin, recordPlugin, issuesPlugin, issueToolsPlugin, sheetsPlugin, workPlugin, animScriptPlugin, map4dPlugin, helpPlugin, rightSidebarPlugin, awesomeBarPlugin, bootPlugin, whatsNewPlugin, undoPlugin];

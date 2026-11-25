@@ -74,16 +74,31 @@ const cursor = (page) => page.evaluate(() => getComputedStyle(document.getElemen
 const pressed = (page, cls) => page.evaluate((c) => document.querySelector(`#xray-gizmo .${c}`)?.getAttribute('aria-pressed'), cls);
 const undoList = (page) => page.evaluate(() => window.__xrayUndo.list());
 const settle = (page, ms = 1200) => page.waitForTimeout(ms);
-/** Wait until the camera has stopped (a headless frame is slow, so the orbit damping takes seconds), then past the undo debounce. */
+/**
+ * Wait until the camera has stopped, then until the undo plugin has recorded (or dropped) the move, then a little longer.
+ * A headless frame takes long (software GL), so the orbit damping takes seconds, and the page only moves the camera in a rendered
+ * frame: a sample counts as calm only when at least one frame was drawn since the one before. Without that, two or three samples
+ * taken between two slow frames looked calm, the damping tail went on afterwards, and the undo plugin recorded a "view" entry on
+ * top of the next step (the flaky 'the undo button says "Undo selection"').
+ */
 async function still(page, extra = 900) {
-  let last = null;
+  const look = () => page.evaluate(() => {
+    // a counter of animation frames (the viewer's loop runs in the same ones; a render that nothing asked for is skipped, so three.js's own count would stand still)
+    if (window.__rafN === undefined) { window.__rafN = 0; const tick = () => { window.__rafN++; requestAnimationFrame(tick); }; requestAnimationFrame(tick); }
+    const r = window.__xray.app.renderer;
+    return { p: [r.camera.position.x, r.camera.position.y, r.camera.position.z, r.controls.target.x, r.controls.target.y, r.controls.target.z], frame: window.__rafN };
+  });
+  let last = await look();
   let calm = 0;
-  for (let i = 0; i < 80 && calm < 3; i++) {
+  for (let i = 0; i < 120 && calm < 3; i++) {
     await page.waitForTimeout(300);
-    const p = await page.evaluate(() => { const r = window.__xray.app.renderer; return [r.camera.position.x, r.camera.position.y, r.camera.position.z, r.controls.target.x, r.controls.target.y, r.controls.target.z]; });
-    calm = last && p.every((v, k) => Math.abs(v - last[k]) < 1e-5) ? calm + 1 : 0;
-    last = p;
+    const cur = await look();
+    const same = cur.p.every((v, k) => Math.abs(v - last.p[k]) < 1e-5);
+    if (cur.frame === last.frame) { last = cur; continue; } // no frame since the last look: nothing was shown to be calm
+    calm = same ? calm + 1 : 0;
+    last = cur;
   }
+  for (let i = 0; i < 40 && (await page.evaluate(() => window.__xrayUndo?.settling === true)); i++) await page.waitForTimeout(250);
   await page.waitForTimeout(extra);
 }
 /** A wheel gesture inside the page: `n` events 25 ms apart over the canvas centre (a headless frame takes long enough to stretch playwright's own wheel). */
@@ -355,6 +370,7 @@ try {
   // ---- selection undo
   await page.evaluate(() => window.__xray.app.clearSelection());
   await settle(page, 300);
+  await still(page, 300); // the camera and the undo plugin are quiet before the click: nothing may be recorded after it
   await page.mouse.click(hit.x, hit.y);
   await settle(page, 300);
   const sBefore = await selSize(page);

@@ -48,7 +48,7 @@ the view you left.
 
 ## Scripting
 
-`window.__xrayUndo = { undo(), redo(), canUndo, canRedo, undoLabel, redoLabel, list(), clear() }`; `list()` returns
+`window.__xrayUndo = { undo(), redo(), canUndo, canRedo, undoLabel, redoLabel, list(), clear(), settling }`; `settling` is true while a camera or clip move waits to be recorded (a smoke waits for false before it acts). A camera move that is still settling when a selection or setting entry is recorded is written first, so the list keeps the order of events. `list()` returns
 `{ undo: [{ kind, label }], redo: [...] }`, oldest first, the next redo last.
 
 ## Files and tests

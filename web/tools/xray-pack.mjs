@@ -28,7 +28,7 @@ function ensureTemplate(withIfc, log) {
   // testing hook: a ready-made template file, used as is (tests/pack-integration.test.ts)
   if (process.env.XRAY_PACK_TEMPLATE) return resolve(process.env.XRAY_PACK_TEMPLATE);
   const file = join(distDir, withIfc ? 'xray-template-ifc.html' : 'xray-template.html');
-  const sources = [join(webRoot, 'src'), join(here, 'build-single-file.mjs'), join(webRoot, 'vite.single.config.ts'), join(webRoot, 'public', 'xray.config.json')];
+  const sources = [join(webRoot, 'src'), join(here, 'build-single-file.mjs'), join(webRoot, 'vite.single.config.ts'), join(webRoot, '..', 'CHANGELOG.md'), join(webRoot, 'public', 'xray.config.json')];
   const stale = !existsSync(file) || sources.some((p) => newestMtime(p) > statSync(file).mtimeMs);
   if (stale) {
     log(`building template ${basename(file)} ...`);
