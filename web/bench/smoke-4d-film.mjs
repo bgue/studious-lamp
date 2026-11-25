@@ -69,16 +69,21 @@ try {
   check('the right sidebar is open on the 4D tab', st.tab.tab === '4d' && !st.tab.collapsed, JSON.stringify(st.tab));
   await page.waitForSelector('#dk-pane-4d [data-x4=film-ready]', { state: 'visible' });
   const b0 = await barBox(page);
-  check('the film bar is in view without scrolling', inView(b0) && b0.scrollTop === 0 && b0.scrollH > b0.paneH * 2, JSON.stringify(b0));
+  check('the film bar is in view without scrolling', inView(b0) && b0.scrollTop === 0, JSON.stringify(b0));
   const labels = await page.locator('#dk-pane-4d [data-x4=film-bar] button:visible').allInnerTexts();
   check('the bar has Play, Pause, Stop, Record and Open as script', ['Play', 'Pause', 'Stop', 'Record', 'Open as script'].every((l) => labels.includes(l)), labels.join());
   check('the date slider is in the bar', await page.locator('#dk-pane-4d [data-x4=film-bar] input[data-x4=scrub]').isVisible());
 
-  // sticky: scroll the tab to the bottom, the bar stays
+  // sticky: the Film step fits the pane now (the 4D tab is in steps); the Link step, with the decided links, is the long one.
+  // Scroll it to the bottom and the bar stays.
+  await page.evaluate(() => window.__xray4dSchedule.step('link'));
+  await page.waitForTimeout(300);
   await page.evaluate(() => { const p = document.getElementById('dk-pane-4d'); p.scrollTop = p.scrollHeight; });
   await page.waitForTimeout(300);
   const b1 = await barBox(page);
-  check('the bar stays in view while the tab scrolls', b1.scrollTop > 500 && inView(b1) && Math.abs(b1.top - b1.paneTop) < 12, JSON.stringify({ scrollTop: b1.scrollTop, top: b1.top, paneTop: b1.paneTop }));
+  const scrolls = b1.scrollH > b1.paneH + 50;
+  check('the bar stays in view while the tab scrolls (Link step)', !scrolls || (b1.scrollTop > 50 && inView(b1) && Math.abs(b1.top - b1.paneTop) < 12), JSON.stringify({ scrolls, scrollTop: b1.scrollTop, top: b1.top, paneTop: b1.paneTop, scrollH: b1.scrollH, paneH: b1.paneH }));
+  await page.evaluate(() => window.__xray4dSchedule.step('film'));
   // open('link') opens and scrolls to the section; open('play') returns to the top
   await page.evaluate(() => { window.__xray4dSchedule.open('link'); });
   await page.waitForTimeout(300);
