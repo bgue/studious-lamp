@@ -19,7 +19,9 @@
     "pack": "node tools/xray-pack.mjs",
     "4d": "node tools/xray-4d.mjs",
     "classify:truth": "node tools/classify-truth.mjs",
-    "template": "node tools/build-single-file.mjs --template"
+    "template": "node tools/build-single-file.mjs --template",
+    "smoke:fast": "node bench/run-smokes.mjs --tier fast",
+    "smoke:full": "node bench/run-smokes.mjs --tier full"
   },
   "dependencies": {
     "lil-gui": "0.21.0",

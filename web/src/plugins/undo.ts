@@ -1,7 +1,7 @@
 // Undo plugin: one session-only stack for the view, the selection and the settings. Docs: docs-features/undo.md.
 //
 //   Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z or Ctrl+Y redo (actions undo.undo and undo.redo), and the Undo and Redo buttons of the gizmo.
-//   window.__xrayUndo = { undo(), redo(), canUndo, canRedo, undoLabel, redoLabel, list(), clear() }
+//   window.__xrayUndo = { undo(), redo(), canUndo, canRedo, undoLabel, redoLabel, list(), clear(), settling }
 //
 // What it records (by watching, not by hooks, so a key, a button, a preset or a script is seen the same way):
 //   - camera: when the camera has not moved for SETTLE_MS, one entry for the whole move (a wheel gesture, an orbit drag, a
@@ -73,6 +73,8 @@ export interface UndoApi {
   /** The entries, oldest first: kind and label. `redo` lists the undone ones, the next redo last. */
   list(): { undo: Array<{ kind: string; label: string }>; redo: Array<{ kind: string; label: string }> };
   clear(): void;
+  /** True while a camera or clip plane move is still waiting to be recorded (smokes wait for false before they act). */
+  readonly settling: boolean;
 }
 
 declare global {
@@ -262,11 +264,21 @@ function watchView(app: ViewerApp, t: number): void {
   if ((moving || clipWatch.changing) && t - last >= settleFor(app)) commitChanges(app, t);
 }
 
+/**
+ * A camera move that is still settling (the tail of an orbit's damping, a wheel gesture) happened BEFORE the selection or setting
+ * change that is about to be recorded: write it first, so the list keeps the order of events and the newest entry is the click.
+ * Without this the move was recorded up to a second later, on top of the click ("Undo orbit" where "Undo selection" belongs).
+ */
+function commitPendingMove(app: ViewerApp, t: number): void {
+  if (moving) commitChanges(app, t);
+}
+
 function watchSelection(app: ViewerApp, t: number): void {
   const sel = app.controller.selection;
   if (sel === selRef) return;
   selRef = sel;
   if (sameIds(selCommitted, sel)) return;
+  commitPendingMove(app, t);
   const after = [...sel];
   stack.push({ kind: 'selection', label: 'selection', at: t, before: selCommitted, after });
   selCommitted = after;
@@ -290,6 +302,7 @@ function watchSettings(app: ViewerApp, t: number): void {
   }
   for (const c of seen.keys()) if (!present.has(c)) seen.delete(c);
   if (changes.length === 0) return;
+  commitPendingMove(app, t);
   if (changes.length === 1) {
     const c = changes[0]!.ctrl;
     let id = ctrlIds.get(c);
@@ -489,6 +502,9 @@ export const undoPlugin: AppPlugin = {
         return { undo: l.undo.map(m), redo: l.redo.map(m) };
       },
       clear: () => stack.clear(),
+      get settling() {
+        return moving || clipWatch.changing || ease !== null;
+      },
     };
     window.__xrayUndo = api;
     registerAction({

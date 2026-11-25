@@ -118,6 +118,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Instances](#instances)
 - [Weld and clean](#weld-and-clean)
 - [Search bar](#search-bar)
+- [Release notes](#release-notes)
 - [Status ba](#status-ba)
 - [Status bar](#status-bar)
 - [4D tab](#4d-tab)
@@ -490,6 +491,7 @@ Impact follows the same sentence rules and adds these:
 | Filter box | The box filters the model tree by name, GlobalId or class. The count shows the matching objects. | Type a few letters and the list shrinks to the parts that match. A small number tells you how many match. | Type part of a name to find an object. Press Escape to clear the filter. | Report: Onboarding checklist |
 | Eye icon | The icon hides or shows the object or the group of its row. A hidden object is also a user hide. | Click and the part, or the whole group, disappears from the picture. Click again and it returns. | Click the icon to hide a row. Click it again to show the row. | Report: Appendix C, pin sources |
 | Bucket dot | The dot shows the bucket of the object after classification. The buckets are focus, host, near and far. | The small mark tells you why a part looks the way it does. Blue means picked, red means crossed, amber means close and grey means distant. | Read the dot to see why an object ghosts. Select a duct to see the dots change. | Report: Terminology |
+| Model tree | The model tree takes the arrow keys when it has focus. A ring marks the active row. | Press the arrow keys and a ring moves down the list. Press Enter and the part under the ring turns blue. | Press F6 to reach the tree. Press Up and Down to move, Right and Left to open and close, Enter to select. Type a letter to jump. | Report: Onboarding checklist |
 | Expand arrow | The arrow opens or closes a group in the model tree. | Click and the group opens to show the parts inside it. Click again and it closes. | Click the arrow to show the objects of the group. | Report: Onboarding checklist |
 | Set name box | The box holds the name for a new selection set. | Type a label for a new saved group here. The label shows in the list after you save. | Type a name. Press Enter to store the set. | Report: Onboarding checklist |
 | Save selection | The button stores the current selection as a new set with the typed name. | Click and the viewer stores the parts you picked as a named group. The group appears in the list below. | Select the objects. Type a name. Click the button to save. | Report: Onboarding checklist |
@@ -930,6 +932,8 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Keyboard* | The folder controls keyboard navigation and the shortcut tools. Keys move the camera and run actions. | These controls set how fast the keys move the picture, and open the lists of all keys. | Change a speed here. Click Shortcuts to see every key. | Report: Appendix I, Presets and keyboard |
+| Next region | The action moves keyboard focus to the next region. The regions are the 3D view, the left sidebar, the right sidebar and the top bar. | Press the key and a coloured frame jumps on to another part of the window. Then the arrow keys work there. | Press F6 to move forward. Press Escape in a list to go back to the 3D view. | Report: Onboarding checklist |
+| Previous region | The action moves keyboard focus to the previous region. The order is the reverse of the next region action. | Press the key and a coloured frame jumps back to the earlier part of the window. | Press Shift and F6 to move backward. | Report: Onboarding checklist |
 | keyboard navigation | The switch turns the camera keys on or off. | On: the arrow keys move the camera. Off: those keys do nothing. W A S D work in Walk mode. | Turn the switch off if you type in other tools. | Report: Appendix I, Presets and keyboard |
 | orbit speed (deg/s) | The slider sets the orbit speed of the arrow keys in degrees per second. | Move the slider right and the arrow keys spin the picture faster. Move it left and they spin it slower. | Hold Ctrl for slow moves. Increase the value for fast turns. | Report: Appendix I, Presets and keyboard |
 | pan speed | The slider sets the pan speed of the Shift and arrow keys as a factor. | Move the slider right and the picture slides faster when you hold the keys. | Increase the value for big models. Decrease the value for fine work. | Report: Appendix I, Presets and keyboard |
@@ -1550,6 +1554,16 @@ Impact follows the same sentence rules and adds these:
 | Search button | The button opens the text box on a small screen. The box then fills the width. | Tap it and a field for typing opens across the full top edge. | Tap the magnifier icon. Type a word. | Report: Appendix I, Presets and keyboard |
 | Result row | The row names a match. A click acts on it, and Shift adds an object to the selection. | Click an item and the viewer does the job at once. An object under the pointer lights up in the picture. | Click the row or press Enter on it. Hold Shift to add an object to the selection. | Report: Appendix I, Presets and keyboard |
 
+## Release notes
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Card | The card lists what is new in this version of the viewer. It shows once, at the first start of a new version. | A small box appears in the corner of the picture and tells you about the new things you can do. | Read the lines. Press Escape or click Dismiss to close the card. | Report: Onboarding checklist |
+| Dismiss | The button closes the card of new features. Escape does the same. | Click and the small box goes away. It stays away until the next version. | Click the button or press Escape. | Report: Onboarding checklist |
+| Show all changes | The link opens a window with the lines of every version, newest first. | Click and a window lists what each earlier version brought, with its date. | Click the link. Scroll the list. Press Escape to close it. | Report: Onboarding checklist |
+| Changes list | The list names each version with its date and the changes it brought. | This part lets you look back at what each version added, from the newest to the oldest. | Scroll the list with the wheel or the arrow keys. | Report: Onboarding checklist |
+| Close | The button closes the window with the list of changes. Escape does the same. | Click and the window goes away, and you can work on the picture again. | Click the button or press Escape. | Report: Onboarding checklist |
+
 ## Status ba
 
 | Setting | Intent | Impact | Use | Ref |
@@ -1661,6 +1675,8 @@ Impact follows the same sentence rules and adds these:
 | Stop film | The button stops the film and puts the view back. | The model returns to its normal look. | Click the button. | Report: Limitations and extensions, 4D schedule |
 | Record film | The button opens the video export dialog for the film. | You pick size and quality, and the viewer saves a video file frame by frame. | Click the button. Choose the options. Click Record in the dialog. | Report: Limitations and extensions, 4D schedule |
 | Scrub date | The bar moves the film to a date of the job. | The model shows what stands on that day. | Drag the bar. The date shows beside it. | Report: Limitations and extensions, 4D schedule |
+| Film bar | The bar at the top holds the controls of the 4D film: play, date bar, record and Open as script. | It stays in view while the rest of the page scrolls. Without a schedule, or without a link, it says what is missing. | Use the buttons of the bar. Open a schedule and link it first if the bar asks for that. | Report: Limitations and extensions, 4D schedule |
+| Open film as script | The button turns the 4D film into an animation script and opens it in the Script tab. | The text holds the schedule line and the camera moves of the director, and you can edit it. A run plays the same show. | Click the button. Edit the text if you like. Press Run in the Script tab. Press Save to keep it. | Report: Limitations and extensions, 4D schedule |
 | Save IFC with links | The button opens Save IFC with the 4D box ticked, so the task codes go into the file. | A new model file carries the matches, so other tools can read them. | Click the button. Check the options. Save the file. | Report: Limitations and extensions, 4D schedule |
 | Decided links | The entry lists the suggestions that you accepted or rejected. | You can review your earlier choices and take one back. | Open the entry. Click Reopen beside a choice to decide again. | Report: Limitations and extensions, 4D schedule |
 | Unlinked activities | The entry lists the activities that have no parts yet. | These tasks stay out of the film until you give them parts. | Open the entry. Read the names. Fix the sources or the queries. | Report: Limitations and extensions, 4D schedule |

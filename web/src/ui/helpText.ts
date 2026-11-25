@@ -3629,6 +3629,37 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the cell. Press the new keys.',
     'Report: Appendix I, Presets and keyboard',
   ),
+  // ------------------------------------------------------------------ release notes (src/plugins/whatsNew.ts)
+  'Release notes/Card': h(
+    'The card lists what is new in this version of the viewer. It shows once, at the first start of a new version.',
+    'A small box appears in the corner of the picture and tells you about the new things you can do.',
+    'Read the lines. Press Escape or click Dismiss to close the card.',
+    'Report: Onboarding checklist',
+  ),
+  'Release notes/Dismiss': h(
+    'The button closes the card of new features. Escape does the same.',
+    'Click and the small box goes away. It stays away until the next version.',
+    'Click the button or press Escape.',
+    'Report: Onboarding checklist',
+  ),
+  'Release notes/Show all changes': h(
+    'The link opens a window with the lines of every version, newest first.',
+    'Click and a window lists what each earlier version brought, with its date.',
+    'Click the link. Scroll the list. Press Escape to close it.',
+    'Report: Onboarding checklist',
+  ),
+  'Release notes/Changes list': h(
+    'The list names each version with its date and the changes it brought.',
+    'This part lets you look back at what each version added, from the newest to the oldest.',
+    'Scroll the list with the wheel or the arrow keys.',
+    'Report: Onboarding checklist',
+  ),
+  'Release notes/Close': h(
+    'The button closes the window with the list of changes. Escape does the same.',
+    'Click and the window goes away, and you can work on the picture again.',
+    'Click the button or press Escape.',
+    'Report: Onboarding checklist',
+  ),
   'New issue dialog/Field': h(
     'The field holds a detail of the new issue, such as the title, description, type, status or priority.',
     'Type a short text or pick from the list. These details travel with the note.',

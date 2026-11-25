@@ -13,7 +13,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-/home/user/xray-ref-dist/xray-ref.zip}"
 SINGLE="$REPO/web/dist-single/xray-viewer.html"
 
-if [ ! -f "$SINGLE" ] || [ -n "$(find "$REPO/web/src" "$REPO/web/index.html" "$REPO/web/tools" "$REPO/web/public" -newer "$SINGLE" -type f 2>/dev/null | head -n 1)" ]; then
+if [ ! -f "$SINGLE" ] || [ -n "$(find "$REPO/web/src" "$REPO/web/index.html" "$REPO/web/tools" "$REPO/web/public" "$REPO/CHANGELOG.md" -newer "$SINGLE" -type f 2>/dev/null | head -n 1)" ]; then
   echo "building the single-file viewer (npm run bundle)..."
   (cd "$REPO/web" && npm run bundle >/dev/null)
 fi

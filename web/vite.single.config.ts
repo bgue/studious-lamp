@@ -3,6 +3,7 @@
 //
 // The PDF libraries reach the bundle through src/sheets/pdfRuntime.ts; this config swaps it for pdfRuntime.single.ts, which unpacks
 // them from gzip + base64 in the HTML on first use (tools/build-single-file.mjs builds and embeds them, see vite.pdflibs.config.ts).
+// The release number (tools/release-number.mjs) is a build-time constant; RELEASE=1 builds the next release.
 // The IFC reader (web-ifc) reaches the bundle through src/model/ifcRuntime.ts. This config swaps that one module:
 //   default        -> ifcRuntime.single.ts  the module worker is inlined as a Blob worker (`?worker&inline`) and the
 //                                           wasm is NOT in the JS: build-single-file.mjs appends it to the HTML as base64
@@ -11,6 +12,7 @@ import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { releasePlugin } from './tools/release-number.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const noIfc = process.env.XRAY_NO_IFC === '1';
@@ -38,7 +40,7 @@ function ifcRuntimeVariant(): Plugin {
 export default defineConfig({
   base: './',
   publicDir: false, // models and config are embedded by the post-processing script, not copied
-  plugins: [ifcRuntimeVariant()],
+  plugins: [ifcRuntimeVariant(), releasePlugin()], // releasePlugin: the release number for the What's new note (RELEASE=1 builds number + 1)
   build: {
     outDir,
     emptyOutDir: true,

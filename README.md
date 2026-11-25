@@ -433,6 +433,24 @@ SMOKE_PORT=5401 node bench/smoke-cleanup.mjs
 per update and frame times. Swiftshader is CPU rasterisation: its frame times are not GPU numbers, while the Algorithm 1 and 2
 timings are CPU JavaScript and meaningful. There is one `bench/smoke-*.mjs` per feature (`ls web/bench`).
 
+**The smoke runner** (`bench/run-smokes.mjs`, details in [web/bench/README.md](web/bench/README.md)) runs smokes one after the other on one port
+with one vite cache, a time limit each and one summary line each (`name rc=0 pass=63 fail=0 64s`):
+
+```sh
+npm run smoke:fast                      # about 12 minutes: start-up, keys, tree, undo, issues, 4D, scripts, help (8 smokes)
+npm run smoke:full                      # every bench/smoke-*.mjs and help-smoke.mjs, about 2 to 3 hours
+node bench/run-smokes.mjs --tier fast --list     # what would run, without running it
+node bench/run-smokes.mjs --only keys,sheets --port 5800 --cache /tmp/vc
+```
+
+Run `npm run typecheck` and `npm test` first (they take under a minute); run `smoke:fast` before a release and `smoke:full` after changes
+that reach many features. In a git worktree whose `web/node_modules` is a symlink to another checkout the dev server and the smokes allow the
+real `node_modules` path (`server.fs.allow` in `web/vite.config.ts` and `bench/vite.smoke.config.mjs`), so PDF smokes work there too.
+
+**Release notes.** `CHANGELOG.md` lists what changed per viewer release; the viewer shows the newest release's lines once, the first time a
+browser opens a new version (`web/docs-features/whats-new.md`). A release is built with `RELEASE=1 npm run bundle` and named by
+`tools/release_viewer.sh`.
+
 **Single file and zip** (from `web/`):
 
 ```sh
