@@ -52,6 +52,8 @@ Compiling the script with the plan (`compileScript(text, { plans })`) gives cues
 times within a few milliseconds (a test checks this on synthetic plans and on the FZK-Haus sample). A cue the language cannot say is left
 out with a comment that says so.
 
+In the viewer, **Open as script** in the film bar of the 4D tab does the same for the film on screen and opens the text in the Script tab (see [4d-schedule.md](4d-schedule.md)).
+
 ## The CLI
 
 ```

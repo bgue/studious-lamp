@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { SAMPLE_PROJECTS, SAMPLE_WORKFLOWS, UNAVAILABLE_HINT, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu, workflowOf } from '../src/samples';
+import { SAMPLE_PROJECTS, SAMPLE_WORKFLOWS, UNAVAILABLE_HINT, bootTarget, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu, workflowOf } from '../src/samples';
 import type { BundleContents } from '../src/samples';
 
 const read = (p: string): string => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
@@ -125,5 +125,16 @@ describe('sample projects: the embedded IFC', () => {
   it('the process-plant IFC embeds in well under the glb (about 4 MB), so the single file stays small', async () => {
     const ifc = new Uint8Array(readFileSync(fileURLToPath(new URL('../../models/Process-Plant.ifc', import.meta.url))));
     expect((await gzip(ifc)).length).toBeLessThan(1024 * 1024);
+  });
+});
+
+describe('?model= at start', () => {
+  it('turns a workflow value into the workflow and its model', () => {
+    const t = bootTarget('fzk-haus-4d');
+    expect(t.model).toBe('fzk-haus');
+    expect(t.workflow?.value).toBe('fzk-haus-4d');
+  });
+  it('leaves plain model names, user files and unknown names alone', () => {
+    for (const n of ['building', 'fzk-haus', 'procedural', 'my-upload.ifc', '']) expect(bootTarget(n)).toEqual({ model: n, workflow: null });
   });
 });

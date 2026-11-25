@@ -44,6 +44,7 @@ Debris demo and Procedural. Models that you opened from files follow the samples
 
 - The names are the `?model=` values, the keys of saved views, presets, share links and selection sets. They do not change. The labels
   come from `src/samples.ts`. The search bar and the command list do not list the samples.
+  A workflow entry (FZK-Haus 4D) is not a model name, but `?model=fzk-haus-4d` is accepted at start: it loads the workflow's model and runs the workflow (`bootTarget` in `src/samples.ts`).
 - The single file (`dist-single/xray-viewer.html`) carries building, fzk-haus, plumbing, debris-demo and process-plant (as its IFC, read by the
   built-in IFC reader). Synthetic 5k is not in it: its entry says "needs the served app or the zip", and choosing it leaves the current model in place.
 - Tests: `tests/samples.test.ts` (labels, the names of the `?model=` values, availability, the menu, the embedded IFC).

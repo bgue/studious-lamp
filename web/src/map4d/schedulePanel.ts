@@ -31,6 +31,13 @@ const CSS = `
 .x4 .x4-date{font-variant-numeric:tabular-nums;min-width:88px}
 .x4 .x4-check{display:flex;gap:6px;align-items:center}
 .x4 .x4-table-wrap{overflow-x:auto}
+.x4 .x4-film{position:sticky;top:0;z-index:5;display:flex;flex-direction:column;gap:6px;padding:6px 8px;border:1px solid var(--sb-line,#262d3a);border-radius:5px;background:var(--sb-bg,#141820);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.x4 .x4-film .x4-msg{min-height:0}
+.x4 .x4-film .x4-msg:empty{display:none}
+.x4 .x4-film .x4-warn:empty{display:none}
+.x4 .x4-film-need{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.x4 .x4-film-need>span{flex:1 1 140px}
+.x4 details[data-sec]{scroll-margin-top:92px}
 @media (max-width:700px){.x4 input[type=date]{height:32px}}
 `;
 
@@ -49,7 +56,7 @@ const btn = (text: string, key: string, onClick: () => void, cls = ''): HTMLButt
   b.addEventListener('click', onClick);
   return b;
 };
-const plural = (n: number, w: string): string => `${n} ${w}${n === 1 ? '' : 's'}`;
+const plural = (n: number, w: string): string => `${n} ${n === 1 ? w : w.endsWith('y') ? w.slice(0, -1) + 'ies' : w + 's'}`;
 const pct = (x: number): string => `${(x * 100).toFixed(x >= 0.995 || x === 0 ? 0 : 1)} %`;
 
 export interface SchedulePanelHandle { render(): void; dispose(): void; open(section: string): void }
@@ -456,19 +463,35 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     cameraNote.textContent = s.camera === 'director' && sc.note ? sc.note : '';
   }
 
-  // ---------------------------------------------------------------- Play
-  const pSec = section('Play', 'play', true, 'Play');
+  // ---------------------------------------------------------------- Play: the film bar (top of the tab, sticky) and the Play section
   const pMsg = msgBox();
+  const bar = el('div', 'x4-film', { role: 'group', 'aria-label': '4D film', 'data-x4': 'film-bar' });
+  help(bar, 'Film bar');
   const playBtn = btn('Play', 'Play film', () => { void sc.play().then((r) => pMsg.say(r.message, !r.ok)); }, 'primary');
   const pauseBtn = btn('Pause', 'Pause film', () => sc.pause());
   const stopBtn = btn('Stop', 'Stop film', () => sc.stopPlay());
   const recBtn = btn('Record', 'Record film', () => { void sc.record().then((r) => pMsg.say(r.message, !r.ok)); });
-  const pRow = el('div', 'x4-row');
-  pRow.append(playBtn, pauseBtn, stopBtn, recBtn);
+  const scriptBtn = btn('Open as script', 'Open film as script', () => { void sc.openAsScript().then((r) => pMsg.say(r.message, !r.ok)); });
+  scriptBtn.setAttribute('data-x4', 'film-script');
+  const pRow = el('div', 'x4-row', { 'data-x4': 'film-controls' });
+  pRow.append(playBtn, pauseBtn, stopBtn, recBtn, scriptBtn);
   const slider = help(el('input', '', { type: 'range', min: '0', max: '1000', step: '1', value: '0', 'aria-label': 'Schedule date', 'data-x4': 'scrub' }), 'Scrub date');
   const dateOut = el('span', 'x4-date', { 'data-x4': 'scrub-date' }, '');
   const sRow = el('div', 'x4-row');
   sRow.append(slider, dateOut);
+  const needText = el('span', '', { 'data-x4': 'film-need' });
+  const needOpen = btn('Open schedule', 'Open schedule', () => xerIn.click(), 'primary');
+  const needLink = btn('Link now', 'Link schedule', () => linkBtn.click(), 'primary');
+  const need = el('div', 'x4-film-need', { 'data-x4': 'film-missing' });
+  need.append(needText, needOpen, needLink);
+  const pNote = el('div', 'x4-warn', { 'data-x4': 'play-note' });
+  const controls = el('div', '', { 'data-x4': 'film-ready' });
+  controls.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  controls.append(pRow, sRow);
+  bar.append(need, controls, pNote, pMsg.box);
+  root.prepend(bar);
+
+  const pSec = section('Play', 'play', true, 'Play');
   let dragging = false;
   const winMs = (): { from: number; to: number } | null => (sc.plan ? sc.plan.window : null);
   slider.addEventListener('input', () => {
@@ -484,13 +507,21 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     if (!w) { pMsg.say('Save IFC is not available in this build.', true); return; }
     w.open();
   });
-  const pNote = el('div', 'x4-warn', { 'data-x4': 'play-note' });
-  pSec.append(pRow, sRow, saveBtn, pNote, pMsg.box, el('div', 'x4-dim', undefined, 'Space pauses, and the HUD shows the date and the progress. Save IFC writes the task codes of accepted links into the model file.'));
+  pSec.append(el('div', 'x4-dim', undefined, 'The film controls (Play, date bar, Record, Open as script) are in the bar at the top of this tab. Space pauses. Save IFC writes the task codes of accepted links into the model file.'), saveBtn);
 
   function renderPlay(): void {
     const ready = !!sc.schedule && !!sc.links && sc.acceptedLinks().length > 0;
+    need.style.display = ready ? 'none' : '';
+    controls.style.display = ready ? 'flex' : 'none';
+    if (!ready) {
+      const noSchedule = !sc.schedule;
+      needText.textContent = noSchedule ? 'Open a schedule to make the film.' : 'Link the schedule first to make the film.';
+      needOpen.style.display = noSchedule ? '' : 'none';
+      needLink.style.display = noSchedule ? 'none' : '';
+    }
     playBtn.disabled = !ready;
     recBtn.disabled = !ready;
+    scriptBtn.disabled = !ready;
     pauseBtn.disabled = !sc.playing;
     pauseBtn.textContent = sc.paused ? 'Resume' : 'Pause';
     stopBtn.disabled = !sc.playing;
@@ -529,7 +560,14 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   render();
   return {
     render,
-    open(id) { const d = sections.get(id); if (d) d.open = true; },
+    open(id) {
+      // the film controls are the bar at the top, so the Play section shows the tab from its top
+      const d = sections.get(id);
+      if (d) d.open = true;
+      const pane = root.parentElement;
+      if (!d || id === 'play') { if (pane) pane.scrollTop = 0; return; }
+      d.scrollIntoView({ block: 'start' });
+    },
     dispose() { off(); offMap(); clearInterval(tick); if (raf) cancelAnimationFrame(raf); },
   };
 }

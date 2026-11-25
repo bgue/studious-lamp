@@ -39,6 +39,15 @@ export function workflowOf(value: string): SampleWorkflow | undefined {
   return SAMPLE_WORKFLOWS.find((w) => w.value === value);
 }
 
+/**
+ * What `?model=` asks for at start. A workflow value (fzk-haus-4d) loads the workflow's model and then runs the workflow, like the
+ * menu; any other value is a plain model name and is left as it is.
+ */
+export function bootTarget(requested: string): { model: string; workflow: SampleWorkflow | null } {
+  const workflow = workflowOf(requested) ?? null;
+  return { model: workflow ? workflow.model : requested, workflow };
+}
+
 /** What a single-file bundle says about the models inside it. Not a single file: null (the served app loads every sample). */
 export interface BundleContents {
   /** Models embedded as glb with their sidecar (window.__xrayEmbeddedModels). */

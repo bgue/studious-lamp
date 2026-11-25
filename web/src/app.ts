@@ -6,7 +6,7 @@ import GUI from 'lil-gui';
 import { loadModel, parseModel } from './model/loader';
 import type { LoadedModel } from './model/loader';
 import { importIfc } from './model/ifcImport';
-import { SAMPLE_PROJECTS, UNAVAILABLE_HINT, bundleContents, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu, workflowOf } from './samples';
+import { SAMPLE_PROJECTS, UNAVAILABLE_HINT, bootTarget, bundleContents, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu, workflowOf } from './samples';
 import { buildProceduralGlb, proceduralSidecar } from './model/procedural';
 import { BvhGeometryProvider } from './render/geometry';
 import { XrayRenderer } from './render/renderer';
@@ -571,7 +571,12 @@ async function main(): Promise<void> {
   const params = new URLSearchParams(location.search);
   // Initial model: a packaged page's boot model, else ?model=, else the first embedded model, else 'building'.
   const embedded = window.__xrayEmbeddedModels ? Object.keys(window.__xrayEmbeddedModels) : [];
-  const name = bootConfig().model ?? params.get('model') ?? embedded[0] ?? 'building';
+  // A workflow value in ?model= (fzk-haus-4d) is not a model: load its model, then run the workflow like the menu does.
+  // A packaged page's own boot model is always a plain model.
+  const boot = bootConfig().model;
+  const target = bootTarget(boot ?? params.get('model') ?? embedded[0] ?? 'building');
+  const flow = boot === undefined && target.workflow && sampleAvailable(target.workflow.value, bundleContents()) ? target.workflow : null;
+  const name = target.model;
   const canvas = document.getElementById('c') as HTMLCanvasElement;
   const app = new ViewerApp(canvas);
   for (const p of PLUGINS) app.use(p);
@@ -586,6 +591,7 @@ async function main(): Promise<void> {
     },
   };
   await app.start(name);
+  if (flow) await window.__xray4dSchedule?.loadSample();
 }
 
 main().catch((e: unknown) => {

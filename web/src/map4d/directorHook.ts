@@ -7,7 +7,7 @@ import type { FourDModel } from '../schedule/model';
 import type { FourDPlan } from '../schedule/types';
 
 /** The director's result: `{ cues, notes }` (src/schedule/director.ts); a bare cue list is accepted too (a registered test director). */
-export type DirectFn = (plan: FourDPlan, model: FourDModel) => Cue[] | { cues: Cue[]; notes?: string[] };
+export type DirectFn = (plan: FourDPlan, model: FourDModel) => Cue[] | { cues: Cue[]; notes?: string[]; noteTimes?: number[] };
 
 let registered: DirectFn | null = null;
 let probed: Promise<DirectFn | null> | null = null;
@@ -38,7 +38,7 @@ export function loadDirector(): Promise<DirectFn | null> {
 
 export const NO_DIRECTOR_NOTE = 'The camera director is not part of this build, so the film keeps the current camera.';
 
-export interface DirectResult { cues: Cue[]; note: string; notes?: string[] }
+export interface DirectResult { cues: Cue[]; note: string; notes?: string[]; noteTimes?: number[] }
 
 /** Cues of the director for a plan. Without a director, or when it fails, no cues and a note that says why. */
 export async function direct(plan: FourDPlan, model: FourDModel): Promise<DirectResult> {
@@ -48,7 +48,8 @@ export async function direct(plan: FourDPlan, model: FourDModel): Promise<Direct
     const r = fn(plan, model);
     const cues = Array.isArray(r) ? r : Array.isArray(r?.cues) ? r.cues : [];
     const notes = Array.isArray(r) ? [] : r?.notes ?? [];
-    return { cues, note: notes.length ? `The camera director made ${cues.length} moves (${notes.length} decisions; export the script to read why).` : '', notes };
+    const noteTimes = Array.isArray(r) ? [] : r?.noteTimes ?? [];
+    return { cues, note: notes.length ? `The camera director made ${cues.length} moves (${notes.length} decisions; Open as script shows why).` : '', notes, noteTimes };
   } catch (e) {
     return { cues: [], note: `The camera director failed (${e instanceof Error ? e.message : String(e)}), so the film keeps the current camera.` };
   }

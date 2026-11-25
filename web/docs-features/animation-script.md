@@ -164,6 +164,8 @@ Scripts are the person's own text. They are **never** part of the parameters doc
 tool copies them anywhere on its own; only the browser's storage and exported files hold them. A packed page carries a script only
 when you name its exported file yourself (`xray-pack --scripts a.xrayanim --autoplay script:a`, see [xray-pack.md](xray-pack.md)).
 
+A script of a 4D film can come from the 4D tab: **Open as script** in its film bar loads the film, camera moves included, into the editor under the schedule's name, unsaved.
+
 ## For scripts and smoke tests
 
 ```js
