@@ -26,7 +26,7 @@ being fitted inside a closed wall stay visible without hiding the building.
 
 ### Try it
 
-1. Choose **FZK-Haus 4D** in Sample Projects. The 4D tab opens on **Play**.
+1. Choose **FZK-Haus 4D** in Sample Projects. The 4D tab opens with the film bar at the top.
 2. Open **Style**. Set **Unbuilt parts** to `faint ghost`, then press **Play**. The finished house is faintly there and
    fills in as work runs.
 3. Set **X-ray active work** off and play again. Whatever stands in front of the active work is no longer ghosted, so walls can hide it. Turn it back on.
@@ -103,9 +103,13 @@ sections says so. Nothing breaks.
 
 ### Edit the film as a script
 
-The director's decisions can be written as a readable animation script (chapter 23). That is a command-line step
-(chapter 32): `xray-4d script build.4d.json --model model.ifc -o film.xrayanim`. The script has a header, the `schedule`
-statement, then one `at date` block for every moment the director acts, with a comment saying why. You can change a
+The director's decisions can be written as a readable animation script (chapter 23). Press **Open as script** in the film bar.
+The viewer builds the plan as **Play** would, runs the director, and opens the result in the **Script** tab under the
+project's name, not yet saved. Press **Run** there and the same film plays. **Save** keeps it in your list of scripts.
+
+The script has a header, the `schedule` statement, then one `at date` block for every moment the director acts, with a
+comment saying why. The command line makes the same script (chapter 32):
+`xray-4d script build.4d.json --model model.ifc -o film.xrayanim`. You can change a
 shot, move a caption or add `mode cutaway` for an interior phase, then run it in the Script tab (chapter 23) or hand it to
 `xray-4d render --script`. Check the script after editing: the Script tab and `xray-4d` both compile it, and show errors
 with line numbers.

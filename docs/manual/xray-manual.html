@@ -4726,10 +4726,11 @@ starts on 1 March 2027.</p>
 <ol>
 <li>Open the <strong>Parameters</strong> tab of the right sidebar and the <strong>Sample Projects</strong> folder.</li>
 <li>In the <strong>Model</strong> list, choose <strong>FZK-Haus 4D</strong>. The viewer loads the house, then the schedule and its configuration,
-    links every element it can, builds the plan and opens the <strong>4D</strong> tab on <strong>Play</strong>.</li>
+    links every element it can, builds the plan and opens the <strong>4D</strong> tab. The <strong>film bar</strong> sits at the top of the tab: <strong>Play</strong>,
+    <strong>Pause</strong>, <strong>Stop</strong>, the date slider, <strong>Record</strong> and <strong>Open as script</strong>. It stays in view while you scroll the rest of the tab.</li>
 <li>Press <strong>Play</strong>. The house builds over about 90 s: first the ground slab, then the walls, the roof frame and roof deck,
     then windows, doors, stair and railings. The date, the week and the percentage complete are drawn on the picture.</li>
-<li>Drag the date slider in the <strong>Play</strong> section. It scrubs by schedule date: you see the house as it stands on that day.</li>
+<li>Drag the date slider in the film bar. It scrubs by schedule date: you see the house as it stands on that day.</li>
 <li>Scrub to 19 May 2027, the data date. One activity is under way: the rafters.</li>
 </ol>
 <figure class="pic"><span class="pic-k">Picture</span><figcaption>the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.</figcaption></figure>
@@ -5093,7 +5094,7 @@ player (<a href="#ch-21">chapter 21</a>) and plays it. The plan says, for each e
 being fitted inside a closed wall stay visible without hiding the building.</p>
 <h3>Try it</h3>
 <ol>
-<li>Choose <strong>FZK-Haus 4D</strong> in Sample Projects. The 4D tab opens on <strong>Play</strong>.</li>
+<li>Choose <strong>FZK-Haus 4D</strong> in Sample Projects. The 4D tab opens with the film bar at the top.</li>
 <li>Open <strong>Style</strong>. Set <strong>Unbuilt parts</strong> to <code>faint ghost</code>, then press <strong>Play</strong>. The finished house is faintly there and
     fills in as work runs.</li>
 <li>Set <strong>X-ray active work</strong> off and play again. Whatever stands in front of the active work is no longer ghosted, so walls can hide it. Turn it back on.</li>
@@ -5205,9 +5206,12 @@ when a section box clips to one storey, which captions appear and which activiti
 <p>If the director is missing from the build, or it fails, the film keeps the current camera, and a note in the Style and Play
 sections says so. Nothing breaks.</p>
 <h3>Edit the film as a script</h3>
-<p>The director's decisions can be written as a readable animation script (<a href="#ch-23">chapter 23</a>). That is a command-line step
-(<a href="#ch-32">chapter 32</a>): <code>xray-4d script build.4d.json --model model.ifc -o film.xrayanim</code>. The script has a header, the <code>schedule</code>
-statement, then one <code>at date</code> block for every moment the director acts, with a comment saying why. You can change a
+<p>The director's decisions can be written as a readable animation script (<a href="#ch-23">chapter 23</a>). Press <strong>Open as script</strong> in the film bar.
+The viewer builds the plan as <strong>Play</strong> would, runs the director, and opens the result in the <strong>Script</strong> tab under the
+project's name, not yet saved. Press <strong>Run</strong> there and the same film plays. <strong>Save</strong> keeps it in your list of scripts.</p>
+<p>The script has a header, the <code>schedule</code> statement, then one <code>at date</code> block for every moment the director acts, with a
+comment saying why. The command line makes the same script (<a href="#ch-32">chapter 32</a>):
+<code>xray-4d script build.4d.json --model model.ifc -o film.xrayanim</code>. You can change a
 shot, move a caption or add <code>mode cutaway</code> for an interior phase, then run it in the Script tab (<a href="#ch-23">chapter 23</a>) or hand it to
 <code>xray-4d render --script</code>. Check the script after editing: the Script tab and <code>xray-4d</code> both compile it, and show errors
 with line numbers.</p>

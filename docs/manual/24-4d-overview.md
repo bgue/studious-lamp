@@ -63,10 +63,11 @@ starts on 1 March 2027.
 
 1. Open the **Parameters** tab of the right sidebar and the **Sample Projects** folder.
 2. In the **Model** list, choose **FZK-Haus 4D**. The viewer loads the house, then the schedule and its configuration,
-   links every element it can, builds the plan and opens the **4D** tab on **Play**.
+   links every element it can, builds the plan and opens the **4D** tab. The **film bar** sits at the top of the tab: **Play**,
+   **Pause**, **Stop**, the date slider, **Record** and **Open as script**. It stays in view while you scroll the rest of the tab.
 3. Press **Play**. The house builds over about 90 s: first the ground slab, then the walls, the roof frame and roof deck,
    then windows, doors, stair and railings. The date, the week and the percentage complete are drawn on the picture.
-4. Drag the date slider in the **Play** section. It scrubs by schedule date: you see the house as it stands on that day.
+4. Drag the date slider in the film bar. It scrubs by schedule date: you see the house as it stands on that day.
 5. Scrub to 19 May 2027, the data date. One activity is under way: the rafters.
 
 > Picture: the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.
