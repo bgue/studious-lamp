@@ -48,6 +48,7 @@ While a `schedule4d` cue runs the HUD layer draws, besides captions and labels:
 
 - **Schedule date** (top left): the date, `Week n · year` (ISO week) and `Planned x %` and, when the plan has actuals up to now, `Actual y %`. The date also replaces the `m:ss / m:ss` clock on the progress bar.
 - **Activities** (below it): `Now: n activities`, the 5 with most elements, each with a swatch in its trade colour (outlined red when critical) and its element count.
+  Activities marked `notModelled` in the configuration (work the model does not contain) have no elements and no row; while they run, one dim line under the rows reads `Also under way (not in the model): A, B +N more` (at most two names; `FourDView.notInModel`).
 - **S-curve** (top right, below the compass when it is on): planned progress over the whole window, actual progress up to the last actual sample, a marker for now.
 - **Milestone caption** (top centre): the plan's milestone names, held for `style.milestoneHold` seconds of video from the moment the film reaches them, with a short fade.
 - **Legend** (bottom left, above the progress bar): the trade colours of the work going on, `Critical` (red outline), and, when the plan has actuals, `Behind` and `Ahead`.

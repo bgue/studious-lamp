@@ -76,6 +76,7 @@ try {
   const opened = await openFile(page, FZK, 'AC20-FZK-Haus.ifc');
   await page.evaluate(() => window.__xray4dMap.open());
   await page.waitForSelector('#dk-pane-4d .x4');
+  await page.evaluate(() => window.__xray4dSchedule.step('map')); // the tab starts on Link without a schedule; the mapping sections are step 1
   await page.waitForFunction(() => document.getElementById('dock').getBoundingClientRect().width >= 400, null, { timeout: 20000 }).catch(() => undefined);
   const st = await page.evaluate(() => ({ s: window.__xrayRightSidebar.state(), w: document.getElementById('dock').getBoundingClientRect().width, v: document.getElementById('dock').style.getPropertyValue('--dk-w'), act: document.querySelector('#dock .dk-tab.active')?.textContent }));
   check('the 4D tab opens at 420 px', st.s.tab === '4d' && !st.s.collapsed && st.v === '420px' && st.w >= 400 && st.w <= 440, JSON.stringify(st));
@@ -234,6 +235,7 @@ try {
   await openFile(pp, FZK, 'AC20-FZK-Haus.ifc (phone)');
   await pp.evaluate(() => window.__xray4dMap.open());
   await pp.waitForSelector('#dk-pane-4d .x4', { state: 'visible' });
+  await pp.evaluate(() => window.__xray4dSchedule.step('map'));
   await pp.waitForTimeout(500);
   const lay = await pp.evaluate(() => {
     const d = document.getElementById('dock').getBoundingClientRect();

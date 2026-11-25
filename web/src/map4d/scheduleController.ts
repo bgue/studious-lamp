@@ -33,7 +33,7 @@ import { filmName, filmScript } from './filmScript';
 import type { FilmDirected } from './filmScript';
 import { ACTIVITY_IDS_PROPERTY, activityIdsMap } from './ifcio';
 import { countLinks, decideLink, decisionLinks, parseLinks, serializeLinks } from './linkReview';
-import { emptyConfig, guessConfig, parseConfig, serializeConfig, setStyle } from './scheduleConfig';
+import { emptyConfig, guessConfig, parseConfig, serializeConfig, setNotModelled, setStyle } from './scheduleConfig';
 import type { ParsedConfig } from './scheduleConfig';
 import { MAX_STORED_XER, ScheduleStore } from './scheduleStore';
 import type { ScheduleRecord } from './scheduleStore';
@@ -56,7 +56,7 @@ export interface ScheduleSummary {
 
 export interface LinkSummary {
   elements: { considered: number; linked: number; tied: number; unlinked: number; ratio: number };
-  activities: { total: number; linked: number; suggestedOnly: number; unlinked: number; ratio: number };
+  activities: { total: number; linked: number; suggestedOnly: number; unlinked: number; ratio: number; notModelled: number };
   ties: number;
   proposed: number;
   accepted: number;
@@ -219,12 +219,21 @@ export class ScheduleController {
       this.config = r.config;
       if (this.schedule && !r.config.schedule.project) this.config.schedule.project = this.schedule.project.shortName;
       this.plan = null;
+      this.refreshReport();
       this.changed();
     }
     return r;
   }
 
   exportConfigText(): string { return serializeConfig(this.config); }
+
+  /** Mark activities as not in the model (or clear the mark): kept with the configuration, no coverage gap, named in the film. */
+  markNotModelled(codes: readonly string[], on: boolean): void {
+    this.config = setNotModelled(this.config, codes, on);
+    this.plan = null;
+    this.refreshReport();
+    this.changed();
+  }
 
   setStyle(patch: Partial<FourDStyle>): void { this.setConfig(setStyle(this.config, patch)); }
 

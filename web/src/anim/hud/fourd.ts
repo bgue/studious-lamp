@@ -26,7 +26,7 @@ export interface FourDDescription {
   /** The text that replaces the clock on the progress bar. */
   clockText: string;
   panel: Rect | null;
-  activities: { rect: Rect; rows: Array<{ name: string; colour: string; elements: number }>; more: number } | null;
+  activities: { rect: Rect; rows: Array<{ name: string; colour: string; elements: number }>; more: number; notInModel?: string } | null;
   curve: { rect: Rect; plannedPoints: number; actualPoints: number; marker: { x: number; y: number } } | null;
   milestone: { name: string; alpha: number; rect: Rect } | null;
   legend: { rect: Rect; entries: string[] } | null;
@@ -148,21 +148,24 @@ export function layoutFourD(ctx: Ctx, inp: FourDLayoutInput): FourDLayout {
   }
 
   // ---- current activities
-  if (st.activities && v.activities.length > 0) {
+  if (st.activities && (v.activities.length > 0 || v.notInModel)) {
     const size = compact ? 11 : 12;
     const pad = 8;
     const rowH = size * 1.55;
     const maxW = Math.min(compact ? W - 2 * margin : 300, W - 2 * margin);
     const nm = measure(font(size));
     const cm = measure(font(size, true));
-    const head = `Now: ${v.activities.length + v.moreActivities} ${v.activities.length + v.moreActivities === 1 ? 'activity' : 'activities'}`;
-    const countW = Math.max(...v.activities.map((a) => cm(String(a.elements))));
+    const nowN = v.activities.length + v.moreActivities;
+    const head = nowN > 0 ? `Now: ${nowN} ${nowN === 1 ? 'activity' : 'activities'}` : 'Now';
+    const outText = v.notInModel ? `Also under way (not in the model): ${v.notInModel.names.join(', ')}${v.notInModel.more ? ` +${v.notInModel.more} more` : ''}` : '';
+    const countW = v.activities.length ? Math.max(...v.activities.map((a) => cm(String(a.elements)))) : 0;
     const inner = maxW - 2 * pad - 16 - countW - 6;
     const rows = v.activities.map((a) => ({ name: fitText(nm, a.name, Math.max(30, inner)), colour: a.colour, elements: a.elements, critical: a.critical }));
-    const w = Math.min(maxW, Math.max(cm(head), ...rows.map((r) => nm(r.name) + 16 + countW + 6)) + 2 * pad);
-    const h = pad * 2 + rowH * (rows.length + 1);
+    const outLines = outText ? [fitText(nm, outText, maxW - 2 * pad)] : [];
+    const w = Math.min(maxW, Math.max(cm(head), ...rows.map((r) => nm(r.name) + 16 + countW + 6), ...outLines.map((l) => nm(l))) + 2 * pad);
+    const h = pad * 2 + rowH * (rows.length + 1 + outLines.length);
     const rect: Rect = { x, y, w, h };
-    desc.activities = { rect, rows: rows.map((r) => ({ name: r.name, colour: r.colour, elements: r.elements })), more: v.moreActivities };
+    desc.activities = { rect, rows: rows.map((r) => ({ name: r.name, colour: r.colour, elements: r.elements })), more: v.moreActivities, ...(outText ? { notInModel: outText } : {}) };
     occupied.push(rect);
     paint.push(() => {
       ctx.fillStyle = PANEL;
@@ -195,6 +198,9 @@ export function layoutFourD(ctx: Ctx, inp: FourDLayoutInput): FourDLayout {
         ctx.fillText(String(r.elements), rect.x + rect.w - pad - cm(String(r.elements)), ty);
         ty += rowH;
       }
+      ctx.font = font(size);
+      ctx.fillStyle = 'rgba(180, 196, 220, 0.8)';
+      for (const l of outLines) { ctx.fillText(l, rect.x + pad, ty); ty += rowH; }
     });
     y = rect.y + rect.h + 6;
   }

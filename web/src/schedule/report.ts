@@ -25,12 +25,13 @@ export interface LinkReport {
       total: number; existing: number; considered: number; linked: number; tied: number; unlinked: number;
       byCount: number; volumeTotal: number; volumeLinked: number; byVolume: number;
     };
-    activities: { total: number; linked: number; suggestedOnly: number; unlinked: number; ratio: number };
+    /** `total` and `ratio` count the modelled activities only; `notModelled` are the marked ones that have no elements, and no gap. */
+    activities: { total: number; linked: number; suggestedOnly: number; unlinked: number; ratio: number; notModelled: number };
     byTrade: CoverageRow[];
     byWbs: CoverageRow[];
   };
   unlinkedElements: Array<{ ifcClass: string; storey: string | null; count: number; volume: number; query: string; globalIds: string[] }>;
-  unlinkedActivities: Array<{ code: string; name: string; wbsPath: string; location?: string; trade?: string; zone?: string; hasSuggestion: boolean }>;
+  unlinkedActivities: Array<{ code: string; name: string; wbsPath: string; location?: string; trade?: string; zone?: string; hasSuggestion: boolean; notModelled: boolean }>;
   ties: Array<{ element: string; name: string; candidates: Array<{ code: string; name: string }> }>;
   lowConfidence: Array<{ activity: string; name: string; confidence: number; source: string; status: string; elements: number; reasons: string[] }>;
   checks: ReportCheck[];
@@ -93,10 +94,13 @@ export function buildReport(schedule: Schedule, links: FourDLinks, model: FourDM
   })).sort((a, b) => b.count - a.count || a.ifcClass.localeCompare(b.ifcClass) || String(a.storey).localeCompare(String(b.storey)));
 
   // activities
-  const unlinkedTasks = building.filter((t) => !linkedTasks.has(t.code));
-  const unlinkedActivities = unlinkedTasks.map((t) => {
+  const unlinkedAll = building.filter((t) => !linkedTasks.has(t.code));
+  const marked = (code: string): boolean => !!opts.config?.activities?.[code]?.notModelled;
+  const unlinkedTasks = unlinkedAll.filter((t) => !marked(t.code));
+  const notModelled = unlinkedAll.length - unlinkedTasks.length;
+  const unlinkedActivities = unlinkedAll.map((t) => {
     const a = actMeta.get(t.code);
-    return { code: t.code, name: t.name, wbsPath: t.wbsPath.join('/'), ...(a?.location !== undefined ? { location: a.location } : {}), ...(a?.trade !== undefined ? { trade: a.trade } : {}), ...(a?.zone !== undefined ? { zone: a.zone } : {}), hasSuggestion: proposedTasks.has(t.code) };
+    return { code: t.code, name: t.name, wbsPath: t.wbsPath.join('/'), ...(a?.location !== undefined ? { location: a.location } : {}), ...(a?.trade !== undefined ? { trade: a.trade } : {}), ...(a?.zone !== undefined ? { zone: a.zone } : {}), hasSuggestion: proposedTasks.has(t.code), notModelled: marked(t.code) };
   });
 
   // by trade and by first WBS level
@@ -105,6 +109,7 @@ export function buildReport(schedule: Schedule, links: FourDLinks, model: FourDM
   const rows = (keyOf: (t: ScheduleTask) => string): CoverageRow[] => {
     const m = new Map<string, CoverageRow>();
     for (const t of building) {
+      if (!linkedTasks.has(t.code) && marked(t.code)) continue;
       const k = keyOf(t);
       const r = m.get(k) ?? { name: k, activities: 0, activitiesLinked: 0, elements: 0 };
       r.activities++;
@@ -140,7 +145,7 @@ export function buildReport(schedule: Schedule, links: FourDLinks, model: FourDM
         tied: considered.filter((e) => tied.has(e.globalId)).length, unlinked: left.length,
         byCount: pct(consideredLinked.length, considered.length), volumeTotal: round(volumeTotal), volumeLinked: round(volumeLinked), byVolume: pct(volumeLinked, volumeTotal),
       },
-      activities: { total: building.length, linked: building.length - unlinkedTasks.length, suggestedOnly: unlinkedTasks.filter((t) => proposedTasks.has(t.code)).length, unlinked: unlinkedTasks.length, ratio: pct(building.length - unlinkedTasks.length, building.length) },
+      activities: { total: building.length - notModelled, linked: building.length - unlinkedAll.length, suggestedOnly: unlinkedTasks.filter((t) => proposedTasks.has(t.code)).length, unlinked: unlinkedTasks.length, ratio: pct(building.length - unlinkedAll.length, building.length - notModelled), notModelled },
       byTrade, byWbs,
     },
     unlinkedElements, unlinkedActivities, ties, lowConfidence, checks,
@@ -274,7 +279,7 @@ code{font:12px ui-monospace,monospace;background:var(--card);padding:1px 4px;bor
 <div class="cards">
 <div class="card"><b>${p1(c.elements.byCount)}</b><span>elements linked (${c.elements.linked} of ${c.elements.considered})</span></div>
 <div class="card"><b>${p1(c.elements.byVolume)}</b><span>by bbox volume (${c.elements.volumeLinked} of ${c.elements.volumeTotal} m3)</span></div>
-<div class="card"><b>${p1(c.activities.ratio)}</b><span>activities linked (${c.activities.linked} of ${c.activities.total})</span></div>
+<div class="card"><b>${p1(c.activities.ratio)}</b><span>activities linked (${c.activities.linked} of ${c.activities.total}${c.activities.notModelled ? `; ${c.activities.notModelled} not in the model` : ''})</span></div>
 <div class="card"><b>${c.elements.existing}</b><span>existing elements</span></div>
 <div class="card"><b>${r.ties.length}</b><span>ties</span></div>
 </div>
@@ -282,9 +287,11 @@ code{font:12px ui-monospace,monospace;background:var(--card);padding:1px 4px;bor
 <h2>Coverage by WBS</h2>${cov(c.byWbs)}
 <h2>Elements with no activity (${c.elements.unlinked})</h2>
 ${table(['Class', 'Storey', 'Elements', 'Volume m3', 'Query'], r.unlinkedElements.map((g) => [esc(g.ifcClass), esc(g.storey ?? '(none)'), String(g.count), String(g.volume), `<code>${esc(g.query)}</code>`]))}
-<h2>Activities with no elements (${r.unlinkedActivities.length})</h2>
-${table(['Activity', 'Name', 'WBS', 'Location', 'Trade', 'Zone', 'Suggestion'], r.unlinkedActivities.map((a) => [esc(a.code), esc(a.name), esc(a.wbsPath), esc(a.location ?? ''), esc(a.trade ?? ''), esc(a.zone ?? ''), a.hasSuggestion ? 'proposed' : '']))}
-<h2>Ties (${r.ties.length})</h2>
+<h2>Activities with no elements (${r.unlinkedActivities.filter((a) => !a.notModelled).length})</h2>
+${table(['Activity', 'Name', 'WBS', 'Location', 'Trade', 'Zone', 'Suggestion'], r.unlinkedActivities.filter((a) => !a.notModelled).map((a) => [esc(a.code), esc(a.name), esc(a.wbsPath), esc(a.location ?? ''), esc(a.trade ?? ''), esc(a.zone ?? ''), a.hasSuggestion ? 'proposed' : '']))}
+${r.coverage.activities.notModelled ? `<h2>Not in the model (${r.coverage.activities.notModelled})</h2>
+${table(['Activity', 'Name', 'WBS'], r.unlinkedActivities.filter((a) => a.notModelled).map((a) => [esc(a.code), esc(a.name), esc(a.wbsPath)]))}
+` : ''}<h2>Ties (${r.ties.length})</h2>
 ${table(['Element', 'Name', 'Candidate activities'], r.ties.map((t) => [`<code>${esc(t.element)}</code>`, esc(t.name), t.candidates.map((x) => `${esc(x.code)} ${esc(x.name)}`).join('<br>')]))}
 <h2>Links to review (${r.lowConfidence.length})</h2>
 ${table(['Activity', 'Name', 'Confidence', 'Source', 'Status', 'Elements', 'Reasons'], r.lowConfidence.map((l) => [esc(l.activity), esc(l.name), l.confidence.toFixed(2), esc(l.source), esc(l.status), String(l.elements), l.reasons.map(esc).join('<br>')]))}
