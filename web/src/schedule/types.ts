@@ -179,7 +179,7 @@ export interface FourDConfig {
   /** Trade value -> an element query used when the model has no trade attribute (criteria language). */
   tradeQueries?: Record<string, string>;
   /** Per-activity overrides by activity ID. */
-  activities?: Record<string, { query?: string; globalIds?: string[]; split?: SplitRule; /** 'remove': the activity demolishes the elements it matches (default 'build'). Added by the linker. */ role?: 'build' | 'remove' }>;
+  activities?: Record<string, { query?: string; globalIds?: string[]; split?: SplitRule; /** 'remove': the activity demolishes the elements it matches (default 'build'). Added by the linker. */ role?: 'build' | 'remove'; /** true: the activity builds something the model does not contain (earthworks, finishes ...). It is no coverage gap and the film names it as work not in the model. Set by a person in the Link step. */ notModelled?: boolean }>;
   /** Split rule by trade value ('*' = default). */
   split?: Record<string, SplitRule>;
   style: FourDStyle;
@@ -295,6 +295,8 @@ export interface PlanTask {
   location?: string;
   trade?: string;
   elements: number;
+  /** Marked 'not in the model' in the configuration and without elements: the HUD names it while it runs. */
+  notModelled?: boolean;
 }
 
 export interface FourDPlan {

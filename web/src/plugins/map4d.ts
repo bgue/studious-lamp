@@ -85,6 +85,10 @@ export interface Schedule4dApi {
   loadSample(): Promise<PlayResult>;
   /** Open the 4D tab and a section of it (schedule, configure, link, style, play): the section opens when collapsed and scrolls into view; play scrolls to the film bar at the top. */
   open(section?: string): void;
+  /** Show a step of the tab (map, link or film) without opening a section; no argument: the step now shown. Null while the tab is not built. */
+  step(id?: 'map' | 'link' | 'film'): 'map' | 'link' | 'film' | null;
+  /** Mark activities as not in the model (or clear the mark): kept with the configuration. */
+  markNotModelled(codes: string[], on?: boolean): void;
   ready(): Promise<void>;
   flush(): Promise<boolean>;
   reset(): void;
@@ -161,6 +165,8 @@ export const map4dPlugin: AppPlugin = (() => {
         workSchedule: (ids) => sc.workSchedule(ids),
         loadSample: async () => { open('play'); const r = await sc.loadSample(); panel?.render(); open('play'); return r; },
         open,
+        step: (id) => panel?.showStep(id) ?? null,
+        markNotModelled: (codes, on = true) => sc.markNotModelled(codes, on),
         ready: () => sc.ready(),
         flush: () => sc.flush(),
         reset: () => sc.reset(),
@@ -185,6 +191,6 @@ export const map4dPlugin: AppPlugin = (() => {
         run: () => tab?.show(),
       });
     },
-    onModel() { ctl?.onModel(); sched?.onModel(); panel?.render(); },
+    onModel() { ctl?.onModel(); sched?.onModel(); panel?.render(); panel?.repick(); },
   };
 })();

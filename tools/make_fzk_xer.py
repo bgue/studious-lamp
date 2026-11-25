@@ -11,7 +11,9 @@ rafters, topping-out), roof deck and tiling, windows and external doors once the
 "weathertight" milestone that releases services first fix, plaster, screed and its 20-day drying (the classic critical
 path of a house), stair and railings on the finished screed, finishes, second fix, external works in parallel, snagging,
 inspection and handover. Activities without geometry in the model (services, plaster, render, drying) stay in the
-schedule as they would in a real one; the 4D linker reports them as activities with no elements.
+schedule as they would in a real one; the 4D linker reports them as activities with no elements. The configuration marks them
+`notModelled` (config.activities[code].notModelled), so the viewer lists them under "Not in the model" and the film names them
+while they run instead of looking broken. A task counts as not modelled when its trade has no trade query.
 
 The schedule is computed with a forward and backward pass on a Mon-Fri calendar with the Baden-Wuerttemberg public holidays
 of 2027: target (baseline) dates from the plan, early/late dates and total float from the current schedule, where the
@@ -429,6 +431,7 @@ def main() -> None:
         'model': {'location': [{'property': 'Xray_4D.Location'}, {'storey': True}], 'trade': [{'property': 'Xray_4D.Trade'}]},
         'values': {'location': {'EG': 'Erdgeschoss', 'DG': 'Dachgeschoss'}},
         'tradeQueries': TRADE_QUERIES,
+        'activities': {a.code: {'notModelled': True} for a in ACTS if a.kind == 'task' and a.trade not in TRADE_QUERIES},
         'split': SPLITS,
         'style': {
             'view': 'planned', 'unbuilt': 'hidden', 'window': {'kind': 'all'}, 'length': 90, 'pace': 'warp', 'camera': 'director',

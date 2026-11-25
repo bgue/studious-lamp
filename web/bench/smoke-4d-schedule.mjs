@@ -202,6 +202,7 @@ try {
   check('the exported links import again with the same count', imL.r.links === ds.links.length && imL.r.problems.length === 0 && !imL.r.otherSchedule && imL.n1 === imL.n0, JSON.stringify(imL));
 
   // 6. style
+  await page.evaluate(() => window.__xray4dSchedule.step('film')); // Style is in step 3
   await page.locator('#dk-pane-4d [data-sec=style] > summary').click();
   await page.locator('#dk-pane-4d select[data-style=unbuilt]').selectOption('ghost');
   await page.locator('#dk-pane-4d select[data-style=window]').selectOption('lookahead');
@@ -355,6 +356,9 @@ try {
   const smp = await sp.evaluate(() => ({ sum: window.__xray4dSchedule.summary(), cov: window.__xray4dSchedule.report().coverage.elements, tab: window.__xrayRightSidebar.state(), playOpen: document.querySelector('#dk-pane-4d details[data-sec=play]').open, plans: window.__xray4d.plans(), n: window.__xray.app.controller.model.elements.length }));
   check('FZK-Haus 4D loads the model, the sample schedule and configuration, and links every element', smp.sum.project === 'FZK-HAUS' && smp.cov.linked === smp.n && smp.cov.unlinked === 0, JSON.stringify(smp.cov));
   check('it leaves the 4D tab open on Play with the plan ready', smp.tab.tab === '4d' && !smp.tab.collapsed && smp.playOpen && smp.plans.some((p) => p.startsWith('4d:')), JSON.stringify(smp.tab));
+  const nm = await sp.evaluate(() => ({ step: window.__xray4dSchedule.step(), tabs: [...document.querySelectorAll('#dk-pane-4d [role=tablist] [role=tab]')].map((t) => t.textContent), act: window.__xray4dSchedule.report().coverage.activities, status: document.querySelector('#dk-pane-4d [data-x4=film-status]')?.textContent, cfg: Object.values(window.__xray4dSchedule.config().activities ?? {}).filter((a) => a.notModelled).length }));
+  check('the 4D tab shows three steps and starts a linked sample on Film', nm.tabs.length === 3 && /^1 Map/.test(nm.tabs[0]) && /^3 Film/.test(nm.tabs[2]) && nm.step === 'film', JSON.stringify(nm.tabs));
+  check('the sample marks its 25 activities without elements as not in the model; coverage does not count them as a gap', nm.cfg === 25 && nm.act.notModelled === 25 && nm.act.unlinked === 0 && nm.act.total === 15 && /15 of 15 modelled activities have elements . 25 not in the model/.test(nm.status ?? ''), JSON.stringify(nm.act) + ' ' + nm.status);
   await sp.locator('#dk-pane-4d button', { hasText: /^Play$/ }).click();
   await sp.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 60000 });
   await waitClock(sp, 3);
@@ -381,7 +385,9 @@ try {
   await pp.waitForFunction(() => window.__xray.app.modelName === 'fzk-haus' && window.__xray4dSchedule.report()?.coverage.elements.byCount > 0.99, null, { timeout: 180000 });
   await pp.evaluate(() => window.__xray4dSchedule.open('play'));
   await pp.waitForSelector('#dk-pane-4d .x4', { state: 'visible' });
+  await pp.evaluate(() => window.__xray4dSchedule.step('link'));
   await pp.locator('#dk-pane-4d [data-sec=configure] > summary').click();
+  await pp.evaluate(() => window.__xray4dSchedule.step('film'));
   await pp.locator('#dk-pane-4d [data-sec=style] > summary').click();
   await pp.waitForTimeout(500);
   const lay = await pp.evaluate(() => {

@@ -38,6 +38,9 @@ const CSS = `
 .x4 .x4-film-need{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .x4 .x4-film-need>span{flex:1 1 140px}
 .x4 details[data-sec]{scroll-margin-top:92px}
+.x4 .x4-film-status{font-size:11px;color:var(--sb-dim,#8d99a8)}
+.x4 .x4-film-status:empty{display:none}
+.x4 .x4-notin{border-color:var(--sb-line,#262d3a)}
 @media (max-width:700px){.x4 input[type=date]{height:32px}}
 `;
 
@@ -320,6 +323,7 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     reportBtn.disabled = !sc.report;
     selUnlinked.disabled = !sc.links || (sc.links.unlinked_elements?.length ?? 0) === 0;
     expLinks.disabled = !sc.links;
+    const gapOpen = noElBox.querySelector<HTMLDetailsElement>('details:not(.x4-notin)')?.open ?? false;
     covBox.replaceChildren();
     groupBox.replaceChildren();
     noElBox.replaceChildren();
@@ -334,10 +338,10 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     const r1 = el('tr', '', { 'data-row': 'elements' });
     r1.append(el('td', '', undefined, 'Elements'), el('td', 'n', undefined, String(sum.elements.linked)), el('td', 'n', undefined, String(sum.elements.considered)), el('td', 'n', undefined, pct(sum.elements.ratio)));
     const r2 = el('tr', '', { 'data-row': 'activities' });
-    r2.append(el('td', '', undefined, 'Activities'), el('td', 'n', undefined, String(sum.activities.linked)), el('td', 'n', undefined, String(sum.activities.total)), el('td', 'n', undefined, pct(sum.activities.ratio)));
+    r2.append(el('td', '', undefined, sum.activities.notModelled ? 'Modelled activities' : 'Activities'), el('td', 'n', undefined, String(sum.activities.linked)), el('td', 'n', undefined, String(sum.activities.total)), el('td', 'n', undefined, pct(sum.activities.ratio)));
     t.append(r1, r2);
     covBox.append(t, bar(sum.elements.ratio));
-    const bits = [`${sum.ties} tied`, `${sum.activities.suggestedOnly} with a suggestion only`, `${sum.accepted} accepted, ${sum.proposed} proposed, ${sum.rejected} rejected`];
+    const bits = [...(sum.activities.notModelled ? [`${sum.activities.linked} of ${sum.activities.total} modelled activities linked; ${sum.activities.notModelled} not in the model`] : []), `${sum.ties} tied`, `${sum.activities.suggestedOnly} with a suggestion only`, `${sum.accepted} accepted, ${sum.proposed} proposed, ${sum.rejected} rejected`];
     covBox.append(el('div', 'x4-dim', undefined, bits.join('. ') + '.'));
 
     const groups = sc.report.unlinkedElements;
@@ -350,13 +354,37 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
         groupBox.append(line);
       }
     }
-    const na = sc.report.unlinkedActivities;
+    const all = sc.report.unlinkedActivities;
+    const na = all.filter((a) => !a.notModelled);
+    const out = all.filter((a) => a.notModelled);
     if (na.length) {
       const d = el('details');
+      d.open = gapOpen;
       d.append(help(el('summary', '', undefined, `${plural(na.length, 'activity')} without elements`), 'Unlinked activities'));
       const list = el('div', 'x4-list');
-      for (const a of na.slice(0, 80)) list.append(el('div', 'x4-item', undefined, `${a.code} ${a.name}${a.hasSuggestion ? ' (suggestion)' : ''}`));
-      d.append(list);
+      for (const a of na.slice(0, 80)) {
+        const line = el('div', 'x4-item', { 'data-activity': a.code });
+        line.append(el('span', 'grow', undefined, `${a.code} ${a.name}${a.hasSuggestion ? ' (suggestion)' : ''}`),
+          btn('Not modelled', 'Mark not modelled', () => { sc.markNotModelled([a.code], true); }));
+        list.append(line);
+      }
+      const bulk = btn('Mark all not modelled', 'Mark all not modelled', () => { sc.markNotModelled(na.filter((a) => !a.hasSuggestion).map((a) => a.code), true); });
+      bulk.disabled = na.every((a) => a.hasSuggestion);
+      bulk.title = 'Activities with a suggestion are left out: decide the suggestion first';
+      d.append(el('div', 'x4-dim', undefined, 'Some activities build things that the model does not contain, such as earthworks or finishes. Mark them so they are no gap.'), list, bulk);
+      noElBox.append(d);
+    }
+    if (out.length) {
+      const d = el('details', 'x4-notin', { 'data-x4': 'not-in-model' });
+      d.open = true;
+      d.append(help(el('summary', '', undefined, `Not in the model (${out.length})`), 'Not in the model'));
+      const list = el('div', 'x4-list');
+      for (const a of out.slice(0, 120)) {
+        const line = el('div', 'x4-item', { 'data-activity': a.code });
+        line.append(el('span', 'grow', undefined, `${a.code} ${a.name}`), btn('Back to list', 'Back to the gap list', () => { sc.markNotModelled([a.code], false); }));
+        list.append(line);
+      }
+      d.append(el('div', 'x4-dim', undefined, 'These activities build things the model does not contain. They are no gap, and the film names them while they run.'), list);
       noElBox.append(d);
     }
     const props = proposedLinks(sc.links);
@@ -485,10 +513,11 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   const need = el('div', 'x4-film-need', { 'data-x4': 'film-missing' });
   need.append(needText, needOpen, needLink);
   const pNote = el('div', 'x4-warn', { 'data-x4': 'play-note' });
+  const filmStatus = el('div', 'x4-film-status', { 'data-x4': 'film-status' });
   const controls = el('div', '', { 'data-x4': 'film-ready' });
   controls.style.cssText = 'display:flex;flex-direction:column;gap:6px';
   controls.append(pRow, sRow);
-  bar.append(need, controls, pNote, pMsg.box);
+  bar.append(need, controls, filmStatus, pNote, pMsg.box);
   root.prepend(bar);
 
   const pSec = section('Play', 'play', true, 'Play');
@@ -509,6 +538,18 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   });
   pSec.append(el('div', 'x4-dim', undefined, 'The film controls (Play, date bar, Record, Open as script) are in the bar at the top of this tab. Space pauses. Save IFC writes the task codes of accepted links into the model file.'), saveBtn);
 
+  /** Where the linking stands, for the film bar: "82 of 82 elements linked · 15 of 40 activities have elements". */
+  function linkStatusText(): string {
+    const sum = sc.linkSummary();
+    if (!sum) return '';
+    const e = sum.elements;
+    const a = sum.activities;
+    const acts = a.notModelled
+      ? `${a.linked} of ${a.total} modelled activities have elements \u00b7 ${a.notModelled} not in the model`
+      : `${a.linked} of ${a.total} activities have elements`;
+    return `${e.linked} of ${e.considered} elements linked \u00b7 ${acts}`;
+  }
+
   function renderPlay(): void {
     const ready = !!sc.schedule && !!sc.links && sc.acceptedLinks().length > 0;
     need.style.display = ready ? 'none' : '';
@@ -528,6 +569,7 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     slider.disabled = !ready;
     saveBtn.disabled = sc.acceptedLinks().length === 0;
     pNote.textContent = sc.note;
+    filmStatus.textContent = linkStatusText();
     const w = winMs();
     if (!w) { dateOut.textContent = ready ? 'Press Play' : ''; return; }
     if (!dragging) {

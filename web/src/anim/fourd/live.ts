@@ -96,6 +96,8 @@ export interface FourDView {
   activities: ActivityRow[];
   /** Activities running now beyond the five listed. */
   moreActivities: number;
+  /** Activities marked 'not in the model' that run now: at most two names, then the rest as a count. */
+  notInModel: { names: string[]; more: number } | null;
   /** The milestone held on screen now (name), with 0..1 fade-in/out alpha. */
   milestone: { name: string; alpha: number } | null;
   /** Position of the data date on the cue, 0..1 of the cue (null: no data date or outside the window). */
@@ -141,6 +143,7 @@ export function viewAt(plan: FourDPlan, p: number, dur: number): FourDView {
     elements: k.elements,
     critical: k.critical,
   }));
+  const outside = plan.tasks.filter((k) => !k.milestone && k.notModelled && k.start <= ms && ms < k.end).sort((a, b) => a.start - b.start || a.code.localeCompare(b.code));
   const trades: Array<{ trade: string; colour: string }> = [];
   for (const k of running) {
     const key = k.trade ?? 'Work';
@@ -182,6 +185,7 @@ export function viewAt(plan: FourDPlan, p: number, dur: number): FourDView {
     ...(actualPct !== undefined ? { actualPct } : {}),
     activities: rows,
     moreActivities: Math.max(0, running.length - rows.length),
+    notInModel: outside.length ? { names: outside.slice(0, 2).map((k) => k.name), more: Math.max(0, outside.length - 2) } : null,
     milestone,
     dataDate,
     trades,

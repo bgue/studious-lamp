@@ -7,7 +7,10 @@ import { el } from '../ui/dom';
 import type { Assignment, AttributeKind } from '../schedule/types';
 import { ATTRIBUTES, ATTRIBUTE_LABEL } from './assignments';
 import type { Map4dController } from './controller';
+import { proposedLinks } from './linkReview';
 import { buildSchedulePanel } from './schedulePanel';
+import { buildStepBar, STEP_OF_SECTION } from './stepBar';
+import type { StepId, StepInput } from './stepBar';
 import type { ScheduleController } from './scheduleController';
 import type { Target } from './targets';
 import { colourOf } from './values';
@@ -70,7 +73,7 @@ const btn = (text: string, key: string, onClick: () => void, cls = ''): HTMLButt
 const confText = (c: number | undefined): string => (c === undefined ? '' : c.toFixed(2));
 const lower = (a: AttributeKind): string => ATTRIBUTE_LABEL[a].toLowerCase();
 
-export interface PanelHandle { dispose(): void; render(): void; setAttribute(a: AttributeKind): void; openSection(id: string): void }
+export interface PanelHandle { dispose(): void; render(): void; setAttribute(a: AttributeKind): void; openSection(id: string): void; /** Show a step of the tab (map, link, film) without opening a section; returns the step shown. */ showStep(id?: string): StepId; /** Pick the start step again from the state (a new model was opened). */ repick(): void }
 
 export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dController, sc: ScheduleController, ctx: { visible(): boolean; onVisible(cb: (v: boolean) => void): () => void }): PanelHandle {
   ensureStyle();
@@ -79,7 +82,7 @@ export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dControl
   let attr: AttributeKind = 'location';
   let raf = 0;
 
-  const status = el('div', 'x4-dim');
+  const status = el('div', 'x4-dim', { 'data-step': 'map', 'data-x4': 'map-status' });
   const msg = el('div', 'x4-msg');
   const say = (text: string, err = false): void => { msg.textContent = text; msg.classList.toggle('err', err); };
 
@@ -92,7 +95,7 @@ export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dControl
     segBtns.set(a, b);
     seg.append(b);
   }
-  const top = el('div', 'x4-row');
+  const top = el('div', 'x4-row', { 'data-step': 'map' });
   top.append(el('span', 'x4-dim', undefined, 'Attribute'), seg);
   root.append(status, top);
 
@@ -345,6 +348,22 @@ export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dControl
   ioRow.append(exportBtn, importBtn, resetBtn, file);
   io.body.append(el('div', 'x4-dim', undefined, 'The file is a LinkML LinkDataset with model, elements and assignments. Save IFC writes the accepted values into the model file.'), ioRow);
 
+  // ---------------------------------------------------------------- the three steps
+  const steps = buildStepBar(root, () => { const pane = root.parentElement; if (pane) pane.scrollTop = 0; });
+  root.querySelector('.x4-film')?.after(steps.element);
+  steps.tag();
+  const stepInput = (): StepInput => ({
+    accepted: c.assignments.filter((x) => x.status === 'accepted').length,
+    proposed: c.assignments.filter((x) => x.status === 'proposed').length,
+    hasSchedule: !!sc.schedule,
+    hasLinks: !!sc.links,
+    acceptedLinks: sc.acceptedLinks().length,
+    ties: sc.report?.ties.length ?? 0,
+    suggestions: proposedLinks(sc.links).length,
+  });
+  const updateSteps = (): void => steps.update(stepInput());
+  const repick = (): void => { updateSteps(); steps.repick(Promise.all([c.ready(), sc.ready()]), stepInput); };
+
   // ---------------------------------------------------------------- render
   function renderValues(): void {
     const list = c.valueList(attr);
@@ -392,7 +411,7 @@ export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dControl
   function renderStatus(): void {
     const a = c.assignments.filter((x) => x.status === 'accepted').length;
     const p = c.assignments.filter((x) => x.status === 'proposed').length;
-    status.textContent = c.model ? `${a} accepted, ${p} proposed. ${c.persistent ? 'Kept in this browser per model.' : 'Not kept after this session (no browser storage).'}` : 'Open a model to map it.';
+    status.textContent = c.model ? `Manual assignments: ${a} accepted, ${p} proposed. ${c.persistent ? 'Kept in this browser for this model.' : 'Not kept after this session (no browser storage).'}` : 'Open a model to map it.';
   }
 
   function render(): void {
@@ -403,6 +422,7 @@ export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dControl
     renderProposals();
     renderTable();
     renderCoverage();
+    updateSteps();
   }
   const schedule = (): void => { if (!ctx.visible()) return; if (raf) return; raf = requestAnimationFrame(() => { raf = 0; render(); }); };
 
@@ -412,16 +432,26 @@ export function buildMapPanel(pane: HTMLElement, app: ViewerApp, c: Map4dControl
   }
 
   const off = c.onChange(schedule);
+  const offSc = sc.onChange(() => { if (ctx.visible()) updateSteps(); });
   const offVis = ctx.onVisible((v) => {
     if (v) { c.resume(); render(); } else { c.release(); }
   });
   const onSel = (): void => { if (ctx.visible()) updateSel(); };
   document.addEventListener('xray-selection', onSel);
   render();
+  repick();
   return {
     render: () => { render(); sched.render(); },
     setAttribute,
-    openSection(id) { sched.open(id); },
-    dispose() { sched.dispose(); off(); offVis(); document.removeEventListener('xray-selection', onSel); if (raf) cancelAnimationFrame(raf); root.remove(); },
+    openSection(id) {
+      const st = STEP_OF_SECTION[id];
+      if (st) steps.show(st);
+      const own = root.querySelector<HTMLDetailsElement>(`details[data-sec="${id}"]`);
+      if (own && st === 'map') { own.open = true; own.scrollIntoView({ block: 'start' }); return; }
+      sched.open(id);
+    },
+    repick,
+    showStep(id) { if (id === 'map' || id === 'link' || id === 'film') steps.show(id); return steps.current(); },
+    dispose() { sched.dispose(); off(); offSc(); offVis(); document.removeEventListener('xray-selection', onSel); if (raf) cancelAnimationFrame(raf); root.remove(); },
   };
 }

@@ -2,7 +2,7 @@
 
 The **4D tab** of the right sidebar gives each element of the model a **location**, a **trade** and a **zone**. A P6 schedule can then be linked to the model by those three attributes, in the schedule sections of the same tab ([4d-schedule.md](4d-schedule.md); design: [4d-xer-animation.md](../../docs/design/4d-xer-animation.md), sections 3 and 10)). The values are saved into the IFC file (property set `Xray_4D`), kept in the browser per model, and exchanged as a LinkML dataset with SQL or MCP tools.
 
-Open it with the tab `4D` (order 50, 420 px wide; a bottom sheet on a phone), with the command `4D mapping: open the 4D tab`, or with `window.__xray4dMap.open()`.
+The mapping sections are **step 1 Map** of the tab's three steps (Map, Link, Film; see [4d-schedule.md](4d-schedule.md)). The status line there reads "Manual assignments: N accepted, N proposed. Kept in this browser for this model." and counts these assignments only, not schedule links. Open it with the tab `4D` (order 50, 420 px wide; a bottom sheet on a phone), with the command `4D mapping: open the 4D tab`, or with `window.__xray4dMap.open()`.
 
 ## The data
 

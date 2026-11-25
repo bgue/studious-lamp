@@ -48,6 +48,83 @@
     "STAIRS": "class = 'IfcStair'",
     "RAILINGS": "class = 'IfcRailing'"
   },
+  "activities": {
+    "A1100": {
+      "notModelled": true
+    },
+    "A1110": {
+      "notModelled": true
+    },
+    "A1120": {
+      "notModelled": true
+    },
+    "A1130": {
+      "notModelled": true
+    },
+    "A1140": {
+      "notModelled": true
+    },
+    "A1150": {
+      "notModelled": true
+    },
+    "A1230": {
+      "notModelled": true
+    },
+    "A1260": {
+      "notModelled": true
+    },
+    "A1340": {
+      "notModelled": true
+    },
+    "A1440": {
+      "notModelled": true
+    },
+    "A1450": {
+      "notModelled": true
+    },
+    "A1500": {
+      "notModelled": true
+    },
+    "A1510": {
+      "notModelled": true
+    },
+    "A1520": {
+      "notModelled": true
+    },
+    "A1600": {
+      "notModelled": true
+    },
+    "A1610": {
+      "notModelled": true
+    },
+    "A1620": {
+      "notModelled": true
+    },
+    "A1630": {
+      "notModelled": true
+    },
+    "A1640": {
+      "notModelled": true
+    },
+    "A1670": {
+      "notModelled": true
+    },
+    "A1680": {
+      "notModelled": true
+    },
+    "A1690": {
+      "notModelled": true
+    },
+    "A1695": {
+      "notModelled": true
+    },
+    "A1700": {
+      "notModelled": true
+    },
+    "A1800": {
+      "notModelled": true
+    }
+  },
   "split": {
     "MASON-EXT": "sweep_x",
     "MASON-INT": "sweep_x",

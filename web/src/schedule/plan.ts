@@ -256,7 +256,7 @@ export function buildPlan(schedule: Schedule, links: FourDLinks, model: FourDMod
     const end = ms ? at : sp.end;
     if (end < wf || start > wt) continue;
     const a = actAttr.get(t.code);
-    tasks.push({ code: t.code, name: t.name, start, end, critical: isCritical(t, style), milestone: ms, ...(a?.location !== undefined ? { location: a.location } : {}), ...(a?.trade !== undefined ? { trade: a.trade } : {}), elements: elCount.get(t.code) ?? 0 });
+    tasks.push({ code: t.code, name: t.name, start, end, critical: isCritical(t, style), milestone: ms, ...(a?.location !== undefined ? { location: a.location } : {}), ...(a?.trade !== undefined ? { trade: a.trade } : {}), elements: elCount.get(t.code) ?? 0, ...(opts.config?.activities?.[t.code]?.notModelled && !elCount.get(t.code) ? { notModelled: true } : {}) });
     if (ms) milestones.push({ code: t.code, name: t.name, at });
     else if (!elCount.get(t.code)) { events.push(Math.max(start, wf + 1), Math.min(end, wt)); }
   }

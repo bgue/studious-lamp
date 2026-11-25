@@ -180,6 +180,26 @@ export function setSplit(config: FourDConfig, trade: string, rule: SplitRule | '
   return c;
 }
 
+/** Mark activities as not in the model (or clear the mark). Other per-activity overrides stay; an entry left empty is dropped. */
+export function setNotModelled(config: FourDConfig, codes: readonly string[], on: boolean): FourDConfig {
+  const c = clone(config);
+  const acts = { ...(c.activities ?? {}) };
+  for (const code of codes) {
+    const { notModelled: _n, ...rest } = acts[code] ?? {};
+    if (on) acts[code] = { ...rest, notModelled: true };
+    else if (Object.keys(rest).length) acts[code] = rest;
+    else delete acts[code];
+  }
+  if (Object.keys(acts).length) c.activities = acts;
+  else delete c.activities;
+  return c;
+}
+
+/** Activity IDs the configuration marks as not in the model. */
+export function notModelledCodes(config: FourDConfig): string[] {
+  return Object.entries(config.activities ?? {}).filter(([, a]) => a.notModelled).map(([k]) => k);
+}
+
 export function setStyle(config: FourDConfig, patch: Partial<FourDStyle>): FourDConfig {
   const c = clone(config);
   c.style = { ...c.style, ...clone(patch) };
