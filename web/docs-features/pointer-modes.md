@@ -13,7 +13,7 @@ What the left mouse button does in the viewport. A two-button toggle under the v
 | Middle drag | Pan | Pan |
 | Shift + middle drag | Orbit about the point under the cursor | Orbit about the point under the cursor |
 | Wheel | Zoom toward the cursor | Zoom toward the cursor |
-| Double click (left) | On an element: select it and fly to it. On empty space: nothing | The same |
+| Double click (left) | On an element: select it and fly to it. On empty space: nothing. `Alt` held: enter Walk mode and drop in on that spot | The same |
 | Double click (middle) | Frame everything (Home) | Frame everything (Home) |
 | Touch | One finger orbits, two fingers zoom and pan | One finger draws the box, two fingers zoom and orbit (pan: switch to Hand) |
 | Cursor | `grab`, `grabbing` while a drag runs | the default arrow |
@@ -37,6 +37,9 @@ per-viewer convenience in `localStorage` `xray.keynav`, not in the params.
 - **Double click.** Left on an element: select it and fly to it with the fly-to framing (Cinematic > Camera fly-to), recorded in
   the view history. Not while a tool owns the pointer (measure) or with Shift, Ctrl or Cmd. Middle: the browser sends no `dblclick`
   for that button, so two quick middle clicks without a drag frame everything, like `Home`.
+- **Drop in here.** `Alt` + double click on the model enters Walk mode and stands on that spot (a surface that faces up, else the floor
+  below the hit point) at the eye height; in Walk mode a plain double click does the same, with the same view direction. See
+  [keyboard.md](keyboard.md#walk-mode-and-navigation-style). The handler is in `src/plugins/walk.ts` (capture phase, so the fly-to above does not also run).
 
 ## Walk mode
 

@@ -2023,8 +2023,22 @@ export class XrayRenderer {
 
   /** Distance from the ray origin to the surface of the last element a pick returned (world units). */
   lastPickDistance = 0;
+  /** Surface normal at the last pick, facing the ray origin (world space). */
+  readonly lastPickNormal = new Vector3(0, 1, 0);
 
-  private pickWithRay(ray: Ray): ElementId | null {
+  /**
+   * First hit of a world ray on a visible element that `accept` lets through (hidden, ghosted and cut-away surfaces are skipped
+   * like in pick). Used by Walk mode collision and the drop-in floor search. The normal faces the ray origin.
+   */
+  raycastVisible(origin: Vector3, direction: Vector3, maxDistance: number, accept?: (id: ElementId) => boolean): { id: ElementId; distance: number; point: Vector3; normal: Vector3 } | null {
+    if (!this.loaded) return null;
+    const ray = new Ray(origin.clone(), direction.clone().normalize());
+    const id = this.pickWithRay(ray, accept, maxDistance);
+    if (id === null) return null;
+    return { id, distance: this.lastPickDistance, point: ray.origin.clone().addScaledVector(ray.direction, this.lastPickDistance), normal: this.lastPickNormal.clone() };
+  }
+
+  private pickWithRay(ray: Ray, accept?: (id: ElementId) => boolean, maxDistance = Infinity): ElementId | null {
     if (!this.loaded) return null;
     const g = this.loaded.geometry;
     const bvh = g.bvh;
@@ -2032,7 +2046,7 @@ export class XrayRenderer {
     let near = 0;
     this.pickEllipseFresh = false;
     for (let iter = 0; iter < 512; iter++) {
-      const hit = bvh.raycastFirst(ray, DoubleSide, near, Infinity);
+      const hit = bvh.raycastFirst(ray, DoubleSide, near, maxDistance);
       if (!hit || hit.faceIndex == null) return null;
       const id = g.elementOfTriangle(hit.faceIndex);
       if (id >= 0) {
@@ -2040,8 +2054,12 @@ export class XrayRenderer {
         const a = alpha[id]!;
         const hidden = (f & FLAG_HIDDEN) !== 0 || a < 0;
         const clickThrough = (f & FLAG_FOCUS) === 0 && a < 0.3;
-        if (!hidden && !clickThrough && !this.cutByViewMode(id, hit.point) && !this.cutByClip(hit.point)) {
+        if (!hidden && !clickThrough && (!accept || accept(id)) && !this.cutByViewMode(id, hit.point) && !this.cutByClip(hit.point)) {
           this.lastPickDistance = hit.distance;
+          if (hit.face) {
+            this.lastPickNormal.set(hit.face.normal.x, hit.face.normal.y, hit.face.normal.z);
+            if (this.lastPickNormal.dot(ray.direction) > 0) this.lastPickNormal.negate();
+          }
           return id;
         }
       }

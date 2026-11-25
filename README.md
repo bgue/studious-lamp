@@ -47,7 +47,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - A single-file viewer, `xray-viewer.html`, that runs from disk.
 - **Navigation**
   - Model tree on the left; a right sidebar with the Properties, Classification and Parameters tabs, a bottom sheet on a phone ([right-sidebar.md](web/docs-features/right-sidebar.md)); hover cards with properties ([hover-info.md](web/docs-features/hover-info.md)).
-  - Keyboard navigation, cheat sheet, command palette, rebindable keys ([keyboard.md](web/docs-features/keyboard.md)).
+  - Keyboard navigation, cheat sheet, command palette, rebindable keys; Walk mode with double click to drop in (Alt + double click from outside), PageUp / PageDown storey jump and optional collision ([keyboard.md](web/docs-features/keyboard.md)).
   - Search bar in the top bar: elements, commands, presets, views, sets, settings and WHERE queries ([search.md](web/docs-features/search.md)).
   - Action panel (toolbar) with a drawer per tool ([toolbar.md](web/docs-features/toolbar.md)), tooltips on every setting
     ([docs/SETTINGS.md](docs/SETTINGS.md)).
@@ -307,7 +307,7 @@ every button of the parameter panel.
 | `X` | Toggle x-ray |
 | `F`, `Home` | Frame the selection (else all); frame all |
 | Arrow keys, `Shift`+arrow keys | Orbit; pan |
-| `Shift+W` | Walk mode: `W A S D Q E` and the arrows walk, strafe and turn, a drag looks around, `Esc` leaves (the `W A S D Q E` keys also fly at all times in the Game navigation style) |
+| `Shift+W` | Walk mode: `W A S D Q E` and the arrows walk, strafe and turn, a drag looks around, double click drops in, `PageUp` / `PageDown` change storey, `Esc` leaves (the `W A S D Q E` keys also fly at all times in the Game navigation style) |
 | `+` / `-`, `PageUp` / `PageDown` | Zoom; storey up and down |
 | `Tab`, `Shift+Tab` | Next and previous selected element |
 | `F6`, `Shift+F6` | Move focus between the 3D view, the left sidebar, the right sidebar and the top bar; in the model tree arrows, `Enter`, `Space` and type-ahead work ([keyboard.md](web/docs-features/keyboard.md#focus-rules)) |

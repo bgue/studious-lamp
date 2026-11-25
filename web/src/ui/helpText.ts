@@ -3013,6 +3013,18 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Choose Game if you like to fly with W A S D at all times.',
     'Report: Appendix I, Presets and keyboard',
   ),
+  'Keyboard/eye height (m)': h(
+    'The slider sets how high the eye is above the floor in Walk mode, in metres.',
+    'Double click a spot in Walk mode and you stand there at this level. PageUp and PageDown keep it on the next level up or down.',
+    'Use 1.6 for a standing adult. Use a lower value to see the room as a child or a wheelchair user does.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Keyboard/Walk collision': h(
+    'The switch makes walls stop you in Walk mode. It is off by default.',
+    'On: W A S D and the arrows stop 0.3 m short of a wall and slide along it. Doors, hidden parts and faded parts do not block. Q and E ignore it.',
+    'Turn the switch on to walk through the rooms without passing through the walls.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
   'Keyboard/smooth moves': h(
     'The switch eases jumps to a stored view, such as front or top. When it is off, the camera jumps at once.',
     'On: the picture glides when you jump to a new angle. Off: it jumps at once.',

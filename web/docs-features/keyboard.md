@@ -49,7 +49,7 @@ cheat sheet still work (the cheat sheet labels them "(Walk mode)").
 | Walk mode, see [Walk mode](#walk-mode-and-navigation-style) | `Shift+w` enters; `Esc` leaves |
 | Zoom in (15 %) | `=`, `+`, `code:NumpadAdd` |
 | Zoom out (15 %) | `-`, `code:NumpadSubtract` |
-| Storey up / down | `PageUp` / `PageDown` |
+| Storey up / down (in Walk mode: the eye moves to the next storey, same spot and eye height) | `PageUp` / `PageDown` |
 | Next / previous selected element | `Tab` / `Shift+Tab` |
 | Previous / next view (history, 50 poses) | `Alt+ArrowLeft` / `Alt+ArrowRight`, mouse buttons 4 and 5 |
 
@@ -126,9 +126,30 @@ the share link, a saved view, a preset or a packed page, and a new model leaves 
 | `Esc`, the chip, the gizmo button | Leave Walk mode (Esc comes before "clear selection"; an open cheat sheet or palette closes first) |
 
 Speeds scale with the model size (the `move speed` and `orbit speed` settings). The orbit target is kept a fixed distance in front of
-the eye, so leaving Walk mode leaves a sane orbit. There is no gravity and no collision, and a high aerial view is a fine place to
+the eye, so leaving Walk mode leaves a sane orbit. There is no gravity, and collision is off unless the `Walk collision` setting is on (below). A high aerial view is a fine place to
 start. A walk is one camera step in the undo stack ([undo.md](undo.md)), like a held key. While a fly-through, a script or a 4D film
 plays, Walk mode is left and `Shift+w` does nothing. While walking, `Shift+w` is not a toggle: `Shift` with `w` runs forward, whichever key goes down first (`nav.walk` is enabled only outside Walk mode, and the keymap always lists the loose-modifier matches after the exact ones, so the held `w` with `Shift` reaches `nav.forward`).
+
+**Drop in here.** In Walk mode, double click a point on the model: the eye glides there (about 400 ms; at once with `smooth moves`
+off or a reduced-motion setting) and stands on that spot at the eye height, facing the same horizontal direction. A surface that faces
+up (normal Y above 0.7) is stood on; for a wall or a ceiling the eye stands on the floor below the hit point: the storey elevation at
+or below it, or else the first surface found by a ray straight down. Outside Walk mode, `Alt` + double click on the model enters Walk
+mode and drops in there (a plain double click still flies to the element).
+
+**Storey jump.** In Walk mode `PageUp` / `PageDown` move the eye to the next storey above / below, keeping x and z and the eye's height
+above that storey's floor (`storeyFloors` of `src/xr/field.ts`, so the elevation counts, not the element centres). The status line
+shows the storey name. Outside Walk mode they step the camera target as before.
+
+**Settings** (Keyboard folder, per viewer in `xray.keynav`, never in the params or a share link):
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `eye height (m)` | 1.6 | The eye height above the floor for drop-in and as the fallback of the storey jump (model units are metres). 0.5 to 3. |
+| `Walk collision` | off | `w a s d`, the arrows and the wheel stop 0.3 m short of geometry and slide along the wall (the blocked part of the move is removed). Up to 3 rays (knee, waist, eye) from the eye in the move direction, only while a move is made. `q` / `e` ignore it. `IfcDoor` elements, hidden elements and ghosted elements (alpha below 0.3) never block; floors and ceilings are not walls. |
+
+The pure parts (`standingSpot`, `stepWalkStorey`, `slideAlongWall`, `collideMove`, `blocksWalk`) are in `src/input/walk.ts` and
+tested in `tests/walk-drop.test.ts`; the ray is `Renderer.raycastVisible`.
+
 
 **Navigation style** (`navigation style` in the `Keyboard` folder, stored with the other keyboard settings in `localStorage`
 `xray.keynav`, not in the params or a share link): `BIM` (default) or `Game`. In `Game` the keys `w a s d q e` fly the camera and its

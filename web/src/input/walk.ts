@@ -8,6 +8,7 @@
 //                     the eye on the horizontal plane, the drag looks around from the eye.
 
 import { Vector3 } from 'three';
+import { FLAG_FOCUS, FLAG_HIDDEN } from '../types';
 
 export type NavStyle = 'bim' | 'game';
 export const DEFAULT_NAV_STYLE: NavStyle = 'bim';
@@ -124,4 +125,147 @@ export function retargetAtDepth(camera: Vector3, viewDir: Vector3, depth: number
 /** Two clicks that count as a double click: close in time and in place. */
 export function isDoubleClick(prev: { t: number; x: number; y: number } | null, now: { t: number; x: number; y: number }, ms = 400, px = 6): boolean {
   return !!prev && now.t - prev.t <= ms && Math.hypot(now.x - prev.x, now.y - prev.y) <= px;
+}
+
+// ---------------------------------------------------------------------------- drop in, storey jump, collision (pure parts)
+
+/** Default eye height above the floor, metres (the model units are metres, see SceneModel.units). */
+export const DEFAULT_EYE_HEIGHT = 1.6;
+export const EYE_HEIGHT_MIN = 0.5;
+export const EYE_HEIGHT_MAX = 3;
+/** A surface counts as a floor to stand on when its normal points up this much. */
+export const FLOOR_NORMAL_Y = 0.7;
+/** Collision: the eye stops this far (metres) from a wall. */
+export const WALK_CLEARANCE = 0.3;
+
+export function parseEyeHeight(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) && v >= EYE_HEIGHT_MIN && v <= EYE_HEIGHT_MAX ? v : null;
+}
+
+export interface FloorLevel {
+  id: number;
+  name: string;
+  /** Floor height in viewer coordinates. */
+  floorY: number;
+}
+
+/** The highest floor at or below `y` (plus `tol`); null when `y` is below every floor. `floors` is sorted lowest first. */
+export function floorAtOrBelow(floors: readonly FloorLevel[], y: number, tol = 0.05): FloorLevel | null {
+  let best: FloorLevel | null = null;
+  for (const f of floors) if (f.floorY <= y + tol) best = f;
+  return best;
+}
+
+/**
+ * Where the eye goes for a double click on a surface. A surface that faces up (normal.y > 0.7) is stood on; for a wall or a
+ * ceiling the floor below the hit point is used: the storey elevation at or below it, else `groundY` (the result of a downward
+ * ray from the hit; null when it found nothing), else the hit height itself. Same x and z as the hit.
+ */
+export function standingSpot(
+  hit: { x: number; y: number; z: number },
+  normal: { x: number; y: number; z: number },
+  floors: readonly FloorLevel[],
+  eyeHeight: number,
+  groundY: number | null = null,
+): { eye: Vector3; floorY: number; onSurface: boolean } {
+  let floorY: number;
+  let onSurface = false;
+  if (normal.y > FLOOR_NORMAL_Y) {
+    floorY = hit.y;
+    onSurface = true;
+  } else {
+    const f = floorAtOrBelow(floors, hit.y);
+    floorY = f ? f.floorY : groundY !== null ? groundY : hit.y;
+  }
+  return { eye: new Vector3(hit.x, floorY + eyeHeight, hit.z), floorY, onSurface };
+}
+
+/**
+ * The storey a PageUp / PageDown in Walk mode goes to, and the eye height there. The current storey is the highest floor at or
+ * below the feet-ish height (eye minus 0.3 m); the eye keeps its height above it. Null at the top or bottom of the stack, or
+ * without storeys.
+ */
+export function stepWalkStorey(
+  floors: readonly FloorLevel[],
+  eyeY: number,
+  dir: 1 | -1,
+  eyeHeight = DEFAULT_EYE_HEIGHT,
+): { level: FloorLevel; eyeY: number } | null {
+  if (floors.length === 0) return null;
+  const cur = floorAtOrBelow(floors, eyeY - 0.3, 0);
+  const offset = cur ? eyeY - cur.floorY : eyeHeight;
+  let next: FloorLevel | null = null;
+  if (cur === null) next = dir > 0 ? floors[0]! : null;
+  else {
+    const i = floors.indexOf(cur);
+    next = floors[i + dir] ?? null;
+  }
+  return next ? { level: next, eyeY: next.floorY + offset } : null;
+}
+
+/** The move with the part that goes into a wall removed. `normal` is the wall normal on the horizontal plane (any length, not zero). */
+export function slideAlongWall(move: Vector3, normal: Vector3): Vector3 {
+  const n = new Vector3(normal.x, 0, normal.z);
+  if (n.lengthSq() < 1e-12) return move.clone();
+  n.normalize();
+  const into = move.dot(n);
+  const out = move.clone();
+  if (into < 0) out.addScaledVector(n, -into);
+  return out;
+}
+
+/** An element blocks the walker unless it is a door, hidden, or ghosted (x-ray, alpha below 0.3 and not in focus). */
+export function blocksWalk(ifcClass: string, flags: number, alpha: number): boolean {
+  if (ifcClass.toLowerCase() === 'ifcdoor') return false;
+  if ((flags & FLAG_HIDDEN) !== 0 || alpha < 0) return false;
+  if ((flags & FLAG_FOCUS) === 0 && alpha < 0.3) return false;
+  return true;
+}
+
+export interface WallHit {
+  distance: number;
+  /** Surface normal, any direction (it is flipped toward the walker here). */
+  normal: { x: number; y: number; z: number };
+}
+
+/** Heights above the floor of the collision rays: knee, waist and eye. Offsets from the eye, given the eye height. */
+export function collisionRayOffsets(eyeHeight: number): number[] {
+  return [-(eyeHeight - 0.4), -eyeHeight * 0.45, 0];
+}
+
+/**
+ * Limit a horizontal move by walls. `cast` shoots a ray (origin, horizontal unit direction, max distance) at what blocks and
+ * returns the nearest hit. One ray per height (3 at most), only when there is a move. The move stops `clearance` short of the
+ * nearest wall and the rest slides along it. Surfaces that face up or down (stairs, ramps, slabs) are not walls.
+ */
+export function collideMove(
+  eye: Vector3,
+  move: Vector3,
+  cast: (origin: Vector3, dir: Vector3, maxDist: number) => WallHit | null,
+  eyeHeight = DEFAULT_EYE_HEIGHT,
+  clearance = WALK_CLEARANCE,
+): Vector3 {
+  const flat = new Vector3(move.x, 0, move.z);
+  const len = flat.length();
+  if (len < 1e-9) return move.clone();
+  const dir = flat.clone().divideScalar(len);
+  let best: { allowed: number; normal: Vector3 } | null = null;
+  for (const off of collisionRayOffsets(eyeHeight)) {
+    const hit = cast(new Vector3(eye.x, eye.y + off, eye.z), dir, len + clearance);
+    if (!hit) continue;
+    const n = new Vector3(hit.normal.x, hit.normal.y, hit.normal.z);
+    if (Math.abs(n.y) > FLOOR_NORMAL_Y) continue;
+    if (n.dot(dir) > 0) n.negate();
+    // The clearance is kept square to the wall, so a slanting approach stops a little earlier along the ray.
+    const allowed = hit.distance - clearance / Math.max(0.2, -n.dot(dir));
+    if (allowed >= len) continue;
+    if (!best || allowed < best.allowed) best = { allowed, normal: n };
+  }
+  if (!best) return move.clone();
+  const a = Math.max(0, best.allowed);
+  const rest = flat.clone().multiplyScalar(1 - a / len);
+  const slide = slideAlongWall(rest, best.normal);
+  const out = flat.clone().multiplyScalar(a / len).add(slide);
+  out.y = move.y;
+  return out;
 }
