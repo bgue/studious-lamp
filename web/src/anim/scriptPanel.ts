@@ -714,6 +714,14 @@ export class ScriptPanel {
     });
   }
 
+  /** Put a text made by the viewer (the 4D film) into the editor under a name, unsaved; the status line says what it is. */
+  loadGenerated(text: string, name: string, status: string): void {
+    this.setText(text, name);
+    this.savedText = null;
+    const r = this.recompile();
+    if (!r.errors.some((e) => e.severity === 'error')) this.setStatus(status, 'good');
+  }
+
   loadExample(id: string): boolean {
     const ex = EXAMPLES.find((e) => e.id === id);
     if (!ex) return false;

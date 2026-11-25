@@ -5516,6 +5516,18 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Drag the bar. The date shows beside it.',
     'Report: Limitations and extensions, 4D schedule',
   ),
+  '4D tab/Film bar': h(
+    'The bar at the top holds the controls of the 4D film: play, date bar, record and Open as script.',
+    'It stays in view while the rest of the page scrolls. Without a schedule, or without a link, it says what is missing.',
+    'Use the buttons of the bar. Open a schedule and link it first if the bar asks for that.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
+  '4D tab/Open film as script': h(
+    'The button turns the 4D film into an animation script and opens it in the Script tab.',
+    'The text holds the schedule line and the camera moves of the director, and you can edit it. A run plays the same show.',
+    'Click the button. Edit the text if you like. Press Run in the Script tab. Press Save to keep it.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
   '4D tab/Save IFC with links': h(
     'The button opens Save IFC with the 4D box ticked, so the task codes go into the file.',
     'A new model file carries the matches, so other tools can read them.',

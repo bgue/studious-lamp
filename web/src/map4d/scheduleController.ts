@@ -29,6 +29,8 @@ import type { ActivityLink, FourDConfig, FourDLinks, FourDPlan, FourDStyle, Sche
 import { colourOf } from './values';
 import type { Map4dController } from './controller';
 import { direct } from './directorHook';
+import { filmName, filmScript } from './filmScript';
+import type { FilmDirected } from './filmScript';
 import { ACTIVITY_IDS_PROPERTY, activityIdsMap } from './ifcio';
 import { countLinks, decideLink, decisionLinks, parseLinks, serializeLinks } from './linkReview';
 import { emptyConfig, guessConfig, parseConfig, serializeConfig, setStyle } from './scheduleConfig';
@@ -441,6 +443,36 @@ export class ScheduleController {
     const ok = player.play(score, { ...(from !== undefined ? { from } : {}), onEnd: () => this.emit() });
     this.emit();
     return ok ? { ok: true, message: this.note || `Playing ${Math.round(this.playDur)} seconds.` } : { ok: false, message: 'The player could not start.' };
+  }
+
+  /**
+   * The film as script text: the plan as Play builds it, the camera director run as Play runs it, the plan registered under the
+   * returned name (the `schedule "Name"` of the script resolves against it).
+   */
+  async filmScript(): Promise<{ ok: true; name: string; text: string; lines: number; note: string } | { ok: false; message: string }> {
+    const p = this.plan ?? this.buildPlan();
+    if ('error' in p) return { ok: false, message: p.error };
+    let directed: FilmDirected | null = null;
+    let why = '';
+    if (p.style.camera === 'director') {
+      const r = await direct(p, this.fourDModel()!);
+      if (r.cues.length > 0 || (r.notes?.length ?? 0) > 0) directed = { cues: r.cues, notes: r.notes ?? [], noteTimes: r.noteTimes ?? [] };
+      else why = r.note || 'the director found nothing to do.';
+    } else why = `the camera style is "${p.style.camera}", not the director.`;
+    const name = filmName(this.schedule?.project.name, this.schedule?.project.shortName, this.fileName);
+    registerPlan(name, p);
+    const out = filmScript(p, name, directed, why);
+    return { ok: true, name, text: out.text, lines: out.lines, note: directed ? '' : `The camera stays put${why ? `: ${why}` : '.'}` };
+  }
+
+  /** Open the film as a script in the Script tab (unsaved, under the film's name). */
+  async openAsScript(): Promise<PlayResult & { name?: string; lines?: number }> {
+    const r = await this.filmScript();
+    if (!r.ok) return { ok: false, message: r.message };
+    this.stopPlay();
+    const status = `Script made from the 4D film: ${r.lines} lines. Press Run.${r.note ? ` ${r.note}` : ''}`;
+    if (!window.__xrayScript?.openGenerated(r.text, r.name, status)) return { ok: false, message: 'The Script tab is not available in this build.' };
+    return { ok: true, message: status, name: r.name, lines: r.lines };
   }
 
   pause(): void { const p = getScorePlayer(); if (p?.playing) { if (p.paused) p.resume(); else p.pause(); this.emit(); } }

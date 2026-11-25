@@ -44,6 +44,8 @@ export interface ScriptApi {
   /** The text in the editor ('' before the tab is first shown). */
   text(): string;
   setText(text: string): void;
+  /** Open the Script tab with a text made by the viewer (the 4D film) under a name, unsaved, and say `status`. False without the tab. */
+  openGenerated(text: string, name: string, status: string): boolean;
   state(): ScriptPanelState | null;
   /** The settings paths the compiler checks `set` statements against. */
   paramPaths(): string[];
@@ -258,6 +260,12 @@ export const animScriptPlugin: AppPlugin = {
       examples: () => EXAMPLES.map((e) => ({ id: e.id, title: e.title })),
       text: () => panel?.text ?? '',
       setText: (text) => panel?.setText(text),
+      openGenerated: (text, name, status) => {
+        tab?.show();
+        if (!panel) return false;
+        panel.loadGenerated(text, name, status);
+        return true;
+      },
       state: () => panel?.state() ?? null,
       paramPaths: () => paramPaths(),
       open: () => tab?.show(),
