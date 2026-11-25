@@ -7,6 +7,20 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 - Changes for the next release are collected here.
 
+## v30 - 2026-11-25
+
+- The 4D tab is in three steps under the film bar: Map, Link and Film. Each step shows whether it is done or needs you, and
+  the tab opens on the step you need next.
+- The film bar shows how much of the schedule is linked. Activities that have nothing in the model can be marked "not
+  modelled": they stop counting as gaps, and while one is under way the film says so on screen.
+- The FZK-Haus 4D sample marks its 25 activities that have nothing in the model (earthworks, drainage, finishes and so on).
+- Walk mode: double-click a spot to stand there at eye height (1.6 m by default); Alt and double-click enters Walk mode from
+  anywhere. Page Up and Page Down go up or down a storey while you walk.
+- Walk collision (off by default, in the Keyboard settings) stops you at walls; doors and ghosted parts let you through.
+- This note: the first time you open a new version, the viewer shows what changed. "What's new" in the command palette
+  shows it again.
+- The manual covers the 4D steps, the new Walk mode features and this note.
+
 ## v29 - 2026-11-25
 
 - The 4D tab has a film bar: Play, a date slider you can drag, Record, and Open as script.

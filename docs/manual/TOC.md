@@ -29,7 +29,8 @@ Sources: `wd/topbar.md`, `wd/toolbar.md`, `wd/right-sidebar.md`, `wd/gizmo.md`, 
 - 3.3 Select, hover cards and the Properties tab: read any element's data.
 - 3.4 Undo and redo for view, selection and settings; what is not undoable.
 - 3.5 On a phone: bottom sheets and the folded sidebars.
-- 3.6 Keyboard, focus and F6, command palette, cheat sheet [?]: do common actions without the mouse. (`wd/keyboard.md`)
+- 3.6 What's new: the card on the first start of a new version, Show all changes, the command palette action. (`wd/whats-new.md`)
+- 3.7 Keyboard, focus and F6, command palette, cheat sheet [?]: do common actions without the mouse. (`wd/keyboard.md`)
 
 ---
 

@@ -33,8 +33,8 @@ style. In the **Game** style, `w a s d q e` fly the camera at all times (see **n
 
 ## Walk mode
 
-`Shift+w` or the walk button turns it on. A chip "Walk · Esc to exit" shows. You keep your eye height. There is no gravity and
-no collision.
+`Shift+w` or the walk button turns it on. A chip "Walk · Esc to exit" shows. You keep your eye height. There is no gravity.
+Collision is off unless you switch on **Walk collision** (appendix B).
 
 | Action | Keys |
 | --- | --- |
@@ -44,7 +44,9 @@ no collision.
 | Lower, raise the eye | `q`, `e` |
 | Run (3 times faster) | Hold `Shift`. `Shift+w` while walking runs forward and does not leave. |
 | Go slow (a quarter speed) | Hold `Ctrl` |
+| Storey up, down (same spot and eye height; a message names the storey) | `PageUp`, `PageDown` |
 | Look around | Left drag, or one finger |
+| Drop in on a spot at eye height | Double-click it |
 | Walk forward, back | Wheel |
 | Leave | `Escape`, a click on the chip, or the walk button |
 
@@ -59,6 +61,7 @@ Walk mode is left when a fly-through, a script or a 4D film plays.
 | Pan | Right drag, middle drag, `Shift` with left drag | Right drag, middle drag |
 | Zoom toward the cursor | Wheel | Wheel |
 | Select and fly to an element | Double-click it | Double-click it |
+| Enter Walk mode and drop in on a spot | `Alt` with double-click | `Alt` with double-click |
 | Frame everything | Double middle click | Double middle click |
 | Previous, next camera position | Mouse buttons 4 and 5 | Mouse buttons 4 and 5 |
 

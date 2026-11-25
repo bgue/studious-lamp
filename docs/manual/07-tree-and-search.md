@@ -54,7 +54,7 @@ scrolls without delay.
 
 ### Use the tree from the keyboard
 
-The tree is one `Tab` stop: press `Tab` (or `F6`, see 3.6) until it has focus, then move with these keys. The row you are on
+The tree is one `Tab` stop: press `Tab` (or `F6`, see 3.7) until it has focus, then move with these keys. The row you are on
 shows a ring. It is separate from the blue fill of selected rows.
 
 | Keys | What they do |

@@ -12,8 +12,8 @@ work, you need files.
 
 | File | What it holds | Written by | Read by |
 | --- | --- | --- | --- |
-| Configuration (`xray-4d-config/1`), for example `fzk-haus.4d.json` | what the schedule's codes mean, value translations, trade queries, split rules, film style | **Export .4d.json** in Configure | **Import .4d.json**, or drop it on the viewer; `xray-4d --config` |
-| Link dataset (LinkML) | model and schedule references, activities, elements, assignments, links, ties | **Export JSON** (mapping), **Export links** (links) | **Import JSON**, **Import links**; `xray-4d --prior`, `--assignments` |
+| Configuration (`xray-4d-config/1`), for example `fzk-haus.4d.json` | what the schedule's codes mean, value translations, trade queries, split rules, activities marked not modelled, film style | **Export .4d.json** in Configure (Link step) | **Import .4d.json**, or drop it on the viewer; `xray-4d --config` |
+| Link dataset (LinkML) | model and schedule references, activities, elements, assignments, links, ties | **Export JSON** (mapping; Film step, Import / Export), **Export links** (links; Link step) | **Import JSON**, **Import links**; `xray-4d --prior`, `--assignments` |
 | 4D plan (`xray-4d-plan/1`), for example `build.4d.json` | per element: states over time, the time map, milestones | `xray-4d plan` | `xray-4d render`, `pack`, `script`, and packed pages (`xray-pack --plans`) |
 
 The configuration is a recipe. The link dataset is the work you reviewed. The plan is a calculation from both, and you can
@@ -24,19 +24,19 @@ memory. Plan files are for the command line and for packed pages.
 
 ### Try it
 
-1. Choose **FZK-Haus 4D** in Sample Projects. In **Configure**, press **Export .4d.json**. You get the configuration the
+1. Choose **FZK-Haus 4D** in Sample Projects. Click the **Link** step. In **Configure**, press **Export .4d.json**. You get the configuration the
    sample was built with.
-2. In **Link**, press **Export links**. You get a link dataset: schedule, activities, links, ties and unlinked lists.
+2. In the **Link** section of the same step, press **Export links**. You get a link dataset: schedule, activities, links, ties and unlinked lists.
 3. Open the dataset in a text editor. Find a link: it has an id like `ln-A1200-build`, an activity, a role, a list of
    GlobalIds, a source, a confidence, reasons and a status.
-4. Reload the page and choose **FZK-Haus** (the one without 4D). In **Schedule**, open the sample's `fzk-haus.xer` (it
+4. Reload the page and choose **FZK-Haus** (the one without 4D). In the **Link** step, in **Schedule**, open the sample's `fzk-haus.xer` (it
    is in `web/public/samples` of the repository). Then press **Import .4d.json** and **Import links** and pick your two
    files. The setup and the reviewed links come back.
 
 ### Rules for importing
 
 - **Import links** replaces the links on screen and merges the dataset's assignments into the mapping tool.
-- **Import JSON** in the mapping sections reads only the assignments of any such file. For the same element and
+- **Import JSON** in the **Import / Export** section of the Film step reads only the assignments of any such file. For the same element and
   attribute, the newer accepted record wins (by review time, else creation time). The older becomes superseded. Importing
   the same file twice changes nothing.
 - A file that names a different model is merged with a warning. Check that it is the model you meant.
@@ -82,7 +82,8 @@ The sample configuration is short enough to read whole. Its parts, in order:
   the schedule value is used as it is.
 - `tradeQueries`: one query per trade in the query language of chapter 8. The sample has twelve, from `CONC-SLAB` to
   `RAILINGS`.
-- `activities`: exceptions for one activity: a query, a list of GlobalIds, a `role` of `remove`, or a `split`.
+- `activities`: exceptions for one activity: a query, a list of GlobalIds, a `role` of `remove`, or a `split`. The mark
+  **Not modelled** (chapter 26) is stored here too, as `notModelled: true`. The sample marks 25 activities this way.
 - `split`: how elements of an activity appear over its days (chapter 26). `*` is the default.
 - `style`: the film options of chapter 27, including the trade colours.
 

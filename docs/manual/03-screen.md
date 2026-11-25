@@ -51,6 +51,7 @@ cube, or by two keys. The other buttons and the wheel do the same in both modes.
 | Left drag | Orbit | Draw a selection box |
 | Click | Select | Select |
 | Double-click an element | Select it and fly to it | The same |
+| `Alt` with double-click | Enter Walk mode and drop in on that spot | The same |
 | Right drag, middle drag | Pan | Pan |
 | `Shift` with middle drag | Orbit | Orbit |
 | Wheel | Zoom toward the cursor | Zoom toward the cursor |
@@ -95,9 +96,28 @@ button again.
 - `Q` lowers the eye and `E` raises it.
 - Hold `Shift` to run (3 times faster). Hold `Ctrl` to go slow (a quarter speed).
 - Drag with the left button to look around. The wheel walks forward and back. A click still selects.
+- Double-click a spot on the model to **drop in** there (see below). `PageUp` and `PageDown` jump one storey up or down.
 
 While you walk, `Shift+W` does not leave: `Shift` with `W` runs forward. Use `Esc` to leave. Walk mode is also left when a
 fly-through, a script or a 4D film plays (chapter 21).
+
+**Drop in here.** Walking from far away is slow. In Walk mode, double-click a point on the model. The eye glides there
+(about 0.4 s) and stands on that spot at your **eye height**, facing the way you were facing. The eye height is the
+**eye height (m)** setting in the **Keyboard** folder of the **Parameters** tab. It is 1.6 m by default and can be 0.5 m to 3 m.
+If you click a surface that faces up, such as a floor or a stair tread, you stand on it. If you click a wall or a ceiling, you
+stand on the floor below that point, because a wall has no top to stand on.
+
+Outside Walk mode, hold `Alt` and double-click a point. The viewer enters Walk mode and drops you in there. A plain
+double-click outside Walk mode still flies to the element.
+
+**Storey jump.** In Walk mode, `PageUp` and `PageDown` move you to the storey above or below. You keep your spot on the plan
+and your height above the floor. A short message names the storey, for example "Level 2", or says that you are already at the
+top or bottom storey. Outside Walk mode the same keys move the camera target one storey (see above).
+
+**Walls that stop you (optional).** By default you walk through everything. Switch on **Walk collision** in the same
+**Keyboard** folder and the movement keys and the wheel stop you about 0.3 m short of a wall. If you push at a slant, you slide
+along it. Doors do not block you, and neither do ghosted or hidden parts, so you can still walk through a faint wall or a
+hidden one. Floors and ceilings are not walls. `Q` and `E` ignore collision.
 
 **Try it.** In FZK-Haus, walk into the house from outside.
 
@@ -107,15 +127,21 @@ fly-through, a script or a 4D film plays (chapter 21).
    of the ground floor. Drag with the left button to look level, toward the house.
 4. Hold `W`. You walk toward the house at the same height. Keep it down and you pass through the outer wall and stand inside
    the ground floor. Hold `Shift` as well to run, or `Ctrl` to creep.
-5. Press `Left` to turn and look around the room. Press `Esc`. The chip goes away and the mouse orbits again, around a point
-   a short way in front of you.
+5. Press `Left` to turn and look around the room. Press `PageUp`. You move to the storey above, at the same spot, and a message
+   names it. Press `PageDown` to come back.
+6. Press `Esc` to leave, then `Home`. Hold `Alt` and double-click a wall of the house. The chip appears and you stand inside, on
+   the floor below the point you clicked, at 1.6 m.
+7. Open the **Keyboard** folder of the **Parameters** tab and switch on **Walk collision**. Hold `W` toward a wall. You stop
+   short of it. Switch it off again if you like.
+8. Press `Esc`. The chip goes away and the mouse orbits again, around a point a short way in front of you.
 
 **How it works.** Walk mode moves the camera and a point a fixed distance in front of it, so leaving it leaves a sensible
 orbit. It is a state of your viewer only. It is not in share links, saved views, presets or packed pages, and opening another
 model ends it. A walk is one camera step on the undo stack (3.4).
 
-**Limits.** There is no gravity and no collision. You pass through walls and floors, and you stay at the eye height you set
-until you change it. Speeds scale with the size of the model, and the **move speed** and **orbit speed** settings change them.
+**Limits.** There is no gravity. Collision is off unless you switch on **Walk collision**, so by default you pass through walls
+and floors. It checks three points in the direction you move, and only while you move, so a thin railing can slip past. You stay
+at the eye height you set until you change it with `Q` and `E`. Speeds scale with the size of the model, and the **move speed** and **orbit speed** settings change them.
 
 ### The old keys: Navigation style
 
@@ -196,7 +222,21 @@ On a screen 700 px wide or less, the layout changes.
 Apart from that, everything in this manual works on a phone. The views grid (chapter 13) and the revision walk (chapter 20)
 have phone-friendly layouts.
 
-## 3.6 Keyboard, command palette, cheat sheet
+## 3.6 What's new
+
+The first time you open a new version of the viewer, a small **What's new** card appears in the corner of the 3D view. It names
+the version and lists the changes of the newest release. It takes the keyboard focus. Press `Esc` or **Dismiss** to close it.
+It shows once for each version, in each browser.
+
+- **Show all changes** on the card opens a list of every release, newest first, each with its date.
+- The command palette action **What's new** (`Ctrl+Shift+K`, see 3.7) opens the same list at any time. It has no key until you
+  give it one in the shortcut editor.
+
+The card stays away on the very first start in a browser, and in packed pages, kiosk pages, embedded pages and pages in a
+frame. It also stays away when the browser blocks local storage. The text comes from `CHANGELOG.md`, the file at the root of
+the repository that lists every release.
+
+## 3.7 Keyboard, command palette, cheat sheet
 
 You can do nearly every action from the keyboard.
 

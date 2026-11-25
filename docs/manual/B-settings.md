@@ -85,6 +85,13 @@ One setting in the **Keyboard** folder decides how the mouse and the keys move t
 | **BIM** (default) | The style of Revit, Navisworks and Solibri. The wheel zooms toward the cursor, middle drag pans, `Shift` with middle drag orbits, an orbit turns around the point you grab, and a double-click flies to an element. `w a s d q e` do nothing, except in Walk mode (3.2). |
 | **Game** | The older style. `w a s d q e` always fly the camera, middle drag zooms, the wheel zooms to the orbit target, and there is no pivot pick and no double-click action. |
 
+Two more settings in the same folder belong to Walk mode (3.2). Like the navigation style, they are kept in your browser, not in exported settings, share links or views.
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| **eye height (m)** | 1.6 | Your eye height above the floor when you drop in with a double-click, and the fallback for the storey jump. From 0.5 to 3. |
+| **Walk collision** | off | When on, the movement keys and the wheel stop you about 0.3 m short of a wall and slide you along it. Doors, hidden parts and ghosted parts do not block. |
+
 Choose **Game** to get the old keys back. The choice is kept in your browser, not in exported settings, share links or views.
 
 ## Saving settings

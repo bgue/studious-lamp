@@ -19,8 +19,11 @@ One label on one element is an **assignment**. It has a value, a source (who or 
 status (chapter 24: proposed, accepted, rejected, superseded). Only accepted assignments count.
 
 The tool is the **4D** tab of the right sidebar. Open it with the tab, or with the command `4D mapping: open the 4D tab`.
-On a phone it is a bottom sheet. Its mapping sections, top to bottom, are **Values**, **Assign**, **Suggest** and
-**Coverage**.
+On a phone it is a bottom sheet. The tab has three steps under its film bar (chapter 24). Mapping is the first one, **Map**.
+Click **Map** to see its sections, top to bottom: **Values**, **Assign**, **Suggest** and **Coverage**. The step shows
+"not started" until you have an accepted assignment, a count of "to decide" while suggestions wait, and a check mark when
+it is done. A line at the top of the step reads "Manual assignments: N accepted, N proposed. Kept in this browser for this
+model." It counts only the location, trade and zone labels you work with here, not the schedule links.
 
 Do you need this step? Not always. The linker can read location from the storey and trade from a query. The FZK-Haus 4D
 sample does exactly that and needs no assignments. Use the mapping tool when the model has weak class use, when the
@@ -30,7 +33,7 @@ schedule talks about zones the model does not name, or when you want labels save
 
 On the **FZK-Haus** sample (not the 4D one, so you start clean):
 
-1. Open the **4D** tab. In **Values**, press **Seed from model**. Storey names become locations, groups with "zone" in
+1. Open the **4D** tab and click the **Map** step. In **Values**, press **Seed from model**. Storey names become locations, groups with "zone" in
    their name become zones, and the classifier's disciplines become trades.
 2. Open **Suggest** and press **Suggest**. The review list fills. Each row shows the element, the proposed value, a
    confidence and the reasons, highest first. A wall on the ground floor gets location "Erdgeschoss" at 0.90 ("the storey
@@ -81,7 +84,7 @@ edit the table once and every later run follows it.
 
 ## 25.3 Values
 
-The **Values** section lists known locations, trades and zones, one attribute at a time. You can:
+The **Values** section of the Map step lists known locations, trades and zones, one attribute at a time. You can:
 
 - rename a value. The rename changes every assignment that uses it.
 - pick a colour for it. The same colours tint Coverage and, later, the film.
@@ -101,8 +104,8 @@ attribute, yours stays.
 when you open the same model again. In a private window nothing is kept, and the tab says so. Nothing goes into share
 links, saved views, presets or packed pages.
 
-**As a file.** **Export JSON** writes a LinkML dataset (chapter 28) with the model, its elements and all assignments of all
-statuses. **Import JSON** merges one: records with new ids are added, and for the same element and attribute the newer
+**As a file.** In the **Film** step, the section **Import / Export** holds **Export JSON**. It writes a LinkML dataset (chapter 28) with the model, its elements and all assignments of all
+statuses. **Import JSON**, in the same section, merges one: records with new ids are added, and for the same element and attribute the newer
 accepted record wins; the older becomes superseded. Importing the same file twice changes nothing. Rows that do not fit
 the schema are skipped and counted.
 
@@ -120,4 +123,5 @@ saved views, packed pages, the IFC and, unless you ask for it, the export.
 
 - Chapter 8: the query language used in Assign.
 - Chapter 18: the classifier whose discipline feeds trade suggestions.
-- Chapter 26: linking the schedule to the labelled elements.
+- Chapter 24: the three steps of the 4D tab.
+- Chapter 26: linking the schedule to the labelled elements (the Link step).

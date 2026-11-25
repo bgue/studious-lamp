@@ -8,7 +8,7 @@ answers change the film, not the links, so you can try several without redoing a
 
 ### The idea
 
-The **Style** section holds those choices. **Play** builds the **4D plan** from the accepted links, hands it to the
+The **Style** section, in the **Film** step of the 4D tab, holds those choices. **Play** builds the **4D plan** from the accepted links, hands it to the
 player (chapter 21) and plays it. The plan says, for each element and date, one of these states:
 
 | State | Look in the film |
@@ -26,8 +26,9 @@ being fitted inside a closed wall stay visible without hiding the building.
 
 ### Try it
 
-1. Choose **FZK-Haus 4D** in Sample Projects. The 4D tab opens with the film bar at the top.
-2. Open **Style**. Set **Unbuilt parts** to `faint ghost`, then press **Play**. The finished house is faintly there and
+1. Choose **FZK-Haus 4D** in Sample Projects. The 4D tab opens on the **Film** step, with the film bar at the top.
+2. In the **Film** step, open **Style**. (The Style section lives in the Film step, the last of the three steps of chapter 24.)
+   Set **Unbuilt parts** to `faint ghost`, then press **Play**. The finished house is faintly there and
    fills in as work runs.
 3. Set **X-ray active work** off and play again. Whatever stands in front of the active work is no longer ghosted, so walls can hide it. Turn it back on.
 4. Change **Window** to `look ahead N weeks` with 6. The film starts at the data date and shows the next six weeks; what
@@ -44,6 +45,9 @@ While the film runs, the HUD draws:
 - **Schedule date** (top left), the week, `Planned x %` and, when the plan has actuals, `Actual y %`.
 - **Activities** below it: `Now: n activities`, the five with the most elements, each with a swatch in its trade colour.
   A critical activity has a red outline.
+- **Also under way (not in the model)**: a line under "Now" that appears while an activity you marked **Not modelled**
+  (chapter 26) is running, for example "Also under way (not in the model): Earthworks, Drainage". It names at most two, then
+  "+N more". It has no elements to show, so without the line the film would look idle while that work goes on.
 - **S-curve** (top right): planned progress over the whole window, actual progress up to the last actual sample, and a
   marker for now.
 - **Milestone caption** (top centre), held for the milestone hold you set.
@@ -98,8 +102,8 @@ when a section box clips to one storey, which captions appear and which activiti
 - When all active work is inside one storey for 6 s or more, it clips a section box to that storey.
 - At up to 3 big milestones such as "Building weathertight" it does a short beat: the whole building, an orbit, back to the work.
 
-If the director is missing from the build, or it fails, the film keeps the current camera, and a note in the Style and Play
-sections says so. Nothing breaks.
+If the director is missing from the build, or it fails, the film keeps the current camera, and a note in the Film step
+says so. Nothing breaks.
 
 ### Edit the film as a script
 

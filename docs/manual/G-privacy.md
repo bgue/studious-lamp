@@ -37,7 +37,8 @@ renamed copy of the same model finds its fly-throughs and views again, and a dif
 | Presets you saved | `xray.presets` |
 | Fly-throughs | `xray.flythroughs.<model identity>`, `xray.flythrough.ui` |
 | Animation scripts and the text you were editing | `xray.anim.<model>` |
-| Shortcuts you changed, keyboard speeds, navigation style | `xray.keymap`, `xray.keynav` |
+| Shortcuts you changed, keyboard speeds, navigation style, eye height, Walk collision | `xray.keymap`, `xray.keynav` |
+| The last viewer version whose "What's new" card you saw (a number, kept in this browser only) | `xray.whatsnew` |
 | Recent searches and palette commands | `xray.search.recent`, `xray.palette.recent` |
 | Layout: sidebars, dock, tool strip, top bar, view cube, pointer mode, hover list | `xray.sidebar`, `xray.dock`, `xray.toolbar`, `xray.topbar`, `xray.gizmo`, `xray.pointerMode`, `xray.propsListOpen` |
 | Tooltips on or off | `xray.help` |
@@ -135,6 +136,7 @@ The served build asks only the server it came from, for the model files, `xray.c
 | The map, and its place | It reveals the project location. |
 | Fly-through captions, animation scripts, element labels | Your own text. A packed page takes a script or fly-through only when you name its file. |
 | Your drawings, issues and sheets | They stay in IndexedDB. |
+| The version marker of the "What's new" card (the last viewer version you saw) | It is kept in this browser's local storage and nowhere else. It is not sent anywhere. The card text comes from the `CHANGELOG.md` inside the page, so nothing is fetched. |
 | The model itself (in a link) | A link only names it. A packed page does contain the model, because that is the point. |
 
 What a link or a view does hold: the model's name, camera, settings, and (for a view) the GlobalIds of selected, hidden and pinned

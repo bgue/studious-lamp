@@ -28,8 +28,29 @@ Then the film is easy: at each step, the right ingredients arrive.
    stays visible, and the date and progress sit on screen.
 
 Why five stages and not one button? Because each guess can be wrong, and you want to catch it where it is cheap to fix.
-A wrong label is easy to see on the Coverage table. A wrong link is easy to see on the link report. A wrong frame in a
+A wrong label is easy to see in the Coverage section of the Map step. A wrong link is easy to see on the link report. A wrong frame in a
 finished film is not.
+
+### The 4D tab: a film bar and three steps
+
+All of this happens in the **4D** tab of the right sidebar. At the top sits the **film bar**: **Play**, **Pause**, **Stop**, the
+date slider, **Record** and **Open as script**. It stays in view while you work below it. It also shows how far the linking
+has come, in one line, for example "82 of 82 elements linked · 15 of 15 modelled activities have elements · 25 not in the model".
+
+Under the film bar are three **steps**. Click one to see its sections; the others are hidden until you click them.
+
+| Step | Sections | What you do there |
+| --- | --- | --- |
+| **Map** | Values, Assign, Suggest, Coverage | give elements a location, trade and zone (chapter 25) |
+| **Link** | Schedule, Configure, Link, Decided links, Not in the model | open the schedule, say what its codes mean, link, decide (chapter 26) |
+| **Film** | Style, Save IFC with 4D links, Import / Export | choose the look, save the links, exchange files (chapters 27 and 28) |
+
+Each step shows its state under its name: a check mark when it is done, a count when it needs you (for example "3 ties" or
+"2 to decide"), or "not started". The tab opens on **Link** while there is no schedule, and on **Film** once the schedule is
+linked. The step you pick is a convenience of your viewer. It is not in share links or saved views.
+
+The steps are in this order because each one feeds the next. You can skip **Map**: the linker can work from storeys and
+classes alone, as the sample does.
 
 ### Proposed and accepted: people decide, machines propose
 
@@ -63,8 +84,10 @@ starts on 1 March 2027.
 
 1. Open the **Parameters** tab of the right sidebar and the **Sample Projects** folder.
 2. In the **Model** list, choose **FZK-Haus 4D**. The viewer loads the house, then the schedule and its configuration,
-   links every element it can, builds the plan and opens the **4D** tab. The **film bar** sits at the top of the tab: **Play**,
-   **Pause**, **Stop**, the date slider, **Record** and **Open as script**. It stays in view while you scroll the rest of the tab.
+   links every element it can, builds the plan and opens the **4D** tab on the **Film** step. The **film bar** sits at the top of
+   the tab: **Play**, **Pause**, **Stop**, the date slider, **Record** and **Open as script**. It stays in view when you
+   switch steps or scroll. Its status line reads "82 of 82 elements linked · 15 of 15 modelled activities have elements · 25 not
+   in the model".
 3. Press **Play**. The house builds over about 90 s: first the ground slab, then the walls, the roof frame and roof deck,
    then windows, doors, stair and railings. The date, the week and the percentage complete are drawn on the picture.
 4. Drag the date slider in the film bar. It scrubs by schedule date: you see the house as it stands on that day.
@@ -76,9 +99,11 @@ starts on 1 March 2027.
 
 The schedule was written to behave like a real one. Walls start while the slab cures. The roof frame goes up before
 the roof deck. The windows wait until the roof keeps the rain out, and a milestone, "Building weathertight", marks that
-moment. Some activities, such as plaster, screed drying and services, have no geometry in the model. They stay in the
-schedule and show up in the link report as activities with no elements. That is normal. A real model never has an element
-for every line of a schedule.
+moment. Some activities, such as earthworks, drainage, plaster, screed drying and services, have no geometry in the model. A real
+model never has an element for every line of a schedule. You can mark such an activity **Not modelled**. It then stops
+counting as a gap and is listed under **Not in the model** in the Link step. The sample has 25 of them marked, which is why
+the film bar says "25 not in the model". While one of them is under way, the film's on-screen display adds a line "Also under
+way (not in the model)" with its name, so the picture does not look idle (chapter 27).
 
 ## 24.4 How it works
 
@@ -99,11 +124,13 @@ files, so you can mix them.
 - One schedule per model at a time in the viewer.
 - Activities of type milestone, level of effort and WBS summary never drive geometry. Milestones become captions.
 - An element no accepted link names has no timeline. The player shows it ghosted. It is listed in the link report.
+- An activity with no elements is a gap until you mark it **Not modelled**. Marking it does not link anything; it only says
+  that the model has nothing to link.
 - Dates have no time zone. The data date is the date P6 last recalculated the schedule.
 - 4D is only as good as the labels. If most elements get no location or trade, linking cannot do much.
 
 ## See also
 
-- Chapter 25: giving elements a location, trade and zone.
-- Chapter 26: linking the schedule and reviewing links.
-- Chapter 27: playing and recording the film. Chapter 21: the player.
+- Chapter 25: giving elements a location, trade and zone (the Map step).
+- Chapter 26: linking the schedule and reviewing links (the Link step).
+- Chapter 27: playing and recording the film (the Film step). Chapter 21: the player.
