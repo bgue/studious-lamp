@@ -138,7 +138,7 @@ try {
   check('linking covers every element (100 %)', sumL.elements.linked === sumL.elements.considered && sumL.elements.considered === opened.n && sumL.elements.unlinked === 0 && sumL.elements.tied === 0, JSON.stringify(sumL.elements));
   await page.waitForFunction(() => /Elements/.test(document.querySelector('#dk-pane-4d [data-x4=link-coverage]')?.textContent ?? ''));
   const covText = await page.locator('#dk-pane-4d [data-x4=link-coverage]').innerText();
-  check('the coverage is drawn with elements and activities', /Elements/.test(covText) && /100 %/.test(covText) && /Activities/.test(covText), covText.replace(/\s+/g, ' ').slice(0, 200));
+  check('the coverage is drawn with elements and activities', /Elements/.test(covText) && /100 %/.test(covText) && /activities/i.test(covText), covText.replace(/\s+/g, ' ').slice(0, 200));
   const popup = page.waitForEvent('popup');
   await page.locator('#dk-pane-4d button', { hasText: 'Open report' }).click();
   const rp = await popup;
@@ -161,7 +161,9 @@ try {
   await page.locator('#dk-pane-4d [data-x4=unlinked-groups] button', { hasText: 'Select' }).first().click();
   const gsel = await page.evaluate(() => window.__xray.app.selection.length);
   check('a group of the list selects its elements by its query', gsel > 0 && gsel <= wantWin && g0.includes(String(gsel)), `${gsel} of ${g0.replace(/\s+/g, ' ')}`);
-  check('activities without elements are listed', gap.noEl > 0 && (await page.locator('#dk-pane-4d [data-x4=unlinked-activities] summary').count()) === 1, `${gap.noEl}`);
+  // The Link step lists the open gaps and, apart, the activities marked "not modelled" (the sample marks 25).
+  const actLists = await page.locator('#dk-pane-4d [data-x4=unlinked-activities] summary').allInnerTexts();
+  check('activities without elements are listed: the open gaps and "Not in the model"', gap.noEl > 0 && actLists.length >= 1 && actLists.length <= 2 && (actLists.some((t) => /Not in the model \(\d+\)/.test(t)) || actLists.some((t) => /without elements/.test(t))), `${gap.noEl}: ${actLists.join(' | ')}`);
   await page.locator('#dk-pane-4d [data-trade="WINDOWS"] input[type=text]').fill(SAMPLE.tradeQueries.WINDOWS);
   await page.locator('#dk-pane-4d [data-trade="WINDOWS"] input[type=text]').press('Enter');
   await page.locator('#dk-pane-4d button', { hasText: 'Link schedule' }).click();
