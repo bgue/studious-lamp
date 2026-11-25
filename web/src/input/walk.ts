@@ -235,8 +235,10 @@ export function collisionRayOffsets(eyeHeight: number): number[] {
 
 /**
  * Limit a horizontal move by walls. `cast` shoots a ray (origin, horizontal unit direction, max distance) at what blocks and
- * returns the nearest hit. One ray per height (3 at most), only when there is a move. The move stops `clearance` short of the
- * nearest wall and the rest slides along it. Surfaces that face up or down (stairs, ramps, slabs) are not walls.
+ * returns the nearest hit. One ray per height (3), only when there is a move. The move stops `clearance` short of the nearest
+ * wall and the rest slides along it. The slide is checked too (3 more rays at most): in a corner the slide along one wall
+ * would otherwise run through the other, so a blocked slide stops at its own clearance and does not slide again.
+ * Surfaces that face up or down (stairs, ramps, slabs) are not walls.
  */
 export function collideMove(
   eye: Vector3,
@@ -246,8 +248,28 @@ export function collideMove(
   clearance = WALK_CLEARANCE,
 ): Vector3 {
   const flat = new Vector3(move.x, 0, move.z);
+  const first = limitByWall(eye, flat, cast, eyeHeight, clearance);
+  let out = first.go;
+  if (first.slide) {
+    // The slide starts where the straight part ends; it may only stop, never slide a second time.
+    const from = new Vector3(eye.x + first.go.x, eye.y, eye.z + first.go.z);
+    const second = limitByWall(from, first.slide, cast, eyeHeight, clearance);
+    out = first.go.clone().add(second.go);
+  }
+  const r = new Vector3(out.x, move.y, out.z);
+  return r;
+}
+
+/** One pass: the part of a flat move that is free (`go`) and, when a wall stops it, the rest projected along that wall. */
+function limitByWall(
+  eye: Vector3,
+  flat: Vector3,
+  cast: (origin: Vector3, dir: Vector3, maxDist: number) => WallHit | null,
+  eyeHeight: number,
+  clearance: number,
+): { go: Vector3; slide: Vector3 | null } {
   const len = flat.length();
-  if (len < 1e-9) return move.clone();
+  if (len < 1e-9) return { go: flat.clone(), slide: null };
   const dir = flat.clone().divideScalar(len);
   let best: { allowed: number; normal: Vector3 } | null = null;
   for (const off of collisionRayOffsets(eyeHeight)) {
@@ -261,11 +283,9 @@ export function collideMove(
     if (allowed >= len) continue;
     if (!best || allowed < best.allowed) best = { allowed, normal: n };
   }
-  if (!best) return move.clone();
+  if (!best) return { go: flat.clone(), slide: null };
   const a = Math.max(0, best.allowed);
   const rest = flat.clone().multiplyScalar(1 - a / len);
   const slide = slideAlongWall(rest, best.normal);
-  const out = flat.clone().multiplyScalar(a / len).add(slide);
-  out.y = move.y;
-  return out;
+  return { go: flat.clone().multiplyScalar(a / len), slide: slide.lengthSq() > 1e-12 ? slide : null };
 }

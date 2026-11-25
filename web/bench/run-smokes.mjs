@@ -32,7 +32,7 @@ const root = resolve(here, '..');
 /** Expected seconds of each smoke on the software renderer (from the serial runs of 2026-11-21; "est" were not measured). */
 const EXPECT = {
   'smoke-right-sidebar': 40,
-  'smoke-keys': 45,
+  'smoke-keys': 150,
   'smoke-tree-keys': 60, // est
   'smoke-pointer-undo': 82,
   'smoke-issue-clash': 110,
