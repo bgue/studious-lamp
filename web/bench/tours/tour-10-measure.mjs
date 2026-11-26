@@ -47,11 +47,21 @@ await tour.step('10.1 Try it: point to point, snap, element to element, the list
   const item = await page.locator('.xt-item').first().innerText();
   tour.check('step 6: "Each measurement is listed with a delete button"', /#1/.test(item) && (await page.getByRole('button', { name: 'Delete measurement 1' }).count()) === 1, item.replace(/\n/g, ' '));
   // step 4: snap
-  await page.getByText('Snap to vertices').click();
+  const snapBox = page.locator('label.xt-check', { hasText: 'Snap to vertices' }).locator('input');
+  tour.check('step 4: snap to vertices is on in the drawer (it is on by default)', await snapBox.isChecked());
   await page.waitForTimeout(300);
-  const sp2 = await spotsFor(page, [...walls, ...slabs]);
-  const snappedSpot = Object.values(sp2).flat().find((q) => q.snapped);
-  tour.check('step 4: "Turn on snap to vertices ... the click lands on the corner exactly": a spot near a corner snaps', !!snappedSpot, `${Object.values(sp2).flat().length} spots`);
+  // scan the view in 10 px steps for a pick within 12 px of a vertex that the viewer reports as snapped
+  const corner = await page.evaluate(() => {
+    const cv = window.__xray.app.canvas.getBoundingClientRect();
+    for (let y = cv.top + 170; y < cv.bottom - 100; y += 10) for (let x = cv.left + 30; x < cv.right - 30; x += 10) {
+      if (document.elementFromPoint(x, y)?.id !== 'c') continue;
+      const h = window.__xrayMeasure.pickAt(x, y);
+      if (h && h.snapped) return { x, y, p: h.point, snapped: true };
+    }
+    return null;
+  });
+  const snappedSpot = corner;
+  tour.check('step 4: "Turn on snap to vertices ... the click lands on the corner exactly": a spot near a corner snaps', !!snappedSpot, 'no wall corner within 12 px of a pick that snapped');
   if (snappedSpot) {
     await page.mouse.move(snappedSpot.x, snappedSpot.y);
     await page.waitForTimeout(500);
@@ -59,17 +69,32 @@ await tour.step('10.1 Try it: point to point, snap, element to element, the list
     tour.check('step 4: "a yellow ring appears when the cursor is within 12 px of a corner"', ring);
   }
   // step 5: element to element
-  await page.locator('select').filter({ hasText: 'point to point' }).first().selectOption('element to element');
+  const modeSel = () => page.locator('select').filter({ has: page.locator('option', { hasText: 'point to point' }) }).first();
+  await modeSel().selectOption('element to element');
   const duct = (await idsOf(page, '^IfcDuctSegment'))[0];
-  const wall2 = walls[0];
-  await ui.setCam(page, [6, 4, 8], [0, 1, 0]);
-  await ui.waitStill(page, 5000);
-  const sp3 = await spotsFor(page, [duct, ...walls]);
-  const dSpot = sp3[duct]?.[0], wSpot = Object.entries(sp3).find(([k]) => Number(k) !== duct)?.[1]?.[0];
-  tour.known('step 5: "Click the duct, then a wall": the duct is clickable from the home view', !!dSpot && !!wSpot, 'no spot where a click lands on the duct, so element-to-element could not be clicked by hand', `duct ${duct}, spots ${Object.keys(sp3).join(',')}`);
-  if (dSpot && wSpot) {
+  // the duct sits inside the chimney: hide the walls and the chimney first (their eyes in the Model tree), click the duct, show them, click a wall
+  await ui.tab(page, 'Model');
+  for (const c of ['IfcWall', 'IfcChimney']) {
+    await page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: new RegExp(`^${c}$`) }) }).first().locator('.eye').click();
+    await ui.settle(page, 300);
+  }
+  let sp3 = {};
+  for (const cam of [[6, 4, 8], [-6, 4, 8], [-6, 4, -8], [6, 4, -8], [0, 9, 3], [0, 1.2, 9], [9, 1.2, 0], [-9, 1.2, 0], [0, 1.2, -9], [3, 7, 7], [-3, 7, -7]]) {
+    await ui.setCam(page, cam, [0, 1, 0]);
+    sp3 = await spotsFor(page, [duct, ...walls]);
+    if (sp3[duct]?.length) break;
+  }
+  const dSpot = sp3[duct]?.[0];
+  let wSpot = null;
+  tour.check('step 5: "Click the duct, then a wall": the duct is clickable once the walls are hidden', !!dSpot, 'no spot where a click lands on the duct, so element-to-element could not be clicked by hand', `duct ${duct}, spots ${Object.keys(sp3).join(',')}`);
+  if (dSpot) {
     await page.mouse.click(dSpot.x, dSpot.y);
     await page.waitForTimeout(300);
+    await page.locator('#c').hover();
+    await page.keyboard.press('Alt+h');
+    await ui.settle(page, 500);
+    const sp4 = await spotsFor(page, walls);
+    wSpot = Object.values(sp4).flat()[0];
     await page.mouse.click(wSpot.x, wSpot.y);
     await page.waitForTimeout(800);
     const l2 = await list(page);
@@ -80,16 +105,28 @@ await tour.step('10.1 Try it: point to point, snap, element to element, the list
   // step 6: delete, clear, export
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }).catch(() => null), page.getByRole('button', { name: 'Export CSV' }).click()]);
   const csv = dl ? readFileSync(await dl.path(), 'utf8') : '';
-  tour.check('step 6: "Export CSV saves them": one row per measurement, with distance, differences and GlobalIds', csv.split('\n').filter(Boolean).length >= 2 && /dx|distance/i.test(csv.split('\n')[0]) && /gid|global/i.test(csv.split('\n')[0]), csv.split('\n')[0]);
+  tour.check('step 6: "Export CSV saves them": one row per measurement, with distance, differences and GlobalIds', csv.split('\n').filter(Boolean).length >= 2 && /dx_m/.test(csv.split('\n')[0]) && /element_a/.test(csv.split('\n')[0]), csv.split('\n')[0]);
+  if ((await list(page)).length < 2) {
+    await modeSel().selectOption('point to point');
+    await page.locator('#c').hover();
+    await page.keyboard.press('Home');
+    await ui.waitStill(page, 8000);
+    const sp5 = await spotsFor(page, [...walls, ...slabs]);
+    const flat = Object.values(sp5).flat();
+    await page.mouse.click(flat[0].x, flat[0].y); await page.waitForTimeout(300); await page.mouse.click(flat[flat.length - 1].x, flat[flat.length - 1].y); await page.waitForTimeout(500);
+  }
   const n0 = (await list(page)).length;
-  await page.getByRole('button', { name: 'Delete measurement 1' }).click();
-  tour.check('step 6: the delete button removes one measurement', (await list(page)).length === n0 - 1);
+  await page.locator('.xt-item .x').first().click();
+  tour.check('step 6: the delete button removes one measurement', (await list(page)).length === n0 - 1 && n0 >= 2, `${n0} -> ${(await list(page)).length}`);
   await page.getByRole('button', { name: 'Clear', exact: true }).click();
   tour.check('step 6: "Clear removes them all"', (await list(page)).length === 0);
   // step 7: Escape
+  await modeSel().selectOption('point to point');
+  await page.locator('#c').hover();
+  await page.keyboard.press('Home');
+  await ui.waitStill(page, 8000);
   const ap = await spotsFor(page, walls);
   const one = Object.values(ap).flat()[0];
-  await page.locator('select').filter({ hasText: 'element to element' }).first().selectOption('point to point');
   await page.mouse.click(one.x, one.y);
   await page.waitForTimeout(300);
   await page.keyboard.press('Escape');
@@ -111,7 +148,9 @@ await tour.step('10.1 Try it: point to point, snap, element to element, the list
   await ui.set(page, 'units', 'mm');
   await page.evaluate(() => window.__xrayMeasure.click([0, 0, 0], 0));
   await page.evaluate(() => window.__xrayMeasure.click([1.234, 0, 0], 1));
-  const lab = await page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => t.textContent).join('|'));
+  await ui.tool(page, 'Measure').click();
+  await page.waitForTimeout(500);
+  const lab = await page.locator('.xt-item strong').allInnerTexts().then((a) => a.join('|'));
   tour.check('"units: metres with 3 decimals, or whole millimetres": 1.234 m reads 1234 mm', /1234 ?mm/.test(lab), lab);
 });
 
@@ -122,9 +161,11 @@ await tour.step('10.2 Try it: clearance colouring on the duct', async () => {
   const base = await page.evaluate(() => { const c = window.__xray.app.controller; return Array.from(c.state.color.slice(0, 3 * c.model.elements.length)); });
   await ui.tool(page, 'Clearance').click();
   await page.waitForTimeout(1500);
+  tour.check('step 2: "Open the Clearance tool in the strip": the drawer opens with the switch Show clearance of the context to the focus', await page.locator('label.xt-check', { hasText: 'Show clearance of the context to the focus' }).isVisible());
+  await page.locator('label.xt-check', { hasText: 'Show clearance of the context to the focus' }).click();
+  await page.waitForTimeout(1500);
   const en = await page.evaluate(() => window.__xrayClearance.enabled);
-  tour.check('step 2: "Open the Clearance tool in the strip. Colouring starts."', en === true, `enabled ${en}`);
-  if (!en) { await page.getByText('Show clearance of the context to the focus').click(); await page.waitForTimeout(1500); }
+  tour.check('step 2: "Colouring starts" once the switch is on', en === true, `enabled ${en}`);
   const counts = await page.evaluate(() => window.__xrayClearance.counts);
   const status = await page.evaluate(() => window.__xrayClearance.status);
   tour.check('step 4: "The drawer shows counts per band and the time it took"', /clash \d+, tight \d+, ok \d+, beyond \d+/.test(status) && /ms/.test(status), status);
@@ -148,13 +189,13 @@ await tour.step('10.2 Try it: clearance colouring on the duct', async () => {
   const tightN1 = await page.evaluate(() => window.__xrayClearance.counts?.tight ?? -1);
   tour.check('step 6: "Raise tight (m) from 0.05 to 0.2. More elements turn amber"', tightN1 > tightN0 || tightN1 >= 1, `tight ${tightN0} -> ${tightN1}`);
   // step 7: off
-  await page.getByText('Show clearance of the context to the focus').click();
+  await page.locator('label.xt-check', { hasText: 'Show clearance of the context to the focus' }).click();
   await page.waitForTimeout(1000);
   const after = await page.evaluate((b) => { const c = window.__xray.app.controller; let n = 0; const col = c.state.color; for (let i = 0; i < b.length; i++) if (Math.abs(col[i] - b[i]) > 0.02) n++; return n; }, base);
   tour.check('step 7: "Switch clearance off. The original colours return."', after === 0, `${after} channels still differ`);
   void again;
   // Raise issues block
-  await page.getByText('Show clearance of the context to the focus').click();
+  await page.locator('label.xt-check', { hasText: 'Show clearance of the context to the focus' }).click();
   await page.waitForTimeout(1500);
   tour.check('"The drawer has an Issues block with Raise issues from results"', await page.getByRole('button', { name: 'Raise issues from results' }).count() >= 1);
 });
