@@ -96,9 +96,17 @@ const POLL_MS = 100;
 /** Easing time of a camera undo, ms. */
 const EASE_MS = 240;
 
+/** A pointer button is down anywhere on the page (a slider drag in progress, however slow the frames are). */
+let pointerHeld = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', () => { pointerHeld = true; }, true);
+  for (const ev of ['pointerup', 'pointercancel', 'blur'] as const) window.addEventListener(ev, () => { pointerHeld = false; }, true);
+}
+
 const stack = new UndoStack<Entry>({
   cap: 100,
   coalesceMs: 600,
+  holding: () => pointerHeld,
   merge(prev, next) {
     if (prev.kind !== 'setting' || next.kind !== 'setting') return next;
     const a = prev.changes[0]!;

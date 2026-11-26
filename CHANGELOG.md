@@ -11,6 +11,9 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 - The Film step has "Storyboard PDF": still frames of the film at weekly dates on landscape pages, each with its date, week and the
   work going on, and the legend on every page. `xray-4d storyboard` makes the same PDF from the command line.
 - Classification: the decision model gains ModernBERT and DeBERTa-large zero-shot options and an `embed` mode (label prototypes with EmbeddingGemma, Bekko or Granite embeddings, `decisionMode` and `embedModel` settings), benchmarked in the classification guide; the default stays the DeBERTa-v3 xsmall NLI model.
+- Fixes found by the manual tours: Esc leaves Walk mode when the keyboard focus is on a checkbox, button or slider (only a text
+  field keeps the first Esc); a slow slider drag is one undo step for as long as the mouse button is held; the focus run now
+  includes the IFC4 terminals at the ends of duct and pipe runs (air, sanitary, waste and fire-suppression terminals).
 
 ## v32 - 2026-11-26
 

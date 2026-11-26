@@ -69,6 +69,17 @@ describe('UndoStack', () => {
     expect(s.size).toBe(3);
   });
 
+  it('merges a slow drag while a pointer button is held, and not after it is let go', () => {
+    let held = true;
+    const s = new UndoStack<E>({ coalesceMs: 500, merge, holding: () => held });
+    s.push(e('opacity', 0, { key: 'o', before: 1, after: 2 }));
+    s.push(e('opacity', 2000, { key: 'o', before: 2, after: 3 }));
+    expect(s.size).toBe(1);
+    held = false;
+    s.push(e('opacity', 4000, { key: 'o', before: 3, after: 4 }));
+    expect(s.size).toBe(2);
+  });
+
   it('drops a merged entry that came back to where it started', () => {
     const s = new UndoStack<E>({ coalesceMs: 500, merge });
     s.push(e('x', 0, { key: 'k', before: 1, after: 2 }));

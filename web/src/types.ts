@@ -229,6 +229,8 @@ export const DEFAULT_CLASSIFICATION: ClassificationSettings = {
   focusClasses: [
     'IfcDuctSegment', 'IfcDuctFitting', 'IfcPipeSegment', 'IfcPipeFitting',
     'IfcCableCarrierSegment', 'IfcCableCarrierFitting', 'IfcFlowSegment', 'IfcFlowFitting', 'IfcFlowTerminal',
+    // IFC4 subtypes of IfcFlowTerminal at the ends of duct and pipe runs
+    'IfcAirTerminal', 'IfcSanitaryTerminal', 'IfcWasteTerminal', 'IfcFireSuppressionTerminal',
   ],
   ctxClasses: [
     'IfcSlab', 'IfcWall', 'IfcWallStandardCase', 'IfcBeam', 'IfcColumn', 'IfcFooting', 'IfcStair', 'IfcRoof',

@@ -7,7 +7,7 @@
 //   Navigation style: `navigation style` in the Keyboard folder, BIM (default) or Game; kept in localStorage `xray.keynav`.
 
 import type { AppPlugin, ViewerApp } from '../app';
-import { getKeymap } from '../input/keymap';
+import { getKeymap, isTypingTarget } from '../input/keymap';
 import {
   isWalking,
   navSettings,
@@ -154,8 +154,8 @@ export const walkPlugin: AppPlugin = {
       'keydown',
       (e) => {
         if (e.key !== 'Escape' || !isWalking() || e.ctrlKey || e.metaKey || e.altKey) return;
-        const t = e.target as HTMLElement | null;
-        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; // Esc leaves the field first
+        // Esc leaves a text field first; a checkbox, button or slider has no use for Esc, so Walk mode ends from there.
+        if (isTypingTarget(e.target)) return;
         if (getKeymap()?.anyOverlayOpen()) return; // the cheat sheet or the palette closes first
         setWalking(app, false);
         e.preventDefault();

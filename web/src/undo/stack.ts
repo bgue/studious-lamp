@@ -9,7 +9,8 @@
 //   - A new entry clears the redo list.
 //   - At most `cap` entries are kept; the oldest go first.
 //   - An entry with a `key` that follows an entry with the same key within `coalesceMs` is merged into it (a slider drag
-//     is one entry). `merge` returns the merged entry, or null when the two cancel out (the slider came back): both go.
+//     is one entry; while `holding` says a pointer button is down, however slow the drag). `merge` returns the merged
+//     entry, or null when the two cancel out (the slider came back): both go.
 //   - While `muted` is set (a model is loading, a link is being applied) pushes are ignored.
 
 export interface UndoEntry {
@@ -25,6 +26,8 @@ export interface UndoStackOptions<T extends UndoEntry> {
   cap?: number;
   coalesceMs?: number;
   merge?: (prev: T, next: T) => T | null;
+  /** While this returns true (a pointer button is held), same-key entries merge however far apart they are. */
+  holding?: () => boolean;
 }
 
 export const DEFAULT_CAP = 100;
@@ -39,11 +42,13 @@ export class UndoStack<T extends UndoEntry> {
   readonly cap: number;
   readonly coalesceMs: number;
   private readonly mergeFn: ((prev: T, next: T) => T | null) | undefined;
+  private readonly holding: (() => boolean) | undefined;
 
   constructor(opts: UndoStackOptions<T> = {}) {
     this.cap = Math.max(1, Math.floor(opts.cap ?? DEFAULT_CAP));
     this.coalesceMs = opts.coalesceMs ?? DEFAULT_COALESCE_MS;
     this.mergeFn = opts.merge;
+    this.holding = opts.holding;
   }
 
   get canUndo(): boolean {
@@ -92,7 +97,7 @@ export class UndoStack<T extends UndoEntry> {
   push(entry: T): boolean {
     if (this.applying || this.mutedCount > 0) return false;
     const last = this.undoList[this.undoList.length - 1];
-    if (last && entry.key !== undefined && last.key === entry.key && this.mergeFn && entry.at - last.at <= this.coalesceMs) {
+    if (last && entry.key !== undefined && last.key === entry.key && this.mergeFn && (entry.at - last.at <= this.coalesceMs || this.holding?.() === true)) {
       const merged = this.mergeFn(last, entry);
       this.redoList = [];
       if (merged === null) this.undoList.pop();
