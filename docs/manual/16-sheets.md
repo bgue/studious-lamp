@@ -62,8 +62,8 @@ sheet and the same one in the model, then a second pair. Two pairs fix position,
 the fit. After that, the sheet knows where it is.
 
 The sheets pane says it per sheet: `Not placed`, `Placed (manual, 2 points)`, `Placed (manual, ±N mm)` (three or more points),
-`Placed (manual, scale 1:100)` or `Placed (geo)`. Each sheet has the actions **Place in model…** (**Place again…** once placed),
-**Show in 3D**, **Model overlay** and **Remove placement**.
+`Placed (manual, scale 1:100)` or `Placed (geo)`. Each sheet has the action **Place in model…** (**Place again…** once placed). Once a sheet is
+placed, **Show in 3D**, **Model overlay** and **Remove placement** appear too.
 
 **Steps (any plan sheet and a model that match).**
 

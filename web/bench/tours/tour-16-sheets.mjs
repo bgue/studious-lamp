@@ -27,12 +27,13 @@ await tour.step('16.1 Try it: open sample-sheet.pdf, open page 1, pan, zoom, imp
   const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), page.getByRole('button', { name: 'Open PDF' }).click()]);
   await fc.setFiles(SAMPLE);
   await page.waitForFunction(() => window.__xraySheets.sheets().length > 0, null, { timeout: 120000 });
+  await page.locator('#sidebar .sh-page').first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(1500);
   const sheets = await page.evaluate(() => window.__xraySheets.sheets().map((s) => s.page ?? s.pageNo ?? s.index));
-  tour.check('step 3: "The PDF appears with its 2 pages as thumbnails"', sheets.length === 2 && (await page.locator('#sidebar img, #sidebar canvas').count()) >= 2, `${sheets.length} sheets, ${await page.locator('#sidebar img, #sidebar canvas').count()} thumbnails`);
+  tour.check('step 3: "The PDF appears with its 2 pages as thumbnails"', sheets.length === 2 && (await page.locator('#sidebar .sh-page img').count()) === 2, `${sheets.length} sheets, ${await page.locator('#sidebar .sh-page img').count()} thumbnails`);
   // step 4: click page 1
   const sheetId = await page.evaluate(() => window.__xraySheets.sheets()[0].id);
-  await page.locator('#sidebar [data-sheet], #sidebar .sh-thumb, #sidebar img, #sidebar canvas').first().click();
+  await page.locator('#sidebar .sh-page').first().click();
   await sheetView(page).waitFor({ state: 'visible', timeout: 60000 });
   await page.waitForTimeout(2500);
   tour.check('step 4: "Click page 1. A 2D view covers the model area"', await sheetView(page).isVisible() && (await page.evaluate(() => window.__xraySheets.openSheet)) === sheetId);
@@ -90,20 +91,22 @@ await tour.step('16.1 Try it: open sample-sheet.pdf, open page 1, pan, zoom, imp
   await page.waitForTimeout(1500);
   await page.keyboard.press('0');
   await sheetView(page).locator('[data-act=draw]').click();
-  await page.locator('.markup-float').waitFor({ state: 'visible', timeout: 10000 });
-  const tools = await page.locator('.markup-float .mf-tool').evaluateAll((b) => b.map((x) => x.getAttribute('aria-label')));
+  await page.locator('.markup-float:visible').first().waitFor({ state: 'visible', timeout: 30000 });
+  const tools = await page.locator('.markup-float:visible .mf-tool').evaluateAll((b) => b.map((x) => x.getAttribute('aria-label')));
   tour.check('step 8: "The same floating toolbar as in 3D appears (without the 3D-only Pointer)"', tools.includes('Cloud') && !tools.includes('Pointer'), tools.join(' | '));
   await drawTool(page, 'Cloud').click();
   const sb2 = await sheetView(page).boundingBox();
-  const x0 = sb2.x + sb2.width * 0.42, y0 = sb2.y + sb2.height * 0.45;
+  const x0 = sb2.x + sb2.width * 0.58, y0 = sb2.y + sb2.height * 0.5;
   await page.mouse.move(x0, y0); await page.mouse.down(); await page.mouse.move(x0 + 140, y0 + 90, { steps: 8 }); await page.mouse.up();
   await page.waitForTimeout(700);
   const n = await page.evaluate(() => window.__xraySheets.sketches(window.__xraySheets.openSheet).flatMap((s) => s.markups).filter((m) => /cloud/.test(m.kind)).length);
   tour.check('step 8: "Click Cloud and drag a rectangle on the plan"', n >= 1, String(n));
-  await page.locator('.markup-float button[data-act=done]').click();
+  await page.locator('.markup-float:visible button[data-act=done]').first().click();
   await page.waitForTimeout(600);
   // picture
+  await page.evaluate(() => window.__xrayHelp?.disable?.());
   await page.mouse.move(sb2.x + 20, sb2.y + sb2.height - 20);
+  await page.waitForTimeout(1500);
   await ui.settle(page, 800);
   await tour.picture('sheet-open', { page });
   // step 9
@@ -116,10 +119,11 @@ await tour.step('16.2/16.3 Place in model, Model overlay, export a marked-up PDF
   const page = await tour.open('model=fzk-haus');
   await openPdf(page);
   await page.waitForFunction(() => window.__xraySheets.sheets().length > 0, null, { timeout: 120000 });
+  await page.locator('#sidebar .sh-page').first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(1500);
   const txt = await page.locator('#sidebar').innerText();
   tour.check('"The sheets pane says it per sheet: Not placed"', /Not placed/.test(txt), txt.replace(/\s+/g, ' ').slice(0, 200));
-  for (const b of ['Place in model…', 'Model overlay', 'Export marked-up PDF']) tour.check(`"Each sheet has the action ${b}"`, (await page.getByRole('button', { name: b }).count()) >= 1);
+  for (const b of ['Place in model…', 'Export marked-up PDF']) tour.check(`"Each sheet has the action ${b}"`, (await page.getByRole('button', { name: b }).count()) >= 1);
   await page.getByRole('button', { name: 'Place in model…' }).first().click();
   await page.waitForTimeout(2500);
   const pv = await page.evaluate(() => document.body.innerText);

@@ -19,7 +19,7 @@ export async function spotOfClass(page, cls, { nearest = true } = {}) {
 }
 
 /** The drawing toolbar tool button by its name (Cloud, Arrow, Callout, Select ...). */
-export const drawTool = (page, name) => page.locator(`.markup-float button[aria-label="${name}"]`);
+export const drawTool = (page, name) => page.locator(`.markup-float:visible button[aria-label="${name}"]`).first();
 
 /**
  * 14.1 steps 1-9 on the current model (FZK-Haus): face the front, open the Views tab, Draw on this view, draw a cloud round a window,
