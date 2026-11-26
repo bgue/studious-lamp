@@ -1,6 +1,6 @@
 // The pipeline commands of xray-4d: link, plan, render, pack, all. Registered into the command table by tools/xray-4d.mjs
 // (makeCommands). Progress goes to stderr (io.err), results to stdout or -o.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
@@ -213,14 +213,35 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     return EXIT_OK;
   }
 
+  // ------------------------------------------------------------ script parameters and libraries
+  /** `--param name=value` (repeatable) as { name: value }. */
+  function parseParamArgs(list) {
+    const out = {};
+    for (const a of list ?? []) {
+      const eq = String(a).indexOf('=');
+      if (eq < 1) throw usage(`--param needs name=value, got "${a}"`);
+      out[String(a).slice(0, eq).trim()] = String(a).slice(eq + 1);
+    }
+    return out;
+  }
+  /** `--use-dir folder`: the .xrayanim files of the folder, by name without the extension, for `use "name"` lines. */
+  function readUseDir(dir) {
+    if (!dir) return {};
+    const d = resolve(dir);
+    if (!existsSync(d) || !statSync(d).isDirectory()) throw input(`--use-dir ${dir} is not a folder`);
+    const out = {};
+    for (const f of readdirSync(d).sort()) if (/\.xrayanim$/i.test(f)) out[f.replace(/\.xrayanim$/i, '')] = readFileSync(join(d, f), 'utf8').replace(/^\uFEFF/, '');
+    return out;
+  }
+
   // ------------------------------------------------------------ pack (and the page `render` drives)
   const planName = (p) => basename(p).replace(/\.4d\.json$|\.json$/i, '') || 'plan';
 
-  async function packPage(modelPath, planPath, scriptPath, outPath, extra, io) {
+  async function packPage(modelPath, planPath, scriptPath, outPath, extra, io, libFiles = []) {
     for (const [p, w] of [[modelPath, 'model'], [planPath, 'plan'], ...(scriptPath ? [[scriptPath, 'script']] : [])]) readFile(p, w);
     const { run, } = await import(pathToFileURL(join(webRoot, 'tools', 'xray-pack.mjs')).href);
     const { PackError } = await import(pathToFileURL(join(webRoot, 'tools', 'pack', 'lib.mjs')).href);
-    const argv = [modelPath, '--plans', planPath, '-o', outPath, '--force', ...(scriptPath ? ['--scripts', scriptPath] : []), ...extra];
+    const argv = [modelPath, '--plans', planPath, '-o', outPath, '--force', ...(scriptPath ? ['--scripts', [scriptPath, ...libFiles].join(',')] : []), ...extra];
     try {
       const code = await run(argv, { out: (s) => io.err(s), err: (s) => io.err(s) });
       if (code !== 0) throw input(`xray-pack failed (exit ${code})`);
@@ -235,7 +256,12 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     if (!modelPath || !planPath || args._.length > 2) throw usage('pack needs a model and a plan: xray-4d pack model.ifc build.4d.json [--script film.xrayanim] [--loop] -o build.html');
     if (!args.out) throw usage('pack needs -o <build.html>');
     const name = planName(planPath);
-    await packPage(modelPath, planPath, args.script, args.out, ['--autoplay', `plan:${name}`, '--kiosk', ...(args.loop ? ['--loop'] : []), ...(args.title ? ['--title', args.title] : [])], io);
+    const params = parseParamArgs(args.param);
+    if (Object.keys(params).length && !args.script) throw usage('--param needs --script');
+    if (args['use-dir'] && !args.script) throw usage('--use-dir needs --script');
+    // the libraries of the folder are packed with the script, so its `use "name"` lines find them in the page
+    const libFiles = args['use-dir'] ? Object.keys(readUseDir(args['use-dir'])).map((n) => join(resolve(args['use-dir']), `${n}.xrayanim`)).filter((f) => resolve(f) !== resolve(args.script)) : [];
+    await packPage(modelPath, planPath, args.script, args.out, ['--autoplay', `plan:${name}`, '--kiosk', ...Object.entries(params).flatMap(([k, v]) => ['--script-param', `${k}=${v}`]), ...(args.loop ? ['--loop'] : []), ...(args.title ? ['--title', args.title] : [])], io, libFiles);
     return EXIT_OK;
   }
 
@@ -266,6 +292,10 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     if (plan.schema !== 'xray-4d-plan/1') throw input(`plan ${planPath}: not a 4D plan (schema ${plan.schema ?? 'missing'})`);
     const name = planName(planPath);
     const scriptText = args.script ? readFile(args.script, 'script').toString('utf8') : null;
+    const params = parseParamArgs(args.param);
+    const libraries = readUseDir(args['use-dir']);
+    if (Object.keys(params).length && !args.script) throw usage('--param needs --script');
+    if (args['use-dir'] && !args.script) throw usage('--use-dir needs --script');
 
     const dir = mkdtempSync(join(tmpdir(), 'xray-4d-render-'));
     const t0 = performance.now();
@@ -291,12 +321,12 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
         const err = await p.evaluate('window.__xrayError');
         if (err) throw fail(`the viewer did not start: ${err}`, EXIT_RENDER);
         await p.waitForFunction('!!window.__xrayRecord && !!window.__xray4dFilm && !!window.__xrayScript', null, { timeout: 60000, polling: 300 });
-        const built = await p.evaluate(({ name, scriptText }) => {
-          const f = window.__xray4dFilm(name, scriptText);
+        const built = await p.evaluate(({ name, scriptText, params, libraries }) => {
+          const f = window.__xray4dFilm(name, scriptText, false, { params, libraries });
           if (!f.score) return { error: f.warning };
           window.__film = f.score;
           return { seconds: f.score.duration, cues: f.score.cues.length, warning: f.warning };
-        }, { name, scriptText });
+        }, { name, scriptText, params, libraries });
         if (built.error) throw fail(built.error, EXIT_RENDER);
         if (built.warning) io.err(`xray-4d: warning: ${built.warning}`);
         const frames = Math.max(1, Math.round(built.seconds * fps));
@@ -355,10 +385,10 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     const planPath = join(dir, 'build.4d.json');
     if (!args['no-render']) {
       stage('render');
-      await doRender({ _: [modelPath, planPath], out: join(dir, `build.${args.format === 'webm' ? 'webm' : 'mp4'}`), size: args.size, fps: args.fps, format: args.format, hud: args.hud, script: args.script }, io);
+      await doRender({ _: [modelPath, planPath], out: join(dir, `build.${args.format === 'webm' ? 'webm' : 'mp4'}`), size: args.size, fps: args.fps, format: args.format, hud: args.hud, script: args.script, param: args.param, 'use-dir': args['use-dir'] }, io);
     }
     stage('pack');
-    await doPack({ _: [modelPath, planPath], out: join(dir, 'build.html'), script: args.script, loop: args.loop }, io);
+    await doPack({ _: [modelPath, planPath], out: join(dir, 'build.html'), script: args.script, param: args.param, 'use-dir': args['use-dir'], loop: args.loop }, io);
     io.err(`done: ${dir}`);
     return EXIT_OK;
   }
@@ -391,24 +421,26 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     },
     render: {
       summary: 'render the 4D film to mp4, webm or a PNG zip (headless Chromium, frame by frame)',
-      usage: 'xray-4d render <model.ifc> <build.4d.json> [--script film.xrayanim] [--size 1920x1080] [--fps 30] [--format mp4|webm|png] [--hud on|off] -o build.mp4',
-      options: { '--script': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--out': 'string' },
-      optionHelp: ['  --script FILE    an .xrayanim script whose cues (camera, captions) play with the plan', '  --size WxH       default 1920x1080', '  --fps N          1 to 120, default 30',
+      usage: 'xray-4d render <model.ifc> <build.4d.json> [--script film.xrayanim [--param name=value ...] [--use-dir folder]] [--size 1920x1080] [--fps 30] [--format mp4|webm|png] [--hud on|off] -o build.mp4',
+      options: { '--script': 'string', '--param': 'list', '--use-dir': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--out': 'string' },
+      optionHelp: ['  --script FILE    an .xrayanim script whose cues (camera, captions) play with the plan',
+        '  --param N=V      a value for a "param" line of the script (repeatable), like --param floor="Level 2"; a name the script does not declare is a warning',
+        '  --use-dir DIR    resolve the script\'s `use "Name"` lines against the .xrayanim files of this folder (name = file name without the extension)', '  --size WxH       default 1920x1080', '  --fps N          1 to 120, default 30',
         '  --format F       mp4, webm or png (a zip of frames); default from the file extension', '  --hud on|off     composite the HUD (date, progress, captions); default on', '  -o, --out FILE  the video file (required)',
         'Needs Playwright with Chromium. Exit 5 when the render fails.'],
       run: doRender,
     },
     pack: {
       summary: 'a self-contained kiosk page (one .html) that autoplays the 4D film',
-      usage: 'xray-4d pack <model.ifc> <build.4d.json> [--script film.xrayanim] [--loop] [--title T] -o build.html',
-      options: { '--script': 'string', '--loop': 'bool', '--title': 'string', '--out': 'string' },
-      optionHelp: ['  --script FILE    an .xrayanim script whose cues play with the plan', '  --loop           play again and again', '  --title T        page title', '  -o, --out FILE  the page (required)'],
+      usage: 'xray-4d pack <model.ifc> <build.4d.json> [--script film.xrayanim [--param name=value ...] [--use-dir folder]] [--loop] [--title T] -o build.html',
+      options: { '--script': 'string', '--param': 'list', '--use-dir': 'string', '--loop': 'bool', '--title': 'string', '--out': 'string' },
+      optionHelp: ['  --script FILE    an .xrayanim script whose cues play with the plan', '  --param N=V      a value for a "param" line of the script (repeatable)', '  --use-dir DIR    the folder of .xrayanim libraries for the script\'s `use` lines (packed with it)', '  --loop           play again and again', '  --title T        page title', '  -o, --out FILE  the page (required)'],
       run: doPack,
     },
     all: {
       summary: 'link, plan, render and pack in one run, stopping at the first failure',
       usage: 'xray-4d all <model.ifc> <schedule.xer> --config map.4d.json -o out/ [--no-render] [--min-coverage 0.9] [--write-ifc] [--script F] [--view V] [--window W] [--length T] [--size S] [--fps N]',
-      options: { ...COMMON, '--assignments': 'string', '--prior': 'string', '--id-property': 'string', '--min-coverage': 'string', '--write-ifc': 'bool', '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--script': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--loop': 'bool', '--no-render': 'bool', '--out': 'string' },
+      options: { ...COMMON, '--assignments': 'string', '--prior': 'string', '--id-property': 'string', '--min-coverage': 'string', '--write-ifc': 'bool', '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--script': 'string', '--param': 'list', '--use-dir': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--loop': 'bool', '--no-render': 'bool', '--out': 'string' },
       optionHelp: [cfgHelp, '  -o, --out DIR    output directory: links.json, link-report.html, build.4d.json, build.mp4, build.html (model.4d.ifc with --write-ifc)', '  --no-render      skip the video', '  other options    as for link, plan, render and pack'],
       run: doAll,
     },

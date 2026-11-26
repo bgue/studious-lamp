@@ -75,6 +75,8 @@ select nothing
 - `repeat N times ... end repeat`: Run the statements inside again and again. `index` counts from 1. At most 500 times.
 - `repeat for each element in <elements> ... end repeat`: Run the statements once for each element. `it` is the element. At most 500 elements.
 - `repeat for each set in sets ... end repeat`: Run the statements once for each stored selection set. `it` is the set.
+- `repeat for each item|word|line|char <name> in <text> ... end repeat`: Run the statements once for each piece of a text: items are between commas, words between spaces, lines between line breaks. The name holds the piece. At most 500 times.
+- `set the random seed to N`: Start the random numbers of random() and random(n) from seed N. Without it the seed comes from the script text, so the same script always gives the same film.
 - `put <value> into <name>`: Keep a number, text ("a" & b joins text) or a yes/no under a name. Use the name wherever a number goes. Signs: + - * / and ( ).
 
 ### Decisions, loops and your own commands
@@ -88,6 +90,14 @@ select nothing
 - `<name> [value, value]`: Call a handler: its statements run here, one after the other, with the values as its parameters. Calls may nest up to 16 deep (recursion).
 - `function <name> [param, param] ... return <value> ... end <name>`: Define a function: it works out a value and gives it back with `return`. Use it in an expression: name(value, value). A function computes only; it does not move the camera or wait.
 - `return [<value>]`: Inside a function: give the value back and stop. Inside a handler: stop early (no value).
+- `exit repeat`: Leave the loop that holds it, at once. An error outside a loop.
+- `next repeat`: Skip the rest of this round of the loop and go on with the next one.
+- `exit <handler name>`: Leave the handler it stands in (the name must be that handler's own). Like `return` in a handler.
+
+### Reusable scripts
+
+- `param <name> default <"text"|number|yes|no>`: Declare a value the person can change without editing the script: the Parameters form of the Script tab, xray-4d render --param, xray-pack --script-param. Top level only. The name works like a name you `put`.
+- `use "<saved script>"`: Pull in the handlers and functions (only those) of another saved script of the Script tab, by name. A script that uses itself in a circle, or a missing script, is an error. A handler of this script wins over one of the library, with a warning. Top level only.
 
 ### Playback
 
@@ -109,6 +119,24 @@ select nothing
 
 `ease` takes `in`, `out`, `in out` or `linear`; the default is `in out` for camera moves and for numbers that blend.
 
+### Values and text
+
+Expressions (`put`, `if`, captions, arguments) can read the model and work on text and numbers. All of it is worked out when the script compiles; see the [guide](animation-script-guide.md), chapters 14 and 15, and the [grammar](animation-script-grammar.md).
+
+<!-- expressions:start -->
+- `the name|class|storey|type|globalid|material of <element>`: A fact of an element, as text; empty when the element has none. The element is `it` inside `repeat for each element`, or a GlobalId in text.
+- `property "<Pset.Prop>" of <element>`: A property of an element: text, a number or yes/no; empty text when the element has none.
+- `the names|globalids|classes|storeys|types of <elements>`: The values of many elements as comma-separated text (empty ones left out), at most 500. Use it with `repeat for each item`.
+- `<a> contains|begins with|ends with <b> | <a> is [not] in <b>`: Text tests for conditions, without regard to case. `a is in b` is true when b contains a.
+- `<a> & <b> | <a> && <b>`: `&` joins text; `&&` joins with one space between.
+- `item|word|line|char <n> [to <m>] of <text>`: A piece of a text. Items are between commas (spaces around them dropped), words between spaces, lines between line breaks. Counting starts at 1; past the end gives empty text. Ranges join the pieces again.
+- `the number of items|words|lines|chars in <text>`: How many pieces a text has.
+- `sort items|words|lines of <text> [descending] [numeric]`: The pieces in order, as text. Alphabetical without regard to case ("Level 2" before "Level 10"); `numeric` sorts as numbers.
+- `round(x[, digits]) trunc(x) floor(x) ceil(x) abs(x) min(a, b, ...) max(a, b, ...) sqrt(x) number(text)`: Maths on numbers. round goes away from zero at .5. sqrt of a negative is an error.
+- `<a> mod <b>   <a> div <b>   <a> ^ <b>   pi`: mod and div (whole division, rounded down) with a zero on the right are errors. ^ is the power, tighter than * and /. pi is 3.14159.
+- `random(n) | random()`: A whole number from 1 to n, or a number from 0 up to 1. Seeded: the same script text gives the same numbers every time (set the random seed to change them).
+<!-- expressions:end -->
+
 ### Elements
 
 Wherever a statement says `<elements>`:
@@ -120,6 +148,7 @@ Wherever a statement says `<elements>`:
 - `set "Name"`: the members of a stored selection set ([sets-query.md](sets-query.md)).
 - `the selection`, `everything`, `it`, `elements "gid1", "gid2"` (by GlobalId).
 - `active`, `completed`, `critical`: 4D, the elements of the running schedule in that state at that moment.
+- `the count of` and `there are` take the short forms too: `the count of class IfcDoor`, `there are set "Pumps"`. After a `where`, put the elements in parentheses when more follows: `the count of (where class = IfcDoor and storey = "Level 1") > 3`.
 
 ### Decisions, loops and your own commands
 
@@ -191,6 +220,7 @@ Captions, labels and the hover card are drawn by the HUD layer over the view, no
 - **Run, Pause, Stop** use the score player. The line being played is highlighted. If the player is not part of the build, Run says so.
 - **Examples** menu: a walk around the pumps (process-plant sample), peeling back the slabs storey by storey (synth5k), highlighting each
   selection set with a caption, and changing the look over time.
+- **Parameters**: when the script has `param` lines, a small form above Run holds one field for each. The values stay in this browser only (not in share links). **Reset to defaults** clears them. The example "One script, any floor" uses a parameter and the saved library "Floor helpers" (`use`).
 - **Saved scripts**: give the script a name and **Save**. Scripts are kept per model (the model identity of
   `src/markup/scope.ts`) in `localStorage["xray.anim.<model>"]`, together with the text you were editing, so a reload brings it back.
 - **Record** compiles the script and opens the video export dialog (size, frame rate, quality, format, captions and labels, file name; the
@@ -216,9 +246,12 @@ window.__xrayRecord.run(score, { size: '1280x720', fps: 30, format: 'auto', name
 window.__xrayScript.list();          // the saved scripts of this model
 window.__xrayScript.save('Tour', text);
 window.__xrayScript.load('Tour');
+window.__xrayScript.compile(text, { params: { floor: 'Level 2' } });  // values for `param` lines; { score, errors, params }
 window.__xrayScript.state();         // { errors, playingLine, status, running, ... } once the tab was shown
 ```
 
 The pure modules are in `src/anim/script/`: `lexer.ts`, `parser.ts` (syntax tree with line and column), `compiler.ts` (tree to score),
 `scriptHelp.ts` (this reference), `examples.ts`, `highlight.ts`, `runner.ts`. They use no DOM, no storage and no network, and no `eval`.
-`compileScript(text, options)` takes optional `resolve` (query to GlobalIds), `setNames`, `paramPaths`, `presets`, `views` and `plans` (4D plan by name; default: the registry of `src/anim/fourd/plans.ts`) from the app.
+`compileScript(text, options)` takes optional `params` (values for `param` lines), `library` (the text of a saved script by name, for `use`), `elementField` (a fact of an element),  `resolve` (query to GlobalIds), `setNames`, `paramPaths`, `presets`, `views` and `plans` (4D plan by name; default: the registry of `src/anim/fourd/plans.ts`) from the app.
+
+Command line: `xray-4d render|pack ... --script film.xrayanim --param name=value` (repeatable) and `--use-dir folder` (libraries for `use`); `xray-pack --scripts ... --script-param name=value`; the skill checker `xrayanim_check.mjs film.xrayanim --param name=value` resolves `use` against files next to the script.
