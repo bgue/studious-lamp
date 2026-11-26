@@ -14,7 +14,7 @@ GlobalId and never by an internal number, so it still applies after the model is
 
 ### Try it
 
-1. Open **FZK-Haus** from **Sample Projects** and change something visible, for example the ghosting strength.
+1. Open **FZK-Haus** from **Sample Projects** and change something visible, for example **alphaMin** in the folder **Sightlines (Alg 2)**, which sets how strong the ghosting is.
 2. In the **Parameters** tab of the right sidebar, open the folder **Export / import**.
 3. Click **Export JSON**. Your browser saves a small file. Name it after the project.
 4. Change the setting back by hand, so the look differs from the file.
@@ -48,7 +48,7 @@ An element in an IFC file carries more than a name. It carries property sets (fi
 
 1. In **FZK-Haus**, click a wall.
 2. Open the **Properties** tab of the right sidebar.
-3. At the top you see the GlobalId, class, name, storey, material and x-ray state. Click **Copy GlobalId** to put the id on the
+3. At the top you see the GlobalId, class, name, storey, material and x-ray bucket (focus, host, near or far). Click **Copy GlobalId** to put the id on the
    clipboard. Paste it in a mail or a ticket: it names this element in every version of the model.
 4. Below, expand the list of property sets and quantities. The `⋯` menu on a row and the right-click menu let you select all
    elements with this value, copy it, or save it as a criteria set.
@@ -85,7 +85,7 @@ You need the IFC file itself. A model opened from a sample or a `.glb` has no so
 3. The dialog lists each file with its size, schema and the number of elements that carry data. Choose **Write**: all classified
    elements, or only the reviewed ones.
 4. Leave **Include reviewer names and comments** off unless you mean it. It is off every time you open the dialog.
-5. Click **Write**. Where the browser supports it you choose the destination and the file streams to disk. Otherwise it downloads.
+5. Click **Save IFC** in the dialog. Where the browser supports it you choose the destination and the file streams to disk. Otherwise it downloads.
 6. The result is `AC20-FZK-Haus.xray.ifc`. Open it in another IFC program and look for the property sets below.
    If you classified with facets (chapter 18A), leave **Include classification facets** ticked and look for `XR_Trade` and `XR_Placement`
    on a wall.
