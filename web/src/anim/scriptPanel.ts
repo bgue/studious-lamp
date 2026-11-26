@@ -7,16 +7,18 @@ import { el } from '../ui/dom';
 import { openMenu } from '../ui/popupMenu';
 import type { ScorePlayerApi } from './score';
 import { compileScript } from './script/compiler';
-import type { CompileOptions, CompileResult } from './script/compiler';
+import type { CompileOptions, CompileResult, ParamValue } from './script/compiler';
 import { formatDiagnostic } from './script/diagnostics';
 import type { ScriptDiagnostic } from './script/diagnostics';
 import { EXAMPLES } from './script/examples';
 import { getPlan, registerPlan } from './fourd/plans';
 import type { FourDPlan } from '../schedule/types';
 import { highlightLine, markPieces } from './script/highlight';
+import { paramDecls, parseScript } from './script/parser';
+import type { ParamDecl } from './script/parser';
 import { runScript } from './script/runner';
 import type { RunResult } from './script/runner';
-import { ELEMENT_HELP, STATEMENT_HELP, TIMING_NOTES } from './script/scriptHelp';
+import { ELEMENT_HELP, EXPRESSION_HELP, STATEMENT_HELP, TIMING_NOTES } from './script/scriptHelp';
 import { cleanName, emptyDoc, exportFileName, exportText, findScript, importText, loadDoc, removeScript, saveDoc, uniqueScriptName, upsertScript } from './scriptStore';
 import type { ScriptDoc, ScriptStorage } from './scriptStore';
 
@@ -33,7 +35,7 @@ export interface ScriptPanelDeps {
   /** Give a text file to the person (a download). */
   download?(fileName: string, text: string): void;
   /** Open the video export (options dialog) for the compiled script. */
-  record?(text: string, name: string): void;
+  record?(text: string, name: string, params?: Record<string, ParamValue>): void;
 }
 
 export interface ScriptPanelState {
@@ -47,6 +49,8 @@ export interface ScriptPanelState {
   status: string;
   running: boolean;
   paused: boolean;
+  /** The parameters the script declares, with the value in the Parameters form. */
+  params: Array<{ name: string; kind: 'text' | 'number' | 'yesno'; value: ParamValue }>;
 }
 
 const STYLE_ID = 'xray-script-style';
@@ -67,6 +71,13 @@ const CSS = `
 .as-name { flex: 1 1 120px; min-width: 0; background: #11161f; color: inherit; border: 1px solid #344055; border-radius: 4px; padding: 4px 7px; font: inherit; min-height: 26px; }
 .as-saved { flex: 0 1 150px; min-width: 0; background: #11161f; color: inherit; border: 1px solid #344055; border-radius: 4px; padding: 3px 4px; font: inherit; min-height: 26px; }
 .as-grow { flex: 1 1 auto; }
+.as-params { display: flex; flex-direction: column; gap: 6px; border: 1px solid #2a3344; border-radius: 4px; padding: 6px 8px; background: #11161f; }
+.as-params[hidden] { display: none; }
+.as-params h4 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sb-dim, #8d99a8); font-weight: 600; }
+.as-param { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.as-param label { flex: 0 1 38%; min-width: 80px; overflow-wrap: anywhere; }
+.as-param input[type=text], .as-param input[type=number] { flex: 1 1 100px; min-width: 0; background: #0e131b; color: inherit; border: 1px solid #344055; border-radius: 4px; padding: 4px 7px; font: inherit; min-height: 26px; }
+.as-param input:focus-visible { outline: 2px solid var(--sb-accent, #3b9cff); outline-offset: 1px; }
 .as-msg { flex: 1 1 140px; min-width: 0; color: var(--sb-dim, #8d99a8); overflow-wrap: anywhere; }
 .as-msg.bad { color: #ff9a8f; }
 .as-msg.good { color: #8fd69a; }
@@ -104,7 +115,7 @@ const CSS = `
 .as-ref p { margin: 2px 0; } .as-ref ul { margin: 4px 0 0; padding-left: 16px; }
 @media (max-width: 700px) {
   .as-root { --as-fs: 16px; padding: 8px 8px 16px; }
-  .as-btn, .as-name, .as-saved { min-height: 40px; font-size: 14px; padding: 6px 10px; }
+  .as-btn, .as-name, .as-saved, .as-param input[type=text], .as-param input[type=number] { min-height: 40px; font-size: 14px; padding: 6px 10px; }
   .as-editor { height: 240px; }
   .as-err { padding: 8px 9px; }
 }
@@ -153,6 +164,10 @@ export class ScriptPanel {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private delTimer: ReturnType<typeof setTimeout> | null = null;
   private mounted = false;
+  /** The Parameters form: what the person typed for each `param` of the script. In memory only (per viewer): never stored, never in a share link. */
+  private paramBox!: HTMLElement;
+  private paramSig = '';
+  private paramValues: Record<string, ParamValue> = {};
 
   constructor(private readonly deps: ScriptPanelDeps) {}
 
@@ -211,7 +226,9 @@ export class ScriptPanel {
 
     this.errList = el('ul', 'as-errors', { 'aria-label': 'Problems in the script', ...HELP('Problems'), 'data-script-errors': '1' });
 
-    root.append(runRow, fileRow, fileRow2, ed, this.errList, this.buildReference());
+    this.paramBox = el('div', 'as-params', { 'data-script-params': '1', ...HELP('Parameters'), hidden: '' });
+
+    root.append(this.paramBox, runRow, fileRow, fileRow2, ed, this.errList, this.buildReference());
     pane.append(root);
 
     // events
@@ -266,6 +283,12 @@ export class ScriptPanel {
       const ins = el('button', 'as-btn', { type: 'button', 'data-insert': s.id, 'aria-label': `Insert the example of ${s.id}` }, 'Insert example');
       ins.addEventListener('click', () => this.insert(s.example));
       item.append(ins);
+      d.append(item);
+    }
+    d.append(el('h4', '', {}, 'Values and text'));
+    for (const e of EXPRESSION_HELP) {
+      const item = el('div', 'as-item', { 'data-expression': e.id });
+      item.append(el('code', '', {}, e.syntax), el('p', '', {}, e.summary), el('pre', '', {}, e.example));
       d.append(item);
     }
     d.append(el('h4', '', {}, 'Elements'));
@@ -476,7 +499,9 @@ export class ScriptPanel {
       this.compileTimer = null;
     }
     const text = this.text;
-    const r = compileScript(text, { ...this.deps.compileOptions(), name: cleanName(this.nameIn?.value ?? '') || undefined });
+    const decls = paramDecls(parseScript(text).program);
+    this.renderParams(decls);
+    const r = compileScript(text, this.optionsFor(decls));
     this.last = r;
     this.diags = r.errors;
     const errs = r.errors.filter((e) => e.severity === 'error').length;
@@ -491,6 +516,77 @@ export class ScriptPanel {
     }
     this.updateButtons();
     return r;
+  }
+
+  /** Compile options with the name of the script and the values of the Parameters form (only for names the script declares). */
+  private optionsFor(decls: readonly ParamDecl[]): CompileOptions {
+    const params: Record<string, ParamValue> = {};
+    for (const d of decls) {
+      const v = this.paramValues[d.name];
+      if (v !== undefined) params[d.name] = v;
+    }
+    return { ...this.deps.compileOptions(), name: cleanName(this.nameIn?.value ?? '') || undefined, ...(Object.keys(params).length ? { params } : {}) };
+  }
+
+  /** The values the form gives now, for each declared parameter. */
+  params(): Record<string, ParamValue> {
+    return (this.optionsFor(paramDecls(parseScript(this.text).program)).params ?? {}) as Record<string, ParamValue>;
+  }
+
+  /** Set values of the form (by name; names the script does not declare are kept for when it does). */
+  setParams(values: Record<string, ParamValue>): void {
+    Object.assign(this.paramValues, values);
+    this.paramSig = '';
+    this.recompile();
+  }
+
+  /** Build the Parameters form when the script declares parameters; leave it alone (keeping focus) while they stay the same. */
+  private renderParams(decls: readonly ParamDecl[]): void {
+    if (!this.mounted) return;
+    const sig = JSON.stringify(decls.map((d) => [d.name, d.kind, d.default]));
+    if (sig === this.paramSig) return;
+    this.paramSig = sig;
+    this.paramBox.textContent = '';
+    this.paramBox.hidden = decls.length === 0;
+    if (decls.length === 0) return;
+    this.paramBox.append(el('h4', '', {}, 'Parameters'));
+    for (const d of decls) {
+      const cur = this.paramValues[d.name];
+      const id = `as-param-${d.name}`;
+      const row = el('div', 'as-param');
+      row.append(el('label', '', { for: id }, d.name));
+      let input: HTMLInputElement;
+      if (d.kind === 'yesno') {
+        input = el('input', '', { type: 'checkbox', id, 'data-param': d.name }) as HTMLInputElement;
+        input.checked = typeof cur === 'boolean' ? cur : (d.default as boolean);
+        input.addEventListener('change', () => this.onParam(d.name, input.checked));
+      } else if (d.kind === 'number') {
+        input = el('input', '', { type: 'number', step: 'any', id, 'data-param': d.name }) as HTMLInputElement;
+        input.value = String(typeof cur === 'number' ? cur : d.default);
+        input.addEventListener('input', () => this.onParam(d.name, input.value === '' ? String(d.default) : Number(input.value)));
+      } else {
+        input = el('input', '', { type: 'text', id, spellcheck: 'false', autocomplete: 'off', 'data-param': d.name }) as HTMLInputElement;
+        input.value = typeof cur === 'string' ? cur : String(d.default);
+        input.addEventListener('input', () => this.onParam(d.name, input.value));
+      }
+      row.append(input);
+      this.paramBox.append(row);
+    }
+    const reset = el('button', 'as-btn', { type: 'button', 'data-act': 'params-reset' }, 'Reset to defaults');
+    reset.addEventListener('click', () => {
+      this.paramValues = {};
+      this.paramSig = '';
+      this.recompile();
+    });
+    const resetRow = el('div', 'as-row');
+    resetRow.append(reset);
+    this.paramBox.append(resetRow);
+  }
+
+  private onParam(name: string, value: ParamValue): void {
+    this.paramValues[name] = value;
+    if (this.compileTimer) clearTimeout(this.compileTimer);
+    this.compileTimer = setTimeout(() => this.recompile(), COMPILE_MS);
   }
 
   private jumpTo(d: ScriptDiagnostic): void {
@@ -525,7 +621,7 @@ export class ScriptPanel {
   run(): RunResult {
     this.recompile();
     const text = this.text;
-    const res = runScript(text, { ...this.deps.compileOptions(), name: cleanName(this.nameIn.value) || undefined }, this.deps.player(), {
+    const res = runScript(text, this.optionsFor(paramDecls(parseScript(text).program)), this.deps.player(), {
       onLine: (line) => this.setPlaying(line),
       onEnd: () => {
         this.running = false;
@@ -557,7 +653,7 @@ export class ScriptPanel {
       this.setStatus(formatDiagnostic(first), 'bad');
       return;
     }
-    this.deps.record?.(this.text, name);
+    this.deps.record?.(this.text, name, this.params());
   }
 
   private togglePause(): void {
@@ -732,6 +828,12 @@ export class ScriptPanel {
         if (demo) registerPlan('Demo', demo);
       } catch { /* no model: the example then reports the unknown plan */ }
     }
+    // an example that `use`s a library: save the library with it, unless a script of that name exists
+    if (ex.library && !findScript(this.doc, ex.library.name)) {
+      this.doc = upsertScript(this.doc, ex.library.name, ex.library.text);
+      saveDoc(this.deps.storage, this.docKey, this.doc);
+      this.fillSaved();
+    }
     this.setText(ex.text, ex.title);
     this.savedText = null;
     this.setStatus(`Loaded the example "${ex.title}". ${ex.about}`, '');
@@ -785,6 +887,7 @@ export class ScriptPanel {
       status: this.status,
       running: this.running,
       paused: p?.paused ?? false,
+      params: (this.last?.params ?? []).map((d) => ({ name: d.name, kind: d.kind, value: d.value })),
     };
   }
 }

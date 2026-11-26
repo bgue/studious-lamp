@@ -11,6 +11,7 @@ import { MAX_SOURCE_CHARS, MAX_SOURCE_LINES } from '../src/anim/script/lexer';
 import { KEYWORDS as QUERY_KEYWORDS } from '../src/query/lexer';
 import { WEB } from './revision-helpers';
 import { DOCS_PLANS } from './director-helpers';
+import { EXAMPLES } from '../src/anim/script/examples';
 
 const GRAMMAR = 'docs-features/animation-script-grammar.md';
 const GUIDE = 'docs-features/animation-script-guide.md';
@@ -34,7 +35,13 @@ function ebnfText(text: string): string {
 
 // Example compile options: a fake model with three elements and two selection sets. Without a model `repeat for each`
 // cannot run, so the examples are compiled against these names. Setting paths are not checked (a warning, not an error).
-const FAKE_MODEL: CompileOptions = { resolve: () => ['g1', 'g2', 'g3'], setNames: () => ['Pumps', 'Walls'], plans: DOCS_PLANS };
+const FAKE_MODEL: CompileOptions = {
+  resolve: () => ['g1', 'g2', 'g3'],
+  setNames: () => ['Pumps', 'Walls'],
+  plans: DOCS_PLANS,
+  elementField: (_g, f) => (f === 'name' ? 'Wall 1' : 'EI 60'),
+  library: (n) => (n === 'Floor helpers' ? EXAMPLES.find((x) => x.library)!.library!.text : null),
+};
 
 describe('animation script docs: every example compiles', () => {
   for (const page of [GRAMMAR, GUIDE]) {

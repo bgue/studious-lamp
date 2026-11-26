@@ -333,7 +333,7 @@ export const REVISION_HELP_KEYS: readonly string[] = [
 /** Keys of the Script tab of the right sidebar (src/anim/scriptPanel.ts): its controls carry the key in `data-help-key`. */
 export const SCRIPT_HELP_KEYS: readonly string[] = [
   'Script tab/Run', 'Script tab/Pause', 'Script tab/Stop', 'Script tab/Name', 'Script tab/Save', 'Script tab/Delete', 'Script tab/Saved scripts',
-  'Script tab/Examples', 'Script tab/Example', 'Script tab/Export', 'Script tab/Import', 'Script tab/Editor', 'Script tab/Problems', 'Script tab/Reference', 'Script tab/Record',
+  'Script tab/Examples', 'Script tab/Example', 'Script tab/Export', 'Script tab/Import', 'Script tab/Editor', 'Script tab/Problems', 'Script tab/Parameters', 'Script tab/Reference', 'Script tab/Record',
 ];
 
 /** Keys of the video export dialog and its busy overlay (src/anim/record/ui.ts): the controls carry the key in `data-help-key`. */

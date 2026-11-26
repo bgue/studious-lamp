@@ -294,7 +294,7 @@ describe('compiler: checks against the app', () => {
 
 describe('compiler: the examples', () => {
   const demo = fakePlan({ window: { from: Date.UTC(2027, 0, 4), to: Date.UTC(2027, 3, 1) }, timeMap: [[Date.UTC(2027, 0, 4), 0], [Date.UTC(2027, 3, 1), 40]], milestones: [] });
-  const opts: CompileOptions = { plans: (n) => (n === 'Demo' ? demo : null), resolve: () => ['a', 'b', 'c', 'd'], setNames: () => ['Pumps', 'Walls'], paramPaths: ['cinematic.glowStrength'], presets: [{ id: 'coordination', name: 'Coordination' }] };
+  const opts: CompileOptions = { plans: (n) => (n === 'Demo' ? demo : null), resolve: () => ['a', 'b', 'c', 'd'], setNames: () => ['Pumps', 'Walls'], paramPaths: ['cinematic.glowStrength'], presets: [{ id: 'coordination', name: 'Coordination' }], elementField: (_g, f) => (f === 'name' ? 'Wall 1' : 'EI 60'), library: (n) => EXAMPLES.find((x) => x.library?.name === n)?.library?.text ?? null };
   for (const e of EXAMPLES) {
     it(`${e.id} compiles without errors or warnings`, () => {
       const r = compileScript(e.text, opts);

@@ -5873,6 +5873,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click a row. Fix the marked text.',
     'Report: Onboarding checklist',
   ),
+  'Script tab/Parameters': h(
+    'The form shows the values that the script lets you change. Each param line of the script adds a field.',
+    'The run uses the values you type. They stay in this browser and are not in a share link.',
+    'Change a value. Click Run.',
+    'Report: Onboarding checklist',
+  ),
   'Script tab/Reference': h(
     'The section lists every statement with a short example.',
     'You see the words that you can type. A button adds an example to the editor.',

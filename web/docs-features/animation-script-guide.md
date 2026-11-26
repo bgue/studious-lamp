@@ -636,7 +636,99 @@ on, and `schedule "Plan" over 60 seconds fade 0.8 seconds` sets the fade-in of t
 When something goes wrong the Problems list says where: an `if` with no `end if`, an `end repeat` that closes an `if`, an `else`
 with no `if`, a call with the wrong number of values, a `return` outside a function.
 
-## 14. Summary
+## 14. Text, lists and properties
+
+A script can read facts of the model, join and test text, and go through lists. All of it is worked out when you press Run.
+
+**Facts of an element.** Inside `repeat for each element`, `it` is the element. `the name of it`, `the class of it`,
+`the storey of it`, `the type of it` and `the globalid of it` give text. `property "Pset_WallCommon.FireRating" of it` gives a
+property (text, a number or yes/no). An element with no such fact gives empty text. `the names of class IfcPump` gives the names
+of many elements at once, separated by commas.
+
+```xrayanim
+repeat for each element in class IfcWall
+  put property "Pset_WallCommon.FireRating" of it into rating
+  if rating contains "60" then
+    caption the name of it && "has" && rating for 1 seconds
+  end if
+end repeat
+```
+
+**Joining and testing text.** `&` joins; `&&` joins with one space between. `contains`, `begins with`, `ends with`,
+`is in` and `is not in` ignore case: `if the storey of it is in "Level 1, Level 2" then`.
+
+**Lists.** A list is text. Items are separated by commas, words by spaces, lines by line breaks. `item 2 of list`,
+`word 3 of sentence`, `line 1 of notes`, `char 1 to 3 of name` pick a piece (counting from 1; past the end gives empty text).
+`the number of items in list` counts. `sort items of list` gives the sorted text; add `descending` or `numeric`.
+`repeat for each item floor in list` goes through the pieces.
+
+```xrayanim
+put "Level 3, Level 1, Level 2" into floors
+put sort items of floors into ordered
+repeat for each item floor in ordered
+  caption floor && "of" && the number of items in floors for 1 seconds
+end repeat
+```
+
+**Leaving a loop early.** `exit repeat` leaves the loop; `next repeat` skips to the next pass; `exit showFloor` leaves the
+handler `showFloor`. Outside a loop (or outside that handler) they are errors that name the line.
+
+```xrayanim
+on showFloor name
+  if not (there are (where storey = name)) then exit showFloor
+  show where storey = name fading over 1 seconds
+end showFloor
+
+repeat with i from 1 to 10
+  if i > 3 then exit repeat
+  showFloor "Level " & i
+end repeat
+```
+
+**Maths.** `round(x)`, `round(x, 1)`, `trunc`, `floor`, `ceil`, `abs`, `min(a, b)`, `max(a, b)`, `sqrt`, `x mod y`, `x div y`,
+`x ^ y` and `pi`. A division by zero or the square root of a negative number is an error. `random(6)` gives 1 to 6 and `random()`
+a number from 0 to 1. The numbers are seeded from the script text, so the same script always gives the same film; write
+`set the random seed to 7` to choose another.
+
+```xrayanim
+set the random seed to 7
+put round(random() * 10, 1) into delay
+caption "A pause of" && delay && "seconds" for 1 seconds
+wait min(delay, 2) seconds
+```
+
+## 15. Reusable scripts: parameters and libraries
+
+**Parameters.** `param floor default "Level 1"` at the top of a script makes `floor` a value that can be changed without
+editing the script: in the **Parameters** form that appears above Run in the Script tab (only for you, in this browser; not in a
+share link), from the command line (`xray-4d render model.ifc build.4d.json --script film.xrayanim --param floor="Level 2"`),
+when packing a page (`xray-pack ... --scripts film.xrayanim --script-param floor="Level 2"`), or from code
+(`window.__xrayScript.compile(text, { params: { floor: "Level 2" } })`). Numbers and yes/no work too:
+`param pause default 3`, `param details default yes`. A value for a name the script does not declare is a warning.
+
+```xrayanim
+param floor default "Level 1"
+param pause default 3
+fly to where storey = floor over 3 seconds
+caption "Now showing" && floor for pause seconds
+```
+
+**Libraries.** Save a script with handlers and functions under a name (Script tab, Save), then `use "Floor helpers"` in
+another script pulls in its handlers and functions, and nothing else. A missing library, or libraries that use each other in a
+circle, are errors. If the script defines a handler of the same name, its own wins and you get a warning. On the command line,
+`--use-dir folder` finds the libraries as `.xrayanim` files in that folder (the name is the file name without the extension).
+
+```xrayanim
+use "Floor helpers"
+param floor default "Level 1"
+showFloor floor
+caption floorLabel(floor) for 3 seconds
+```
+
+(The saved script "Floor helpers" holds `on showFloor name ... end showFloor` and `function floorLabel name ... end floorLabel`;
+the example "One script, any floor" of the Examples menu saves it for you.)
+
+## 16. Summary
 
 - A line is one step. Lines run one after another unless they are in a `together` block.
 - Name the elements with `class`, `where`, `set` or `everything`.
@@ -646,3 +738,4 @@ with no `if`, a call with the wrong number of values, a `return` outside a funct
 - When it does not run, read the first message in the Problems list. Its line number is where to look.
 - `if`, `repeat while`, `repeat with` and your own commands (`on`, `function`) let the script decide and count; it is all worked out when you press Run (chapter 13).
 - A 4D plan plays with `schedule`; `at date` and `at milestone` place the statements on the schedule's clock (chapter 12).
+- Facts and properties of elements, text tests (`contains`), lists (`item 2 of`, `sort items of`), `exit repeat` and maths work in expressions (chapter 14). `param` and `use` make a script reusable (chapter 15).

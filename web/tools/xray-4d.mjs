@@ -81,7 +81,7 @@ async function loadParser() {
 
 // ---------------------------------------------------------------- arguments
 
-/** Parses `--flag`, `--flag value`, `--flag=value` against a spec ({ name: 'bool' | 'string' | 'int' }). */
+/** Parses `--flag`, `--flag value`, `--flag=value` against a spec ({ name: 'bool' | 'string' | 'int' | 'list' }); a 'list' option may repeat and gives an array. */
 export function parseArgs(argv, spec) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -108,6 +108,11 @@ export function parseArgs(argv, spec) {
     }
     let value = eq >= 0 ? a.slice(eq + 1) : argv[++i];
     if (value === undefined) throw usage(`${name} needs a value`);
+    if (kind === 'list') {
+      // a repeatable option: --param a=1 --param b=2
+      (out[name.slice(2)] ??= []).push(value);
+      continue;
+    }
     if (kind === 'int') {
       if (!/^\d+$/.test(value)) throw usage(`${name} needs a whole number, got "${value}"`);
       value = Number(value);

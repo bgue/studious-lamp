@@ -144,8 +144,9 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
     for (const m of checked.warnings) warn(`--flythroughs: ${m}`);
   }
   if (scriptFiles !== undefined) {
-    const checked = checkScripts(scriptFiles, options.autoplay);
+    const checked = checkScripts(scriptFiles, options.autoplay, options.scriptParams);
     extras.scripts = checked.scripts;
+    for (const m of checked.warnings) warn(m);
   }
   if (options.plans !== undefined) {
     const docs = options.plans.map((p) => ({ path: p, doc: loadJson(p, '--plans') }));

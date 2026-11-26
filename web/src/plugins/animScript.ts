@@ -13,7 +13,8 @@ import type { AppPlugin, ViewerApp } from '../app';
 import { getScorePlayer } from '../anim/score';
 import type { ElementRef, Score } from '../anim/score';
 import { compileScript } from '../anim/script/compiler';
-import type { CompileOptions } from '../anim/script/compiler';
+import type { CompileOptions, ParamValue } from '../anim/script/compiler';
+import { fieldText } from '../anim/hud/fields';
 import type { ScriptDiagnostic } from '../anim/script/diagnostics';
 import { EXAMPLES } from '../anim/script/examples';
 import { runScript } from '../anim/script/runner';
@@ -23,7 +24,7 @@ import type { ScriptPanelState } from '../anim/scriptPanel';
 import { cleanName, findScript, loadDoc, removeScript, saveDoc, upsertScript } from '../anim/scriptStore';
 import type { ScriptStorage } from '../anim/scriptStore';
 import { identityKey, loadedIdentity } from '../markup/scope';
-import { runQuery } from '../query';
+import { modelTable, runQuery } from '../query';
 import { defaultSetsFor, isCriteria, loadSets, MemoryStorage } from '../selectionSets';
 import type { SelectionSet } from '../selectionSets';
 import { showToast } from '../ui/keymapView';
@@ -31,10 +32,12 @@ import { collectParams } from '../ui/params';
 import { addRightSidebarTab } from './rightSidebar';
 
 export interface ScriptApi {
-  /** Compile a script text against the loaded model. */
-  compile(text: string): { score: Score | null; errors: ScriptDiagnostic[] };
+  /** Compile a script text against the loaded model. `params` gives values for its `param` lines (a name it does not declare is a warning). */
+  compile(text: string, opts?: ScriptRunOptions): { score: Score | null; errors: ScriptDiagnostic[]; params: Array<{ name: string; kind: string; default: ParamValue; value: ParamValue }> };
   /** Compile and play a script text (through the editor when the tab is built). */
-  run(text: string): RunResult;
+  run(text: string, opts?: ScriptRunOptions): RunResult;
+  /** Set values in the Parameters form of the Script tab (by parameter name). */
+  setParams(values: Record<string, ParamValue>): void;
   stop(): void;
   list(): Array<{ name: string; chars: number }>;
   save(name: string, text: string): boolean;
@@ -50,6 +53,12 @@ export interface ScriptApi {
   /** The settings paths the compiler checks `set` statements against. */
   paramPaths(): string[];
   open(): void;
+}
+
+export interface ScriptRunOptions {
+  params?: Record<string, ParamValue>;
+  /** Extra libraries for `use "Name"` (name -> script text), tried after the saved scripts. */
+  libraries?: Record<string, string>;
 }
 
 declare global {
@@ -155,6 +164,21 @@ export const animScriptPlugin: AppPlugin = {
       return s.globalIds.filter((g) => model.byGlobalId.has(g));
     };
 
+    /** One fact of an element for `the name of it` and `property "..." of it`: the query engine's columns (core columns and property keys). */
+    const elementField = (gid: string, field: string): string | number | boolean | null => {
+      const model = app.controller.model;
+      const id = model.byGlobalId.get(gid);
+      const rec = id === undefined ? undefined : model.elements[id];
+      if (!rec) return null;
+      if (field === 'type') {
+        const t = fieldText({ ifcClass: rec.ifcClass, globalId: rec.globalId, props: rec.props }, 'type');
+        return t === '' ? null : t;
+      }
+      const table = modelTable(model);
+      const acc = table.accessor(field);
+      return acc ? acc(id!) : null;
+    };
+
     const compileOptions = (): CompileOptions => {
       const w = window as unknown as {
         __xrayPresets?: { list(): Array<{ id: string; name: string }> };
@@ -175,10 +199,30 @@ export const animScriptPlugin: AppPlugin = {
       const loaded = !!app.loaded;
       return {
         resolve,
+        elementField: loaded ? elementField : undefined,
+        library: (name) => findScript(loadDoc(store, modelKey()), name)?.text ?? null,
+        libraryNames: () => loadDoc(store, modelKey()).scripts.map((x) => x.name),
         setNames: () => (loaded ? sets().map((s) => s.name) : null),
         paramPaths: loaded ? paramPaths() : null,
         presets,
         views,
+      };
+    };
+
+    /** Compile options with the caller's parameters and extra libraries. */
+    const withRun = (opts?: ScriptRunOptions): CompileOptions => {
+      const base = compileOptions();
+      const extra = opts?.libraries;
+      const lib = base.library;
+      return {
+        ...base,
+        ...(opts?.params ? { params: opts.params } : {}),
+        ...(extra
+          ? {
+              library: (n: string) => lib?.(n) ?? extra[n] ?? Object.entries(extra).find(([k]) => k.toLowerCase() === n.trim().toLowerCase())?.[1] ?? null,
+              libraryNames: () => [...(base.libraryNames?.() ?? []), ...Object.keys(extra)],
+            }
+          : {}),
       };
     };
 
@@ -190,9 +234,9 @@ export const animScriptPlugin: AppPlugin = {
         storage: store,
         setBadge: (t) => ctx.setBadge(t),
         toast: (t, ms) => showToast(t, ms),
-        record: (text, name) => {
+        record: (text, name, params) => {
           const rec = window.__xrayRecord;
-          const r = compileScript(text, compileOptions());
+          const r = compileScript(text, { ...compileOptions(), name, ...(params && Object.keys(params).length ? { params } : {}) });
           if (!rec || !r.score) return;
           void rec.dialog(`Script "${name}"`, r.score, name);
         },
@@ -219,17 +263,19 @@ export const animScriptPlugin: AppPlugin = {
     });
 
     const api: ScriptApi = {
-      compile: (text) => {
-        const r = compileScript(text, compileOptions());
-        return { score: r.score, errors: r.errors };
+      compile: (text, opts) => {
+        const r = compileScript(text, withRun(opts));
+        return { score: r.score, errors: r.errors, params: r.params };
       },
-      run: (text) => {
+      run: (text, opts) => {
         if (panel) {
           panel.setText(text);
+          if (opts?.params) panel.setParams(opts.params);
           return panel.run();
         }
-        return runScript(text, compileOptions(), getScorePlayer());
+        return runScript(text, withRun(opts), getScorePlayer());
       },
+      setParams: (values) => panel?.setParams(values),
       stop: () => {
         if (panel) panel.stop();
         else getScorePlayer()?.stop();
