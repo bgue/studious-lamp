@@ -72,6 +72,9 @@ figure.pic { margin: 6px 0 20px; padding: 14px 16px; border: 1px dashed var(--ru
   font: 14px/1.45 var(--f-ui); color: var(--muted); }
 .pic-k { font: 600 11px/1.6 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); border: 1px solid currentColor; border-radius: 4px; padding: 0 6px; }
 figure.pic figcaption { margin: 0; }
+figure.shot { margin: 6px 0 22px; }
+figure.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 8px; background: #fff; }
+figure.shot figcaption { margin-top: 6px; font: 14px/1.45 var(--f-ui); color: var(--muted); }
 mark { background: var(--mark); color: inherit; border-radius: 2px; }
 .top { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); font: 13px var(--f-ui);
   background: var(--ink); color: var(--paper); border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; text-decoration: none; }
@@ -161,7 +164,8 @@ follows you as you orbit. The change is eased in small steps, so nothing pops.</
 thin pipe. A far part that blocks your view still ghosts in this viewer (the original research report ghosted only host
 and near parts). A far wall that blocks the whole focus settles at an opacity of about 0.40. You can turn that off
 (see <a href="#s-4-2">4.2</a>).</p>
-<figure class="pic"><span class="pic-k">Picture</span><figcaption>the Building model with one duct selected. The duct is solid; the slab above it and one wall are faint with
+<figure class="shot" id="pic-focus-context-occluder"><img src="img/focus-context-occluder.jpg" alt="the Building model with one duct selected. The duct is solid; the slab above it and one wall are faint with
+visible outlines; the rest of the building is solid." loading="lazy" decoding="async"><figcaption>the Building model with one duct selected. The duct is solid; the slab above it and one wall are faint with
 visible outlines; the rest of the building is solid.</figcaption></figure>
 <p><strong>Words used in this manual.</strong> A <em>view</em> is a captured moment: camera, what is shown, hidden, cut and selected. A <em>preset</em> is
 a saved look (settings only). A <em>mode</em> is one of the five looks in the top bar: Solid, Ghost, Radiograph, Glow and
@@ -268,7 +272,7 @@ a status line tells you which step it is on. If the file cannot be read, one lin
 </ol>
 <p>The part after <code>?model=</code> picks the model. The values are <code>building</code>, <code>fzk-haus</code>, <code>plumbing</code>, <code>process-plant</code>, <code>synth5k</code>,
 <code>debris-demo</code> and <code>procedural</code>. If the value is unknown or its model cannot load, the viewer shows the in-memory
-<code>procedural</code> model and a red message at the top.</p>
+<code>procedural</code> model and a red message in the status bar.</p>
 <p><strong>How it works.</strong> The single file holds the program, the sample models and the IFC reader in one page. It has no
 dependencies and makes no network requests. A normal build of the served app cannot be opened by double-click, because
 browsers block its scripts when a page comes from <code>file://</code>. This is why the single file exists.</p>
@@ -392,7 +396,8 @@ select a wall and not the pipe behind it? And how do I take back the last thing 
 camera, and the rest of the manual falls into place. Everything you can do with the mouse you can also do from the
 keyboard, so you never have to hunt for a button.</p>
 <h2 data-num="3.1" id="s-3-1"><span class="num">3.1</span> The screen map</h2>
-<figure class="pic"><span class="pic-k">Picture</span><figcaption>the viewer on FZK-Haus with each part labelled: top bar, left sidebar, tool strip, canvas, view cube and
+<figure class="shot" id="pic-screen-map"><img src="img/screen-map.jpg" alt="the viewer on FZK-Haus with each part labelled: top bar, left sidebar, tool strip, canvas, view cube and
+section strip, right sidebar, status bar." loading="lazy" decoding="async"><figcaption>the viewer on FZK-Haus with each part labelled: top bar, left sidebar, tool strip, canvas, view cube and
 section strip, right sidebar, status bar.</figcaption></figure>
 <p>From top to bottom and left to right:</p>
 <ul>
@@ -711,7 +716,7 @@ specific parts by hand. It ends with the top-bar modes and the presets: one clic
 <li>Press <code>X</code>. All ghosts go solid at once: x-ray is off. Press <code>X</code> again.</li>
 <li>Press <code>Esc</code> to clear the selection. With nothing selected there is no focus, so nothing ghosts.</li>
 </ol>
-<figure class="pic"><span class="pic-k">Picture</span><figcaption>the same view with x-ray on and off, a duct run behind a slab.</figcaption></figure>
+<figure class="shot" id="pic-xray-on-off"><img src="img/xray-on-off.jpg" alt="the same view with x-ray on and off, a duct run behind a slab." loading="lazy" decoding="async"><figcaption>the same view with x-ray on and off, a duct run behind a slab.</figcaption></figure>
 <p><strong>How it works.</strong> (See <a href="#s-1-1">1.1</a> for the idea.) Each time you select something or move the camera, the viewer does two things.
 First, it sorts every context part into focus, host, near or far (the classification). This uses only geometry, so it does
 not change when you orbit. Second, it draws sightlines from points on the focus to the camera and counts which parts they
@@ -824,8 +829,8 @@ undoes both pins and hides. Pins and hides refer to elements by GlobalId, so a v
 under one name "Steel"). Edits are stored per model in the browser. <strong>Reset to config</strong> drops them. <strong>Export JSON</strong> saves
 them as <code>xray.config.json</code>, and <strong>Import JSON</strong> loads such a file. An installation can ship a default file next to the
 viewer. Precedence, lowest first: that file, the model's own styles, then your edits.</p>
-<p><strong>Try it.</strong> In the Building model, select a column. Click <strong>Pin selected</strong>. Orbit so that a wall is in front of it. The
-column stays clearly visible. Click <strong>Clear pins/hides</strong>.</p>
+<p><strong>Try it.</strong> In the Building model, select a beam. Click <strong>Pin selected</strong>. Orbit so that a wall is in front of it. The
+beam stays clearly visible. Click <strong>Clear pins/hides</strong>.</p>
 <p><strong>Limits and gotchas.</strong> A pin keeps a part at or above a floor. It does not make a part solid if the floor is below 1. A
 hidden part is not deleted and returns with <code>Alt+H</code> or <strong>Clear pins/hides</strong>. With x-ray off, no hide applies, whichever way you hid the part (<code>H</code>, <strong>Hide selected</strong> or the Model tree): everything is drawn. The hides apply again when you switch x-ray on. In the Radiograph and MRI looks only <code>hidden</code> of
 the class styles still applies.</p>
@@ -1002,7 +1007,8 @@ outside the window solid).</p>
 <li>Press <code>Shift+1</code> to go back to the plain x-ray, then press <code>B</code>. A plane cuts everything in front of the window, and
     the room behind is solid. Press <code>Shift+B</code> to try the other treatments. Press <code>B</code> again to switch it off.</li>
 </ol>
-<figure class="pic"><span class="pic-k">Picture</span><figcaption>FZK-Haus from outside with a window selected, in three states: ghosted, peeled with solid surroundings, and
+<figure class="shot" id="pic-peel-behind-states"><img src="img/peel-behind-states.jpg" alt="FZK-Haus from outside with a window selected, in three states: ghosted, peeled with solid surroundings, and
+behind-only with cap." loading="lazy" decoding="async"><figcaption>FZK-Haus from outside with a window selected, in three states: ghosted, peeled with solid surroundings, and
 behind-only with cap.</figcaption></figure>
 <p><strong>How it works.</strong> The decision is made for each pixel, not for each element, so a slab can be half removed. For the peel,
 the viewer draws the focus into a small hidden picture, then spreads each focus pixel outward to find, for every other
@@ -1098,7 +1104,7 @@ faces, and the viewer paints those flat in the cap colour with a light hatch. Th
     several storeys, or press <code>Ctrl+A</code> to select everything visible.</li>
 <li>In the <strong>Parameters</strong> tab, open the <strong>Cinematic</strong> folder, then <strong>Exploded view</strong>. Set <code>Mode</code> to <code>storeys</code>.</li>
 <li>Click <strong>Explode</strong>. The floors slide apart vertically, with <code>Storey gap (m)</code> (default 3 m) between neighbours. The middle
-    storey stays in place. Click <strong>Explode</strong> again and they slide back.</li>
+    storey stays in place. The button now reads <strong>Collapse</strong>. Click it and they slide back.</li>
 </ol>
 <p>The <code>explode</code> list says which parts move. <code>auto</code> explodes the selection when you selected more than one element, and
 otherwise the parts that block a single selected element. <code>selection</code>, <code>occluders</code> and <code>both</code> are explicit. <code>Mode</code> is
@@ -1189,7 +1195,7 @@ thin window shows dim.</p>
     (white ground, dark ink, deep blue bone) or <code>fluoro</code> (dark blue-green ground, green tissue).</li>
 <li>Press <code>M</code> again to go back to <strong>Standard</strong>.</li>
 </ol>
-<figure class="pic"><span class="pic-k">Picture</span><figcaption>the same view of FZK-Haus in Standard, Radiograph (classic) and MRI.</figcaption></figure>
+<figure class="shot" id="pic-imaging-three-looks"><img src="img/imaging-three-looks.jpg" alt="the same view of FZK-Haus in Standard, Radiograph (classic) and MRI." loading="lazy" decoding="async"><figcaption>the same view of FZK-Haus in Standard, Radiograph (classic) and MRI.</figcaption></figure>
 <p><strong>Controls (folder <code>Imaging</code>).</strong></p>
 <ul>
 <li><code>exposure</code> (1) and <code>contrast</code> (1): how bright and how hard the picture is.</li>
@@ -1236,7 +1242,7 @@ tells the server where the project is. For this reason the map is off by default
 <li>In the <strong>Parameters</strong> tab, open the <strong>Map</strong> folder.</li>
 <li>Switch on <code>show map under model</code>. A notice reads "Map tiles are fetched from <provider>; this reveals the project's
     location to them." Nothing is requested until you accept.</li>
-<li>Accept. The ground under the model fills with tiles over a moment. The status line under <code>location</code> says where the place
+<li>Click <strong>Show the map</strong>. The ground under the model fills with tiles over a moment. The status line under <code>location</code> says where the place
     came from: <code>From IfcMapConversion (EPSG:25832)</code>, <code>From IfcSite</code>, <code>Manual</code> or <code>Unknown</code>.</li>
 <li>Choose <code>provider</code>: <strong>Esri World Imagery</strong> (satellite), <strong>OpenStreetMap</strong> (street map) or a <strong>custom XYZ template</strong>. The
     viewer asks again for a new provider.</li>
@@ -3742,9 +3748,7 @@ has the same core fields, so a query for one facet works for all:</p>
     another code and the source turns to <code>manual</code>. A manual value wins over every other source and is kept for this model.</li>
 <li>Type <code>where XR_Orientation.Plausible = FALSE</code>. A wall lying flat or a door upside down would appear here.</li>
 </ol>
-<blockquote>
-<p>Picture (facets-folder): the Facets folder of the Classification tab with the six switches and the facet values of one wall.</p>
-</blockquote>
+<figure class="pic"><span class="pic-k">Picture</span><figcaption>the Facets folder of the Classification tab with the six switches and the facet values of one wall.</figcaption></figure>
 <h3>How it works</h3>
 <p>The facets are decided cheapest first, like the discipline (<a href="#s-18-1">18.1</a>).</p>
 <ul>
@@ -3793,9 +3797,7 @@ tree regroups the same elements by what the classifier found, whatever the file'
     Save it. Because it is a query, the set updates itself when the classification changes (<a href="#ch-8">chapter 8</a>).</li>
 <li>Click the eye on a row to hide or show the group. Elements without a value at a level sit under <strong>Not classified</strong>.</li>
 </ol>
-<blockquote>
-<p>Picture (class-tree-envelope): the By classification tree with the Envelope preset, counts, an amber review share and the +set button.</p>
-</blockquote>
+<figure class="pic"><span class="pic-k">Picture</span><figcaption>the By classification tree with the Envelope preset, counts, an amber review share and the +set button.</figcaption></figure>
 <h3>How it works</h3>
 <p>The tree is computed from the <code>XR_</code> properties, so it follows every change you make. It groups by 1 to 4 levels. A click selects the
 elements of the row. The keys are those of the model tree (appendix A). The filter box filters this tree too.</p>
@@ -3883,9 +3885,7 @@ fields (<code>BarCount</code>, <code>MatchedMass</code>, <code>RatioCheck</code>
 <li>Type <code>sum XR_ConcreteGeometry.Volume by Storey</code> to total the measured concrete per storey.</li>
 <li>Type <code>where XR_ConcreteSpec.NeedsReview = TRUE</code>. These are elements whose strength, exposure or cover was suggested, not read.</li>
 </ol>
-<blockquote>
-<p>Picture (concrete-sets): the concrete sets of the Bodenplatte in the Facets folder, with role, mark, volume and formwork area.</p>
-</blockquote>
+<figure class="pic"><span class="pic-k">Picture</span><figcaption>the concrete sets of the Bodenplatte in the Facets folder, with role, mark, volume and formwork area.</figcaption></figure>
 <h3>How it works</h3>
 <p><strong>Which elements.</strong> Elements whose material is concrete; footings and piles unless another material is named; and slabs, walls, columns,
 beams, stairs and the like that carry a concrete property set. Masonry, steel and timber are not in the family.</p>
@@ -5269,9 +5269,7 @@ starts on 1 March 2027.</p>
     roof storey are built <strong>apart</strong>: the storeys move away from each other around the floor being built (<a href="#s-27-3">27.3</a>). At the end the camera
     dollies in and orbits the finished house, and a caption says "Complete".</li>
 </ol>
-<blockquote>
-<p>Picture (4d-midfilm): the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.</p>
-</blockquote>
+<figure class="pic"><span class="pic-k">Picture</span><figcaption>the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.</figcaption></figure>
 <h3>What the example is built to show</h3>
 <p>The schedule was written to behave like a real one. Walls start while the slab cures. The roof frame goes up before
 the roof deck. The windows wait until the roof keeps the rain out, and a milestone, "Building weathertight", marks that
@@ -5674,9 +5672,7 @@ being fitted inside a closed wall stay visible without hiding the building.</p>
 <li>Drag the date slider. While a film plays it seeks. From a stop, it starts the film paused at that date.</li>
 <li>Press <code>Space</code> to pause. The player's keys, transport and HUD are the ones from <a href="#ch-21">chapter 21</a>.</li>
 </ol>
-<blockquote>
-<p>Picture (4d-style): the Style section with View, Unbuilt parts, Window and Film length visible.</p>
-</blockquote>
+<figure class="pic"><span class="pic-k">Picture</span><figcaption>the Style section with View, Unbuilt parts, Window and Film length visible.</figcaption></figure>
 <h3>Reading the screen</h3>
 <p>While the film runs, the HUD draws:</p>
 <ul>
@@ -5881,9 +5877,7 @@ build <strong>temporary works</strong> from rules you write once: <strong>scaffo
 <li>Switch <strong>Show in the film</strong> off. The film plays without them. The rules stay.</li>
 <li>Click <strong>Add rule</strong>. Choose kind <code>formwork</code>, a query such as <code>class = 'IfcBeam'</code>, erect <code>1</code> day before, strike <code>3</code> days after. Play again.</li>
 </ol>
-<blockquote>
-<p>Picture (temp-works-fzk): the FZK-Haus mid-film with yellow scaffold along an outer wall and blue props under a slab.</p>
-</blockquote>
+<figure class="pic"><span class="pic-k">Picture</span><figcaption>the FZK-Haus mid-film with yellow scaffold along an outer wall and blue props under a slab.</figcaption></figure>
 <h3>How it works</h3>
 <p>A rule has a <strong>kind</strong>, a query for the permanent elements it serves, an <strong>erect</strong> time and a <strong>strike</strong> time. Times are either "during an
 activity" or "N days before the work starts / N days after it ends", with defaults (scaffold up 1 day before and down 1 day after, falsework
@@ -5918,9 +5912,7 @@ its date, week number and the work going on, and the colour legend is repeated o
 <li>The PDF downloads. It starts at the first work in the model, not at the start of the schedule, so you do not get empty-site frames. Open it:
     about 20 weekly frames on 4 A4 landscape pages, 3 across.</li>
 </ol>
-<blockquote>
-<p>Picture (storyboard-page): one A4 page of the FZK-Haus storyboard with three frames, their captions and the legend at the foot.</p>
-</blockquote>
+<figure class="pic"><span class="pic-k">Picture</span><figcaption>one A4 page of the FZK-Haus storyboard with three frames, their captions and the legend at the foot.</figcaption></figure>
 <h3>How it works</h3>
 <p>Each caption lists the date and <code>Week n</code>, then the top three running activities (most elements first) and <code>+N more</code>. A frame with no activity
 says <code>Complete</code> at the end or <code>No work in the model</code>. The title block names the project, the data date, the date it was made and the page. The

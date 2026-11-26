@@ -9,7 +9,7 @@ keyboard, so you never have to hunt for a button.
 
 ## 3.1 The screen map
 
-> Picture: the viewer on FZK-Haus with each part labelled: top bar, left sidebar, tool strip, canvas, view cube and
+> Picture (screen-map): the viewer on FZK-Haus with each part labelled: top bar, left sidebar, tool strip, canvas, view cube and
 > section strip, right sidebar, status bar.
 
 From top to bottom and left to right:

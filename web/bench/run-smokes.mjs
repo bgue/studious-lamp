@@ -1,11 +1,12 @@
 // Runs the browser smoke scripts one after the other: one port, one vite cache directory, a time limit for each, one summary line each.
 //
-//   node bench/run-smokes.mjs [--tier fast|full] [--port 5790] [--cache DIR] [--summary FILE] [--logs DIR]
+//   node bench/run-smokes.mjs [--tier fast|full|tours] [--port 5790] [--cache DIR] [--summary FILE] [--logs DIR]
 //                             [--only a,b] [--keep-png] [--list]
 //   npm run smoke:fast       about 12 minutes: 8 smokes that cover start-up, keys, the tree, undo, issues, 4D, scripts and help
-//   npm run smoke:full       every bench/smoke-*.mjs plus help-smoke.mjs (about 2 to 3 hours on a software renderer)
+//   npm run smoke:full       every bench/smoke-*.mjs plus help-smoke.mjs plus the tours (about 2 to 3 hours on a software renderer)
+//   npm run tours            the tours only: bench/tours/tour-*.mjs, one per manual chapter (see bench/tours/README.md)
 //
-//   --tier     fast (default) or full
+//   --tier     fast (default), full, or tours (the tour-*.mjs in bench/tours/)
 //   --port     the port every smoke gets as SMOKE_PORT and BENCH_PORT (default 5790); the runner needs it to itself
 //   --cache    vite dependency cache, XRAY_VITE_CACHE_DIR for every smoke (default <tmp>/xray-smoke-vite-cache). One directory for all
 //              of them: the first smoke optimises the dependencies, the others reuse them. A git worktree should not share it with
@@ -17,11 +18,11 @@
 //   --list     print what would run, with the time limit and the expected seconds, and stop
 //
 // Summary line:  <name> rc=<exit code> pass=<n> fail=<n> <seconds>s   (rc=124: the time limit hit; the smoke is killed by process group)
-// pass and fail count the lines that start with PASS and FAIL, or the "N/M checks passed" line of the smokes that print one.
+// pass and fail count the lines that start with PASS and FAIL (a tour also prints KNOWN lines for suspected product bugs; they are shown as known=n and are not failures), or the "N/M checks passed" line of the smokes that print one.
 // After each smoke the runner kills whatever still listens on the port, by process id (lsof), so a crashed smoke does not leave
 // its vite server behind. Exit code 0 only when every smoke exited 0 with no failed check.
 import { spawn, spawnSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, readdirSync, writeFileSync, createWriteStream } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, writeFileSync, createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,7 +60,7 @@ const FAST = ['smoke-right-sidebar', 'smoke-keys', 'smoke-tree-keys', 'smoke-poi
 /** Time limit in seconds: four times the expected duration, at least 5 minutes, 15 minutes for a smoke with no measurement. */
 function limitOf(name) {
   const e = EXPECT[name];
-  return e ? Math.max(300, e * 4) : 900;
+  return e ? Math.max(300, e * 4) : name.startsWith('tour-') ? 3600 : 900;
 }
 
 const args = process.argv.slice(2);
@@ -75,19 +76,25 @@ const cache = resolve(opt('cache', join(tmpdir(), 'xray-smoke-vite-cache')));
 const summaryFile = resolve(opt('summary', join(tmpdir(), 'xray-smoke-summary.txt')));
 const logDir = resolve(opt('logs', join(tmpdir(), 'xray-smoke-logs')));
 
+const tourDir = join(here, 'tours');
+function allTours() {
+  return existsSync(tourDir) ? readdirSync(tourDir).filter((f) => /^tour-.*\.mjs$/.test(f)).map((f) => f.replace(/\.mjs$/, '')).sort() : [];
+}
 function allSmokes() {
   const names = readdirSync(here).filter((f) => /^smoke-.*\.mjs$/.test(f)).map((f) => f.replace(/\.mjs$/, '')).sort();
-  return [...names, 'help-smoke'];
+  return [...names, 'help-smoke', ...allTours()];
 }
+/** The script of a smoke or tour. */
+const scriptOf = (name) => (name.startsWith('tour-') ? join(tourDir, `${name}.mjs`) : join(here, `${name}.mjs`));
 
 const norm = (n) => {
   const b = n.replace(/\.mjs$/, '');
-  return b === 'help' || b === 'help-smoke' ? 'help-smoke' : b.startsWith('smoke-') ? b : `smoke-${b}`;
+  return b === 'help' || b === 'help-smoke' ? 'help-smoke' : b.startsWith('smoke-') || b.startsWith('tour-') ? b : `smoke-${b}`;
 };
 
 function plan() {
-  if (tier !== 'fast' && tier !== 'full') throw new Error(`--tier must be fast or full, not "${tier}"`);
-  const base = tier === 'fast' ? FAST : allSmokes();
+  if (tier !== 'fast' && tier !== 'full' && tier !== 'tours') throw new Error(`--tier must be fast, full or tours, not "${tier}"`);
+  const base = tier === 'fast' ? FAST : tier === 'tours' ? allTours() : allSmokes();
   const only = opt('only', '');
   if (!only) return base;
   const wanted = only.split(',').map((s) => s.trim()).filter(Boolean).map(norm);
@@ -135,12 +142,13 @@ function freePort() {
 function count(text) {
   const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)\s+checks passed/g)].pop();
   if (m) return { pass: Number(m[1]), fail: Number(m[2]) - Number(m[1]) };
-  let pass = 0, fail = 0;
+  let pass = 0, fail = 0, known = 0;
   for (const line of text.split('\n')) {
     if (/^\s*PASS\b/.test(line)) pass++;
     else if (/^\s*FAIL\b/.test(line)) fail++;
+    else if (/^\s*KNOWN\b/.test(line)) known++;
   }
-  return { pass, fail };
+  return { pass, fail, known };
 }
 
 function runOne(name) {
@@ -148,7 +156,7 @@ function runOne(name) {
     const t0 = Date.now();
     const log = createWriteStream(join(logDir, `${name}.log`));
     let out = '';
-    const child = spawn(process.execPath, [join(here, `${name}.mjs`)], {
+    const child = spawn(process.execPath, [scriptOf(name)], {
       cwd: root,
       detached: true, // its own process group: a time-out kills the smoke and the vite server it started
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -167,8 +175,8 @@ function runOne(name) {
       log.end();
       try { process.kill(-child.pid, 'SIGKILL'); } catch { /* group already gone */ }
       freePort();
-      const { pass, fail } = count(out);
-      done({ name, rc: timedOut ? 124 : rc ?? 1, pass, fail, seconds: Math.round((Date.now() - t0) / 1000) });
+      const { pass, fail, known } = count(out);
+      done({ name, rc: timedOut ? 124 : rc ?? 1, pass, fail, known, seconds: Math.round((Date.now() - t0) / 1000) });
     };
     child.on('error', () => finish(1));
     child.on('close', (code) => finish(code));
@@ -190,7 +198,7 @@ for (const n of names) {
   if (interrupted) break;
   const r = await runOne(n);
   results.push(r);
-  say(`${r.name} rc=${r.rc} pass=${r.pass} fail=${r.fail} ${r.seconds}s`);
+  say(`${r.name} rc=${r.rc} pass=${r.pass} fail=${r.fail}${r.known ? ` known=${r.known}` : ''} ${r.seconds}s`);
 }
 restorePngs();
 const bad = results.filter((r) => r.rc !== 0 || r.fail > 0);

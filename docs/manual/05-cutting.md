@@ -36,7 +36,7 @@ outside the window solid).
 4. Press `Shift+1` to go back to the plain x-ray, then press `B`. A plane cuts everything in front of the window, and
    the room behind is solid. Press `Shift+B` to try the other treatments. Press `B` again to switch it off.
 
-> Picture: FZK-Haus from outside with a window selected, in three states: ghosted, peeled with solid surroundings, and
+> Picture (peel-behind-states): FZK-Haus from outside with a window selected, in three states: ghosted, peeled with solid surroundings, and
 > behind-only with cap.
 
 **How it works.** The decision is made for each pixel, not for each element, so a slab can be half removed. For the peel,
@@ -120,7 +120,7 @@ Exploding moves parts apart, without cutting any of them. It is a good way to sh
    several storeys, or press `Ctrl+A` to select everything visible.
 2. In the **Parameters** tab, open the **Cinematic** folder, then **Exploded view**. Set `Mode` to `storeys`.
 3. Click **Explode**. The floors slide apart vertically, with `Storey gap (m)` (default 3 m) between neighbours. The middle
-   storey stays in place. Click **Explode** again and they slide back.
+   storey stays in place. The button now reads **Collapse**. Click it and they slide back.
 
 The `explode` list says which parts move. `auto` explodes the selection when you selected more than one element, and
 otherwise the parts that block a single selected element. `selection`, `occluders` and `both` are explicit. `Mode` is

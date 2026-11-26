@@ -28,7 +28,7 @@ thin window shows dim.
    (white ground, dark ink, deep blue bone) or `fluoro` (dark blue-green ground, green tissue).
 6. Press `M` again to go back to **Standard**.
 
-> Picture: the same view of FZK-Haus in Standard, Radiograph (classic) and MRI.
+> Picture (imaging-three-looks): the same view of FZK-Haus in Standard, Radiograph (classic) and MRI.
 
 **Controls (folder `Imaging`).**
 
@@ -81,7 +81,7 @@ tells the server where the project is. For this reason the map is off by default
 1. In the **Parameters** tab, open the **Map** folder.
 2. Switch on `show map under model`. A notice reads "Map tiles are fetched from <provider>; this reveals the project's
    location to them." Nothing is requested until you accept.
-3. Accept. The ground under the model fills with tiles over a moment. The status line under `location` says where the place
+3. Click **Show the map**. The ground under the model fills with tiles over a moment. The status line under `location` says where the place
    came from: `From IfcMapConversion (EPSG:25832)`, `From IfcSite`, `Manual` or `Unknown`.
 4. Choose `provider`: **Esri World Imagery** (satellite), **OpenStreetMap** (street map) or a **custom XYZ template**. The
    viewer asks again for a new provider.

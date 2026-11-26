@@ -27,7 +27,7 @@ a status line tells you which step it is on. If the file cannot be read, one lin
 
 The part after `?model=` picks the model. The values are `building`, `fzk-haus`, `plumbing`, `process-plant`, `synth5k`,
 `debris-demo` and `procedural`. If the value is unknown or its model cannot load, the viewer shows the in-memory
-`procedural` model and a red message at the top.
+`procedural` model and a red message in the status bar.
 
 **How it works.** The single file holds the program, the sample models and the IFC reader in one page. It has no
 dependencies and makes no network requests. A normal build of the served app cannot be opened by double-click, because

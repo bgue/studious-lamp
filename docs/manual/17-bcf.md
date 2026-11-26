@@ -34,7 +34,7 @@ Use the **FZK-Haus** sample. First make an issue with a drawing, as in 15.1.
 6. Click **Clear** on the view row. Whatever the file hid or coloured is undone, and only that: elements you hid yourself stay
    hidden.
 
-> Picture: the Issues tab after opening a BCF file, with the status line saying what was applied.
+> Picture (bcf-opened): the Issues tab after opening a BCF file, with the status line saying what was applied.
 
 **Opening replaces, unless you have your own.** Opening a file replaces the issues that are loaded. If you have unsaved issues of
 your own, the file is merged in instead, and for an issue with the same id the file wins. Issues that belong to other models are

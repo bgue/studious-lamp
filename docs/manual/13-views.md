@@ -55,7 +55,7 @@ picked*. A keyframe is a view with a time on it. A share link is a view that fit
 The key `Ctrl+Shift+S` does the same as **Save view** from anywhere. `Shift+PageUp` and `Shift+PageDown` step to the previous and
 next view. (`PageUp` and `PageDown` alone still move the storey up and down.)
 
-> Picture: the Views tab with three views, the chips All / With drawings / On sheets / In an issue above the list, and the
+> Picture (views-tab): the Views tab with three views, the chips All / With drawings / On sheets / In an issue above the list, and the
 > thumbnail showing next to the hovered row.
 
 **The row menu (⋯).** The menu has **Update from current**, **Draw on this view** (**Edit drawings** once the view has

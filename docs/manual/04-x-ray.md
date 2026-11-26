@@ -21,7 +21,7 @@ specific parts by hand. It ends with the top-bar modes and the presets: one clic
 5. Press `X`. All ghosts go solid at once: x-ray is off. Press `X` again.
 6. Press `Esc` to clear the selection. With nothing selected there is no focus, so nothing ghosts.
 
-> Picture: the same view with x-ray on and off, a duct run behind a slab.
+> Picture (xray-on-off): the same view with x-ray on and off, a duct run behind a slab.
 
 **How it works.** (See 1.1 for the idea.) Each time you select something or move the camera, the viewer does two things.
 First, it sorts every context part into focus, host, near or far (the classification). This uses only geometry, so it does
@@ -129,8 +129,8 @@ under one name "Steel"). Edits are stored per model in the browser. **Reset to c
 them as `xray.config.json`, and **Import JSON** loads such a file. An installation can ship a default file next to the
 viewer. Precedence, lowest first: that file, the model's own styles, then your edits.
 
-**Try it.** In the Building model, select a column. Click **Pin selected**. Orbit so that a wall is in front of it. The
-column stays clearly visible. Click **Clear pins/hides**.
+**Try it.** In the Building model, select a beam. Click **Pin selected**. Orbit so that a wall is in front of it. The
+beam stays clearly visible. Click **Clear pins/hides**.
 
 **Limits and gotchas.** A pin keeps a part at or above a floor. It does not make a part solid if the floor is below 1. A
 hidden part is not deleted and returns with `Alt+H` or **Clear pins/hides**. With x-ray off, no hide applies, whichever way you hid the part (`H`, **Hide selected** or the Model tree): everything is drawn. The hides apply again when you switch x-ray on. In the Radiograph and MRI looks only `hidden` of

@@ -21,7 +21,8 @@
     "classify:truth": "node tools/classify-truth.mjs",
     "template": "node tools/build-single-file.mjs --template",
     "smoke:fast": "node bench/run-smokes.mjs --tier fast",
-    "smoke:full": "node bench/run-smokes.mjs --tier full"
+    "smoke:full": "node bench/run-smokes.mjs --tier full",
+    "tours": "node bench/run-smokes.mjs --tier tours"
   },
   "dependencies": {
     "lil-gui": "0.21.0",
