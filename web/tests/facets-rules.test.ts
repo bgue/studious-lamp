@@ -5,7 +5,7 @@ import { classRepairRule, ifcPlacement, loadBearingRule, materialHits, materialR
 import type { FacetContext } from '../src/classify/facets/facetRules';
 import { measureOrientation } from '../src/classify/facets/orientation';
 import type { ClassifyInput } from '../src/classify/types';
-import { box } from './facets-helpers';
+import { box, rotate } from './facets-helpers';
 
 const input = (cls: string, o: Partial<ClassifyInput> = {}): ClassifyInput => ({ id: 'G', ifcClass: cls, name: '', psets: {}, ...o });
 type CtxArg = Omit<Partial<FacetContext>, 'input'> & { input?: Partial<ClassifyInput> };
@@ -117,6 +117,15 @@ describe('Trade', () => {
     expect(t('IfcCableCarrierSegment')).toBe('ELEC');
     expect(t('IfcTransportElement')).toBe('LIFT');
     expect(t('IfcSite')).toBe('SITE');
+  });
+  it('a sloping member or beam with no material is roof framing; a level one stays open', () => {
+    const rafter = measureOrientation(rotate(box(0, 0, 0, 4, 0.2, 0.08), 'z', 35))!;
+    expect(rafter.shape).toBe('linear');
+    expect(tradeRule(ctx('IfcMember', { measure: rafter }))).toMatchObject({ code: 'ROOF' });
+    expect(tradeRule(ctx('IfcMember', { measure: rafter }))!.confidence).toBeLessThan(0.85);
+    const level = measureOrientation(box(0, 0, 0, 4, 0.2, 0.08))!;
+    expect(tradeRule(ctx('IfcBeam', { measure: level }))).toBeNull();
+    expect(t('IfcMember', { measure: rafter, material: 'STEEL' })).toBe('STEEL');
   });
   it('a slab with no material is a weak guess, a proxy with no hint is open', () => {
     expect(tradeRule(ctx('IfcSlab', { discipline: 'STR' }))!.confidence).toBeLessThan(0.85);

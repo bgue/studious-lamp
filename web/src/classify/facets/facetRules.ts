@@ -255,6 +255,9 @@ export function tradeRule(c: FacetContext): RuleOut | null {
   if (/^Ifc(Column|Beam|Member|Plate|Footing|Pile)/.test(cls)) {
     if (byMat) return out(byMat, 0.88, `${cls} of ${ci(mat!)}`);
     if (/^Ifc(Footing|Pile)/.test(cls)) return out('CONC', 0.7, `${cls} is usually concrete`);
+    // A sloping member or beam with no material is roof framing (rafters, purlins at a pitch): the roofer or carpenter builds it.
+    const m = c.measure;
+    if (/^Ifc(Member|Beam)/.test(cls) && m && m.shape === 'linear' && m.tilt >= 10 && m.tilt <= 75) return out('ROOF', 0.6, `a sloping ${cls === 'IfcMember' ? 'member' : 'beam'} with no material (${m.tilt} degrees): roof framing`);
     return null;
   }
   if (/^IfcStair|^IfcRamp/.test(cls)) {
