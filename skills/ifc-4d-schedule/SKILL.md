@@ -77,7 +77,12 @@ summary on stdout and never overwrites its input.
    `anim_write.py` is for parts of the build you select.
 
    You may edit the script afterwards, for example to add `explode storeys` at a milestone, `orbit`, or `mode cutaway`
-   for interior work. **Always** run `node xrayanim_check.mjs` on the result and fix every error before handing it
+   for interior work. The language also has `if` / `else if` / `else` / `end if`, `repeat while|until|with i from a to b`,
+   your own commands (`on name params ... end name`, called as `name value`) and functions (`function name params ... return
+   value ... end name`, called as `name(value)`), and `show issues` / `show drawings` (hidden while a script plays),
+   `fade new elements over N seconds` and `schedule ... fade N seconds`. Decisions are made when the script compiles; the
+   checker has no model, so a script that asks the model (`the count of ...`, `there are ...`) reports "needs the model" there:
+   check those in the viewer. **Always** run `node xrayanim_check.mjs` on the result and fix every error before handing it
    over. The user plays it in the viewer's Script tab or renders it with `xray-4d render`.
 8. **Report:**
    - counts: links accepted, proposed, rejected and ties, coverage, tasks written;

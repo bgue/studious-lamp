@@ -256,7 +256,7 @@ select nothing
 
 ## 8. Variables
 
-A variable keeps a number under a name. Use `put` to set it, and the name wherever a number goes:
+A variable keeps a number under a name (it can also keep text or a yes/no, see chapter 13). Use `put` to set it, and the name wherever a number goes:
 
 ```xrayanim
 put 2 * 1.5 into pause
@@ -548,7 +548,95 @@ at date "2028-02-10"
 If the plan is missing, the first line is the error: `There is no 4D plan named "Tower A"`, with the names of the plans that are
 loaded. A date outside the plan is a warning and counts as the nearest end of it.
 
-## 13. Summary
+## 13. Decisions, loops and your own commands
+
+So far every line runs, in order. You can also let the script **decide** what to show, **count**, and **name a group of lines**
+you use more than once. All of this is worked out when you press Run, before anything plays: the script looks at the model,
+your numbers and your text, and the result is the fixed list of steps that then plays. Nothing is decided while it plays.
+
+**Decisions with `if`.** Conditions compare numbers and text (`=`, `<>`, `<`, `>`, `<=`, `>=`; text ignores capital letters),
+and join with `and`, `or`, `not` and brackets. Two questions about the model: `the count of <elements>` is a number, and
+`there are <elements>` is yes or no.
+
+```xrayanim
+-- Show the pumps if there are any, else the valves
+if there are class IfcPump then
+  fly to class IfcPump over 3 seconds
+  caption "Pumps" "There are " & the count of class IfcPump for 3 seconds
+else if there are class IfcValve then
+  fly to class IfcValve over 3 seconds
+else
+  caption "Nothing to show" for 2 seconds
+end if
+if the count of class IfcPump > 3 then caption "A big pump room" for 2 seconds
+```
+
+Notes: `else if` and `else` are optional; the one-line form `if <condition> then <statement>` takes one plain statement and no
+`end if`. When a `where` is followed by more, put it in brackets: `if there are (where class = IfcDoor and storey = "Level 1") and n > 2 then`.
+
+**Loops that count or wait for something.** `repeat with i from 1 to 5` counts (add `by 2`, or write `down to` to count
+backwards). `repeat while <condition>` and `repeat until <condition>` go on until the condition changes, so something inside
+must change it. A loop runs at most 500 times; a loop that never ends is stopped with a message that names its line.
+
+```xrayanim
+-- Grow a gap: 1, 2, 4, 8 seconds
+put 1 into gap
+repeat while gap < 10
+  caption "Pause of " & gap & " seconds" for 1 seconds
+  wait gap
+  put gap * 2 into gap
+end repeat
+repeat with i from 3 down to 1
+  caption "" & i for 1 seconds
+end repeat
+```
+
+**Your own commands.** `on <name> <parameters>` ... `end <name>` teaches the script a new statement; call it by name with its
+values. Its lines go on the timeline where it is called, one after the other, so it can fly, caption and wait like any lines.
+The parameters can be used in text, in numbers, and in a `where` (`where storey = name`). A handler may stand anywhere at the
+top level, even below the lines that call it.
+
+```xrayanim
+-- Floor by floor, skipping a floor that has no walls
+on showFloor name
+  if there are (where class = IfcWall and storey = name) then
+    show where storey = name fading over 0.5 seconds
+    fly to where storey = name over 2 seconds
+    caption name for 2 seconds
+  end if
+end showFloor
+
+hide everything
+repeat with i from 1 to 5
+  showFloor "Level " & i
+end repeat
+show everything fading over 1 seconds
+```
+
+**Your own functions.** `function <name> <parameters>` ... `return <value>` ... `end <name>` works out a value; use it in an
+expression as `name(value)`. A function only computes: it cannot fly, wait or caption (use a handler for that).
+
+```xrayanim
+function plural n
+  if n = 1 then return n & " pump"
+  return n & " pumps"
+end plural
+caption "The plant" "It has " & plural(the count of class IfcPump) for 3 seconds
+```
+
+Rules for names: a handler or function has **its own names**: its parameters and what it `put`s. It can read the names of the
+script, but a `put` inside it never changes a name outside. Handlers and functions can call each other and themselves (recursion) up to 16
+calls deep. Their names may not be words of the language (`show`, `if`, ...).
+
+**Issues and drawings.** While a script plays, the issue pins and the drawings are hidden, so the film is clean. A script shows
+them only when it says so, with `show issues` and `show drawings` (and `hide` to take them away again); they come back as they
+were when the script ends. `fade new elements over 1.5 seconds` sets how long elements that appear or disappear fade from then
+on, and `schedule "Plan" over 60 seconds fade 0.8 seconds` sets the fade-in of that schedule.
+
+When something goes wrong the Problems list says where: an `if` with no `end if`, an `end repeat` that closes an `if`, an `else`
+with no `if`, a call with the wrong number of values, a `return` outside a function.
+
+## 14. Summary
 
 - A line is one step. Lines run one after another unless they are in a `together` block.
 - Name the elements with `class`, `where`, `set` or `everything`.
@@ -556,4 +644,5 @@ loaded. A date outside the plan is a warning and counts as the nearest end of it
 - Show and hide with fades. Caption and label to explain.
 - Loops (`repeat`) do the same thing many times. Variables (`put`) keep numbers under names.
 - When it does not run, read the first message in the Problems list. Its line number is where to look.
+- `if`, `repeat while`, `repeat with` and your own commands (`on`, `function`) let the script decide and count; it is all worked out when you press Run (chapter 13).
 - A 4D plan plays with `schedule`; `at date` and `at milestone` place the statements on the schedule's clock (chapter 12).

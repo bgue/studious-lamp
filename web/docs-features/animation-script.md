@@ -32,7 +32,13 @@ select nothing
   Text goes in "double quotes". A number may carry `s`, `sec`, `second` or `seconds` (`2s`, `2 seconds`).
 - 4D: `schedule` does not wait, and `at date` / `at milestone` put the statements after them at that moment of the plan's clock, even
   before the end of earlier ones (see the [grammar](animation-script-grammar.md#31-the-4d-statements) and chapter 12 of the guide).
+- `if`, `repeat while|until|with` and your own commands (`on` handlers, `function`s) are decided when the script compiles, over numbers,
+  text, names, the model (`the count of <elements>`, `there are <elements>`) and the plan; the score stays a fixed timeline. A handler's
+  statements start where it is called and take time like inline statements.
+- Issues and drawings are hidden while a script plays (the player does that). A script shows them only when it says so (`show issues`,
+  `show drawings`); they come back as they were when playback ends.
 - Limits: a script runs at most 1 hour, makes at most 5000 steps, runs a loop at most 500 times and at most 20000 statements in all.
+  Calls of handlers and functions nest at most 16 deep.
 
 ## Statements
 
@@ -69,11 +75,28 @@ select nothing
 - `repeat N times ... end repeat`: Run the statements inside again and again. `index` counts from 1. At most 500 times.
 - `repeat for each element in <elements> ... end repeat`: Run the statements once for each element. `it` is the element. At most 500 elements.
 - `repeat for each set in sets ... end repeat`: Run the statements once for each stored selection set. `it` is the set.
-- `put <number> into <name>`: Keep a number under a name. Use the name wherever a number goes. Signs: + - * / and ( ).
+- `put <value> into <name>`: Keep a number, text ("a" & b joins text) or a yes/no under a name. Use the name wherever a number goes. Signs: + - * / and ( ).
+
+### Decisions, loops and your own commands
+
+- `if <condition> then ... [else if <condition> then ...] [else ...] end if`: Run the statements of the first branch whose condition is true. Decided when the script compiles, so the timeline has no branches. Conditions: = <> < > <= >= on numbers and text (text ignores case), and, or, not, ( ), the count of <elements>, there are <elements>.
+- `if <condition> then <statement>`: The one-line form: one plain statement, no `end if`.
+- `repeat while <condition> ... end repeat`: Run the statements again and again while the condition is true. Something inside must change what it tests. At most 500 times, then an error names the line.
+- `repeat until <condition> ... end repeat`: Run the statements again and again until the condition becomes true.
+- `repeat with <name> from <a> to|down to <b> [by <step>] ... end repeat`: Count from a to b (or down). The name holds the count and is given back after the loop. At most 500 times.
+- `on <name> [param, param] ... end <name>`: Define your own command (a handler). Call it as a statement: name value, value. Its statements go on the timeline where it is called. Parameters and names it `put`s are its own; it can read the script's names. It may stand anywhere at the top level.
+- `<name> [value, value]`: Call a handler: its statements run here, one after the other, with the values as its parameters. Calls may nest up to 16 deep (recursion).
+- `function <name> [param, param] ... return <value> ... end <name>`: Define a function: it works out a value and gives it back with `return`. Use it in an expression: name(value, value). A function computes only; it does not move the camera or wait.
+- `return [<value>]`: Inside a function: give the value back and stop. Inside a handler: stop early (no value).
+
+### Playback
+
+- `show|hide issues|drawings   (or: issues and drawings)`: Show or hide the issue pins and the drawings during playback. Both are hidden while a script plays unless it shows them, and come back as they were afterwards. Instant.
+- `fade new elements over N seconds | fade new elements instantly`: Set how long elements that appear or disappear from here on fade (show, hide, schedule activities). Instantly is 0.
 
 ### 4D schedule
 
-- `schedule "<plan>" [view planned|actual|variance] [from "<date>"] [to "<date>"] [over N seconds]`: Play a 4D plan by name over a time (default: the plan's film length). It runs in the background: the statements after it start with it. View, from and to go to the step for the host to rebuild the plan with.
+- `schedule "<plan>" [view planned|actual|variance] [from "<date>"] [to "<date>"] [over N seconds] [fade N seconds]`: Play a 4D plan by name over a time (default: the plan's film length). It runs in the background: the statements after it start with it. View, from and to go to the step for the host to rebuild the plan with. Fade is how long a new element fades in.
 - `at date "<YYYY-MM-DD[THH:MM]>"`: The statements after it start when the running schedule reaches that date, whether or not the ones before have ended.
 - `at milestone "<name>"`: The statements after it start when the running schedule reaches that milestone.
 - `tint <elements> <#rrggbb|colour name|off> [fading over N seconds]`: Colour elements, with a fade or at once; `off` takes the tint away. Names: red, orange, yellow, green, teal, cyan, blue, indigo, purple, magenta, pink, brown, grey, white, black.
@@ -98,9 +121,24 @@ Wherever a statement says `<elements>`:
 - `the selection`, `everything`, `it`, `elements "gid1", "gid2"` (by GlobalId).
 - `active`, `completed`, `critical`: 4D, the elements of the running schedule in that state at that moment.
 
+### Decisions, loops and your own commands
+
+- **Conditions**: `=`, `<>` (also `!=`, `≠`), `<`, `>`, `<=`, `>=` on numbers and text (text ignores case), joined with `and`, `or`, `not` and
+  parentheses. `the count of <elements>` is a number; `there are <elements>` / `there is <elements>` is true when it is more than 0
+  (`there are no <elements>` the opposite). They need the model. Put a `where` in parentheses when more follows it:
+  `if the count of (where class = IfcDoor) > 3 and n > 1 then`.
+- **`if`** `<condition>` **`then`** ... **`else if`** ... **`else`** ... **`end if`**, or the one-line `if <condition> then <statement>`.
+- **`repeat while|until <condition>`** and **`repeat with i from a to|down to b [by step]`**, closed by `end repeat`. A loop stops with an
+  error that names its line after 500 passes. The counter of `repeat with` has its earlier value again after the loop.
+- **`on name params ... end name`** defines a handler, called as `name value, value`; **`function name params ... return value ... end name`**
+  defines a function, called in an expression as `name(value)`. Definitions may stand anywhere at the top level. Parameters and names a
+  handler `put`s are its own; it reads the script's names and `it`, and a `put` inside never changes an outer name. Recursion is allowed up to
+  16 calls deep. A function only computes (no camera, wait or caption). A name clash with a statement or reserved word is an error.
+- A bare word in a `where` value position that is the name of a variable stands for its value: `where storey = name`.
+
 ### Variables and numbers
 
-`put 2 * 1.5 into pause` keeps a number under a name; use the name wherever a number goes (`wait pause seconds`). Signs: `+ - * /` and
+`put 2 * 1.5 into pause` keeps a number (or text, or a yes/no) under a name; use the name wherever a number goes (`wait pause seconds`). Signs: `+ - * /` and
 parentheses. Inside `repeat`, `index` counts from 1. In text, join pieces with `&`: `caption "Pump " & index`. `it` in text is the
 set name (in a set loop) or the GlobalId (in an element loop). Names are case-insensitive and cannot be words of the language.
 
@@ -126,8 +164,11 @@ the cue.
 | `caption` | `caption` with `title` and `text` |
 | `label` | `label` with `elements` and `fields` |
 | `hover` | `hover` with `elements` |
-| `schedule "plan" ...` | `schedule4d` with `plan: { name }`, the `over` time, and `view`, `from`, `to` when given (for the host to rebuild the plan with) |
+| `schedule "plan" ...` | `schedule4d` with `plan: { name }`, the `over` time, and `view`, `from`, `to` when given (for the host to rebuild the plan with), and `fadeIn` for `fade N seconds` |
 | `at date` / `at milestone` | no cue: sets the time of the statements after it, through the plan's time map |
+| `show` or `hide` `issues` or `drawings` | `overlays` with `issues` and/or `drawings` (booleans); instant |
+| `fade new elements over N seconds` / `instantly` | `fadeDefault` with `seconds`; instant |
+| `if`, `repeat while`, `until`, `with`, `on` calls | no cue of their own: the compiler works them out and emits the cues of the statements that run |
 | `tint <elements> <colour>` | `tint` with `elements`, `colour` (`#rrggbb`, null for `off`), `dur` the fading time |
 | `explode` / `collapse` | `explode` with `mode` and `factor`, `collapse`; 2 seconds, `inOut` |
 | `focus` | `focus` with `elements` (or null) |

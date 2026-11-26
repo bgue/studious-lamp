@@ -80,3 +80,5 @@ wbs_path, activity_type, activity_status, start, finish, location, trade, zone, 
 `web/docs-features/animation-script*.md`. `xrayanim_check.mjs` prints
 `{ ok, errors: [{line, col, message, hint, severity}], cues, duration, kinds }` and exits 1 on errors. Pass
 `--plan NAME=plan.json` to check scripts that use the 4D statements against a plan.
+The language includes flow control (`if`, `repeat while|until|with`) and your own commands (`on`, `function`), decided when the script
+compiles; conditions on the model (`the count of`, `there are`) cannot be checked without a model and are reported as errors by this checker.

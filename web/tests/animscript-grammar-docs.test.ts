@@ -71,6 +71,8 @@ const PARSER_WORDS = [
   'where', 'class', 'classes', 'set', 'sets', 'the', 'selection', 'everything', 'it', 'elements', 'element', 'nothing', 'none',
   'index', 'true', 'false', 'on', 'off', 'yes', 'no', 'end', 'together',
   // 4D
+  // decisions, loops, commands and playback
+  'then', 'while', 'until', 'down', 'new', 'instantly', 'instant', 'issues', 'drawings', 'count', 'of', 'there', 'is', 'are', 'and', 'or', 'not',
   'date', 'milestone', 'around', 'storey', 'storeys', 'radial', 'box', 'by', 'from', 'active', 'completed', 'critical', 'planned', 'actual', 'variance',
 ];
 

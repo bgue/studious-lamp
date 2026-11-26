@@ -9,14 +9,30 @@ export interface Span {
 
 export type Ease = 'linear' | 'in' | 'out' | 'inOut';
 
-/** A number expression: numbers, names of variables, + - * / and parentheses. */
+/** An expression. Statements that want a number (`over`, `for`, `wait`, ...) read the arithmetic part: numbers, names of
+ *  variables, + - * / and parentheses, function calls and `the count of`. `put`, `if`, `repeat while|until`, `return` and the
+ *  arguments of calls read all of it: text, `&`, comparisons, `and` `or` `not`, `there are`. It is evaluated when the script compiles. */
 export type Num = Span &
   (
     | { k: 'num'; v: number }
     | { k: 'var'; name: string }
     | { k: 'neg'; a: Num }
     | { k: 'bin'; op: '+' | '-' | '*' | '/'; a: Num; b: Num }
+    | { k: 'str'; v: string }
+    | { k: 'bool'; v: boolean }
+    /** `a & b`: the two as text, joined. */
+    | { k: 'cat'; a: Num; b: Num }
+    | { k: 'cmp'; op: '=' | '<>' | '<' | '>' | '<=' | '>='; a: Num; b: Num }
+    | { k: 'and' | 'or'; a: Num; b: Num }
+    | { k: 'not'; a: Num }
+    /** `name(arg, arg)`: a call of a `function`. */
+    | { k: 'call'; name: string; args: Num[] }
+    /** `the count of <elements>`: how many elements match, in the model as it is when the script compiles. */
+    | { k: 'count'; target: Elements }
+    /** `there are <elements>` / `there are no <elements>`. */
+    | { k: 'there'; target: Elements; none: boolean }
   );
+export type Expr = Num;
 
 export type StrPart = { k: 'text'; v: string } | { k: 'name'; name: string; span: Span } | { k: 'num'; n: Num };
 
@@ -25,10 +41,18 @@ export interface Str extends Span {
   parts: StrPart[];
 }
 
+/** A bare word in a query that may be a variable: where it sits in `query` (the quoted word) and its name. */
+export interface QuerySub {
+  at: number;
+  len: number;
+  name: string;
+}
+
 /** Which elements a statement acts on. */
 export type Elements = Span &
   (
-    | { k: 'query'; query: string }
+    /** `subs`: bare words of the query in value position (`storey = name`): a variable of that name gives its value when the script compiles. */
+    | { k: 'query'; query: string; subs?: QuerySub[] }
     | { k: 'set'; name: string }
     | { k: 'selection' }
     | { k: 'everything' }
@@ -68,9 +92,26 @@ export type Stmt =
   | (Base & { kind: 'repeat'; times: Num; body: Stmt[] })
   | (Base & { kind: 'forEach'; each: 'element' | 'set'; target?: Elements; body: Stmt[] })
   | (Base & { kind: 'put'; value: Num; name: string; nameSpan: Span })
+  // ---- decisions, loops and your own commands
+  /** `if c then` ... `else if c then` ... `else` ... `end if`, or the one-line `if c then <statement>`. */
+  | (Base & { kind: 'if'; branches: Array<{ cond: Num; body: Stmt[] } & Span>; otherwise?: Stmt[] })
+  /** `repeat while c` / `repeat until c` (until: true). */
+  | (Base & { kind: 'while'; until: boolean; cond: Num; body: Stmt[] })
+  /** `repeat with i from a to|down to b [by s]`. */
+  | (Base & { kind: 'repeatWith'; name: string; nameSpan: Span; from: Num; to: Num; down: boolean; by?: Num; body: Stmt[] })
+  /** `on name params` ... `end name` (a handler) or `function name params` ... `end name`. */
+  | (Base & { kind: 'def'; form: 'on' | 'function'; name: string; nameSpan: Span; params: Array<{ name: string; span: Span }>; body: Stmt[] })
+  /** A call of a handler as a statement: `name arg, arg`. */
+  | (Base & { kind: 'call'; name: string; nameSpan: Span; args: Num[] })
+  | (Base & { kind: 'return'; value?: Num })
+  // ---- playback
+  /** `show|hide issues`, `show|hide drawings`. */
+  | (Base & { kind: 'overlays'; issues?: boolean; drawings?: boolean })
+  /** `fade new elements over N seconds` / `instantly` (no seconds). */
+  | (Base & { kind: 'fadeDefault'; seconds?: Num })
   // ---- 4D
   /** `schedule "plan" [view V] [from "date"] [to "date"] [over N]`: plays the plan; the statements after it start together with it. */
-  | (Base & { kind: 'schedule'; plan: Text; view?: 'planned' | 'actual' | 'variance'; from?: Text; to?: Text; over?: Num })
+  | (Base & { kind: 'schedule'; plan: Text; view?: 'planned' | 'actual' | 'variance'; from?: Text; to?: Text; over?: Num; fade?: Num })
   /** `at date "YYYY-MM-DD"` / `at milestone "name"`: the statements after it start at that moment of the running schedule. */
   | (Base & { kind: 'at'; what: 'date' | 'milestone'; value: Text })
   /** `tint <elements> <colour> [fading over N]`; colour null = `off`. */

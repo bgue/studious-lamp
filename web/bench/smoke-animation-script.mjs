@@ -125,6 +125,12 @@ try {
   let st = await state(page);
   check('a good script has no errors, a status with cues and the duration', st.errors === 0 && st.cues >= 8 && Math.abs(st.duration - 8) < 0.01 && /No errors/.test(st.status), `${JSON.stringify(rows.map((r) => r.text))} ${st.status}`);
   check('repeat for each element expanded against the model (4 pumps)', await page.evaluate(() => window.__xrayScript.compile('repeat for each element in class IfcPump\n select it\nend repeat').score?.cues.length === 4));
+  // decisions, loops and your own commands, worked out against the loaded model (4 pumps)
+  const flow = await page.evaluate(() => {
+    const r = window.__xrayScript.compile('function plural n\n  if n = 1 then return n & " pump"\n  return n & " pumps"\nend plural\non visit k\n  caption "Pump " & k for 1 seconds\nend visit\nput the count of class IfcPump into pumps\nshow issues\nif there are class IfcPump and pumps = 4 then\n  caption plural(pumps) for 1 seconds\nelse\n  caption "wrong" for 1 seconds\nend if\nrepeat with i from 1 to pumps\n  visit i\nend repeat\nif there are class IfcNoSuchThing then\n  caption "never"\nend if');
+    return { errors: r.errors.filter((e) => e.severity === 'error').map((e) => e.message), caps: (r.score?.cues ?? []).filter((c) => c.kind === 'caption').map((c) => c.title), kinds: (r.score?.cues ?? []).map((c) => c.kind) };
+  });
+  check('if / repeat with / handler / function are decided against the model (4 pumps)', flow.errors.length === 0 && flow.caps.join('|') === '4 pumps|Pump 1|Pump 2|Pump 3|Pump 4' && flow.kinds[0] === 'overlays', JSON.stringify(flow));
   const c = await page.evaluate(() => window.__xrayScript.compile('fly to class IfcPump over 3 seconds\nset xray.alphaMx to 3'));
   check('window.__xrayScript.compile returns the score and the warnings (setting names are checked against the model)', c.score?.cues[0]?.line === 1 && c.errors.some((e) => e.severity === 'warning' && /alphaMx/.test(e.message)), JSON.stringify(c.errors.map((e) => e.message)));
   const paths = await page.evaluate(() => window.__xrayScript.paramPaths());
@@ -225,7 +231,8 @@ try {
 
   // ---- examples
   const ex = await page.evaluate(() => window.__xrayScript.examples());
-  check('there are 3 to 5 examples', ex.length >= 3 && ex.length <= 5, ex.map((e) => e.title).join(' | '));
+  check('there are 3 to 8 examples', ex.length >= 3 && ex.length <= 8, ex.map((e) => e.title).join(' | '));
+  check('the examples include the flow-control ones (floors, pumpcount)', ex.some((e) => e.title === 'Floor by floor') && ex.some((e) => e.title === 'Count the pumps'), ex.map((e) => e.title).join(' | '));
   for (let i = 0; i < ex.length; i++) {
     await page.click('[data-act=examples]');
     await page.waitForSelector('.xm-menu');
@@ -291,7 +298,7 @@ try {
   // ---- the reference
   await page.locator('[data-script-reference] summary').click();
   const ref = await page.evaluate(() => ({ items: document.querySelectorAll('[data-script-reference] [data-statement]').length, hasFading: /fading over N seconds/.test(document.querySelector('[data-script-reference]').textContent) }));
-  check('the statement reference lists every statement (the 4D statements included)', ref.items === 28 && ref.hasFading, `${ref.items} statements`);
+  check('the statement reference lists every statement (the 4D statements included)', ref.items === 39 && ref.hasFading, `${ref.items} statements`);
   await setScript(page, '');
   await page.click('[data-insert=wait]');
   check('Insert example adds the example to the editor', (await page.evaluate(() => window.__xrayScript.text())) === 'wait 1.5 seconds\n');
