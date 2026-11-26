@@ -1,25 +1,8 @@
 import { startTour, ui } from './lib.mjs';
 const tour = await startTour('tour-03-screen');
-const page = await tour.open('model=fzk-haus');
+const page = await tour.open('model=process-plant');
 page.setDefaultTimeout(60000);
-await ui.clickElement(page, { cls: 'IfcDoor' });
-await ui.tab(page, 'Issues');
-await page.getByRole('button', { name: 'New issue' }).first().click();
-await page.locator('#bcf-f-title').fill('A');
-await page.locator('#bcf-f-create').click();
-await page.waitForFunction(() => window.__xrayBcf.topics.length >= 1);
-await page.waitForTimeout(1500);
-const back = page.getByRole('button', { name: '‹ Issues' }); if (await back.count()) await back.click();
-await page.locator('#sidebar .is-item').first().click();
-const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export BCF 2.1' }).click()]);
-const file = await dl.path();
-await page.getByRole('button', { name: 'Delete issue' }).click();
-await page.waitForTimeout(300);
-const second = page.getByRole('button', { name: /Delete issue|Click again|Confirm/i }); console.log('second', await second.count(), await second.allInnerTexts());
-await second.first().click();
-await page.waitForTimeout(3000);
-console.log('after delete', await page.evaluate(() => [window.__xrayBcf.topics.length, (window.__xrayBcf.currentTopics ?? []).length]));
-const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open BCF' }).click()]);
-await fc.setFiles(file);
-for (const t of [2000, 5000, 10000]) { await page.waitForTimeout(t); console.log(t, await page.evaluate(() => [window.__xrayBcf.topics.length, (window.__xrayBcf.currentTopics ?? []).length]), (await ui.statusText(page)).replace(/\s+/g,' ').slice(0,120), (await page.locator('#sidebar').innerText()).replace(/\s+/g,' ').slice(0,200)); }
+await ui.tab(page, 'Classification');
+await page.locator('#dk-pane-classification').getByRole('button', { name: 'Classify all' }).click();
+for (const t of [3000, 6000, 12000, 20000]) { await page.waitForTimeout(t); console.log(t, await page.evaluate(() => window.__xrayClassify.results().length), (await page.locator('#dk-pane-classification').innerText()).replace(/\s+/g,' ').slice(0, 400)); }
 await tour.finish();

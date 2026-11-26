@@ -43,11 +43,12 @@ Use the **Process plant** sample. It has pumps, vessels, piping, paving and kerb
 4. Read the results table: element, discipline, sub-discipline, division, confidence, top 2, source. Most rows say *rules*.
 5. In the **Output** section choose **Discipline** in the list **Colour by**. The plant is tinted by trade and the legend lists the codes.
 6. Click **Select needs review**. Only the elements the rules were not sure about are selected.
-7. In the search bar type `count where discipline = 'MEC'`. The count comes from the classification, because the results are
+7. In the search bar type `count where discipline = 'PIP'`. The count comes from the classification, because the results are
    written back to the elements as properties.
 
-With rules alone on this plant, nothing is left unresolved: 214 elements are civil site works (paving, kerbs, fence posts,
-drain trenches, equipment foundations), 429 are piping and 428 mechanical.
+With rules alone on this plant, nothing is left unresolved: 230 elements are civil site works (paving, kerbs, fence posts,
+drain trenches, equipment foundations), 642 are piping (`PIP`, the pumps are in it), 208 structural, 160 electrical, 27 insulation and
+26 architectural. One of the 1,294 elements is not a physical element and gets no result.
 
 Now try the decision model. In **Provider** choose **Decision model (in browser, WebGPU)**, click **Test model**, then
 **Classify all**. The first use downloads the model weights (87 MB for the default) and the browser keeps them. Set **Rules and
