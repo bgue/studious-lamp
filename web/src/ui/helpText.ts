@@ -4850,10 +4850,64 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the button to leave the form.',
     'Report: Limitations and extensions, classification',
   ),
-  'Classify drawer/Colour by discipline': h(
-    'The switch tints each element by its discipline. A legend lists the colours.',
-    'Ducts, pipes and beams show in their own hues, so the trades stand out at a glance.',
-    'Turn it on after a run. Turn it off to see the model colours again.',
+  'Sidebar/Model tree view': h(
+    'The button shows the usual model tree. The tree follows the storeys and the classes of the file.',
+    'The left side lists the building in the order of the file, level by level.',
+    'Click the button to see the file order. Click By classification to leave it.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Sidebar/By classification view': h(
+    'The button shows a tree that the classifier builds. The groups come from the answers about each element.',
+    'The left side regroups the same parts by work stage, trade, place or material. Parts with no answer wait in a Not classified group.',
+    'Click the button after a run. Pick a grouping below it.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Sidebar/Group by preset': h(
+    'The list picks a ready grouping for the tree. Each grouping has up to 4 levels.',
+    'The tree reorders at once. Construction follows the job, Ownership follows who designs it, Envelope follows the weather skin.',
+    'Pick a grouping from the list. Pick Custom to choose your own levels.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Sidebar/Group level': h(
+    'Each list picks the grouping of a single level of the tree. A level can be phase, discipline, trade, place, material, direction, storey or class.',
+    'The tree rearranges at that step. Parts without an answer move to a Not classified row.',
+    'Pick a value in each list. Pick none to drop the levels below.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Sidebar/UniFormat mapping': h(
+    'The buttons load or reset the table that maps elements to UniFormat II codes. The table is a JSON file.',
+    'The Standard grouping follows your own rules instead of the shipped ones.',
+    'Click Mapping and choose a file. Click Reset to return to the shipped table.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Sidebar/Review share': h(
+    'The amber number shows how many elements of the group need a second look, as a share of the group.',
+    'A group with a high number holds many doubtful parts. Open it to find them.',
+    'Read the number. Open the group and check its parts.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Sidebar/Save as set': h(
+    'The small button saves the group as a criteria set. The set keeps the query of the group.',
+    'A named list of parts appears in the second tab. It finds the same parts again later.',
+    'Hover a row and click the button. Confirm the name in the editor.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Colour by': h(
+    'The list tints each element by an answer of the classifier. The legend lists the colours and counts.',
+    'The picture shows each answer as a hue, so the trades or the places stand out at a glance. Off brings back the first look.',
+    'Pick Trade or another answer after a run. Pick Off to see the model colours.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Confidence shading': h(
+    'The switch washes out the elements that need review. It works with any Colour by choice.',
+    'Doubtful parts look pale and grey while sure parts keep a strong colour. Weak areas show at a glance.',
+    'Turn it on after a run. Turn it off to see full colours.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Legend row': h(
+    'The row stands for a colour of the legend. It shows the count and the share that needs review.',
+    'Click and only those parts stay in the picture. Click again and everything returns.',
+    'Click the row to show only its parts. Click Hide to remove them. Click +set to save them.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Select needs review': h(

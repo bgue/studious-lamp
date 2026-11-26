@@ -3,7 +3,7 @@
 
 import type { ElementId, ElementRecord, SceneModel } from '../types';
 
-export type TreeKind = 'storey' | 'class' | 'element' | 'systems' | 'system';
+export type TreeKind = 'storey' | 'class' | 'element' | 'systems' | 'system' | 'group';
 
 export interface TreeNode {
   /** Unique within the tree. Element keys include their parent path, so an element in two branches has two keys. */
@@ -19,6 +19,10 @@ export interface TreeNode {
   /** Set for element nodes only. */
   elementId: ElementId | null;
   children: TreeNode[];
+  /** Classification tree only: elements at or below this node that need review. */
+  review?: number;
+  /** Classification tree only: the query of the node ("Save as set"), or null when it has none. */
+  query?: string | null;
 }
 
 export interface FlatRow {

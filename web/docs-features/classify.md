@@ -991,8 +991,8 @@ where XR_Classification.NeedsReview = TRUE
 where MasterFormatDivision = '23' and class = 'IfcDuctSegment'
 ```
 
-The properties live in the loaded model only: export CSV or JSON to keep them. **Colour by discipline** tints the elements
-(the legend lists the codes). **Select needs review** selects the elements that need review; **Save needs-review set** opens the
+The properties live in the loaded model only: export CSV or JSON to keep them. **Colour by** tints the elements by the discipline or a facet
+(the legend lists the values; see "Classification tree and colours"). **Select needs review** selects the elements that need review; **Save needs-review set** opens the
 criteria-set editor with the query `"XR_Classification.NeedsReview" = TRUE`. **Export CSV** and **Export JSON** save the
 results (`GlobalId`, discipline and its top 2 probabilities, sub-discipline, division, confidence, source, model id,
 `NeedsReview`, rationale for rules).
@@ -1092,6 +1092,51 @@ same defaults. Codes the rules produce must stay in the lists (a rule's code tha
 (placementGeometry.ts), `materialRule`, `placementRule`, `loadBearingRule`, `tradeRule`, `phaseRule`, `classRepairRule` (facetRules.ts),
 `classifyFacets`, `facetQuestions`, `estimateFacetCalls` (engine.ts), `facetProperties`, `makeManualFacet`, `facetCsvColumns` (write.ts),
 `defaultFacetDefs`, `parseFacets` (defs.ts). Everything there is pure TypeScript, no DOM.
+
+## Classification tree and colours
+
+The facets (see "Facets") make two views of the whole model. Both are computed from the `XR_*` properties, so they follow every
+change of a classification. The page [classification-tree.md](classification-tree.md) has the short version.
+
+**By classification (Model tab).** The Model tab has a switch at the top, **Model tree** | **By classification**. The second shows
+the same elements in a tree grouped by 1 to 4 levels that you choose in **Group by**: Phase, Discipline, Sub-discipline, Trade,
+Placement, Material, Orientation, Storey, IFC class (and UniFormat levels 1 to 3). The presets, which are data in
+`src/classify/classTree.ts` (`PRESETS`), are:
+
+| Preset | Levels |
+| --- | --- |
+| **Construction** | Phase > Trade > IFC class |
+| **Ownership** | Discipline > Sub-discipline > IFC class |
+| **Envelope** | Placement > Material > IFC class |
+| **Standard (UniFormat II)** | UniFormat level 1 > level 2 > level 3 (A > A10 > A1010) |
+
+An element with no value at a level goes under **Not classified** at that level, so nothing disappears. Every group row shows its
+count, an amber percentage when part of it needs review, the eye (hide or show the group) and **+set** (hover the row). A click
+selects the elements of the row; the keyboard, type-ahead and virtualisation are those of the model tree
+([keyboard.md](keyboard.md#model-tree-keys)). The filter box filters this tree too. The mode and the grouping are kept in
+`localStorage["xray.classtree.v1"]` for this viewer only.
+
+**UniFormat II.** `public/classification/uniformat2.json` holds levels 1 to 3 (A Substructure to G Building Sitework, with the
+standard titles) and an ordered list of rules. A rule has `when` (lists of IFC class prefixes, Placement, Phase, Trade and
+Discipline codes) and a `code`. The first rule that holds for all its conditions gives the code of the element (level 3). When no
+rule holds, `fallbacks` gives a level 1 or 2 code by Phase; with none, the element is Not classified. **Mapping...** (shown for
+the Standard preset) loads your own file of the same shape for this browser, **Reset** goes back to the shipped one. MasterFormat
+stays the work-results code of each element. On the FZK-Haus every element reaches at least level 2 and 42 of 82 reach level 3
+(the 40 timber members stay at B10 because their class cannot tell roof from floor framing).
+
+**Colour by.** The Output section of the Classification tab has a **Colour by** list: Off, Discipline, Trade, Placement, Material,
+Phase or Orientation. The legend under it has a row for each value, with its count and the share that needs review. Click a row to
+show only its elements (click again for all), **Hide** hides them, **+set** opens the criteria-set editor with the query of the row.
+`window.__xrayClassify.colourBy('Trade')` does the same from a script; `colourByDiscipline(true)` still works.
+
+**Confidence shading.** The **Confidence shading** switch draws every element that needs review washed out (less saturated and
+lighter), over any Colour by choice or over the model colours, so doubtful areas show in the picture.
+
+**Save as set.** Each group row of the tree and each legend row is a query, for example
+`XR_Trade.Code = 'CONC' and XR_Phase.Code = 'FRAME'`; an element without a value is `XR_Trade.Code IS NULL`. **+set** opens the
+criteria-set editor with it, so the set updates by itself and works in the search bar and in scripts. UniFormat rows have no
+property to query, so **+set** saves the elements as a plain set. Not done yet: the Disagreement marker and the facet filter of the
+review walk (design section 7).
 
 ## Review walk
 
