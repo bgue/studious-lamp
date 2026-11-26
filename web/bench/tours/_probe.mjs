@@ -1,12 +1,16 @@
 import { startTour, ui } from './lib.mjs';
 const tour = await startTour('tour-03-screen');
-const page = await tour.open('model=fzk-haus');
-await page.keyboard.press('/'); await page.keyboard.type('fire'); await page.waitForTimeout(900);
-console.log(await page.evaluate(() => document.querySelector('.ab-list').innerHTML.slice(0,1500)));
-for (let i=0;i<4;i++){ await page.keyboard.press('ArrowDown'); console.log(await page.evaluate(()=>document.querySelector('.ab-active')?.innerText.replace(/\n/g,' / ')));}
-await page.keyboard.press('Escape');
-// eye after h
-await page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^IfcDoor$/ }) }).first().locator('.lbl').click();
-await page.keyboard.press('h');
-for (const t of [100,500,1500]) { await page.waitForTimeout(t); console.log(t, await page.evaluate(() => [...document.querySelectorAll('.tr')].filter(r=>/IfcDoor/.test(r.innerText)).map(r=>r.className+'|'+r.querySelector('.eye').className).join('\n'))); }
+const page = await tour.open('model=debris-demo');
+page.setDefaultTimeout(8000);
+const stat = async () => { await ui.topOfPanel(page); await ui.folder(page,'Model cleanup'); await ui.folder(page,'Simplify'); return ui.valueOf(page,'Simplify status'); };
+await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
+await ui.folder(page, 'Model cleanup'); await ui.folder(page, 'Simplify'); await ui.folder(page, 'Weld and clean');
+await ui.press(page, 'Preview');
+for (let i=0;i<4;i++){ await page.waitForTimeout(1500); console.log(JSON.stringify(await stat())); }
+await ui.topOfPanel(page); await ui.folder(page,'Model cleanup'); await ui.folder(page,'Simplify'); await ui.folder(page,'Weld and clean'); await ui.press(page, 'Apply'); await page.waitForTimeout(1500);
+console.log(JSON.stringify(await stat()));
+await ui.topOfPanel(page); await ui.folder(page, 'Model cleanup');
+await ui.press(page, 'Save cleaned model'); await page.waitForTimeout(2000);
+console.log(await page.evaluate(() => [...document.querySelectorAll('dialog, [role=dialog], .modal, .xs-dialog')].map(d=>d.innerText).join('\n---\n')).then(s=>s.slice(0,1500)));
+console.log(await page.evaluate(() => [...document.querySelectorAll('button')].map(b=>b.innerText).filter(t=>/glb|Open the/i.test(t)).join(' | ')));
 await tour.finish();
