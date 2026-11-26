@@ -141,6 +141,22 @@ const page_snapshot = () => {
   };
 };
 
+/** The legend and strip boxes of the last HUD draw: how much of each is painted and a hash of its pixels. */
+const hudBoxes = (page) => page.evaluate(() => {
+  const hs = window.__xrayFlythrough.hudState();
+  const o = document.querySelector('canvas.xray-hud');
+  const f = hs.last?.fourd;
+  if (!o || !f) return null;
+  const grab = (r) => {
+    if (!r) return null;
+    const d = o.getContext('2d').getImageData(Math.floor(r.x * hs.pixelRatio), Math.floor(r.y * hs.pixelRatio), Math.ceil(r.w * hs.pixelRatio), Math.ceil(r.h * hs.pixelRatio)).data;
+    let n = 0, h = 0;
+    for (let i = 0; i < d.length; i += 4) { if (d[i + 3] > 0) n++; h = (h * 31 + d[i] + d[i + 1] * 3 + d[i + 2] * 7 + d[i + 3]) | 0; }
+    return { painted: n / (d.length / 4), hash: h, rect: r };
+  };
+  return { legend: grab(f.legend?.rect), strip: grab(f.strip?.rect), entries: f.legend?.entries ?? [], rows: f.strip?.rows ?? 0 };
+});
+
 async function main(browser) {
   const { ctx, page } = await openPage(browser, 'main');
   await page.evaluate(() => { window.__xraySection?.clear?.(); window.__xray.app.clearSelection(); });
@@ -224,9 +240,16 @@ async function main(browser) {
   await waitClock(page, 12);
   await page.evaluate(() => window.__xrayFlythrough.pause());
   const fwd = await page.evaluate(page_snapshot);
+  await sleep(page, 300);
+  const boxFwd = await hudBoxes(page);
   await page.evaluate(() => window.__xrayFlythrough.seek(5));
   await sleep(page, 300);
   const back = await page.evaluate(page_snapshot);
+  const boxBack = await hudBoxes(page);
+  const ov = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  check('the colour legend is drawn (pixels in its box) with trades and the state key', !!boxFwd?.legend && boxFwd.legend.painted > 0.3 && boxFwd.entries.includes('Active') && boxFwd.entries.length >= 5, JSON.stringify({ legend: boxFwd?.legend?.painted, entries: boxFwd?.entries }));
+  check('the schedule strip is drawn and its pixels change with the date', !!boxFwd?.strip && boxFwd.strip.painted > 0.3 && !!boxBack?.strip && boxFwd.strip.hash !== boxBack.strip.hash, JSON.stringify({ fwd: boxFwd?.strip?.hash, back: boxBack?.strip?.hash, rows: boxFwd?.rows }));
+  check('the legend and the strip do not overlap', !!boxFwd?.legend && !!boxFwd?.strip && !ov(boxFwd.legend.rect, boxFwd.strip.rect), JSON.stringify({ l: boxFwd?.legend?.rect, s: boxFwd?.strip?.rect }));
   await page.evaluate(() => window.__xrayFlythrough.seek(12));
   await sleep(page, 300);
   const again = await page.evaluate(page_snapshot);
@@ -279,6 +302,12 @@ async function main(browser) {
     if (Math.abs(withData.data[i] - clean.data[i]) + Math.abs(withData.data[i + 1] - clean.data[i + 1]) + Math.abs(withData.data[i + 2] - clean.data[i + 2]) > 60) hudPx++;
   }
   check('video export: the date panel and activities are in the video frame (top left pixels differ with the HUD switch)', noHud.res.ok && hudPx > 200, `${hudPx} differing pixels in the top-left`);
+  let barPx = 0;
+  for (let y = Math.floor(withData.h * 0.6); y < withData.h; y++) for (let x = 0; x < Math.floor(withData.w * 0.9); x++) {
+    const k = (y * withData.w + x) * 4;
+    if (Math.abs(withData.data[k] - clean.data[k]) + Math.abs(withData.data[k + 1] - clean.data[k + 1]) + Math.abs(withData.data[k + 2] - clean.data[k + 2]) > 60) barPx++;
+  }
+  check('video export: the colour legend and the schedule strip are in the video frame (bottom pixels differ with the HUD switch)', barPx > 500, `${barPx} differing pixels in the bottom 40 %`);
   check('video export: the HUD layer drew the schedule date on the frames', withHud.frames.filter((f) => f.date).length >= 40, withHud.frames.slice(0, 3).map((f) => f.date).join(','));
   const post = await page.evaluate(page_snapshot);
   check('video export: the viewer is restored (hides, colours, camera, nothing playing)', post.userHides === before.userHides && post.colourDiff === before.colourDiff && post.live.tinted === 0 && Math.hypot(...post.camera.map((v, i) => v - cam0[i])) < 1e-3, JSON.stringify({ hides: post.userHides, colours: post.colourDiff, tinted: post.live.tinted }));

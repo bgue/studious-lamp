@@ -464,11 +464,14 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   autoLbl.append(fadeAuto, el('span', '', undefined, 'Auto'));
   fadeRow.append(fadeIn, autoLbl);
   const issuesFilm = check('issues in film', 'Issues and drawings in the film', (v) => sc.setStyle({ issuesInFilm: v }));
+  const legendChk = check('legend', 'Colour legend', (v) => sc.setStyle({ legend: v ? 'on' : 'off' }));
+  const stripChk = check('strip', 'Schedule strip', (v) => sc.setStyle({ strip: v ? 'on' : 'off' }));
   const splitSel = select('split', 'Split', [['', 'By trade'], ['none', 'All at once'], ['sweep_x', 'Sweep along x'], ['sweep_y', 'Sweep along y'], ['sweep_z', 'Sweep up'], ['by_storey', 'Storey by storey'], ['by_name', 'By name']], (v) => sc.setConfig(setSplit(sc.config, '*', v as SplitRule | '')));
   field('View', view); field('Unbuilt parts', unbuilt); field('Window', win); field('', winRow);
   field('Film length by', paceMode); field('Value', paceVal); field('Pace', pace); field('Camera', camera); field('Explode', explode);
   field('X-ray active work', xray.wrap); field('Section box', secBox); field('Labels', labels); field('Critical float', critRow);
   field('Fade in (s)', fadeRow); field('Issues and drawings in the film', issuesFilm.wrap);
+  field('Colour legend', legendChk.wrap); field('Schedule strip', stripChk.wrap);
   field('Captions', captions.wrap); field('Milestone hold', hold); field('Default split', splitSel);
   const colourBox = el('div', 'x4-list', { 'data-x4': 'trade-colours' });
   colourBox.style.maxHeight = '220px';
@@ -491,6 +494,7 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     captions.input.checked = s.captions; hold.value = String(s.milestoneHold);
     fadeAuto.checked = s.fadeIn === undefined; fadeIn.disabled = s.fadeIn === undefined; fadeIn.value = s.fadeIn === undefined ? '' : String(s.fadeIn); fadeIn.placeholder = 'auto';
     issuesFilm.input.checked = s.issuesInFilm === true;
+    legendChk.input.checked = s.legend !== 'off'; stripChk.input.checked = s.strip !== 'off';
     splitSel.value = sc.config.split?.['*'] ?? '';
     colourBox.replaceChildren();
     const colours = sc.tradeColours();
@@ -513,10 +517,12 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   const pauseBtn = btn('Pause', 'Pause film', () => sc.pause());
   const stopBtn = btn('Stop', 'Stop film', () => sc.stopPlay());
   const recBtn = btn('Record', 'Record film', () => { void sc.record().then((r) => pMsg.say(r.message, !r.ok)); });
+  const boardBtn = btn('Storyboard PDF', 'Storyboard PDF', () => { boardBtn.disabled = true; pMsg.say('Rendering the storyboard frames ...', false); void sc.storyboard().then((r) => pMsg.say(r.message, !r.ok)).finally(() => { boardBtn.disabled = false; }); });
+  boardBtn.setAttribute('data-x4', 'film-storyboard');
   const scriptBtn = btn('Open as script', 'Open film as script', () => { void sc.openAsScript().then((r) => pMsg.say(r.message, !r.ok)); });
   scriptBtn.setAttribute('data-x4', 'film-script');
   const pRow = el('div', 'x4-row', { 'data-x4': 'film-controls' });
-  pRow.append(playBtn, pauseBtn, stopBtn, recBtn, scriptBtn);
+  pRow.append(playBtn, pauseBtn, stopBtn, recBtn, boardBtn, scriptBtn);
   const slider = help(el('input', '', { type: 'range', min: '0', max: '1000', step: '1', value: '0', 'aria-label': 'Schedule date', 'data-x4': 'scrub' }), 'Scrub date');
   const dateOut = el('span', 'x4-date', { 'data-x4': 'scrub-date' }, '');
   const sRow = el('div', 'x4-row');
@@ -577,6 +583,7 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     playBtn.disabled = !ready;
     recBtn.disabled = !ready;
     scriptBtn.disabled = !ready;
+    if (!boardBtn.textContent?.startsWith('Rend')) boardBtn.disabled = !ready;
     pauseBtn.disabled = !sc.playing;
     pauseBtn.textContent = sc.paused ? 'Resume' : 'Pause';
     stopBtn.disabled = !sc.playing;

@@ -4,7 +4,13 @@
 // Layout and drawing only; the numbers come from src/anim/fourd/live.ts. Draws with the same 2D calls as the rest of the layer.
 
 import type { FourDView } from '../fourd/live';
-import { AHEAD_RGB, BEHIND_RGB, CRITICAL_RGB, toHex } from '../fourd/look';
+import { AHEAD_RGB, BEHIND_RGB, CRITICAL_RGB, GLOW_RGB, toHex } from '../fourd/look';
+import { legendContent, legendOn, stripOn } from '../fourd/legend';
+import type { LegendContent } from '../fourd/legend';
+import type { FourDPlan } from '../../schedule/types';
+import { layoutLegend } from './legend';
+import { paintStrip, stripGroups, stripHeight, stripLayout } from './strip';
+import { isoDate } from '../fourd/live';
 import type { Rect } from './place';
 import type { HudSettings } from './settings';
 import { fitText } from './text';
@@ -30,11 +36,15 @@ export interface FourDDescription {
   curve: { rect: Rect; plannedPoints: number; actualPoints: number; marker: { x: number; y: number } } | null;
   milestone: { name: string; alpha: number; rect: Rect } | null;
   legend: { rect: Rect; entries: string[] } | null;
+  /** The schedule strip along the bottom (additive). */
+  strip?: { rect: Rect; rows: number; bars: number; marker: number } | null;
   dataDate: { x: number } | null;
 }
 
 export interface FourDLayoutInput {
   view: FourDView;
+  /** The plan: gives the legend and the strip their content (absent: the legend falls back to what runs now, no strip). */
+  plan?: FourDPlan;
   settings: HudSettings;
   W: number;
   H: number;
@@ -104,6 +114,7 @@ export function layoutFourD(ctx: Ctx, inp: FourDLayoutInput): FourDLayout {
     curve: null,
     milestone: null,
     legend: null,
+    strip: null,
     dataDate: null,
   };
   let y = margin;
@@ -308,53 +319,33 @@ export function layoutFourD(ctx: Ctx, inp: FourDLayoutInput): FourDLayout {
     });
   }
 
-  // ---- legend, bottom left above the progress bar and the scale bar
-  if (st.legend) {
-    const entries: Array<{ label: string; colour: string; kind: 'fill' | 'glow' }> = [];
-    for (const tr of v.trades.slice(0, 4)) entries.push({ label: tr.trade, colour: tr.colour, kind: 'fill' });
-    if (v.hasCritical) entries.push({ label: 'Critical', colour: toHex(CRITICAL_RGB), kind: 'glow' });
-    if (v.hasActual) {
-      entries.push({ label: 'Behind', colour: toHex(BEHIND_RGB), kind: 'fill' });
-      entries.push({ label: 'Ahead', colour: toHex(AHEAD_RGB), kind: 'fill' });
+  // ---- schedule strip (full width, above the progress bar) and colour legend (bottom left, above the strip)
+  const bottomEdge = H - inp.bottomLift - 6;
+  let legendBottom = H - inp.bottomLift - 14;
+  const plan = inp.plan;
+  if (plan && stripOn(plan)) {
+    const rowH = compact ? 4 : 7;
+    const gs = stripGroups(plan);
+    const h = stripHeight(gs.length, plan.milestones.some((m) => m.at >= plan.window.from && m.at <= plan.window.to), rowH);
+    const rect: Rect = { x: margin, y: bottomEdge - h, w: Math.max(40, W - 2 * margin), h };
+    if (gs.length > 0 && rect.y >= topLeftBottom) {
+      const lay = stripLayout(plan, rect, v.planMs, { rowH });
+      desc.strip = { rect, rows: lay.rows.length, bars: lay.rows.reduce((n, r) => n + r.bars.length, 0), marker: lay.marker.x };
+      occupied.push({ x: rect.x - 4, y: rect.y - 2, w: rect.w + 8, h: rect.h + 4 });
+      paint.push(() => paintStrip(ctx, lay, { from: isoDate(plan.window.from), to: isoDate(plan.window.to), now: v.date }));
+      legendBottom = rect.y - 8;
     }
-    if (entries.length > 0) {
-      const size = 11;
-      const pad = 7;
-      const rowH = size * 1.5;
-      const lm = measure(font(size));
-      const w = Math.max(...entries.map((e) => lm(e.label))) + 2 * pad + 16;
-      const h = pad * 2 + rowH * entries.length - (rowH - size);
-      const rect: Rect = { x, y: Math.max(topLeftBottom, H - inp.bottomLift - 14 - h), w, h };
-      if (rect.y + rect.h <= H) {
-        desc.legend = { rect, entries: entries.map((e) => e.label) };
-        occupied.push(rect);
-        paint.push(() => {
-          ctx.fillStyle = PANEL;
-          rr(ctx, rect.x, rect.y, rect.w, rect.h, 5);
-          ctx.fill();
-          let ty = rect.y + pad;
-          ctx.font = font(size);
-          for (const e of entries) {
-            if (e.kind === 'glow') {
-              ctx.strokeStyle = e.colour;
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.moveTo(rect.x + pad, ty + 1);
-              ctx.lineTo(rect.x + pad + 10, ty + 1);
-              ctx.lineTo(rect.x + pad + 10, ty + size - 1);
-              ctx.lineTo(rect.x + pad, ty + size - 1);
-              ctx.closePath();
-              ctx.stroke();
-            } else {
-              ctx.fillStyle = e.colour;
-              ctx.fillRect(rect.x + pad, ty + 1, 10, size - 2);
-            }
-            ctx.fillStyle = 'rgba(241, 245, 249, 0.95)';
-            ctx.fillText(e.label, rect.x + pad + 15, ty);
-            ty += rowH;
-          }
-        });
-      }
+  }
+  if (st.legend && (!plan || legendOn(plan))) {
+    const content = plan ? legendContent(plan) : legendFromView(v);
+    const maxW = compact ? W - 2 * margin : Math.min(W - 2 * margin, 460);
+    const size = compact ? 10 : 11;
+    let lay = layoutLegend(ctx, content, { x, bottom: legendBottom, maxW, size, headings: true });
+    if (lay && lay.rect.y < topLeftBottom) lay = layoutLegend(ctx, content, { x, bottom: legendBottom, maxW, size, headings: false });
+    if (lay && lay.rect.y >= topLeftBottom && lay.rect.y + lay.rect.h <= H) {
+      desc.legend = { rect: lay.rect, entries: lay.entries };
+      occupied.push(lay.rect);
+      paint.push(lay.paint);
     }
   }
 
@@ -385,4 +376,16 @@ function interpolate(pts: ReadonlyArray<readonly [number, number]>, at: number):
     }
   }
   return last[1];
+}
+
+/** The legend without a plan: the active trades now, critical, behind and ahead (what the HUD drew before the plan was passed in). */
+function legendFromView(v: FourDView): LegendContent {
+  const states: LegendContent['states'] = [];
+  if (v.hasCritical) states.push({ label: 'Critical', colour: toHex(CRITICAL_RGB), kind: 'outline' });
+  if (v.hasActual) {
+    states.push({ label: 'Behind', colour: toHex(BEHIND_RGB), kind: 'fill' });
+    states.push({ label: 'Ahead', colour: toHex(AHEAD_RGB), kind: 'fill' });
+  }
+  states.unshift({ label: 'Active', colour: toHex(GLOW_RGB), kind: 'glow' });
+  return { trades: v.trades.slice(0, 4).map((t) => ({ label: t.trade, colour: t.colour, kind: 'fill' as const })), moreTrades: 0, states };
 }

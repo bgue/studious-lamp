@@ -213,6 +213,7 @@ export class ScoreHudLayer implements HudLayer {
     if (fd) {
       const lay = layoutFourD(ctx, {
         view: fd.view,
+        plan: fd.plan,
         settings: st,
         W,
         H,

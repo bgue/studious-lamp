@@ -10,6 +10,10 @@ import { makeFourDScore } from '../anim/fourd/api';
 import { mapSpan, planTimeAt, secondsAtPlan } from '../anim/fourd/timeline';
 import { getScorePlayer } from '../anim/score';
 import type { Cue, Score } from '../anim/score';
+import { downloadBlob } from '../cinematic/flythrough';
+import { loadPdfLibs } from '../sheets/pdfRuntime';
+import { buildStoryboardPdf, parseEvery, planStoryboard } from '../schedule/storyboard';
+import type { PageSize } from '../schedule/storyboard';
 import { loadedIdentity, identityKey } from '../markup/scope';
 import { runQuery } from '../query';
 import { readTaskAttr } from '../schedule/attrs';
@@ -519,6 +523,46 @@ export class ScheduleController {
     if ('error' in score) return { ok: false, message: score.error };
     const res = await rec.dialog('4D schedule', score, `${this.app.modelName}-4d`);
     return res ? { ok: res.ok, message: res.message } : { ok: true, message: 'Export cancelled.' };
+  }
+
+  /** What the last storyboard held (for tests and scripts). */
+  lastStoryboard: { pages: number; frames: number; bytes: number; name: string } | null = null;
+
+  /**
+   * The storyboard PDF: still frames of the film at weekly (or monthly, per milestone, or N) dates in a grid on landscape pages, with
+   * a title block, a caption per frame and the legend per page (src/schedule/storyboard.ts). Rendered with the film's own camera.
+   */
+  async storyboard(o: { every?: string; page?: PageSize; cols?: number; download?: boolean } = {}): Promise<PlayResult & { pages?: number; frames?: number; bytes?: number; data?: Uint8Array }> {
+    const rec = window.__xrayRecord;
+    if (!rec) return { ok: false, message: 'Frame rendering is not available in this build.' };
+    const every = parseEvery(o.every ?? 'week');
+    if (!every) return { ok: false, message: 'Every is week, month, milestone or a number of frames.' };
+    const score = await this.score();
+    if ('error' in score) return { ok: false, message: score.error };
+    const plan = this.plan;
+    if (!plan) return { ok: false, message: 'There is no plan.' };
+    const sb = planStoryboard(plan, every);
+    const span = Math.max(1e-9, mapSpan(plan));
+    const times = sb.dates.map((ms) => secondsAtPlan(plan, ms) * (this.playDur / span));
+    const page: PageSize = o.page === 'A3' ? 'A3' : 'A4';
+    const r = await rec.stills(score, times, { width: page === 'A3' ? 1280 : 960, height: page === 'A3' ? 720 : 540, quality: 0.85 });
+    if (!r.ok) return { ok: false, message: r.message };
+    const libs = await loadPdfLibs();
+    const project = this.schedule?.project.name ?? this.schedule?.project.shortName ?? this.app.modelName;
+    const { data, pages: real } = await buildStoryboardPdf(libs.pdfLib, {
+      project,
+      ...(plan.schedule.dataDate ? { dataDate: plan.schedule.dataDate.slice(0, 10) } : {}),
+      generated: new Date().toISOString().slice(0, 10),
+      every: `every ${every.kind === 'count' ? `${every.n} frames` : every.kind}`,
+      page,
+      cols: o.cols ?? 3,
+      frames: r.frames.map((f, i) => ({ ...f, caption: sb.captions[i]! })),
+      legend: sb.legend,
+    });
+    const name = `${(this.app.modelName || 'model').replace(/[^A-Za-z0-9._-]+/g, '_')}-4d-storyboard.pdf`;
+    this.lastStoryboard = { pages: real, frames: r.frames.length, bytes: data.byteLength, name };
+    if (o.download !== false) downloadBlob(new Blob([data.slice().buffer as ArrayBuffer], { type: 'application/pdf' }), name);
+    return { ok: true, message: `Saved ${name}: ${real} pages, ${r.frames.length} frames, ${(data.byteLength / 1024).toFixed(0)} KB.`, pages: real, frames: r.frames.length, bytes: data.byteLength, data };
   }
 
   formatDate(ms: number): string { return formatDate(ms); }

@@ -287,6 +287,42 @@ describe('the HUD layer draws the 4D items', () => {
   });
 });
 
+describe('legend and strip layout', () => {
+  const overlap = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  for (const [w, h] of [[1280, 720], [390, 700]] as const) {
+    it(`draws both at ${w} x ${h}, inside the frame, apart from each other and from the panels`, () => {
+      const { layer, ctx } = draw(score(), 12, {}, w, h);
+      const d = layer.last!.fourd!;
+      expect(d.legend).not.toBeNull();
+      expect(d.strip).not.toBeNull();
+      for (const r of [d.legend!.rect, d.strip!.rect]) {
+        expect(r.x).toBeGreaterThanOrEqual(0);
+        expect(r.x + r.w).toBeLessThanOrEqual(w);
+        expect(r.y + r.h).toBeLessThanOrEqual(h);
+      }
+      expect(overlap(d.legend!.rect, d.strip!.rect)).toBe(false);
+      for (const p of [d.panel, d.activities?.rect]) if (p) expect(overlap(p, d.legend!.rect) || overlap(p, d.strip!.rect)).toBe(false);
+      expect(ctx.has('Trades') || w < 500).toBe(true);
+      expect(ctx.has('Active')).toBe(true);
+      expect(d.strip!.rows).toBeGreaterThan(1);
+    });
+  }
+
+  it('the plan style switches them off', () => {
+    const off = (key: 'legend' | 'strip'): Score => ({ schema: SCORE_SCHEMA, duration: 30, cues: [{ at: 2, dur: 20, kind: 'schedule4d', plan: { ...plan, style: { ...plan.style, [key]: 'off' } } }] });
+    expect(draw(off('legend'), 12).layer.last!.fourd!.legend).toBeNull();
+    expect(draw(off('legend'), 12).layer.last!.fourd!.strip).not.toBeNull();
+    expect(draw(off('strip'), 12).layer.last!.fourd!.strip).toBeNull();
+    expect(draw(off('strip'), 12).layer.last!.fourd!.legend).not.toBeNull();
+  });
+
+  it('draws neither without a schedule cue (a plain fly-through)', () => {
+    const plain: Score = { schema: SCORE_SCHEMA, duration: 30, cues: [{ at: 1, dur: 3, kind: 'caption', text: 'hello' }] };
+    const { layer } = draw(plain, 2);
+    expect(layer.last!.fourd ?? null).toBeNull();
+  });
+});
+
 describe('HUD settings', () => {
   it('has the 4D options on by default, and sanitizes them', () => {
     const d = defaultHud();

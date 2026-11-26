@@ -28,6 +28,8 @@ export interface RecordApi {
   run(score: Score, opts?: Partial<ExportOptions>, hooks?: { download?: boolean }): Promise<RecordResult>;
   /** Record the active fly-through now, without the dialog. */
   flythrough(opts?: Partial<ExportOptions>, hooks?: { download?: boolean }): Promise<RecordResult>;
+  /** Still JPEG frames of a score at score times (seconds), without the HUD: the 4D storyboard. */
+  stills(score: Score, times: readonly number[], opts?: { width?: number; height?: number; quality?: number }): ReturnType<Recorder['stills']>;
   cancel(): void;
   readonly busy: boolean;
   readonly last: RecordResult | null;
@@ -100,6 +102,7 @@ export const recordPlugin: AppPlugin = {
         if (!f || f.keyframes.length === 0) return Promise.resolve({ ok: false, message: 'Fly-through: add keyframes first.' });
         return r.run(ctl.compile(f), { ...DEFAULT_OPTIONS, name: f.name, ...opts }, hooks);
       },
+      stills: (score, times, opts = {}) => r.stills(score, times, opts),
       cancel: () => r.cancel(),
       get busy() {
         return r.busy;

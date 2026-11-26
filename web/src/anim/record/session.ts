@@ -302,6 +302,75 @@ export class Recorder {
     }
   }
 
+  // ---------------------------------------------------------------- still frames (the storyboard)
+
+  /**
+   * Render still frames of `score` at the given score times (seconds): for each the player seeks there (cues and 4D states are
+   * evaluated from scratch, so the picture does not depend on the order), the viewer draws one frame at the still size and the canvas
+   * is read as JPEG. No HUD: the storyboard puts the date and the legend around the frames. Never throws.
+   */
+  async stills(
+    score: Score,
+    times: readonly number[],
+    o: { width?: number; height?: number; quality?: number; onProgress?: (done: number, total: number) => void } = {},
+  ): Promise<{ ok: true; frames: Array<{ jpeg: Uint8Array; width: number; height: number }> } | { ok: false; cancelled?: boolean; message: string }> {
+    const why = this.blocker();
+    if (why) return { ok: false, message: why };
+    const size = resolveOutputSize(`${o.width ?? 960}x${o.height ?? 540}`, this.windowSize(), this.maxSide());
+    const q = Math.min(1, Math.max(0.3, o.quality ?? 0.85));
+    const app = this.app;
+    const link = this.link;
+    this.busy = true;
+    this.cancelled = false;
+    const overlay = openBusyOverlay('Rendering storyboard frames', () => this.cancel(), { dim: true });
+    const restoreLoop = app.pauseLoop();
+    link.setExporting(true);
+    const out: Array<{ jpeg: Uint8Array; width: number; height: number }> = [];
+    try {
+      if (link.player.playing) link.player.stop();
+      const vbase = performance.now();
+      await withOutputSize(app.renderer, size, async () => {
+        if (!link.player.play(score, { restore: true })) throw new Error('The score player did not start');
+        try {
+          const c = document.createElement('canvas');
+          c.width = size.width;
+          c.height = size.height;
+          const g = c.getContext('2d');
+          if (!g) throw new Error('No 2D canvas for the frames');
+          for (let i = 0; i < times.length; i++) {
+            if (this.cancelled) throw new Error('cancelled');
+            link.player.seek(Math.max(0, times[i]!));
+            app.renderer.markDirty();
+            // two frames: the second lets a camera that eases or a fade that started with the seek settle
+            app.stepFrame(vbase + i * 40);
+            app.stepFrame(vbase + i * 40 + 20);
+            g.fillStyle = '#ffffff';
+            g.fillRect(0, 0, size.width, size.height);
+            g.drawImage(app.canvas, 0, 0, size.width, size.height);
+            const blob: Blob | null = await new Promise((res) => c.toBlob(res, 'image/jpeg', q));
+            if (!blob) throw new Error('A frame could not be written as JPEG');
+            out.push({ jpeg: new Uint8Array(await blob.arrayBuffer()), width: size.width, height: size.height });
+            overlay.note(`Frame ${i + 1} of ${times.length}`);
+            o.onProgress?.(i + 1, times.length);
+            await yieldTurn();
+          }
+        } finally {
+          if (link.player.playing) link.player.stop();
+        }
+      });
+      return { ok: true, frames: out };
+    } catch (e) {
+      if (this.cancelled) return { ok: false, cancelled: true, message: 'Storyboard cancelled.' };
+      return { ok: false, message: `The storyboard frames could not be rendered: ${e instanceof Error ? e.message : String(e)}` };
+    } finally {
+      overlay.close();
+      link.setExporting(false);
+      restoreLoop();
+      app.renderer.markDirty();
+      this.busy = false;
+    }
+  }
+
   // ---------------------------------------------------------------- the real-time fallback
 
   private runRealtime(score: Score, opts: ExportOptions, prefer: 'webm' | 'mp4', overlay: BusyOverlay | null): Promise<{ cancelled: boolean; file?: ExportFile; width: number; height: number; fps: number }> {

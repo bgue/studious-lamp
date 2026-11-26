@@ -75,6 +75,9 @@ export interface Schedule4dApi {
   /** Jump to a schedule date (plan time, ms). */
   seekDate(planMs: number): Promise<boolean>;
   record(): Promise<PlayResult>;
+  /** The storyboard PDF (stills of the film at weekly dates in a grid). `download: false` keeps the file (read lastStoryboard). */
+  storyboard(o?: { every?: string; page?: 'A3' | 'A4'; cols?: number; download?: boolean }): Promise<PlayResult & { pages?: number; frames?: number; bytes?: number }>;
+  readonly lastStoryboard: { pages: number; frames: number; bytes: number; name: string } | null;
   /** Make the film a script: build the plan as Play does, run the camera director, register the plan by the schedule's name and open the Script tab with the text (unsaved). */
   openAsScript(): Promise<PlayResult & { name?: string; lines?: number }>;
   /** GlobalId -> comma-separated task codes of the accepted build links (what Save IFC writes as Xray_4D.ActivityIds). */
@@ -160,6 +163,8 @@ export const map4dPlugin: AppPlugin = (() => {
         stop: () => sc.stopPlay(),
         seekDate: (ms) => sc.seekDate(ms),
         record: () => sc.record(),
+        storyboard: async (o) => { const { data: _d, ...r } = await sc.storyboard(o); return r; },
+        get lastStoryboard() { return sc.lastStoryboard; },
         openAsScript: () => sc.openAsScript(),
         activityIds: () => sc.activityIds(),
         workSchedule: (ids) => sc.workSchedule(ids),

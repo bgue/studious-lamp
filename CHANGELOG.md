@@ -5,6 +5,11 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 ## Unreleased
 
+- The 4D film has a colour legend (the trades of the film and what active, built, removed, critical and behind or ahead look like)
+  and a schedule strip along the bottom (bars by trade, critical work marked, milestones, a marker for the date). Both are in
+  the video and the packed page, and each has a switch in the Film step and an `xray-4d --legend` / `--strip` option.
+- The Film step has "Storyboard PDF": still frames of the film at weekly dates on landscape pages, each with its date, week and the
+  work going on, and the legend on every page. `xray-4d storyboard` makes the same PDF from the command line.
 - Issue pins and drawings are hidden while a fly-through, script or 4D film plays or is recorded, and come back exactly as they were
   when it stops.
 - The 4D tab has "Issues and drawings in the film" (Style) and fly-throughs have "Issues and drawings": tick them to keep the pins

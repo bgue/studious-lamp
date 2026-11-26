@@ -132,6 +132,10 @@ export interface FourDStyle {
   fadeIn?: number;
   /** Show the issue pins and the drawings while the film plays (default off: they are hidden during playback). */
   issuesInFilm?: boolean;
+  /** The colour legend of the film (trade colours and the state key), bottom left. Absent: on. */
+  legend?: 'on' | 'off';
+  /** The schedule strip of the film (a thin Gantt band along the bottom with the current date). Absent: on. */
+  strip?: 'on' | 'off';
   /** The active elements are the x-ray focus (occluders ghost). */
   xrayFocus: boolean;
   sectionBox: 'auto' | 'off';
