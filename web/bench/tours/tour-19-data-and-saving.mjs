@@ -180,25 +180,29 @@ await tour.step('19.3 Try it, cleaned copy; Limits: a sample has no source', asy
 
 await tour.step('19.4 Try it: close the tab, open again: what comes back (browser storage per model)', async () => {
   const page = await tour.open('model=fzk-haus');
-  // a saved view and a selection set are made through the app's own stores; then the page is reloaded on the same model
-  await page.evaluate(() => { localStorage.setItem('tour19-marker', '1'); });
-  const keys0 = await page.evaluate(() => Object.keys(localStorage).filter((k) => /xray|views|sets|flythrough/i.test(k)));
-  await ui.tab(page, 'Views');
-  const save = page.getByRole('button', { name: /Save view|Save current|\+ ?Save/i }).first();
-  if (await save.count()) { await save.click(); await page.waitForTimeout(600); }
-  const keys1 = await page.evaluate(() => Object.keys(localStorage).filter((k) => /xray|views/i.test(k)));
+  await page.keyboard.press('Control+Shift+S');
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__xrayScript.save('Tour script', 'wait 1'));
+  const before = await page.evaluate(() => ({ views: window.__xrayViews.list().length, scripts: window.__xrayScript.list().length, keys: Object.keys(localStorage).filter((k) => /^xray\./.test(k)).length }));
+  tour.check('a saved view and a saved script exist in the browser store', before.views === 1 && before.scripts === 1 && before.keys >= 2, JSON.stringify(before));
   await page.reload();
-  await page.waitForFunction('window.__xrayReady === true', null, { timeout: 240000 });
-  const keys2 = await page.evaluate(() => Object.keys(localStorage).filter((k) => /xray|views/i.test(k)));
-  tour.check('"Saved views ... come back" (the per-model store is in browser storage and survives a reload)', keys1.length > 0 && keys2.length >= keys1.length, `${keys0.length}/${keys1.length}/${keys2.length}`);
-  // a reload keeps a saved view in the Views tab
+  await page.waitForFunction('window.__xrayReady === true && window.__xrayViews && window.__xrayScript', null, { timeout: 240000 });
+  await page.waitForTimeout(800);
+  const after = await page.evaluate(() => ({ views: window.__xrayViews.list().length, scripts: window.__xrayScript.list().length }));
+  tour.check('"Close the tab, open the page again with the same model": "Saved views ... scripts ... come back"', after.views === 1 && after.scripts === 1, JSON.stringify(after));
   await ui.tab(page, 'Views');
   const vt = (await page.locator('#sidebar').innerText()).replace(/\s+/g, ' ');
-  tour.check('the Views tab still lists the saved view after reopening', /View 1|view/i.test(vt) && !/No saved views/i.test(vt), vt.slice(0, 160));
+  tour.check('the Views tab lists the saved view again', !/No saved views/i.test(vt) && /1/.test(vt), vt.slice(0, 120));
+  const gone = await page.evaluate(() => { const t = window.__xrayParams.shareUrl(); return t.length; });
+  tour.check('"A share link ... you did not export does not exist": a share link is only text you copy (nothing stored)', gone > 20);
   await page.evaluate(() => { localStorage.clear(); });
-  tour.check('"clear the site data ... everything in browser storage go": the store is empty', (await page.evaluate(() => localStorage.length)) === 0);
-  const trace = readFileSync(resolve(repoRoot, 'docs/manual/19-data-and-saving.md'), 'utf8');
-  tour.check('the packed page keeps only what you name (documented)', /Packed page/.test(trace));
+  await page.reload();
+  await page.waitForFunction('window.__xrayReady === true && window.__xrayViews', null, { timeout: 240000 });
+  await page.waitForTimeout(800);
+  const cleared = await page.evaluate(() => ({ views: window.__xrayViews.list().length, scripts: window.__xrayScript.list().length }));
+  tour.check('"Then clear the site data of the page, and see everything in browser storage go"', cleared.views === 0 && cleared.scripts === 0, JSON.stringify(cleared));
+  const doc = await page.evaluate(() => JSON.stringify(window.__xrayParams.collect()));
+  tour.check('"Never written anywhere: API keys, the Hugging Face token ... pictures of elements"', !/apiKey|hfToken|data:image/i.test(doc));
 });
 
 await tour.finish();

@@ -114,7 +114,7 @@ A kiosk page runs without anyone touching it: a screen in a site office, a stand
 ### Try it: a looping fly-through
 
 1. In the viewer, load FZK-Haus. Build a fly-through in the **Views** tab (chapter 22). Name it "Overview".
-2. In the fly-through section, click **Export file**. You get an `xray-flythroughs/1` file, say `overview.json`.
+2. In the fly-through section, open the **⋯** menu of the fly-through list and click **Export file**. You get an `xray-flythroughs/1` file, say `overview.json`.
 3. Pack the model with the film.
 
    ```

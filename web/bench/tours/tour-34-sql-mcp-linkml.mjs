@@ -21,7 +21,7 @@ const py = (script, args = []) => {
 
 await tour.step('34.1 Why a schema: the generated files exist', async () => {
   for (const f of ['xray_4d.yaml', 'xray_4d.sql', 'xray_4d.schema.json', 'generate.sh']) tour.check(`the table lists ${f}`, existsSync(resolve(schemaDir, f)));
-  tour.check('the table lists examples/', existsSync(resolve(schemaDir, 'examples')) && /LinkDataset/.test(readFileSync(resolve(schemaDir, 'examples/LinkDataset-fzk.yaml'), 'utf8').slice(0, 2000)));
+  tour.check('the table lists examples/', existsSync(resolve(schemaDir, 'examples')) && /^model:/m.test(readFileSync(resolve(schemaDir, 'examples/LinkDataset-fzk.yaml'), 'utf8')) && /^links:/m.test(readFileSync(resolve(schemaDir, 'examples/LinkDataset-fzk.yaml'), 'utf8')));
   const sql = readFileSync(resolve(schemaDir, 'xray_4d.sql'), 'utf8');
   tour.check('"SQL tables, one per class, join tables for lists, foreign keys to Activity(task_code) and Element(global_id)"',
     /CREATE TABLE "Activity"/.test(sql) && /CREATE TABLE "Element"/.test(sql) && /CREATE TABLE "ActivityLink_elements"/.test(sql) && /REFERENCES "Activity" \(task_code\)/.test(sql) && /REFERENCES "Element" \(global_id\)/.test(sql));

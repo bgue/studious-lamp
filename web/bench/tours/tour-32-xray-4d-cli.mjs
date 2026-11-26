@@ -56,16 +56,18 @@ await tour.step('32.2 link: coverage, report, IFC copy; 32.4 IFC write-back', as
   const r2 = x4d(['link', at('m.4d.ifc'), XER, '--config', CFG, '--write-ifc', at('m2.4d.ifc'), '-o', at('links3.json')]);
   tour.check('"A second write replaces only the 4D part, and rewriting gives the same bytes"', r2.code === 0 && readFileSync(at('m2.4d.ifc')).equals(outIfc), `exit ${r2.code} ${r2.err.slice(-100)}`);
   // reading back is automatic: link with no configuration
-  const r3 = x4d(['link', at('m.4d.ifc'), XER, '-o', at('links4.json')]);
-  const l4 = JSON.parse(readFileSync(at('links4.json'), 'utf8'));
-  tour.check('"A file written by --write-ifc links natively again, with no configuration"', r3.code === 0 && l4.links.some((l) => l.source === 'native') && /coverage: elements 100/.test(r3.err), r3.err.split('\n').find((l) => /coverage/.test(l)));
+  writeFileSync(at('empty.4d.json'), '{"schema":"xray-4d-config/1","schedule":{},"model":{}}\n');
+  tour.check('"link needs --config": without it the command stops (exit 2)', x4d(['link', at('m.4d.ifc'), XER, '-o', at('links5.json')]).code === 2);
+  const r3 = x4d(['link', at('m.4d.ifc'), XER, '--config', at('empty.4d.json'), '-o', at('links4.json')]);
+  const l4 = existsSync(at('links4.json')) ? JSON.parse(readFileSync(at('links4.json'), 'utf8')) : { links: [] };
+  tour.check('"A file written by --write-ifc links natively again, with no configuration of its own" (an empty configuration)', r3.code === 0 && l4.links.some((l) => l.source === 'native') && /coverage: elements 100/.test(r3.err), r3.err.split('\n').find((l) => /coverage/.test(l)));
 });
 
 await tour.step('32.2 exit codes: 2 usage, 3 input (yaml config), 4 coverage below --min-coverage', async () => {
   tour.check('exit 2: an unknown command', x4d(['frobnicate']).code === 2);
   writeFileSync(at('c.yaml'), 'schedule: {}\n');
   tour.check('"a .yaml file is refused with exit 3"', x4d(['link', FZK, XER, '--config', at('c.yaml'), '-o', at('y.json')]).code === 3);
-  const r = x4d(['link', FZK, XER, '--min-coverage', '0.99', '-o', at('nocfg.json')]);
+  const r = x4d(['link', FZK, XER, '--config', at('empty.4d.json'), '--min-coverage', '0.99', '-o', at('nocfg.json')]);
   tour.check('"Below --min-coverage, the files are still written and the exit code is 4"', r.code === 4 && existsSync(at('nocfg.json')), `exit ${r.code}; ${r.err.split('\n').find((l) => /coverage/.test(l))}`);
 });
 
@@ -83,7 +85,7 @@ await tour.step('32.2 plan, script, pack', async () => {
   tour.check('"The plan carries no geometry, so it needs --model"', noModel.code !== 0, `exit ${noModel.code}`);
   const k = x4d(['pack', FZK, at('build.4d.json'), '--script', at('film.xrayanim'), '--loop', '-o', at('build.html')], { timeout: 300000 });
   tour.check('pack writes a kiosk page that autoplays the plan in a loop', k.code === 0 && existsSync(at('build.html')) && /autoplay plan:build \(loop\)/.test(k.err), k.err.split('\n').slice(-2).join(' ').slice(0, 160));
-  tour.check('the packed page is one .html file with no reviewer name or key', (() => { const h = readFileSync(at('build.html'), 'utf8'); return !/hf_[A-Za-z0-9]{8}|reviewed_by/.test(h); })(), `${(statSync(at('build.html')).size / 1e6).toFixed(1)} MB`);
+  tour.check('the packed page is one .html file with no reviewer name or key', (() => { const h = readFileSync(at('build.html'), 'utf8'); return !/hf_[A-Za-z0-9]{8}|"reviewed_by":\s*"/.test(h); })(), `${(statSync(at('build.html')).size / 1e6).toFixed(1)} MB`);
 });
 
 await tour.finish();

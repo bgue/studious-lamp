@@ -4,7 +4,7 @@
 // Run: node bench/run-smokes.mjs --only tour-33-agent-skill
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { repoRoot, startTour, webRoot } from './lib.mjs';
@@ -24,6 +24,7 @@ await tour.step('33.2 Install: the folder is a skill; the selftest runs every st
   const md = readFileSync(resolve(skill, 'SKILL.md'), 'utf8');
   tour.check('"A skill is a folder ... SKILL.md": skills/ifc-4d-schedule/SKILL.md has the name ifc-4d-schedule', /^---\nname: ifc-4d-schedule\n/.test(md));
   tour.check('"Python 3 ... ifcopenshell ... Node 18 or newer" are present on this machine', run('python3', ['-c', 'import ifcopenshell']).code === 0 && run('node', ['--version']).code === 0);
+  mkdirSync(w + '/self');
   const r = run('bash', [resolve(S, 'selftest.sh'), w + '/self']);
   tour.check('"scripts/selftest.sh ... runs every step on the FZK-Haus sample and prints ok with the folder it used"', r.code === 0 && /^ok: /m.test(r.out), (r.out + r.err).split('\n').slice(-2).join(' | ').slice(0, 160));
 });
@@ -42,11 +43,12 @@ await tour.step('33.3 Try it steps 2-3: read both files, link by the configurati
   tour.check('"activities such as plaster, screed drying and services have no geometry and stay unlinked" (activities without links remain)', (links.unlinked_activities?.length ?? 0) > 0, `${links.unlinked_activities?.length} unlinked activities`);
   tour.check('Rule: "Only accepted links ... proposed, never accepted": every link of the linker is accepted or proposed, none is invented as accepted by the agent', links.links.every((k) => ['accepted', 'proposed'].includes(k.status)));
   // step 4/5: a proposal by the agent and the decision
-  const prop = { links: [{ id: 'ln-agent-roof', activity: links.unlinked_activities[0]?.task_code ?? links.unlinked_activities[0], role: 'build', elements: [links.links[0].elements[0]], source: 'agent', confidence: 0.5, reasons: ['tour: the name says so'], status: 'proposed' }] };
+  const code = links.unlinked_activities[0]?.task_code ?? links.unlinked_activities[0];
+  const prop = [{ activity: code, role: 'build', elements: [links.links[0].elements[0]], confidence: 0.5, reasons: ['tour: the name says so'] }];
   writeFileSync(at('mine.json'), JSON.stringify(prop));
   const p = py('link.py', '--xer', at('schedule.json'), '--ifc', at('model.json'), '--config', CFG, '--proposals', at('mine.json'), '-o', at('links-p.json'));
   const lp = json(readFileSync(at('links-p.json'), 'utf8'));
-  tour.check('step 4: a proposal of an agent is kept as "proposed", with its reasons', p.code === 0 && lp.links.some((k) => k.id === 'ln-agent-roof' && k.status === 'proposed' && k.reasons?.length), p.err.slice(-120));
+  tour.check('step 4: a proposal of an agent is kept as "proposed", with its reasons', p.code === 0 && lp.links.some((k) => k.id === `ln-${code}-build-proposed` && k.source === 'agent' && k.status === 'proposed' && k.reasons?.length), p.err.slice(-120));
 });
 
 await tour.step('33.3 Try it step 6; 33.4 steps 5-9: write the IFC, verify, write the XER, animation, check', async () => {
@@ -58,7 +60,7 @@ await tour.step('33.3 Try it step 6; 33.4 steps 5-9: write the IFC, verify, writ
   tour.check('"Every output is a new file": the original is not touched', sha(FZK) === createHash('sha256').update(orig).digest('hex') && outb.length > orig.length);
   const t = outb.toString('latin1');
   tour.check('"the work schedule, tasks with dates, task-to-element assignments, the logic between tasks, and Xray_4D"', /IFCWORKSCHEDULE/.test(t) && /IFCTASKTIME/.test(t) && /IFCRELASSIGNSTOPRODUCT/.test(t) && /IFCRELSEQUENCE/.test(t) && /Xray_4D/.test(t));
-  tour.check('"Only accepted links are written": the proposed link\'s id never reaches the IFC', !/ln-agent-roof|tour: the name says so/.test(t));
+  tour.check('"Only accepted links are written": the proposed link\'s id never reaches the IFC', !/tour: the name says so|ln-A\d+-build-proposed/.test(t));
   tour.check('"Never write reviewed_by"', !/reviewed_by|ReviewedBy/.test(t));
   const a2 = py('apply_links.py', '--ifc', FZK, '--links', at('links-p.json'), '--xer', XER, '-o', at('model2.4d.ifc'));
   tour.check('"Running again gives the same file"', a2.code === 0 && sha(at('model.4d.ifc')) === sha(at('model2.4d.ifc')));

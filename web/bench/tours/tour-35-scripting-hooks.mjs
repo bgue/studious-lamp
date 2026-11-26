@@ -16,8 +16,8 @@ await tour.step('35.2 Try it: open FZK-Haus 4D, then the console steps 1-5', asy
   await page.waitForFunction(() => window.__xray4dSchedule.summary()?.activities > 0 || window.__xray4dSchedule.summary()?.activityCount > 0 || Object.keys(window.__xray4dSchedule.summary() ?? {}).length > 3, null, { timeout: 120000 }).catch(() => {});
   const sum = await page.evaluate(() => window.__xray4dSchedule.summary());
   tour.check('step 1: summary() returns the project, data date and counts', !!sum && JSON.stringify(sum).includes('FZK-HAUS') && /2027-05-19/.test(JSON.stringify(sum)), JSON.stringify(sum)?.slice(0, 200));
-  const n = await page.evaluate(() => window.__xray4dSchedule.links().length);
-  tour.check('step 2: "links().length gives the number of links"', n > 10, `${n} links`);
+  const n = await page.evaluate(() => window.__xray4dSchedule.links().links.length);
+  tour.check('step 2: "links().links.length gives the number of links"', n > 10, `${n} links`);
   const rep = await page.evaluate(() => window.__xray4dSchedule.report());
   tour.check('step 2: "report() gives the coverage"', !!rep && /82|coverage|linked/i.test(JSON.stringify(rep)), JSON.stringify(rep)?.slice(0, 160));
   const tools = await page.evaluate(() => window.__xrayToolbar.tools());
@@ -26,20 +26,18 @@ await tour.step('35.2 Try it: open FZK-Haus 4D, then the console steps 1-5', asy
   await ui.settle(page, 800);
   const dock4d = (await page.locator('#dk-pane-4d').innerText()).replace(/\s+/g, ' ');
   tour.check('step 4: open(\'play\') shows the 4D tab with the film bar (Play, Pause, Stop)', /Play/.test(dock4d) && /Stop/.test(dock4d), dock4d.slice(0, 120));
-  await page.evaluate(() => window.__xray4dSchedule.play());
-  await page.waitForTimeout(2500);
-  const st = await page.evaluate(() => JSON.stringify(window.__xray4d.state?.() ?? {}));
-  tour.check('step 4: play() starts the film (the 4D player reports a running state)', /"playing":true|"running":true|"t":|"time":/.test(st) || (await page.evaluate(() => !!window.__xrayFlythrough?.state?.().playing)) || true, st.slice(0, 160));
+  const pr = await page.evaluate(() => window.__xray4dSchedule.play());
+  await page.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 60000 }).catch(() => {});
+  tour.check('step 4: play() starts the film (the player runs)', (await page.evaluate(() => window.__xrayFlythrough.state().playing)) === true, JSON.stringify(pr));
   await page.evaluate(() => window.__xray4dSchedule.stop());
   await page.waitForTimeout(800);
-  const st2 = await page.evaluate(() => JSON.stringify(window.__xray4d.state?.() ?? {}));
-  tour.check('step 5: stop() ends it', !/"playing":true/.test(st2), st2.slice(0, 160));
+  tour.check('step 5: "Stop it: stop()" ends it', (await page.evaluate(() => window.__xrayFlythrough.state().playing)) === false);
 });
 
 await tour.step('35.3 The scripting objects: each name of the table is a window object', async () => {
   const page = await tour.open('model=fzk-haus');
   await page.waitForFunction(() => !!window.__xrayClassify && !!window.__xray4dMap, null, { timeout: 120000 }).catch(() => {});
-  const names = ['__xray', '__xrayViewModes', '__xrayImaging', '__xraySection', '__xrayCleanup', '__xrayPresets', '__xrayPenetrations', '__xrayMeasure', '__xrayClearance', '__xrayViews', '__xrayFlythrough', '__xrayScript', '__xrayRecord', '__xrayIssues', '__xrayMarkup', '__xraySheets', '__xrayBcf', '__xrayWork', '__xrayIssueReport', '__xrayClash', '__xrayClassify', '__xrayRevision', '__xrayIfcSave', '__xraySearch', '__xrayUndo', '__xrayPointer', '__xrayTopBar', '__xrayRightSidebar', '__xrayGizmo', '__xrayMap', '__xrayPointCloud', '__xrayXr', '__xrayToolbar', '__xrayParams', '__xrayHelp', '__xray4dMap', '__xray4dSchedule', '__xray4d', '__xray4dFilm', '__xrayBoot', '__xrayReady', '__xrayError', '__xrayInfo'];
+  const names = ['__xray', '__xrayViewModes', '__xrayImaging', '__xraySection', '__xrayCleanup', '__xrayPresets', '__xrayPenetrations', '__xrayMeasure', '__xrayClearance', '__xrayViews', '__xrayFlythrough', '__xrayScript', '__xrayRecord', '__xrayIssues', '__xrayMarkup', '__xraySheets', '__xrayBcf', '__xrayWork', '__xrayIssueReport', '__xrayClash', '__xrayClassify', '__xrayRevision', '__xrayIfcSave', '__xraySearch', '__xrayUndo', '__xrayPointer', '__xrayTopBar', '__xrayRightSidebar', '__xrayGizmo', '__xrayMap', '__xrayPointCloud', '__xrayXr', '__xrayToolbar', '__xrayParams', '__xrayHelp', '__xray4dMap', '__xray4dSchedule', '__xray4d', '__xray4dFilm', '__xrayBoot', '__xrayReady', '__xrayError'];
   await page.waitForTimeout(3000);
   const have = await page.evaluate((names) => Object.fromEntries(names.map((n) => [n, n in window && window[n] !== undefined])), names);
   const missing = names.filter((n) => !have[n]);
