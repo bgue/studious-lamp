@@ -18,7 +18,7 @@ import type { GpuProbe } from '../src/classify/providers/decision';
 import { MemoryStorage } from '../src/selectionSets';
 import * as fakeOrt from '../bench/fake-ort.mjs';
 import * as fakeTok from '../bench/fake-transformers.mjs';
-import { jsonResponse, sidecarModel } from './classify-helpers';
+import { jsonResponse, offFacets, sidecarModel } from './classify-helpers';
 
 const SIGNAL = new AbortController().signal;
 const GPU: GpuProbe = { present: true, adapter: true, f16: true };
@@ -545,7 +545,7 @@ describe('the service with d3', () => {
       storage: storage as never, keyStorages: { session: new MemoryStorage() as never, local: new MemoryStorage() as never }, fetchImpl: exp.fetchImpl,
       d3LoadOrt: async () => fakeOrt as never, d3LoadTokenizerLib: async () => fakeTok as never, d3CacheStorage: caches, d3Gpu: async () => GPU, ...over,
     });
-    svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
+    svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus'); offFacets(svc);
     svc.patch({ provider: 'd3' });
     return { svc, exp, caches, storage };
   }

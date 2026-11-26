@@ -1003,6 +1003,96 @@ The pencil on a row opens a form: discipline, sub-discipline and division (lists
 element a result with source `manual` and confidence 1. A manual result wins over rules, cache and model, survives
 **Clear results** and new runs, and is kept per model and schema hash in `localStorage`. **Remove override** deletes it.
 
+## Facets
+
+Besides discipline, sub-discipline and division, the classifier answers six more questions about an element, each as its own
+**facet**: **Trade**, **Placement**, **Material**, **Phase**, **Orientation** and **ClassRepair**. The design is
+`docs/design/classification-facets.md`; this section is what is built (engine and namespace; batch mode, the tree view and the messy-model
+checks come later on top of it). Classify runs the facets after the discipline; the Classification tab has a **Facets** folder with a
+switch per facet (all on by default; ClassRepair only ever offers a suggestion) and, for the selected element, its facet values with the
+confidence and the source, and a picker to set one by hand (source `manual`; kept per model, wins over every other source).
+
+| Facet | Answers | Codes | How it is decided |
+| --- | --- | --- | --- |
+| `Trade` | Who builds it? | EARTH, CONC, STEEL, TIMBER, MASON, ROOF, FACADE, GLAZ, DRYLN, FINISH, DOORS, MECH, PLUMB, ELEC, FIRE, LIFT, SITE, OTHER | rules from class + discipline + material (`IfcSlab` + concrete is CONC, `IfcWall` + masonry is MASON, a ceiling covering is DRYLN, `IfcDoor` is DOORS, `IfcPipeSegment` + PLB is PLUMB), then the model |
+| `Placement` | Where does it sit, does it carry load? | EXT, INT, BOUNDARY (and LoadBearing true/false) | its own `Pset_*Common.IsExternal` / `LoadBearing`, checked against the geometry; else the envelope test; else the model |
+| `Material` | What is it made of? | CONCRETE, STEEL, TIMBER, MASONRY, GYPSUM, GLASS, ALUMINIUM, INSULATION, PLASTIC, STONE, EARTH, OTHER | keyword table over the IFC material and layer-set name, the type name, the name; else the model |
+| `Phase` | When is it built? | SUBSTR, FRAME, ENVELOPE, SERVICES, FITOUT, EXTERNAL | rules from Trade + Placement + load-bearing + level (below ground); else the model |
+| `Orientation` | Which way does it point? | HORIZONTAL, VERTICAL, INCLINED, ALONG_X, ALONG_Y, DIAGONAL | measured only |
+| `ClassRepair` | What is it really? | KEEP or a suggested IFC class (IfcColumn, IfcBeam, IfcWall, ...) | only for proxies, untyped `IfcBuiltElement` and classes the shape contradicts: names, type names and shape; else the model |
+
+**Orientation** is area-weighted PCA of the element's world-space triangles. The spreads along the principal axes give the shape:
+linear (beams, columns, pipes), planar (walls, slabs, doors) or compact (equipment). `Tilt` is degrees from horizontal (a linear
+element: its axis; a planar one: the plane); `Azimuth` is the direction in plan from model +X (a line has no sense, so 0 to 180): the axis
+of a linear element, the plane normal of a vertical or inclined plane, the longest side of a flat or compact one. `Class`: planar with a
+vertical normal (within 5 degrees) is HORIZONTAL, with a horizontal normal VERTICAL, otherwise INCLINED; linear vertical is VERTICAL,
+horizontal ones are ALONG_X / ALONG_Y (within 5 degrees of the axes) or DIAGONAL. `Upright` is told for classes that have a top (doors,
+windows, stairs, furniture, equipment): from the placement's local +Z when the model gives it, else by comparing the horizontal area at
+the base and the top. `Plausible` comes from a per-class table (wall vertical; slab horizontal or inclined; column vertical or inclined;
+beam not vertical; door and window vertical and not upside down; roof, pipes, ducts any) and an implausible one sets `NeedsReview`.
+
+**Placement by geometry**: a wall, curtain wall, window or door shoots horizontal rays from three points along its middle, along both face
+normals, against the envelope set (walls, curtain walls, windows, doors, roofs). Clear on one side and blocked on the other is BOUNDARY,
+blocked on both is INT, clear on both is EXT; a wall on the outline of its storey's plan is BOUNDARY even when a wing blocks the ray.
+Roofs, the top slab and the ground slab are BOUNDARY, other slabs INT, footings and piles EXT. Any other element is EXT outside the storey
+outline, else 8 rays decide (none clear is INT, most clear EXT, in between BOUNDARY with a low confidence). The test reads the viewer's BVH
+and runs in slices so the page stays responsive. When the element's own `IsExternal` and the geometry disagree with confidence, the
+geometry wins (`Source = geometry`) and the element needs review.
+
+**Model facets.** For what the rules leave open (a rule below 0.85 is not final), the configured provider is asked one question per facet
+with the facet's codes as options (`facet_trade`, `facet_placement` (+ `facet_loadbearing` yes/no), `facet_material`, `facet_phase`,
+`facet_classrepair`), once per signature (the discipline signature plus what the facet depends on, for example the material for Trade). The
+state holds what is already known (`facets`: material, placement, trade, discipline, orientation) and the shape line. The temperature of
+the discipline question scales the facet answers; a result needs review when its confidence is below the facet's threshold (the schema's
+`facets.<Facet>.minConfidence`, default the schema's) or its top-2 margin is under 0.15. The answers are cached per model, facet code lists
+and provider. A model failure leaves the weak rule, flagged for review.
+
+**The namespace.** Results are written (when `writePset` is on) as properties of the element, one set per facet, `XR_<Facet>`:
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `XR_<Facet>.Code` | label | the chosen code |
+| `XR_<Facet>.Label` | label | its name |
+| `XR_<Facet>.Confidence` | real 0-1 | calibrated probability; 1 for a measured or manual value |
+| `XR_<Facet>.Source` | label | `rule`, `model`, `geometry`, `ifc`, `manual` (`batch-learned` later) |
+| `XR_<Facet>.Model` | label | provider and model id for `model`; absent otherwise |
+| `XR_<Facet>.NeedsReview` | boolean | below the threshold, a close second, two sources disagree, or implausible |
+| `XR_<Facet>.SchemeVersion` | label | `xr-facets/1` |
+| `XR_Placement.Exposure` | label | EXT, INT or BOUNDARY (repeats `Code`) |
+| `XR_Placement.LoadBearing` | boolean | |
+| `XR_Placement.ExposureSource`, `.LoadBearingSource` | label | `ifc`, `geometry`, `rule`, `model` or `manual` |
+| `XR_Orientation.Tilt`, `.Azimuth` | real | degrees, 0.1 precision |
+| `XR_Orientation.Upright`, `.Plausible` | boolean | absent when unknown |
+| `XR_Orientation.PrincipalAxis` | label | `X`, `Y` or `Z`; absent when none |
+| `XR_ClassRepair.OriginalClass`, `.SuggestedClass`, `.SuggestedPredefinedType` | label | |
+| `XR_ClassRepair.Applied` | boolean | false; the class is never rewritten by the classifier |
+| `XR_Trade.WorkPackage` | label | free text, set by hand |
+
+`XR_Classification` (the discipline) keeps its fields and gains `SchemeVersion`. A facet that is off writes nothing; an empty value is
+left out. In a query the bare facet name is an alias for the code: `Trade` is `XR_Trade.Code` (also `Placement`, `Phase`, `Orientation`,
+`ClassRepair`; `material` stays the IFC material column, so use `XR_Material.Code`). Examples:
+
+```
+count where Trade = 'CONC'
+count where Placement = 'BOUNDARY' and class = 'IfcWall'
+where XR_Orientation.Plausible = FALSE
+where XR_ClassRepair.Code <> 'KEEP' and XR_ClassRepair.Confidence >= 0.8
+sum NetArea by XR_Phase.Code
+```
+
+CSV and JSON exports gain the facet columns `XR_<Facet>.<Field>` (JSON: a `facets` object by GlobalId and `facetScheme`).
+
+**Schema.** The shipped schema has an optional `facets` section: `{ "version": "xr-facets/1", "Trade": { "enabled": true, "minConfidence": 0.6,
+"description": "...", "codes": [ { "code": "CONC", "label": "...", "description": "..." } ] }, ... }`. A schema file without it loads and gets the
+same defaults. Codes the rules produce must stay in the lists (a rule's code that a custom list lacks is still written as it is).
+
+**API**: `__xrayClassify.facets` has `defs()`, `enabled()`, `setEnabled(facet, on)`, `classify(target)`, `estimate(target)`, `results()`,
+`of(id)`, `override(id, facet, { code, loadBearing?, workPackage?, predefinedType? })` and `removeOverride(id, facet)`. In code
+(`src/classify/facets/`): `measureOrientation` and `orientationPlausible` (orientation.ts), `createPlacementProbe` and `meshRayHits`
+(placementGeometry.ts), `materialRule`, `placementRule`, `loadBearingRule`, `tradeRule`, `phaseRule`, `classRepairRule` (facetRules.ts),
+`classifyFacets`, `facetQuestions`, `estimateFacetCalls` (engine.ts), `facetProperties`, `makeManualFacet`, `facetCsvColumns` (write.ts),
+`defaultFacetDefs`, `parseFacets` (defs.ts). Everything there is pure TypeScript, no DOM.
+
 ## Review walk
 
 The **Review walk** (Classification tab, section **Review**, which replaces the tab's content while it runs; the command palette entry "Classify: review walk", key **Shift+R**) visits the

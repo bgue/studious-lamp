@@ -5,7 +5,13 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 ## Unreleased
 
-- Changes for the next release are collected here.
+- Classification facets: besides the discipline, each element can now get a Trade (who builds it), a Placement (outside, inside or
+  on the envelope, and load-bearing or not), a Material, a Phase (when it is built), an Orientation (measured from its shape: wall
+  lying flat, door upside down, column on its side are flagged) and, for generic elements, a suggested better IFC class.
+- The Classification tab has a Facets folder with a switch for each facet and the facet values of the selected element, which you can
+  set by hand.
+- The facets are written as properties named XR_Trade, XR_Placement and so on, so searches such as `count where Trade = 'CONC'` work;
+  the CSV and JSON exports include them.
 
 ## v31 - 2026-11-26
 

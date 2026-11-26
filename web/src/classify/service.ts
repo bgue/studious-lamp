@@ -40,7 +40,17 @@ import { mainQuestions, subQuestions } from './questions';
 import { exportCsv, exportJson, makeManual, manualKey, ResultStore } from './results';
 import type { ManualPartial } from './results';
 import { overallConfidence } from './review';
-import { defaultSchema, parseSchema, propertyNames, schemaHash } from './schema';
+import { defaultSchema, facetDefs, facetsHash, parseSchema, propertyNames, schemaHash } from './schema';
+import { classifyFacets, estimateFacetCalls, MemoryFacetCache, StorageFacetCache, facetCacheKey } from './facets/engine';
+import type { FacetCache, FacetElementInfo, FacetRun, FacetStats } from './facets/engine';
+import { FACET_IDS, FACETS_VERSION } from './facets/defs';
+import type { FacetDefs, FacetId, FacetResult, FacetSet } from './facets/defs';
+import { hasTop, measureOrientation } from './facets/orientation';
+import type { OrientationMeasure, OrientationMesh } from './facets/orientation';
+import { createPlacementProbe } from './facets/placementGeometry';
+import type { Box6, PlacementGeo, PlacementProbe, RayHits } from './facets/placementGeometry';
+import { facetSetProperties, isFacetKey, makeManualFacet } from './facets/write';
+import type { ManualFacetPartial } from './facets/write';
 import { effectiveMinConfidence, defaultDraft, toDraft, toSettings, validateSettings } from './settings';
 import type { ClassifyDraft, ClassifySettings, SettingsCheck } from './settings';
 import { DEFAULT_MAX_STATE_BYTES } from './state';
@@ -80,7 +90,20 @@ export interface ServiceEnv {
   d3Gpu?: () => Promise<GpuProbe>;
   /** Where the review log is kept (tests inject a fake). Default: IndexedDB, then `storage`. */
   reviewPersistence?: ReviewPersistence;
+  /** The geometry that the measured facets (Orientation, the geometric part of Placement) read. Absent: those facets are not measured. */
+  facetGeometry?: FacetGeometryEnv;
 }
+
+/** What the viewer lends to the facets engine. Element ids are the viewer's element indexes. */
+export interface FacetGeometryEnv {
+  /** World-space triangles of one element in the viewer frame (y up), or null. `dispose` frees a copy. */
+  mesh(id: number): (OrientationMesh & { dispose?: () => void }) | null;
+  /** Ray caster over the viewer's BVH (the ids of the candidate elements the segment crosses). Absent: Placement has no geometric part. */
+  raycast?: RayHits;
+}
+
+export const FACET_SWITCH_KEY = 'xray.classify.facets.on.v1';
+export const FACET_MANUAL_PREFIX = 'xray.classify.facets.manual.v1.';
 
 /** The result of "Test model". */
 export interface ModelTest {
@@ -146,6 +169,17 @@ export class ClassifyService {
   private readonly listeners = new Set<() => void>();
   /** Pset properties written to the model (keys), to remove them again. */
   private written = new Set<number>();
+  /** Facets: switches (per viewer), results by GlobalId, manual choices, the cache and the geometry measured so far. */
+  facetOn: Record<FacetId, boolean> = Object.fromEntries(FACET_IDS.map((f) => [f, true])) as Record<FacetId, boolean>;
+  facetStore = new Map<string, FacetSet>();
+  facetManual = new Map<string, FacetSet>();
+  facetCache: FacetCache = new MemoryFacetCache();
+  lastFacetStats: FacetStats | null = null;
+  facetsRunning = false;
+  private measures = new Map<number, OrientationMeasure | null>();
+  private placementGeo = new Map<number, PlacementGeo>();
+  private probe: PlacementProbe | null = null;
+  private writtenFacets = new Set<number>();
   private writtenPset = '';
 
   /** The review walk's state: pending changes, the commit log, the committed results. */
@@ -174,6 +208,7 @@ export class ClassifyService {
     this.d3Key = new ApiKeyStore(env.keyStorages, D3_KEY_STORAGE_NAME);
     this.fits = new FitStore(env.storage);
     this.loadStoredSchema();
+    this.loadFacetSwitches();
   }
 
   onChange(cb: () => void): () => void {
@@ -226,6 +261,10 @@ export class ClassifyService {
     if (this.store.size) {
       if (this.draft.writePset) this.writeToModel(this.store.all());
       else this.clearWritten();
+    }
+    if (this.facetStore.size) {
+      if (this.draft.writePset) this.writeFacetsToModel([...this.facetStore.keys()]);
+      else this.clearWrittenFacets();
     }
     this.emit();
   }
@@ -432,8 +471,10 @@ export class ClassifyService {
     this.schemaHashValue = schemaHash(s);
     this.customSchema = custom;
     this.clearWritten();
+    this.clearWrittenFacets();
     this.reloadCaches();
     this.reloadStore();
+    this.loadFacetSwitches();
   }
 
   /** Replace the schema with a JSON object or text. Returns the problems (empty when it was accepted). */
@@ -479,7 +520,12 @@ export class ClassifyService {
     this.model = model;
     this.modelName = name;
     this.written.clear();
+    this.writtenFacets.clear();
     this.writtenPset = '';
+    this.measures.clear();
+    this.placementGeo.clear();
+    this.probe = null;
+    this.lastFacetStats = null;
     this.reloadCaches();
     this.reloadStore();
     this.lastStats = null;
@@ -489,16 +535,19 @@ export class ClassifyService {
 
   private reloadCaches(): void {
     this.cache = new StorageCache(this.env.storage, cacheKey(this.modelName, this.schemaHashValue, this.modelId()));
+    this.facetCache = new StorageFacetCache(this.env.storage, facetCacheKey(this.modelName, facetsHash(this.schema), this.modelId()));
   }
 
   /** Results and manual overrides belong to a model and a schema. */
   private reloadStore(): void {
     this.store = new ResultStore(this.env.storage, manualKey(this.modelName, this.schemaHashValue));
+    this.loadFacetManual();
     this.review.reload(); // the committed results of this model and schema come back when the stored log is read
   }
 
   clearCache(): void {
     this.cache.clear();
+    this.facetCache.clear();
     this.emit();
   }
 
@@ -809,6 +858,22 @@ export class ClassifyService {
       this.store.merge(run.results);
       this.lastStats = run.stats;
       if (s.writePset) this.writeToModel(run.results.map((r) => this.store.get(r.id) ?? r)); // a committed result is not overwritten
+      // The facets come after the discipline: Trade and Phase read it. A failure here never fails the run.
+      if (this.anyFacetOn() && !this.ctl?.signal.aborted) {
+        try {
+          const f = await this.runFacets(inputs, this.ctl!.signal);
+          if (f) {
+            run.stats.calls += f.stats.calls;
+            run.stats.signatures += f.stats.signatures;
+            for (const e of f.stats.errors) if (run.stats.errors.length < 20 && !run.stats.errors.includes(e)) run.stats.errors.push(e);
+            for (const [m, n] of Object.entries(f.stats.models)) run.stats.models[m] = (run.stats.models[m] ?? 0) + n;
+            run.stats.usage.input_tokens += f.stats.usage.input_tokens;
+            run.stats.usage.output_tokens += f.stats.usage.output_tokens;
+          }
+        } catch (e) {
+          run.stats.errors.push(`Facets: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
       return run.results;
     } finally {
       this.running = false;
@@ -871,6 +936,10 @@ export class ClassifyService {
 
   clear(): void {
     this.clearWritten();
+    this.clearWrittenFacets();
+    this.facetStore = new Map(this.facetManual);
+    if (this.draft.writePset) this.writeFacetsToModel([...this.facetStore.keys()]);
+    this.lastFacetStats = null;
     this.store.clear(false);
     this.lastStats = null;
     this.progress = null;
@@ -887,7 +956,8 @@ export class ClassifyService {
   export(kind: 'json' | 'csv' | 'throughline'): string {
     const all = this.store.all();
     if (kind === 'throughline') return exportThroughlineJson(all, this.schema, this.modelName);
-    return kind === 'csv' ? exportCsv(all) : exportJson(all, this.schema, this.stats(), this.modelName);
+    const fs = this.facetStore.size ? this.facetStore : undefined;
+    return kind === 'csv' ? exportCsv(all, fs, this.facetIds()) : exportJson(all, this.schema, this.stats(), this.modelName, fs);
   }
 
   /**
@@ -899,6 +969,305 @@ export class ClassifyService {
     this.importNotes = r.warnings;
     if (!r.schema) return r.errors;
     return this.setSchema(r.schema);
+  }
+
+  // ------------------------------------------------------------ facets
+
+  /** The facet definitions of the schema in use (code lists, thresholds). */
+  facetDefs(): FacetDefs {
+    return facetDefs(this.schema);
+  }
+
+  /** The facets that are on, in order. */
+  facetIds(): FacetId[] {
+    return FACET_IDS.filter((f) => this.facetOn[f]);
+  }
+
+  anyFacetOn(): boolean {
+    return FACET_IDS.some((f) => this.facetOn[f]);
+  }
+
+  private loadFacetSwitches(): void {
+    const defs = this.facetDefs();
+    for (const f of FACET_IDS) this.facetOn[f] = defs[f].enabled;
+    try {
+      const t = this.env.storage?.getItem(FACET_SWITCH_KEY);
+      if (t) {
+        const o = JSON.parse(t) as Record<string, unknown>;
+        for (const f of FACET_IDS) if (typeof o[f] === 'boolean') this.facetOn[f] = o[f] as boolean;
+      }
+    } catch {
+      /* a broken entry keeps the schema's switches */
+    }
+  }
+
+  /** Switch a facet on or off (a per-viewer convenience, kept in this browser). Off: its results and properties are removed; nothing is written for it. */
+  setFacetEnabled(f: FacetId, on: boolean): void {
+    if (this.facetOn[f] === on) return;
+    this.facetOn[f] = on;
+    try {
+      const keep: Record<string, boolean> = {};
+      const defs = this.facetDefs();
+      for (const x of FACET_IDS) if (this.facetOn[x] !== defs[x].enabled) keep[x] = this.facetOn[x];
+      this.env.storage?.setItem(FACET_SWITCH_KEY, JSON.stringify(keep));
+    } catch {
+      /* ignore */
+    }
+    if (!on) {
+      for (const [id, set] of this.facetStore) {
+        if (!set[f]) continue;
+        const { [f]: _gone, ...rest } = set;
+        if (Object.keys(rest).length) this.facetStore.set(id, rest);
+        else this.facetStore.delete(id);
+      }
+      this.clearWrittenFacets();
+      if (this.draft.writePset) this.writeFacetsToModel([...this.facetStore.keys()]);
+    }
+    this.emit();
+  }
+
+  private loadFacetManual(): void {
+    this.facetManual = new Map();
+    try {
+      const t = this.env.storage?.getItem(`${FACET_MANUAL_PREFIX}${this.modelName}|${facetsHash(this.schema)}`);
+      if (t) for (const [id, set] of JSON.parse(t) as Array<[string, FacetSet]>) if (id && set && typeof set === 'object') this.facetManual.set(id, set);
+    } catch {
+      /* a broken entry is no overrides */
+    }
+    this.facetStore = new Map(this.facetManual);
+  }
+
+  private persistFacetManual(): void {
+    try {
+      this.env.storage?.setItem(`${FACET_MANUAL_PREFIX}${this.modelName}|${facetsHash(this.schema)}`, JSON.stringify([...this.facetManual]));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** The facet values of the model on screen, by GlobalId. */
+  facetResults(): ReadonlyMap<string, FacetSet> {
+    return this.facetStore;
+  }
+
+  /** The facet values of one element. */
+  facetsOf(id: number | string): FacetSet {
+    const gid = typeof id === 'number' ? this.model?.elements[id]?.globalId : id;
+    return (gid && this.facetStore.get(gid)) || {};
+  }
+
+  /** Ground level of the model in viewer coordinates: the lowest storey at or above -0.05 m (else 0). Elements whose top is at or below it are below ground. */
+  private groundLevel(): number {
+    const el = (this.model?.storeys ?? []).map((s) => s.elevation).filter((x) => x >= -0.05);
+    // storey elevations are in the model's own frame; the element boxes are in the viewer frame, shifted by the origin shift (IFC Z is its third number)
+    return (el.length ? Math.min(...el) : 0) - (this.model?.originShift?.[2] ?? 0);
+  }
+
+  private placementProbe(): PlacementProbe | null {
+    const g = this.env.facetGeometry;
+    const m = this.model;
+    if (!g?.raycast || !m) return null;
+    if (this.probe) return this.probe;
+    const hostOf = new Map<number, number>();
+    const hostedBy = new Map<number, number[]>();
+    for (const [filler, host] of m.relations.hosts) {
+      hostOf.set(filler, host);
+      (hostedBy.get(host) ?? hostedBy.set(host, []).get(host)!).push(filler);
+    }
+    this.probe = createPlacementProbe({
+      elements: m.elements.map((e) => ({ id: e.id, ifcClass: e.ifcClass, bounds: e.bounds as Box6, storey: e.storey, ...(typeof e.props?.['Attr.PredefinedType'] === 'string' ? { predefinedType: e.props['Attr.PredefinedType'] } : {}) })),
+      castHits: g.raycast,
+      hostOf: (id) => hostOf.get(id),
+      hostedBy: (id) => hostedBy.get(id) ?? [],
+      normalOf: (id) => {
+        const me = this.measures.get(id);
+        return me && me.shape === 'planar' && me.class === 'VERTICAL' ? [me.axis[0], -me.axis[1]] : null;
+      },
+    });
+    return this.probe;
+  }
+
+  /** Measure the geometry of the given elements once per model (orientation; the envelope test of Placement), in slices so the page stays responsive. */
+  private async prepareFacetGeometry(ids: readonly number[], signal: AbortSignal): Promise<void> {
+    const g = this.env.facetGeometry;
+    const m = this.model;
+    if (!g || !m) return;
+    const yieldNow = (): Promise<void> => new Promise<void>((r) => setTimeout(r, 0));
+    let t0 = Date.now();
+    for (const id of ids) {
+      if (signal.aborted) return;
+      if (this.measures.has(id)) continue;
+      const e = m.elements[id];
+      if (!e) continue;
+      const mesh = g.mesh(id);
+      try {
+        this.measures.set(id, mesh ? measureOrientation(mesh, { hasTop: hasTop(e.ifcClass) }) : null);
+      } finally {
+        mesh?.dispose?.();
+      }
+      if (Date.now() - t0 > 12) {
+        await yieldNow();
+        t0 = Date.now();
+      }
+    }
+    if (!this.facetOn.Placement) return;
+    const probe = this.placementProbe();
+    if (!probe) return;
+    const todo = ids.filter((id) => !this.placementGeo.has(id));
+    const got = await probe.probeAll(todo, { signal, yieldFn: yieldNow });
+    for (const [id, r] of got) this.placementGeo.set(id, r);
+  }
+
+  private facetInfo(input: ClassifyInput): FacetElementInfo {
+    const m = this.model;
+    const idx = m?.byGlobalId.get(input.id);
+    const e = idx === undefined ? undefined : m?.elements[idx];
+    const info: FacetElementInfo = {};
+    if (idx === undefined || !e) return info;
+    if (this.measures.has(idx)) info.measure = this.measures.get(idx) ?? null;
+    const pg = this.placementGeo.get(idx);
+    if (pg) info.placementGeo = pg;
+    const storey = e.storey === null ? undefined : m!.storeys.find((x) => x.id === e.storey);
+    const basement = storey ? /basement|keller|untergeschoss|sub-?level|\bUG\b|\bKG\b/i.test(storey.name) : false;
+    if (m && (m.storeys.length || basement)) info.belowGround = basement || e.bounds[4] <= this.groundLevel() + 0.05;
+    const d = this.store.get(input.id)?.discipline.code;
+    if (d) info.discipline = d;
+    if (this.settings().geometryVector && this.env.shape) info.shape = () => this.env.shape?.(idx) ?? '';
+    return info;
+  }
+
+  private facetOptions(inputs: readonly ClassifyInput[], signal?: AbortSignal): Parameters<typeof classifyFacets>[1] {
+    const s = this.settings();
+    const d3 = s.provider === 'd3';
+    return {
+      schema: this.schema,
+      enabled: this.facetOn,
+      provider: s.provider === 'off' ? null : this.provider(),
+      info: (i) => this.facetInfo(i),
+      cache: this.facetCache,
+      manual: this.facetManual,
+      temperatures: this.calibration().temperatures,
+      concurrency: s.provider === 'jev' || (d3 && s.d3Backend === 'endpoint') ? s.concurrency : 1,
+      maxStateBytes: s.provider === 'jev' ? s.maxStateBytes : d3 ? s.d3MaxStateBytes : DEFAULT_MAX_STATE_BYTES,
+      ...(signal ? { signal } : {}),
+    };
+  }
+
+  /** Run the facets for some elements now (Classify runs this after the discipline). Results are merged into the store and written when writePset is on. */
+  async runFacets(inputs: readonly ClassifyInput[], signal: AbortSignal = new AbortController().signal): Promise<FacetRun | null> {
+    const m = this.model;
+    if (!m || !this.anyFacetOn() || inputs.length === 0) return null;
+    this.facetsRunning = true;
+    this.emit();
+    try {
+      const ids = inputs.map((i) => m.byGlobalId.get(i.id)).filter((x): x is number => x !== undefined);
+      await this.prepareFacetGeometry(ids, signal);
+      const run = await classifyFacets(inputs, { ...this.facetOptions(inputs, signal), onProgress: () => this.emit() });
+      for (const [gid, set] of run.results) {
+        if (Object.keys(set).length) this.facetStore.set(gid, set);
+        else this.facetStore.delete(gid);
+      }
+      this.lastFacetStats = run.stats;
+      if (this.draft.writePset) this.writeFacetsToModel([...run.results.keys()]);
+      return run;
+    } finally {
+      this.facetsRunning = false;
+      this.emit();
+    }
+  }
+
+  /** Run only the facets, for a target (the discipline results are used when they exist). */
+  async classifyFacets(target: Target): Promise<FacetRun | null> {
+    if (this.running) throw new Error('A classification is already running. Stop it first.');
+    this.running = true;
+    this.ctl = new AbortController();
+    this.emit();
+    try {
+      return await this.runFacets(this.inputsFor(target), this.ctl.signal);
+    } finally {
+      this.running = false;
+      this.ctl = null;
+      this.emit();
+    }
+  }
+
+  /** How many model requests the facets would need for a target now (rules and the cache applied). */
+  async estimateFacets(target: Target): Promise<{ calls: number; signatures: number }> {
+    const inputs = this.inputsFor(target);
+    const { signal: _s, ...o } = this.facetOptions(inputs);
+    return estimateFacetCalls(inputs, o);
+  }
+
+  /** Set one facet of one element by hand. Source `manual`; it wins over everything and is kept per model. Later facets are worked out again from it. */
+  overrideFacet(id: string | number, facet: FacetId, partial: ManualFacetPartial): FacetResult {
+    const m = this.model;
+    const gid = typeof id === 'number' ? m?.elements[id]?.globalId : id;
+    const idx = gid ? m?.byGlobalId.get(gid) : undefined;
+    if (!gid || idx === undefined) throw new Error(`No element "${String(id)}" in the model.`);
+    const r = makeManualFacet(this.facetDefs(), facet, partial, this.facetManual.get(gid)?.[facet] ?? this.facetStore.get(gid)?.[facet], m!.elements[idx]!.ifcClass);
+    this.facetManual.set(gid, { ...(this.facetManual.get(gid) ?? {}), [facet]: r });
+    this.facetStore.set(gid, { ...(this.facetStore.get(gid) ?? {}), [facet]: r });
+    this.persistFacetManual();
+    if (this.draft.writePset) this.writeFacetsToModel([gid]);
+    this.emit();
+    return r;
+  }
+
+  /** Drop a manual facet choice; the element's facets are worked out again. */
+  async removeFacetOverride(id: string | number, facet: FacetId): Promise<void> {
+    const m = this.model;
+    const gid = typeof id === 'number' ? m?.elements[id]?.globalId : id;
+    if (!gid) return;
+    const cur = this.facetManual.get(gid);
+    if (cur?.[facet]) {
+      const { [facet]: _gone, ...rest } = cur;
+      if (Object.keys(rest).length) this.facetManual.set(gid, rest);
+      else this.facetManual.delete(gid);
+      this.persistFacetManual();
+    }
+    const set = this.facetStore.get(gid);
+    if (set?.[facet]?.source === 'manual') {
+      const { [facet]: _g, ...rest } = set;
+      if (Object.keys(rest).length) this.facetStore.set(gid, rest);
+      else this.facetStore.delete(gid);
+    }
+    const input = this.buildInput(gid);
+    if (input) await this.runFacets([input]);
+    else this.emit();
+  }
+
+  /** Write the facet results of some elements as `XR_<Facet>.<Field>` properties. */
+  writeFacetsToModel(gids: readonly string[]): void {
+    const m = this.model;
+    if (!m) return;
+    for (const gid of gids) {
+      const id = m.byGlobalId.get(gid);
+      const e = id === undefined ? undefined : m.elements[id];
+      if (!e) continue;
+      const props = (e.props ??= {});
+      for (const k of Object.keys(props)) if (isFacetKey(k)) delete props[k];
+      const set = this.facetStore.get(gid);
+      if (set) {
+        const out = facetSetProperties(set);
+        for (const k of Object.keys(out)) props[k] = out[k]!;
+        this.writtenFacets.add(e.id);
+      }
+    }
+    resetModelTable(m);
+  }
+
+  /** Remove the written facet properties (all, or of the given GlobalIds). */
+  clearWrittenFacets(only?: readonly string[]): void {
+    const m = this.model;
+    if (!m) return;
+    const ids = only ? only.map((g) => m.byGlobalId.get(g)).filter((x): x is number => x !== undefined) : [...this.writtenFacets];
+    for (const id of ids) {
+      const props = m.elements[id]?.props;
+      if (!props) continue;
+      for (const k of Object.keys(props)) if (isFacetKey(k)) delete props[k];
+      this.writtenFacets.delete(id);
+    }
+    resetModelTable(m);
   }
 
   // ------------------------------------------------------------ properties in the model
@@ -930,6 +1299,7 @@ export class ClassifyService {
       put(n.source, r.source);
       put(n.model, r.model);
       put(n.needsReview, r.needsReview);
+      put(n.schemeVersion, FACETS_VERSION);
       this.written.add(e.id);
     }
     resetModelTable(m);

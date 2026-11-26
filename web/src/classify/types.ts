@@ -1,5 +1,7 @@
 // Types of the classification API. No DOM: this folder runs in Node as well as in the browser.
 
+import type { FacetsSchema } from './facets/defs';
+
 export type GlobalId = string;
 export type PsetValue = string | number | boolean | null;
 /** Property sets as nested records: pset name -> property name -> value. */
@@ -131,6 +133,8 @@ export interface SchemaPropertyNames {
   source: string;
   model: string;
   needsReview: string;
+  /** The version of the facet scheme (`xr-facets/1`). */
+  schemeVersion: string;
 }
 
 /** Which published classification a code list is, for the IFC writer (`IfcClassification`). Not part of `schemaHash`. */
@@ -167,6 +171,8 @@ export interface ClassificationSchema {
   masterformat: { edition?: string; note?: string; appliesTo?: 'building' | 'all'; divisions: SchemaDivision[] };
   /** Optional names of the code lists for the IFC writer. Parsed, never hashed. */
   systems?: { discipline?: SchemaSystemMeta; masterformat?: SchemaSystemMeta };
+  /** Optional facets section (Trade, Placement, Material, Phase, Orientation, ClassRepair): code lists, thresholds, switches. Absent: the defaults (facets/defs.ts). */
+  facets?: FacetsSchema;
 }
 
 // ---------------------------------------------------------------- decision model contract (the Jev shape)
