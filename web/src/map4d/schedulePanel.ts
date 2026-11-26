@@ -443,7 +443,7 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   const paceVal = num('pace value', 'Seconds or days per second', '0.1', '3600', '0.5', (v) => { if (st().daysPerSecond !== undefined && st().length === undefined) sc.setStyle({ daysPerSecond: Math.max(0.1, v) }); else sc.setStyle({ length: Math.max(3, v) }); });
   const pace = select('pace', 'Pace', [['warp', 'Warp: busy weeks get more time'], ['fixed', 'Fixed']], (v) => sc.setStyle({ pace: v as FourDStyle['pace'] }));
   const camera = select('camera', 'Camera', [['director', 'Director'], ['fixed', 'Fixed: the current camera'], ['none', 'None']], (v) => sc.setStyle({ camera: v as FourDStyle['camera'] }));
-  const explode = select('explode', 'Explode', [['auto', 'Auto'], ['off', 'Off']], (v) => sc.setStyle({ explode: v as FourDStyle['explode'] }));
+  const explode = select('explode', 'Explode', [['auto', 'Auto'], ['floor', 'Each floor apart'], ['off', 'Off']], (v) => sc.setStyle({ explode: v as FourDStyle['explode'] }));
   const xray = check('xray', 'X-ray the active work', (v) => sc.setStyle({ xrayFocus: v }));
   const secBox = select('section box', 'Section box', [['auto', 'Auto'], ['off', 'Off']], (v) => sc.setStyle({ sectionBox: v as FourDStyle['sectionBox'] }));
   const labels = num('labels', 'Labels', '0', '12', '1', (v) => sc.setStyle({ labels: Math.max(0, Math.min(12, Math.round(v))) }));
@@ -453,10 +453,22 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   critRow.append(critical, el('span', 'x4-dim', undefined, 'or driving path only'), critOnly.wrap);
   const captions = check('captions', 'Captions', (v) => sc.setStyle({ captions: v }));
   const hold = num('hold', 'Milestone hold in seconds', '0', '10', '0.5', (v) => sc.setStyle({ milestoneHold: Math.max(0, v) }));
+  const fadeIn = num('fade in', 'Fade in (s)', '0', '30', '0.1', (v) => sc.setStyle({ fadeIn: Math.max(0, v) }));
+  const fadeAuto = help(el('input', '', { type: 'checkbox', 'data-style': 'fade auto', 'aria-label': 'Fade in: auto' }), 'Style fade auto');
+  fadeAuto.addEventListener('change', () => {
+    if (fadeAuto.checked) { const { fadeIn: _f, ...rest } = st(); sc.setConfig({ ...sc.config, style: rest }); }
+    else sc.setStyle({ fadeIn: 0.6 });
+  });
+  const fadeRow = el('div', 'x4-row');
+  const autoLbl = el('label', 'x4-check');
+  autoLbl.append(fadeAuto, el('span', '', undefined, 'Auto'));
+  fadeRow.append(fadeIn, autoLbl);
+  const issuesFilm = check('issues in film', 'Issues and drawings in the film', (v) => sc.setStyle({ issuesInFilm: v }));
   const splitSel = select('split', 'Split', [['', 'By trade'], ['none', 'All at once'], ['sweep_x', 'Sweep along x'], ['sweep_y', 'Sweep along y'], ['sweep_z', 'Sweep up'], ['by_storey', 'Storey by storey'], ['by_name', 'By name']], (v) => sc.setConfig(setSplit(sc.config, '*', v as SplitRule | '')));
   field('View', view); field('Unbuilt parts', unbuilt); field('Window', win); field('', winRow);
   field('Film length by', paceMode); field('Value', paceVal); field('Pace', pace); field('Camera', camera); field('Explode', explode);
   field('X-ray active work', xray.wrap); field('Section box', secBox); field('Labels', labels); field('Critical float', critRow);
+  field('Fade in (s)', fadeRow); field('Issues and drawings in the film', issuesFilm.wrap);
   field('Captions', captions.wrap); field('Milestone hold', hold); field('Default split', splitSel);
   const colourBox = el('div', 'x4-list', { 'data-x4': 'trade-colours' });
   colourBox.style.maxHeight = '220px';
@@ -477,6 +489,8 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     labels.value = String(s.labels);
     critical.value = String(s.criticalFloatHours ?? 0); critical.disabled = s.criticalFloatHours === null; critOnly.input.checked = s.criticalFloatHours === null;
     captions.input.checked = s.captions; hold.value = String(s.milestoneHold);
+    fadeAuto.checked = s.fadeIn === undefined; fadeIn.disabled = s.fadeIn === undefined; fadeIn.value = s.fadeIn === undefined ? '' : String(s.fadeIn); fadeIn.placeholder = 'auto';
+    issuesFilm.input.checked = s.issuesInFilm === true;
     splitSel.value = sc.config.split?.['*'] ?? '';
     colourBox.replaceChildren();
     const colours = sc.tradeColours();

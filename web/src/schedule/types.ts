@@ -126,7 +126,12 @@ export interface FourDStyle {
   /** fixed: linear working time; warp: busy weeks get more screen time (bounded). */
   pace: 'fixed' | 'warp';
   camera: 'director' | 'fixed' | 'none';
-  explode: 'auto' | 'off';
+  /** auto: explode when work spreads over many storeys; floor: each floor apart while it is built (the active storey in focus); off. */
+  explode: 'auto' | 'off' | 'floor';
+  /** Seconds of film a newly built element takes to fade in (a removed one to fade out); absent: 10 % of the activity interval or 0.6 s, the shorter. 0 = at once. */
+  fadeIn?: number;
+  /** Show the issue pins and the drawings while the film plays (default off: they are hidden during playback). */
+  issuesInFilm?: boolean;
   /** The active elements are the x-ray focus (occluders ghost). */
   xrayFocus: boolean;
   sectionBox: 'auto' | 'off';

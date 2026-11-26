@@ -261,6 +261,34 @@ async function main(browser) {
   check('export: the canvas size, pixel ratio and aspect are restored exactly', after.cw === before.cw && after.ch === before.ch && after.pr === before.pr && Math.abs(after.aspect - before.aspect) < 1e-12, JSON.stringify({ before: [before.cw, before.ch, before.pr, before.aspect], after: [after.cw, after.ch, after.pr, after.aspect] }));
   check('export: the camera is back where it was, nothing plays, the overlay is gone, the viewer is not busy', dist(after.pos, before.pos) < 1e-3 && dist(after.target, before.target) < 1e-3 && !after.playing && !after.busy && !after.overlay);
 
+  // ---------------------------------------------------------------- issue pins and drawings while recording
+  await page.evaluate(() => {
+    const w = window.__xray.app.controller.model.elements.find((e) => e.globalId && /Wall/.test(e.ifcClass));
+    window.__xrayBcf.createTopic({ title: 'Smoke pin', globalIds: [w.globalId], snapshot: false });
+    window.__xrayIssues.open('issues');
+    window.__xrayMarkup.create('Smoke drawing');
+    window.__xrayMarkup.add({ kind: 'rect', fractions: { points: [[0.3, 0.3], [0.6, 0.55]], depth: 8 } });
+  });
+  await page.waitForFunction(() => document.querySelector('svg.xray-svg-overlay g[data-layer="bcf-markup"]')?.childElementCount > 0 && document.querySelector('svg.xray-svg-overlay g[data-layer="markup"]')?.childElementCount > 0, null, { timeout: 60000 });
+  const ovl = () => page.evaluate(() => {
+    const q = (l) => { const g = document.querySelector(`svg.xray-svg-overlay g[data-layer="${l}"]`); return !!g && g.childElementCount > 0 && getComputedStyle(g).display !== 'none'; };
+    return { pins: q('bcf-markup'), drawings: q('markup'), cls: document.documentElement.className };
+  });
+  const ovBefore = await ovl();
+  for (const keep of [false, true]) {
+    await page.evaluate((k) => { window.__xrayFlythrough.setOptions({ overlays: k }); window.__xrayRecord.flythrough({ size: '640x360', fps: 30 }).then((r) => (window.__ovResult = r)); }, keep);
+    await page.waitForSelector('[data-record-busy]');
+    await page.waitForFunction(() => /Frame [2-9]/.test(document.querySelector('[data-record-status]')?.textContent ?? ''), null, { timeout: 300000 });
+    const during = await ovl();
+    await page.click('[data-record-cancel]');
+    await page.waitForFunction('window.__ovResult !== undefined', null, { timeout: 120000 });
+    await page.evaluate(() => { window.__ovResult = undefined; });
+    await sleep(page, 300);
+    const afterOv = await ovl();
+    check(keep ? 'recording with the fly-through option "Issues and drawings" on: the pins and the drawings stay in view' : 'recording: the pins and the drawings are hidden while it runs and back when it ends', keep ? during.pins && during.drawings && afterOv.pins && afterOv.drawings : !during.pins && !during.drawings && afterOv.pins && afterOv.drawings && afterOv.cls === ovBefore.cls, JSON.stringify({ during, afterOv }));
+  }
+  await page.evaluate(() => window.__xrayFlythrough.setOptions({ overlays: false }));
+
   // ---------------------------------------------------------------- cancel
   await page.evaluate(() => { window.__cancelResult = null; window.__xrayRecord.flythrough({ size: '640x360', fps: 30 }).then((r) => (window.__cancelResult = r)); });
   await page.waitForSelector('[data-record-busy]');

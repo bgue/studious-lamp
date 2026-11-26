@@ -252,7 +252,10 @@ const file = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
 const schedule = parseXer(readFileSync(file('../public/samples/fzk-haus.xer')));
 const config = JSON.parse(readFileSync(file('../public/samples/fzk-haus.4d.json'), 'utf8')) as FourDConfig;
 const fzkModel = fromSidecar(JSON.parse(readFileSync(file('../public/models/fzk-haus.json'), 'utf8')), { identityKey: 'fzk-sample' });
-const fzkPlan = buildPlan(schedule, linkSchedule(schedule, fzkModel, config, []), fzkModel, config.style);
+const fzkLinks = linkSchedule(schedule, fzkModel, config, []);
+/** The sample as the sample ships it (each floor apart), and with the work-spread explode and the milestone beats. */
+const fzkFloorPlan = buildPlan(schedule, fzkLinks, fzkModel, config.style);
+const fzkPlan = buildPlan(schedule, fzkLinks, fzkModel, { ...config.style, explode: 'auto' });
 
 describe('director on the FZK-Haus sample', () => {
   const r = directFourD(fzkPlan, fzkModel);

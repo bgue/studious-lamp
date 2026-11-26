@@ -276,8 +276,12 @@ export function parseConfig(input: unknown): ParsedConfig {
     c.split = s;
   }
   if (isObj(v.style)) {
-    const st = v.style as Partial<FourDStyle>;
+    const st = { ...(v.style as Partial<FourDStyle>) };
     if (st.view !== undefined && !VIEWS.includes(st.view)) problems.push(`style.view "${String(st.view)}" is not planned, actual or variance`);
+    const EXPLODES = ['auto', 'off', 'floor'];
+    if (st.explode !== undefined && !EXPLODES.includes(st.explode)) { problems.push(`style.explode "${String(st.explode)}" is not auto, floor or off`); delete st.explode; }
+    if (st.fadeIn !== undefined && !(typeof st.fadeIn === 'number' && Number.isFinite(st.fadeIn) && st.fadeIn >= 0)) { problems.push('style.fadeIn is not a number of seconds (0 or more)'); delete st.fadeIn; }
+    if (st.issuesInFilm !== undefined && typeof st.issuesInFilm !== 'boolean') { problems.push('style.issuesInFilm is not true or false'); delete st.issuesInFilm; }
     const { view, ...rest } = st;
     c.style = { ...c.style, ...clone(rest), ...(view && VIEWS.includes(view) ? { view } : {}) };
   }
