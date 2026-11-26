@@ -6,6 +6,7 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 ## Unreleased
 
 - Changes for the next release are collected here.
+- Classification: the decision model gains ModernBERT and DeBERTa-large zero-shot options and an `embed` mode (label prototypes with EmbeddingGemma, Bekko or Granite embeddings, `decisionMode` and `embedModel` settings), benchmarked in the classification guide; the default stays the DeBERTa-v3 xsmall NLI model.
 
 ## v32 - 2026-11-26
 

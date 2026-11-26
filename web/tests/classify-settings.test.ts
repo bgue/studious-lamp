@@ -62,7 +62,7 @@ describe('settings validation', () => {
     const w = toSettings({ ...defaultDraft(), provider: 'webllm' });
     expect(Object.keys(w).sort()).toEqual([...SHARED, 'embedTemperature', 'hybridMargin', 'webllmCustomLib', 'webllmCustomModel', 'webllmEmbedModel', 'webllmMode', 'webllmModel'].sort());
     const dm = toSettings({ ...defaultDraft(), provider: 'decision' });
-    expect(Object.keys(dm).sort()).toEqual([...SHARED, 'device', 'dtype', 'hfEndpoint', 'hfModel', 'hypothesis'].sort());
+    expect(Object.keys(dm).sort()).toEqual([...SHARED, 'decisionMode', 'device', 'dtype', 'embedModel', 'embedTemperature', 'hfEndpoint', 'hfModel', 'hypothesis'].sort());
     const d3 = toSettings({ ...defaultDraft(), provider: 'd3' });
     expect(Object.keys(d3).sort()).toEqual([...SHARED, 'concurrency', 'd3Backend', 'd3Device', 'd3Endpoint', 'd3HfEndpoint', 'd3MaxStateBytes', 'd3Model', 'd3Repo', 'd3Revision', 'timeoutMs'].sort());
     expect(Object.keys(toSettings({ ...defaultDraft(), provider: 'mock' })).sort()).toEqual(SHARED);

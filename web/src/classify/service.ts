@@ -697,7 +697,8 @@ export class ClassifyService {
     this.emit();
     try {
       let sizeNote = '';
-      if (!decisionModelInfo(s.hfModel)) {
+      const modelName = s.decisionMode === 'embed' ? s.embedModel : s.hfModel;
+      if (s.decisionMode === 'nli' && !decisionModelInfo(s.hfModel)) {
         const ins: ModelInspection = await inspectModel(s.hfModel, { endpoint: s.hfEndpoint, token: this.hfToken.get(), ...(this.env.fetchImpl ? { fetchImpl: this.env.fetchImpl } : {}), signal });
         if (!ins.ok) return { ok: false, message: ins.message, model: s.hfModel };
         sizeNote = ins.sizesMB ? ` Files: ${Object.entries(ins.sizesMB).map(([k, v]) => `${k} ${v} MB`).join(', ')}.` : '';
@@ -721,14 +722,14 @@ export class ClassifyService {
       const sizeText = rep.sizeMB > 0 ? `, ${rep.sizeMB} MB of files` : '';
       return {
         ok: true,
-        model: s.hfModel,
+        model: modelName,
         device: rep.device,
         dtype: rep.dtype,
         loadMs: rep.loadMs,
         sizeMB: rep.sizeMB,
         ...(choice ? { choice } : {}),
         ...(rep.note ? { note: rep.note } : {}),
-        message: `Ready: ${s.hfModel} on ${rep.device} (${rep.dtype}) in ${(rep.loadMs / 1000).toFixed(1)} s${sizeText}.${choice ? ` Test question: chose ${choice.code} (${choice.probability.toFixed(2)}) in ${choice.ms} ms.` : ''}${rep.note ? ` ${rep.note}` : ''}${sizeNote}`,
+        message: `Ready: ${modelName} on ${rep.device} (${rep.dtype}) in ${(rep.loadMs / 1000).toFixed(1)} s${sizeText}.${choice ? ` Test question: chose ${choice.code} (${choice.probability.toFixed(2)}) in ${choice.ms} ms.` : ''}${rep.note ? ` ${rep.note}` : ''}${sizeNote}`,
       };
     } catch (e) {
       if (signal.aborted) return { ok: false, message: 'Stopped.' };
