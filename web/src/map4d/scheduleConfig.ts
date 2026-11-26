@@ -307,6 +307,7 @@ export function parseConfig(input: unknown): ParsedConfig {
     }
     if (st.fadeIn !== undefined && !(typeof st.fadeIn === 'number' && Number.isFinite(st.fadeIn) && st.fadeIn >= 0)) { problems.push('style.fadeIn is not a number of seconds (0 or more)'); delete st.fadeIn; }
     if (st.issuesInFilm !== undefined && typeof st.issuesInFilm !== 'boolean') { problems.push('style.issuesInFilm is not true or false'); delete st.issuesInFilm; }
+    for (const k of ['legend', 'strip'] as const) if (st[k] !== undefined && st[k] !== 'on' && st[k] !== 'off') { problems.push(`style.${k} is not on or off`); delete st[k]; }
     const { view, ...rest } = st;
     c.style = { ...c.style, ...clone(rest), ...(view && VIEWS.includes(view) ? { view } : {}) };
   }

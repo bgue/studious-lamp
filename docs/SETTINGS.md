@@ -122,6 +122,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Status ba](#status-ba)
 - [Status bar](#status-bar)
 - [4D tab](#4d-tab)
+- [Save IFC](#save-ifc)
 - [Revision banner](#revision-banner)
 - [Revision walk](#revision-walk)
 - [Script tab](#script-tab)
@@ -1359,6 +1360,7 @@ Impact follows the same sentence rules and adds these:
 | Phase | Switches the facet that tells when in the job an element is built. | On: each element gets a stage such as frame or fit-out. Off: the element gets no such answer. | Tick or untick the box, then classify. | Report: Limitations and extensions, classification |
 | Orientation | Switches the facet that tells which way an element points, measured from its shape. | On: the viewer flags a wall lying flat or a door upside down. Off: the element gets no such answer. | Tick or untick the box, then classify. | Report: Limitations and extensions, classification |
 | ClassRepair (suggestions only) | Switches the facet that suggests a better class for generic elements. | On: the viewer offers a better name for a generic element and changes nothing in the model. Off: the viewer offers nothing. | Tick or untick the box, then classify. | Report: Limitations and extensions, classification |
+| Concrete | Switches the concrete sets: role, mark, method, strength, cover, reinforcement intent and measured geometry of concrete elements. | On: each poured element gets a volume, a formwork area, a role and a stable mark. Off: it gets none of these. | Tick or untick the box, then classify. Exposure classes are only suggestions and always need review. | Report: Limitations and extensions, classification |
 | Facets: selection | Works out the facets of the selected elements without running the discipline again. | The viewer fills in the extra answers for the selected elements and shows them in the panel. | Click the button. | Report: Limitations and extensions, classification |
 | Facets: all | Works out the facets of every element without running the discipline again. | The viewer fills in the extra answers for every element and shows them in the panel. | Click the button. | Report: Limitations and extensions, classification |
 | Run (heading) | The heading starts the section that runs the classification. | The block below starts and stops the work and tells you how many calls it needs. | Read the estimate. Click a button to start. | Report: Limitations and extensions, classification |
@@ -1702,6 +1704,9 @@ Impact follows the same sentence rules and adds these:
 | Style critical | The box sets the float in hours at or under which an activity counts as critical. | Work with little float glows red in the film. A higher limit marks more work. | Type 0 to mark work with no spare time. | Report: Limitations and extensions, 4D schedule |
 | Style critical only | The box marks only the activities on the driving path as critical. | The film ignores float, so fewer activities glow red. | Tick the box when the schedule marks the driving path. | Report: Limitations and extensions, 4D schedule |
 | Style captions | The box shows captions for milestones and phases in the film. | Short texts appear on screen when the film reaches a milestone. | Tick the box to show captions. | Report: Limitations and extensions, 4D schedule |
+| Style legend | The box shows the colour key in the film, bottom left. | A small panel names each trade colour and what active, built and critical parts look like. | Tick the box to show the key. Clear it for a clean picture. | Report: Limitations and extensions, 4D schedule |
+| Style strip | The box shows a thin chart of the job along the bottom of the film. | Bars show when each trade works, and a marker moves along as the date advances. | Tick the box to show the chart. Clear it for a clean picture. | Report: Limitations and extensions, 4D schedule |
+| Storyboard PDF | The button saves a PDF with still pictures of the film at set dates. | You get pages of small pictures with dates, running work and a colour key, ready to print. | Click the button. Wait for the pictures. Open the file that downloads. | Report: Limitations and extensions, 4D schedule |
 | Style hold | The box sets how long the film waits at each milestone, in seconds. | A longer wait gives viewers time to read the caption. | Type 0 for no wait. | Report: Limitations and extensions, 4D schedule |
 | Style split | The list sets how an activity spreads over its parts when the trade has no own rule. | Parts of one activity appear one after another instead of all at once. | Pick a sweep to build along an axis. Pick All at once to show every part together. | Report: Limitations and extensions, 4D schedule |
 | Style trade colour | The colour tints the parts of this trade while their activity runs. | Active work shows in this hue, so you can tell crews apart. | Click the swatch. Pick a hue. | Report: Limitations and extensions, 4D schedule |
@@ -1723,6 +1728,12 @@ Impact follows the same sentence rules and adds these:
 | Mark not modelled | The button marks a single activity as not in the model. | The activity leaves the list of open work. The choice stays with the settings and travels in the exported settings file. | Click the button beside an activity that builds something the model does not contain. | Report: Limitations and extensions, 4D schedule |
 | Mark all not modelled | The button marks every listed activity without a suggestion as not in the model. | The activities leave the list of gaps. Activities with a suggestion stay, so you decide those first. | Click the button when the rest of the list is work that the model does not contain. | Report: Limitations and extensions, 4D schedule |
 | Back to the gap list | The button takes the mark not in the model off an activity. | The activity shows in the open work again until it has parts. | Click the button beside the activity. | Report: Limitations and extensions, 4D schedule |
+
+## Save IFC
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Include classification facets | The box adds the facet property sets to the saved IFC file: XR_Trade, XR_Placement, XR_Material, XR_Phase, XR_Orientation and XR_ClassRepair. | Other tools read who builds each element, where it sits, its material and its direction. Off: the file gets none of these sets. | Run Classify with facets on, then tick the box. | Report: Limitations and extensions, classification |
 
 ## Revision banner
 

@@ -5721,6 +5721,24 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Tick the box to show captions.',
     'Report: Limitations and extensions, 4D schedule',
   ),
+  '4D tab/Style legend': h(
+    'The box shows the colour key in the film, bottom left.',
+    'A small panel names each trade colour and what active, built and critical parts look like.',
+    'Tick the box to show the key. Clear it for a clean picture.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
+  '4D tab/Style strip': h(
+    'The box shows a thin chart of the job along the bottom of the film.',
+    'Bars show when each trade works, and a marker moves along as the date advances.',
+    'Tick the box to show the chart. Clear it for a clean picture.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
+  '4D tab/Storyboard PDF': h(
+    'The button saves a PDF with still pictures of the film at set dates.',
+    'You get pages of small pictures with dates, running work and a colour key, ready to print.',
+    'Click the button. Wait for the pictures. Open the file that downloads.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
   '4D tab/Style hold': h(
     'The box sets how long the film waits at each milestone, in seconds.',
     'A longer wait gives viewers time to read the caption.',

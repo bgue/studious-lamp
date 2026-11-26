@@ -4,6 +4,7 @@
 // Usage: SMOKE_PORT=5850 XRAY_VITE_CACHE_DIR=/tmp/xray-vite-film node bench/smoke-4d-film.mjs
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -87,7 +88,7 @@ try {
   const b0 = await barBox(page);
   check('the film bar is in view without scrolling', inView(b0) && b0.scrollTop === 0, JSON.stringify(b0));
   const labels = await page.locator('#dk-pane-4d [data-x4=film-bar] button:visible').allInnerTexts();
-  check('the bar has Play, Pause, Stop, Record and Open as script', ['Play', 'Pause', 'Stop', 'Record', 'Open as script'].every((l) => labels.includes(l)), labels.join());
+  check('the bar has Play, Pause, Stop, Record, Storyboard PDF and Open as script', ['Play', 'Pause', 'Stop', 'Record', 'Storyboard PDF', 'Open as script'].every((l) => labels.includes(l)), labels.join());
   check('the date slider is in the bar', await page.locator('#dk-pane-4d [data-x4=film-bar] input[data-x4=scrub]').isVisible());
 
   // sticky: the Film step fits the pane now (the 4D tab is in steps); the Link step, with the decided links, is the long one.
@@ -196,6 +197,61 @@ try {
   await page.locator('#dk-pane-4d [data-style="issues in film"]').uncheck();
   await page.locator('#dk-pane-4d [data-style="fade auto"]').check();
   await page.evaluate(() => window.__xray4dSchedule.open('play'));
+
+  // legend and strip: the switches in Style, the picture of the film with both, the Storyboard PDF
+  await page.evaluate(() => window.__xray4dSchedule.open('style'));
+  await page.waitForTimeout(300);
+  const sw = await page.evaluate(() => ({ legend: document.querySelector('#dk-pane-4d [data-style="legend"]')?.checked, strip: document.querySelector('#dk-pane-4d [data-style="strip"]')?.checked }));
+  check('Style has the Colour legend and Schedule strip switches, on by default', sw.legend === true && sw.strip === true, JSON.stringify(sw));
+  await page.locator('#dk-pane-4d [data-style="strip"]').uncheck();
+  await page.locator('#dk-pane-4d [data-style="legend"]').uncheck();
+  const off = await page.evaluate(() => ({ strip: window.__xray4dSchedule.config().style.strip, legend: window.__xray4dSchedule.config().style.legend }));
+  check('switching them off writes style.strip and style.legend "off" into the configuration', off.strip === 'off' && off.legend === 'off', JSON.stringify(off));
+  await page.evaluate(async () => { await window.__xray4dSchedule.seekDate(window.__xray4dSchedule.plan().window.from + 40 * 86400000); });
+  await page.waitForFunction(() => !!window.__xrayFlythrough.hudState().last?.fourd?.date, null, { timeout: 240000, polling: 300 });
+  await page.waitForTimeout(800);
+  const hudOff = await page.evaluate(() => { const f = window.__xrayFlythrough.hudState().last?.fourd; return { legend: !!f?.legend, strip: !!f?.strip, date: f?.date ?? null }; });
+  check('with both off the film draws neither (but still the date)', hudOff.date && !hudOff.legend && !hudOff.strip, JSON.stringify(hudOff));
+  await page.locator('#dk-pane-4d [data-style="strip"]').check();
+  await page.locator('#dk-pane-4d [data-style="legend"]').check();
+  await page.evaluate(() => window.__xray4dSchedule.open('play'));
+  await page.evaluate(async () => { window.__xray4dSchedule.stop(); await window.__xray4dSchedule.seekDate(window.__xray4dSchedule.plan().window.from + 55 * 86400000); });
+  await page.waitForTimeout(2500);
+  const hudOn = await page.evaluate(() => { const f = window.__xrayFlythrough.hudState().last?.fourd; return { legend: f?.legend?.entries ?? null, strip: f?.strip ?? null }; });
+  check('back on: the film draws the legend and the strip', !!hudOn.legend && hudOn.legend.length >= 4 && !!hudOn.strip && hudOn.strip.rows >= 2, JSON.stringify(hudOn));
+  await page.screenshot({ path: resolve(root, 'bench/4d-legend-strip.png') });
+  await page.evaluate(() => window.__xray4dSchedule.stop());
+  await page.waitForFunction(() => window.__xray4dSchedule.playing === false);
+
+  const boardBtn = page.locator('#dk-pane-4d [data-x4=film-bar] button', { hasText: /^Storyboard PDF$/ });
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 900000 }), boardBtn.click()]);
+  const pdfPath = resolve(root, 'bench', '.storyboard-smoke.pdf');
+  await dl.saveAs(pdfPath);
+  const pdfLib = createRequire(import.meta.url)(resolve(root, 'node_modules/pdf-lib'));
+  const { readFileSync, rmSync } = await import('node:fs');
+  const bytes = readFileSync(pdfPath);
+  const doc = await pdfLib.PDFDocument.load(bytes);
+  const sb = await page.evaluate(() => { const p = window.__xray4dSchedule.plan(); return { last: window.__xray4dSchedule.lastStoryboard, from: p.window.from, to: p.window.to }; });
+  const weeks = Math.floor((sb.to - sb.from) / (7 * 86400000)) + 1 + ((sb.to - sb.from) % (7 * 86400000) > 0 ? 1 : 0);
+  console.log(`INFO storyboard ${JSON.stringify(sb.last)} expected weekly frames ${weeks}`);
+  check('Storyboard PDF downloads a PDF of one weekly frame per page slot (A4, 3 columns, 6 per page)', String.fromCharCode(...bytes.slice(0, 4)) === '%PDF' && sb.last?.frames === weeks && doc.getPageCount() === Math.ceil(weeks / 6) && sb.last.pages === doc.getPageCount(), JSON.stringify({ pages: doc.getPageCount(), weeks, last: sb.last }));
+  check('the storyboard pages are landscape and the file is small (JPEG frames)', doc.getPage(0).getWidth() > doc.getPage(0).getHeight() && bytes.length < weeks * 250000, `${bytes.length} bytes`);
+  const png = await page.evaluate(async (b64) => {
+    const pdfjs = await import('/node_modules/pdfjs-dist/build/pdf.min.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = '/node_modules/pdfjs-dist/build/pdf.worker.min.mjs';
+    const data = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const d = await pdfjs.getDocument({ data }).promise;
+    const pg = await d.getPage(1);
+    const vp = pg.getViewport({ scale: 1.6 });
+    const c = document.createElement('canvas');
+    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    const text = (await pg.getTextContent()).items.map((i) => i.str).join(' ');
+    return { url: c.toDataURL('image/png'), text };
+  }, bytes.toString('base64')).catch((e) => ({ error: String(e) }));
+  if (png.url) writeFileSync(resolve(root, 'bench/4d-storyboard-p1.png'), Buffer.from(png.url.split(',')[1], 'base64'));
+  check('page 1 reads back with the title block, "Page 1 of N", a date caption and the legend', !!png.text && /4D storyboard/.test(png.text) && new RegExp(`Page 1 of ${doc.getPageCount()}`).test(png.text) && /\d{4}-\d\d-\d\d\s+Week \d+/.test(png.text) && /Trades/.test(png.text) && /Active/.test(png.text), png.error ?? png.text?.slice(0, 200));
+  rmSync(pdfPath, { force: true });
 
   // Open as script
   await page.locator('#dk-pane-4d [data-x4=film-script]').click();
