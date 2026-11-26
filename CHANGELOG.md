@@ -7,6 +7,14 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 - Changes for the next release are collected here.
 
+## v31 - 2026-11-26
+
+- Walk collision holds in corners: sliding along one wall no longer carries you through the next, and a slanting approach stops
+  at the same 0.3 m as a straight one.
+- Point cloud alignment: Stop ICP answers much sooner (the work hands control back at least every 30 ms), and the button no
+  longer jumps while the status text changes.
+- The lit mode in the top bar comes back when the settings return to it, for example after switching x-ray off and on again.
+
 ## v30 - 2026-11-25
 
 - The 4D tab is in three steps under the film bar: Map, Link and Film. Each step shows whether it is done or needs you, and

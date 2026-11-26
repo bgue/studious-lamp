@@ -21,7 +21,7 @@ Why `peel-only` for Cutaway. Tried on `fzk-haus`, window 22, from outside: the p
 The active mode is the one whose preset the presets engine reports as active (`window.__xrayPresets.active()`), polled four times a second:
 
 - Click a mode, press `Shift+0` to `Shift+4`, pick the preset in the drawer, press key `1` or `7`, or restore a saved view taken under a mode preset (the views plugin calls `markActive`): the bar highlights the matching mode (`aria-pressed="true"`).
-- The engine compares a hash of the collected parameters once a second (see presets.md, "The active mark"); when any setting differs the mark and the highlight clear. The bar does not show "modified".
+- The engine compares a hash of the collected parameters once a second (see presets.md, "The active mark"); when any setting differs the mark and the highlight clear, and they come back when the settings return to the mode's state (x-ray off and on again lights Ghost again). The bar does not show "modified".
 - Another preset (`hide-blockers`, `mri-scan`, a user preset) highlights nothing.
 - At start, when nothing was changed after the first model (no `#p=` link, no boot preset or params), the bar marks `coordination` (via `markActive`), so Ghost is lit for the factory look. The hash for this check ignores `classStyles` and `materialAliases`, which load from `xray.config.json` after the model.
 - Clicking a lit mode again (Ghost, Radiograph, Glow, Cutaway) switches to Solid, so the bar always offers an explicit way back; Solid is then lit. Clicking Solid while it is lit does nothing. Solid keeps section planes, boxes and clearance, so a cut survives the way back; use the `plain` preset (drawer) to reset those too. The Shift+0 key behaves the same.
