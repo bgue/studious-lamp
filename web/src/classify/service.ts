@@ -50,6 +50,14 @@ import type { OrientationMeasure, OrientationMesh } from './facets/orientation';
 import { createPlacementProbe } from './facets/placementGeometry';
 import type { Box6, PlacementGeo, PlacementProbe, RayHits } from './facets/placementGeometry';
 import { facetSetProperties, isFacetKey, makeManualFacet } from './facets/write';
+import { classifyConcrete } from './concrete/engine';
+import type { ConcreteItem, ConcreteRun, ConcreteStats } from './concrete/engine';
+import { isConcreteKey } from './concrete/defs';
+import { mayBeConcrete } from './concrete/rules';
+import type { ConcreteFacetId, ConcreteSet } from './concrete/defs';
+import { concreteSetProperties, makeManualConcrete } from './concrete/write';
+import { defaultCoverTable, parseCoverTable } from './concrete/spec';
+import type { CoverTable } from './concrete/spec';
 import type { ManualFacetPartial } from './facets/write';
 import { effectiveMinConfidence, defaultDraft, toDraft, toSettings, validateSettings } from './settings';
 import type { ClassifyDraft, ClassifySettings, SettingsCheck } from './settings';
@@ -104,6 +112,8 @@ export interface FacetGeometryEnv {
 
 export const FACET_SWITCH_KEY = 'xray.classify.facets.on.v1';
 export const FACET_MANUAL_PREFIX = 'xray.classify.facets.manual.v1.';
+export const CONCRETE_MANUAL_PREFIX = 'xray.classify.concrete.manual.v1.';
+export const CONCRETE_SWITCH_KEY = 'xray.classify.concrete.on.v1';
 
 /** The result of "Test model". */
 export interface ModelTest {
@@ -175,6 +185,13 @@ export class ClassifyService {
   facetManual = new Map<string, FacetSet>();
   facetCache: FacetCache = new MemoryFacetCache();
   lastFacetStats: FacetStats | null = null;
+  /** The concrete family (XR_Concrete* sets): switch, results by GlobalId, manual choices, the cover table and the last run. */
+  concreteOn = true;
+  concreteStore = new Map<string, ConcreteSet>();
+  concreteManual = new Map<string, ConcreteSet>();
+  concreteCover: CoverTable = defaultCoverTable();
+  lastConcreteStats: ConcreteStats | null = null;
+  private writtenConcrete = new Set<number>();
   facetsRunning = false;
   private measures = new Map<number, OrientationMeasure | null>();
   private placementGeo = new Map<number, PlacementGeo>();
@@ -521,6 +538,9 @@ export class ClassifyService {
     this.modelName = name;
     this.written.clear();
     this.writtenFacets.clear();
+    this.writtenConcrete.clear();
+    this.concreteStore = new Map();
+    this.lastConcreteStats = null;
     this.writtenPset = '';
     this.measures.clear();
     this.placementGeo.clear();
@@ -542,6 +562,7 @@ export class ClassifyService {
   private reloadStore(): void {
     this.store = new ResultStore(this.env.storage, manualKey(this.modelName, this.schemaHashValue));
     this.loadFacetManual();
+    this.loadConcreteManual();
     this.review.reload(); // the committed results of this model and schema come back when the stored log is read
   }
 
@@ -940,6 +961,9 @@ export class ClassifyService {
     this.facetStore = new Map(this.facetManual);
     if (this.draft.writePset) this.writeFacetsToModel([...this.facetStore.keys()]);
     this.lastFacetStats = null;
+    this.clearWrittenConcrete();
+    this.concreteStore = new Map();
+    this.lastConcreteStats = null;
     this.store.clear(false);
     this.lastStats = null;
     this.progress = null;
@@ -957,7 +981,8 @@ export class ClassifyService {
     const all = this.store.all();
     if (kind === 'throughline') return exportThroughlineJson(all, this.schema, this.modelName);
     const fs = this.facetStore.size ? this.facetStore : undefined;
-    return kind === 'csv' ? exportCsv(all, fs, this.facetIds()) : exportJson(all, this.schema, this.stats(), this.modelName, fs);
+    const cs = this.concreteStore.size ? this.concreteStore : undefined;
+    return kind === 'csv' ? exportCsv(all, fs, this.facetIds(), cs) : exportJson(all, this.schema, this.stats(), this.modelName, fs, cs);
   }
 
   /**
@@ -1156,19 +1181,35 @@ export class ClassifyService {
   /** Run the facets for some elements now (Classify runs this after the discipline). Results are merged into the store and written when writePset is on. */
   async runFacets(inputs: readonly ClassifyInput[], signal: AbortSignal = new AbortController().signal): Promise<FacetRun | null> {
     const m = this.model;
-    if (!m || !this.anyFacetOn() || inputs.length === 0) return null;
+    if (!m || (!this.anyFacetOn() && !this.concreteOn) || inputs.length === 0) return null;
     this.facetsRunning = true;
     this.emit();
     try {
       const ids = inputs.map((i) => m.byGlobalId.get(i.id)).filter((x): x is number => x !== undefined);
       await this.prepareFacetGeometry(ids, signal);
-      const run = await classifyFacets(inputs, { ...this.facetOptions(inputs, signal), onProgress: () => this.emit() });
-      for (const [gid, set] of run.results) {
-        if (Object.keys(set).length) this.facetStore.set(gid, set);
-        else this.facetStore.delete(gid);
+      const run = this.anyFacetOn() ? await classifyFacets(inputs, { ...this.facetOptions(inputs, signal), onProgress: () => this.emit() }) : null;
+      if (run) {
+        for (const [gid, set] of run.results) {
+          if (Object.keys(set).length) this.facetStore.set(gid, set);
+          else this.facetStore.delete(gid);
+        }
+        this.lastFacetStats = run.stats;
+        if (this.draft.writePset) this.writeFacetsToModel([...run.results.keys()]);
       }
-      this.lastFacetStats = run.stats;
-      if (this.draft.writePset) this.writeFacetsToModel([...run.results.keys()]);
+      if (this.concreteOn && !signal.aborted) {
+        try {
+          const c = await this.runConcrete(signal);
+          // the requests of the concrete questions count with the facets' (one total for the run)
+          if (run && c) {
+            run.stats.calls += c.stats.calls;
+            run.stats.signatures += c.stats.signatures;
+            for (const e of c.stats.errors) if (run.stats.errors.length < 20 && !run.stats.errors.includes(e)) run.stats.errors.push(e);
+            for (const [m, n] of Object.entries(c.stats.models)) run.stats.models[m] = (run.stats.models[m] ?? 0) + n;
+            run.stats.usage.input_tokens += c.stats.usage.input_tokens;
+            run.stats.usage.output_tokens += c.stats.usage.output_tokens;
+          }
+        } catch (e) { run?.stats.errors.push(`Concrete: ${e instanceof Error ? e.message : String(e)}`); }
+      }
       return run;
     } finally {
       this.facetsRunning = false;
@@ -1234,6 +1275,157 @@ export class ClassifyService {
     const input = this.buildInput(gid);
     if (input) await this.runFacets([input]);
     else this.emit();
+  }
+
+  // ------------------------------------------------------------ concrete (XR_Concrete* sets)
+
+  /** The concrete sets of one element (empty for an element outside the concrete family). */
+  concreteOf(id: number | string): ConcreteSet {
+    const gid = typeof id === 'number' ? this.model?.elements[id]?.globalId : id;
+    return (gid && this.concreteStore.get(gid)) || {};
+  }
+
+  concreteResults(): ReadonlyMap<string, ConcreteSet> {
+    return this.concreteStore;
+  }
+
+  setConcreteEnabled(on: boolean): void {
+    if (this.concreteOn === on) return;
+    this.concreteOn = on;
+    try { this.env.storage?.setItem(CONCRETE_SWITCH_KEY, JSON.stringify(on)); } catch { /* private mode */ }
+    if (!on) { this.concreteStore = new Map(); this.clearWrittenConcrete(); }
+    this.emit();
+  }
+
+  /** Use another cover table (the project's own); problems are returned. */
+  setCoverTable(v: unknown): string[] {
+    const errors: string[] = [];
+    this.concreteCover = parseCoverTable(v, errors);
+    return errors;
+  }
+
+  private loadConcreteManual(): void {
+    this.concreteManual = new Map();
+    try {
+      const t = this.env.storage?.getItem(`${CONCRETE_MANUAL_PREFIX}${this.modelName}`);
+      if (t) for (const [id, set] of JSON.parse(t) as Array<[string, ConcreteSet]>) if (id && set && typeof set === 'object') this.concreteManual.set(id, set);
+      const on = this.env.storage?.getItem(CONCRETE_SWITCH_KEY);
+      if (on !== null && on !== undefined) this.concreteOn = JSON.parse(on) !== false;
+    } catch { /* a broken entry is an empty store */ }
+  }
+
+  private persistConcreteManual(): void {
+    try { this.env.storage?.setItem(`${CONCRETE_MANUAL_PREFIX}${this.modelName}`, JSON.stringify([...this.concreteManual])); } catch { /* quota or private mode */ }
+  }
+
+  /** The elements of the model that may be concrete, as decision inputs, with what the viewer lends (geometry, storey, level, facets). */
+  private concreteItems(): ConcreteItem[] {
+    const m = this.model;
+    if (!m) return [];
+    const g = this.env.facetGeometry;
+    const order = [...m.storeys].sort((a, b) => a.elevation - b.elevation);
+    const storeyIndex = new Map<number, number>(order.map((s, i) => [s.id, i]));
+    const tendons = m.elements.filter((e) => /^IfcTendon/.test(e.ifcClass));
+    const ids: number[] = [];
+    for (const e of m.elements) if (mayBeConcrete(e.ifcClass)) ids.push(e.id);
+    const out: ConcreteItem[] = [];
+    for (const input of this.inputsFor(ids)) {
+      const idx = m.byGlobalId.get(input.id);
+      const e = idx === undefined ? undefined : m.elements[idx];
+      if (idx === undefined || !e) continue;
+      const fs = this.facetStore.get(input.id);
+      const info = this.facetInfo(input);
+      const item: ConcreteItem = { input, storey: e.storey === null ? null : storeyIndex.get(e.storey) ?? null };
+      if (g) item.mesh = () => g.mesh(idx);
+      if (info.belowGround !== undefined) item.belowGround = info.belowGround;
+      const pl = fs?.Placement?.code;
+      if (pl) item.placement = pl;
+      const mat = fs?.Material?.code;
+      if (mat) item.material = mat;
+      const or = this.measures.get(idx)?.class;
+      if (or) item.orientation = or;
+      if (info.shape) item.shape = info.shape;
+      if (tendons.some((t) => t.bounds[0] <= e.bounds[3] && t.bounds[3] >= e.bounds[0] && t.bounds[1] <= e.bounds[4] && t.bounds[4] >= e.bounds[1] && t.bounds[2] <= e.bounds[5] && t.bounds[5] >= e.bounds[2])) item.tendonNearby = true;
+      out.push(item);
+    }
+    return out;
+  }
+
+  /**
+   * The concrete sets of the whole model (marks and pour groups need every concrete element, so a run is never partial). Results are
+   * merged into the store and written when writePset is on.
+   */
+  async runConcrete(signal: AbortSignal = new AbortController().signal): Promise<ConcreteRun | null> {
+    const m = this.model;
+    if (!m || !this.concreteOn) return null;
+    const s = this.settings();
+    const d3 = s.provider === 'd3';
+    const yieldNow = (): Promise<void> => new Promise<void>((r) => setTimeout(r, 0));
+    const run = await classifyConcrete(this.concreteItems(), {
+      provider: s.provider === 'off' ? null : this.provider(),
+      cache: this.facetCache,
+      manual: this.concreteManual,
+      cover: this.concreteCover,
+      temperatures: this.calibration().temperatures,
+      concurrency: s.provider === 'jev' || (d3 && s.d3Backend === 'endpoint') ? s.concurrency : 1,
+      maxStateBytes: s.provider === 'jev' ? s.maxStateBytes : d3 ? s.d3MaxStateBytes : DEFAULT_MAX_STATE_BYTES,
+      minConfidence: this.minConfidence(),
+      ...(m.storeys.length ? { groundLevel: this.groundLevel() } : {}),
+      signal,
+      yieldFn: yieldNow,
+      onProgress: () => this.emit(),
+    });
+    if (signal.aborted) return run;
+    this.clearWrittenConcrete();
+    this.concreteStore = run.results;
+    this.lastConcreteStats = run.stats;
+    if (this.draft.writePset) this.writeConcreteToModel([...run.results.keys()]);
+    return run;
+  }
+
+  /** Set the role, the method or the reinforcement type of one element by hand (source manual, kept per model); the concrete sets are worked out again. */
+  async overrideConcrete(id: string | number, facet: Extract<ConcreteFacetId, 'ConcreteElement' | 'ConcreteMethod' | 'ConcreteReinforcement'>, code: string): Promise<void> {
+    const m = this.model;
+    const gid = typeof id === 'number' ? m?.elements[id]?.globalId : id;
+    if (!m || !gid) throw new Error('No such element.');
+    const r = makeManualConcrete(facet, code, this.concreteManual.get(gid)?.[facet] ?? this.concreteStore.get(gid)?.[facet]);
+    this.concreteManual.set(gid, { ...(this.concreteManual.get(gid) ?? {}), [facet]: r });
+    this.persistConcreteManual();
+    await this.runConcrete();
+    this.emit();
+  }
+
+  /** Write the concrete sets of some elements as `XR_Concrete<Set>.<Field>` properties. */
+  writeConcreteToModel(gids: readonly string[]): void {
+    const m = this.model;
+    if (!m) return;
+    for (const gid of gids) {
+      const id = m.byGlobalId.get(gid);
+      const e = id === undefined ? undefined : m.elements[id];
+      if (!e) continue;
+      const props = (e.props ??= {});
+      for (const k of Object.keys(props)) if (isConcreteKey(k)) delete props[k];
+      const set = this.concreteStore.get(gid);
+      if (set) {
+        const out = concreteSetProperties(set);
+        for (const k of Object.keys(out)) props[k] = out[k]!;
+        this.writtenConcrete.add(e.id);
+      }
+    }
+    resetModelTable(m);
+  }
+
+  /** Remove the written concrete properties. */
+  clearWrittenConcrete(): void {
+    const m = this.model;
+    if (!m) return;
+    for (const id of this.writtenConcrete) {
+      const props = m.elements[id]?.props;
+      if (!props) continue;
+      for (const k of Object.keys(props)) if (isConcreteKey(k)) delete props[k];
+    }
+    this.writtenConcrete.clear();
+    resetModelTable(m);
   }
 
   /** Write the facet results of some elements as `XR_<Facet>.<Field>` properties. */
@@ -1320,3 +1512,4 @@ export class ClassifyService {
     resetModelTable(m);
   }
 }
+

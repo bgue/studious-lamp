@@ -96,6 +96,15 @@ export interface ClassifyApi {
     override(id: number | string, facet: FacetId, partial: ManualFacetPartial): FacetResult;
     removeOverride(id: number | string, facet: FacetId): Promise<void>;
   };
+  /** The concrete sets (XR_Concrete*); see docs-features/classify.md, "Concrete". */
+  concrete: {
+    enabled(): boolean;
+    setEnabled(on: boolean): void;
+    results(): Record<string, Record<string, unknown>>;
+    of(id: number | string): Record<string, unknown>;
+    stats(): unknown;
+    override(id: number | string, set: 'ConcreteElement' | 'ConcreteMethod' | 'ConcreteReinforcement', code: string): Promise<void>;
+  };
   clear(): void;
   export(kind: 'json' | 'csv' | 'throughline'): string;
   abort(): void;
@@ -1434,6 +1443,14 @@ export const classifyPlugin: AppPlugin = {
         of: (id) => service.facetsOf(id),
         override: (id, facet, partial) => service.overrideFacet(id, facet, partial),
         removeOverride: (id, facet) => service.removeFacetOverride(id, facet),
+      },
+      concrete: {
+        enabled: () => service.concreteOn,
+        setEnabled: (on) => service.setConcreteEnabled(on),
+        results: () => Object.fromEntries(service.concreteResults()),
+        of: (id) => service.concreteOf(id),
+        stats: () => service.lastConcreteStats,
+        override: (id, set, code) => service.overrideConcrete(id, set, code),
       },
       clear: () => { service.clear(); t.apply(); },
       export: (kind) => service.export(kind),

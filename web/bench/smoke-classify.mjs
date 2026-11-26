@@ -390,7 +390,7 @@ async function runFacets(browser) {
     check(`${tag} the query engine sees XR_Placement.Code`, bounds === (info.placement['BOUNDARY'] ?? 0) && bounds > 0, String(bounds));
     // the Facets folder
     const folder = page.locator('#dk-pane-classification [data-testid="classify-facets"]');
-    check(`${tag} the Facets folder has a switch per facet`, (await folder.locator('input[type="checkbox"]').count()) === 6 && (await folder.locator('input[type="checkbox"]:checked').count()) === 6);
+    check(`${tag} the Facets folder has a switch per facet and one for Concrete`, (await folder.locator('input[type="checkbox"]').count()) === 7 && (await folder.locator('input[type="checkbox"]:checked').count()) === 7);
     const first = await page.evaluate(() => Object.keys(window.__xrayClassify.facets.results())[0]);
     await page.evaluate((gid) => { const app = window.__xray.app; const idx = app.controller.model.byGlobalId.get(gid); app.selectIds([idx]); }, first);
     await page.waitForTimeout(400);
@@ -410,6 +410,31 @@ async function runFacets(browser) {
     check(`${tag} a manual override has source manual and confidence 1`, man.source === 'manual' && man.confidence === 1 && man.code === 'OTHER');
     const csv = await page.evaluate(() => window.__xrayClassify.export('csv').split('\r\n')[0]);
     check(`${tag} the CSV export has the facet columns`, csv.includes('XR_Trade.Code') && csv.includes('XR_Orientation.Plausible'));
+    // concrete: the FZK-Haus slabs get a role, a mark and a volume
+    const cc = await page.evaluate(() => {
+      const api = window.__xrayClassify;
+      const out = [];
+      for (const r of api.results()) {
+        const inp = api.buildInput(r.id);
+        if (!inp || !/^IfcSlab/.test(inp.ifcClass)) continue;
+        const c = api.concrete.of(r.id);
+        if (!c.ConcreteElement) continue;
+        out.push({ name: inp.name, role: c.ConcreteElement.code, source: c.ConcreteElement.source, mark: c.ConcreteElement.fields.Mark, volume: c.ConcreteGeometry?.fields.Volume, estimated: c.ConcreteGeometry?.fields.VolumeEstimated, strength: c.ConcreteSpec?.code, method: c.ConcreteMethod?.code, group: c.ConcreteElement.fields.HostGroup });
+      }
+      const all = Object.values(api.concrete.results());
+      const roles = {};
+      for (const c of all) roles[c.ConcreteElement.code] = (roles[c.ConcreteElement.code] ?? 0) + 1;
+      const volume = all.reduce((a, c) => a + (c.ConcreteGeometry?.fields.Volume ?? 0), 0);
+      return { slabs: out, total: all.length, roles, volume: Math.round(volume * 100) / 100, marks: all.map((c) => c.ConcreteElement.fields.Mark).slice(0, 14), stats: api.concrete.stats() };
+    });
+    console.log(tag, 'concrete', JSON.stringify(cc));
+    check(`${tag} concrete slabs exist`, cc.slabs.length > 0, String(cc.slabs.length));
+    check(`${tag} every concrete slab has role SUSPENDED_SLAB or SLAB_ON_GRADE, a mark and a volume`, cc.slabs.every((x) => (x.role === 'SUSPENDED_SLAB' || x.role === 'SLAB_ON_GRADE') && typeof x.mark === 'string' && x.mark.length > 0 && x.volume > 0), JSON.stringify(cc.slabs.map((x) => [x.role, x.mark, x.volume])));
+    check(`${tag} the marks are unique`, new Set(cc.slabs.map((x) => x.mark)).size === cc.slabs.length);
+    const cnt = await page.evaluate(() => window.__xraySearch.summarize("count where ConcreteElement = 'SUSPENDED_SLAB' or ConcreteElement = 'SLAB_ON_GRADE'").total);
+    check(`${tag} the query engine sees XR_ConcreteElement.Code`, cnt === cc.slabs.filter((x) => x.role === 'SUSPENDED_SLAB' || x.role === 'SLAB_ON_GRADE').length || cnt >= cc.slabs.length, String(cnt));
+    const csvc = await page.evaluate(() => window.__xrayClassify.export('csv').split('\r\n')[0]);
+    check(`${tag} the CSV export has the concrete columns`, csvc.includes('XR_ConcreteElement.Mark') && csvc.includes('XR_ConcreteGeometry.Volume'));
     await shot(page, 'classify-facets.png');
   } finally {
     const real = errors.filter((e) => !/favicon/i.test(e));
@@ -423,8 +448,11 @@ let exitCode = 0;
 try {
   await waitForServer();
   browser = await chromium.launch({ args: GL });
-  await runDesktop(browser);
-  await runPhone(browser);
+  // SMOKE_ONLY=facets runs just the FZK-Haus part (facets and concrete)
+  if (process.env.SMOKE_ONLY !== 'facets') {
+    await runDesktop(browser);
+    await runPhone(browser);
+  }
   await runFacets(browser);
   if (checks.some((c) => !c.ok)) exitCode = 1;
   console.log(`\n${checks.filter((c) => c.ok).length}/${checks.length} checks passed`);

@@ -7,6 +7,9 @@ import { divisionTitle, findDiscipline, findSub } from './schema';
 import { csvCell } from '../tools/csv';
 import { facetCsvCells, facetCsvColumns } from './facets/write';
 import { FACETS_VERSION } from './facets/defs';
+import { CONCRETE_SCHEME } from './concrete/defs';
+import type { ConcreteSet } from './concrete/defs';
+import { concreteCsvCells, concreteCsvColumns } from './concrete/write';
 import type { FacetId, FacetSet } from './facets/defs';
 import type { ClassificationSchema, ClassifyResult, ClassifyStats } from './types';
 
@@ -190,19 +193,24 @@ export function toCsvRows(results: readonly ClassifyResult[]): Array<Array<strin
  * The CSV text. With `facets` (the facet results by GlobalId) the rows gain the facet columns `XR_<Facet>.<Field>` after the
  * classification columns, and elements that have facets but no classification get a row too (their classification cells are empty).
  */
-export function exportCsv(results: readonly ClassifyResult[], facets?: ReadonlyMap<string, FacetSet>, facetIds?: readonly FacetId[]): string {
-  if (!facets || facets.size === 0) return [CSV_HEADER.join(','), ...toCsvRows(results).map((row) => row.map(csvCell).join(','))].join('\r\n') + '\r\n';
-  const cols = facetCsvColumns(facetIds);
-  const header = [...CSV_HEADER, ...cols];
-  const rows = toCsvRows(results).map((row) => [...row, ...facetCsvCells(facets.get(String(row[0])), cols)]);
+export function exportCsv(results: readonly ClassifyResult[], facets?: ReadonlyMap<string, FacetSet>, facetIds?: readonly FacetId[], concrete?: ReadonlyMap<string, ConcreteSet>): string {
+  const hasF = !!facets && facets.size > 0;
+  const hasC = !!concrete && concrete.size > 0;
+  if (!hasF && !hasC) return [CSV_HEADER.join(','), ...toCsvRows(results).map((row) => row.map(csvCell).join(','))].join('\r\n') + '\r\n';
+  const fcols = hasF ? facetCsvColumns(facetIds) : [];
+  const ccols = hasC ? concreteCsvColumns() : [];
+  const header = [...CSV_HEADER, ...fcols, ...ccols];
+  const cells = (id: string): Array<string | number | boolean> => [...(hasF ? facetCsvCells(facets!.get(id), fcols) : []), ...(hasC ? concreteCsvCells(concrete!.get(id), ccols) : [])];
+  const rows = toCsvRows(results).map((row) => [...row, ...cells(String(row[0]))]);
   const have = new Set(results.map((r) => r.id));
-  for (const [id, set] of facets) if (!have.has(id)) rows.push([id, ...CSV_HEADER.slice(1).map(() => ''), ...facetCsvCells(set, cols)]);
+  const extra = new Set<string>([...(facets?.keys() ?? []), ...(concrete?.keys() ?? [])]);
+  for (const id of extra) if (!have.has(id)) rows.push([id, ...CSV_HEADER.slice(1).map(() => ''), ...cells(id)]);
   return [header.join(','), ...rows.map((row) => row.map(csvCell).join(','))].join('\r\n') + '\r\n';
 }
 
 export const EXPORT_SCHEMA = 'xray-classification/1';
 
-export function exportJson(results: readonly ClassifyResult[], schema: ClassificationSchema, stats: ClassifyStats | null, modelName: string, facets?: ReadonlyMap<string, FacetSet>): string {
+export function exportJson(results: readonly ClassifyResult[], schema: ClassificationSchema, stats: ClassifyStats | null, modelName: string, facets?: ReadonlyMap<string, FacetSet>, concrete?: ReadonlyMap<string, ConcreteSet>): string {
   return JSON.stringify(
     {
       schema: EXPORT_SCHEMA,
@@ -212,6 +220,7 @@ export function exportJson(results: readonly ClassifyResult[], schema: Classific
       stats,
       results,
       ...(facets && facets.size ? { facetScheme: FACETS_VERSION, facets: Object.fromEntries(facets) } : {}),
+      ...(concrete && concrete.size ? { concreteScheme: CONCRETE_SCHEME, concrete: Object.fromEntries(concrete) } : {}),
     },
     null,
     2,
