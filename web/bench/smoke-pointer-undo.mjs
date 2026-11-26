@@ -259,7 +259,14 @@ try {
   await page.keyboard.up('Shift');
   await settle(page, 300);
   const a2 = await selSize(page);
-  check('arrow: Shift adds a second box to the selection', a1 > 0 && a2 > a1, `${a1} -> ${a2}`);
+  const boxDiag = await page.evaluate(([x0, y0, x1, y1]) => {
+    const cb = window.__xray.app.canvas.getBoundingClientRect();
+    const rect = { x0: x0 - cb.left, y0: y0 - cb.top, x1: x1 - cb.left, y1: y1 - cb.top };
+    const ids = window.__xrayPointer?.pick?.(rect, 'crossing') ?? null;
+    const sel = new Set(window.__xray.app.selection);
+    return { picked: ids?.length ?? null, newOnes: ids ? ids.filter((i) => !sel.has(i)).length : null, mode: window.__xrayPointer?.mode, walking: !!document.getElementById('xray-walk-chip')?.offsetParent, cam: window.__xray.renderer.camera.position.toArray().map((v) => +v.toFixed(2)) };
+  }, [cb.x + cb.width * 0.97, cb.y + cb.height * 0.97, cb.x + cb.width * 0.7, cb.y + cb.height * 0.2]);
+  check('arrow: Shift adds a second box to the selection', a1 > 0 && a2 > a1, `${a1} -> ${a2} ${JSON.stringify(boxDiag)}`);
 
   // hidden elements are not picked
   const hiddenCheck = await page.evaluate(() => {
