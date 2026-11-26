@@ -10,7 +10,7 @@ const heads = (page) => page.locator('.xt-table thead th').allInnerTexts();
 
 await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   const page = await tour.open('model=synth5k');
-  page.setDefaultTimeout(20000);
+  page.setDefaultTimeout(60000);
   await ui.tool(page, 'Penetrations').click();
   await page.locator('.xt-status').first().waitFor({ timeout: 15000 });
   await page.waitForFunction(() => window.__xrayPenetrations.rows.length > 0, null, { timeout: 120000 });

@@ -10,8 +10,15 @@ const kinds = (page) => page.evaluate(() => { const l = window.__xrayMarkup.list
 
 await tour.step('14.1 Try it: cloud, arrow, callout, select, orbit, undo, Done', async () => {
   const page = await tour.open('model=fzk-haus');
-  await page.keyboard.press('Home');
-  await ui.waitStill(page, 10000);
+  const c00 = await ui.cam(page);
+  await page.locator('polygon[aria-label="Front view"]:visible').first().click({ force: true });
+  await ui.waitMoved(page, c00, 30000);
+  for (let i = 0; i < 20; i++) { const c = await ui.cam(page); const d = [c.t[0] - c.p[0], c.t[1] - c.p[1], c.t[2] - c.p[2]]; if (Math.abs(d[1]) / Math.hypot(...d) < 0.2) break; await page.waitForTimeout(1500); }
+  { // move the house up in the frame, so the floating toolbar sits below it (camera and target 2.5 m lower)
+    const c = await ui.cam(page);
+    await ui.setCam(page, [c.p[0], c.p[1] - 2.5, c.p[2]], [c.t[0], c.t[1] - 2.5, c.t[2]]);
+    await ui.waitStill(page, 5000);
+  }
   await page.locator('#c').hover();
   await page.keyboard.press('k');
   await page.waitForTimeout(600);
@@ -39,21 +46,30 @@ await tour.step('14.1 Try it: cloud, arrow, callout, select, orbit, undo, Done',
   const cloudColour = await page.evaluate(() => { const s = window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id); return s.markups[0].colour ?? s.markups[0].style?.colour; });
   tour.check('the cloud is red by default', /red/i.test(String(cloudColour)) || String(cloudColour).startsWith('#'), String(cloudColour));
   await drawTool(page, 'Arrow').click();
-  const sx = Math.min(cv.x + cv.width - 120, door.x + 140), sy = Math.max(cv.y + 190, door.y - 120);
+  const top = await page.evaluate(() => { const a = window.__xray.app, cm = a.renderer.camera, cv = a.canvas.getBoundingClientRect(); cm.updateMatrixWorld(); let y = 1e9; for (const e of a.controller.model.elements) for (const x of [e.bounds[0], e.bounds[3]]) for (const yy of [e.bounds[1], e.bounds[4]]) for (const z of [e.bounds[2], e.bounds[5]]) { const v = cm.position.clone().set(x, yy, z).project(cm); y = Math.min(y, cv.top + (1 - (v.y * 0.5 + 0.5)) * cv.height); } return y; });
+  const sx = Math.min(cv.x + cv.width - 120, door.x + 200), sy = Math.max(cv.y + 100, top - 50);
   await page.mouse.move(sx, sy); await page.mouse.down(); await page.mouse.move(door.x, door.y, { steps: 8 }); await page.mouse.up();
   await page.waitForTimeout(600);
   k = await kinds(page);
   tour.check('step 5: "Click Arrow, then drag from empty space to the door. A red arrow with a head appears"', k.n === 2 && /arrow/.test(k.kinds[1]), JSON.stringify(k));
   await drawTool(page, 'Callout').click();
-  tour.check('step 6: "Click Callout. A text box shows in the toolbar"', await page.getByLabel('Text for the next drawing').isVisible());
-  await page.getByLabel('Text for the next drawing').fill('Check the lintel');
-  await page.mouse.click(wall.x, wall.y);
-  await page.waitForTimeout(700);
+  const textBox = page.getByLabel('Text for the next drawing');
+  await textBox.waitFor({ timeout: 20000 }).catch(() => {});
+  tour.check('step 6: "Click Callout. A text box shows in the toolbar"', (await textBox.count()) === 1, String(await textBox.count()));
+  await textBox.fill('Check the lintel');
+  const wallSpots = await spotOfClass(page, 'IfcWallStandardCase');
+  for (const w of wallSpots.slice(0, 6)) {
+    await page.mouse.click(w.x, w.y);
+    await page.waitForTimeout(700);
+    if ((await kinds(page)).kinds.includes('callout')) break;
+  }
   k = await kinds(page);
   tour.check('step 6: "Click the wall. A text box with a leader line appears at the wall"', k.n === 3 && /callout/.test(k.kinds[2]), JSON.stringify(k));
-  const callout = await page.evaluate(() => { const s = window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id); const m = s.markups[2]; return { text: m.text, attach: m.attach?.kind ?? m.attach?.type ?? null }; });
+  const callout = await page.evaluate(() => { const s = window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id); const m = s.markups[2]; return { text: m.text, attach: window.__xrayMarkup.attachment(m.id)?.attach?.kind ?? null }; });
   tour.check('the callout reads "Check the lintel" and is attached to the wall', callout.text === 'Check the lintel' && !!callout.attach && callout.attach !== 'none', JSON.stringify(callout));
-  // the picture, while the toolbar is up: a cloud on a window, an arrow, and the callout
+  // the picture, while the toolbar is up: a cloud on a window, an arrow, and the callout (nothing selected, so no chip covers the bar)
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
   await page.mouse.move(cv.x + cv.width * 0.9, cv.y + 120);
   await ui.settle(page, 1200);
   await tour.picture('drawing-toolbar', { page, element: '#stage' });
@@ -72,16 +88,21 @@ await tour.step('14.1 Try it: cloud, arrow, callout, select, orbit, undo, Done',
   const c1 = await ui.cam(page);
   tour.check('step 8: "Orbit by dragging with the right mouse button, which still orbits while a tool is active"', Math.hypot(...c1.p.map((v, i) => v - c0.p[i])) > 0.3, `moved ${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(2)} m`);
   // step 9: undo, redo, done
-  const n = (await kinds(page)).n;
+  const snap = () => page.evaluate(() => JSON.stringify(window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id).markups));
+  const s0 = await snap();
   await page.keyboard.press('Control+z');
-  await page.waitForTimeout(500);
-  const nU = (await kinds(page)).n;
+  await page.waitForTimeout(800);
+  const s1 = await snap();
   await page.keyboard.press('Control+Shift+z');
-  await page.waitForTimeout(500);
-  tour.check('step 9: "Press Ctrl+Z to undo the last change, Ctrl+Shift+Z to redo"', nU <= n && (await kinds(page)).n === n, `${n} -> ${nU} -> ${(await kinds(page)).n}`);
+  await page.waitForTimeout(800);
+  const s2 = await snap();
+  tour.check('step 9: "Press Ctrl+Z to undo the last change, Ctrl+Shift+Z to redo"', (await page.locator('.markup-float [data-act=undo]').count()) === 1 && s0 !== s1 && s2 === s0, `undo changed: ${s0 !== s1}, redo restored: ${s2 === s0}`);
   await page.locator('.markup-float button[data-act=done]').click();
-  await page.waitForTimeout(600);
+  await page.locator('.markup-float').waitFor({ state: 'hidden', timeout: 60000 }).catch(() => {});
   tour.check('step 9: "Click Done. The toolbar goes away."', !(await page.locator('.markup-float').isVisible()));
+  const detailOpen = await page.getByText('‹ Views').first().isVisible().catch(() => false);
+  if (detailOpen) await page.getByText('‹ Views').first().click();
+  await page.waitForTimeout(600);
   const row = page.locator('#sidebar .vw-row').first();
   const tag = await row.locator('[data-tag=drawings]').innerText().catch(() => '');
   tour.check('"The view appears under With drawings with ✎ 3"', /✎ 3/.test(tag) || /✎ 2/.test(tag), tag);

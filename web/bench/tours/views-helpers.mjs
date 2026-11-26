@@ -3,8 +3,8 @@
 import { ui } from './lib.mjs';
 
 /** Screen spots of an element class that a click lands on, found with the viewer's own picker (read only). */
-export async function spotOfClass(page, cls) {
-  return page.evaluate((cls) => {
+export async function spotOfClass(page, cls, { nearest = true } = {}) {
+  return page.evaluate(([cls, nearest]) => {
     const a = window.__xray.app, cv = a.canvas.getBoundingClientRect(), cm = a.renderer.camera;
     cm.updateMatrixWorld();
     const out = [];
@@ -12,10 +12,10 @@ export async function spotOfClass(page, cls) {
       if (e.ifcClass !== cls) continue;
       const b = e.bounds, v = cm.position.clone().set((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2).project(cm);
       const x = cv.left + (v.x * 0.5 + 0.5) * cv.width, y = cv.top + (1 - (v.y * 0.5 + 0.5)) * cv.height;
-      if (v.z < 1 && x > cv.left + 40 && x < cv.right - 40 && y > cv.top + 160 && y < cv.bottom - 120 && document.elementFromPoint(x, y) === a.canvas) out.push({ x, y, id: e.id, d: Math.hypot(v.x, v.y) });
+      if (v.z < 1 && x > cv.left + 40 && x < cv.right - 40 && y > cv.top + 160 && y < cv.bottom - 120 && document.elementFromPoint(x, y) === a.canvas) out.push({ x, y, id: e.id, d: nearest ? cm.position.distanceTo(cm.position.clone().set((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2)) : Math.hypot(v.x, v.y) });
     }
     return out.sort((p, q) => p.d - q.d);
-  }, cls);
+  }, [cls, nearest]);
 }
 
 /** The drawing toolbar tool button by its name (Cloud, Arrow, Callout, Select ...). */
@@ -47,11 +47,24 @@ export async function drawThreeThings(page, { keepToolbar = false } = {}) {
   await page.waitForTimeout(500);
   // callout on the wall
   await drawTool(page, 'Callout').click();
+  await page.waitForTimeout(500);
   await page.getByLabel('Text for the next drawing').fill('Check the lintel');
-  await page.mouse.click(wall.x, wall.y);
-  await page.waitForTimeout(600);
+  const count = () => page.evaluate(() => { const l = window.__xrayMarkup.list(); return l[0] ? window.__xrayMarkup.get(l[0].id).markups.filter((m) => m.kind === 'callout').length : 0; });
+  for (const w of (await spotOfClass(page, 'IfcWallStandardCase')).slice(0, 6)) {
+    await page.mouse.click(w.x, w.y);
+    await page.waitForTimeout(700);
+    if ((await count()) >= 1) break;
+  }
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(800);
+  await drawTool(page, 'Select').click();
+  await page.waitForTimeout(500);
   if (!keepToolbar) {
     await page.locator('.markup-float button[data-act=done]').click();
+    await page.locator('.markup-float').waitFor({ state: 'hidden', timeout: 60000 });
+    const back = page.getByText('‹ Views').first();
+    if (await back.isVisible().catch(() => false)) await back.click(); // the view detail opened in place of the list
     await page.waitForTimeout(500);
   }
   return { windowSpot: win, doorSpot: door, wallSpot: wall };
