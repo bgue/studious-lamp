@@ -120,6 +120,13 @@ class Parser {
       if (!this.eatKw('NULL')) throw new QueryError(`Expected NULL after IS${neg ? ' NOT' : ''}, found ${describe(this.t)}`, this.t.pos);
       return { kind: 'isnull', neg, left };
     }
+    // `a CONTAINS 'xd'` is `a LIKE '%xd%'` (a text that has the given text in it, any case)
+    if (t.type === 'ident' && t.value.toLowerCase() === 'contains') {
+      this.next();
+      const p = this.operand('CONTAINS');
+      if (p.kind !== 'lit' || typeof p.value !== 'string') throw new QueryError('CONTAINS needs a text in quotes, such as CONTAINS \'XD\'', p.pos);
+      return { kind: 'like', neg: false, left, pattern: { kind: 'lit', value: `%${p.value}%`, pos: p.pos } };
+    }
     let neg = false;
     if (this.isKw('NOT')) {
       this.next();

@@ -4430,6 +4430,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Tick or untick the box, then classify.',
     'Report: Limitations and extensions, classification',
   ),
+  'Classify drawer/Concrete': h(
+    'Switches the concrete sets: role, mark, method, strength, cover, reinforcement intent and measured geometry of concrete elements.',
+    'On: each poured element gets a volume, a formwork area, a role and a stable mark. Off: it gets none of these.',
+    'Tick or untick the box, then classify. Exposure classes are only suggestions and always need review.',
+    'Report: Limitations and extensions, classification',
+  ),
   'Classify drawer/Facets: selection': h(
     'Works out the facets of the selected elements without running the discipline again.',
     'The viewer fills in the extra answers for the selected elements and shows them in the panel.',

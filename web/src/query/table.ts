@@ -3,6 +3,7 @@
 // storey lookup and one for the property keys, and a query allocates nothing per element.
 
 import { FACET_IDS } from '../classify/facets/defs';
+import { CONCRETE_FACET_IDS } from '../classify/concrete/defs';
 import type { ElementRecord, SceneModel } from '../types';
 import type { Accessor, QueryTable } from './compile';
 import type { Value } from './parser';
@@ -57,7 +58,7 @@ const ALIASES: Record<string, string> = {
 };
 
 /** Bare facet names (`trade`, `phase`, `placement`, `orientation`, `classrepair`) stand for the code of the facet: `XR_Trade.Code`. `material` stays the core IFC material column. */
-const FACET_CODE_ALIAS = new Map<string, string>(FACET_IDS.map((f) => [f.toLowerCase(), `XR_${f}.Code`]));
+const FACET_CODE_ALIAS = new Map<string, string>([...FACET_IDS, ...CONCRETE_FACET_IDS].map((f) => [f.toLowerCase(), `XR_${f}.Code`]));
 
 const CORE_BY_LOWER = new Map<string, string>(CORE_COLUMNS.map(([n]) => [n.toLowerCase(), n]));
 

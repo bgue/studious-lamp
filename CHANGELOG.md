@@ -5,6 +5,11 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 ## Unreleased
 
+- Concrete classification, steps 1 and 2: concrete elements get `XR_ConcreteGeometry` (measured volume, formwork, top and soffit area, local frame,
+  length, width, thickness, section shape, named faces with contacts, supports), `XR_ConcreteElement` (structural role and a stable mark, pour
+  group), `XR_ConcreteMethod`, `XR_ConcreteSpec` (strength class EN and ACI, exposure suggested for review, cover from `concrete-cover.json`) and
+  `XR_ConcreteReinforcement` (type, scheme, ratio estimate). See classify.md, "Concrete".
+- Queries: `contains` (`where XR_ConcreteSpec.ExposureClass contains 'XD'`) and the bare names `ConcreteElement`, `ConcreteMethod`.
 - The 4D director has "Camera per floor" (Style): pick a saved view for a floor and the camera flies to it while the work lies on that floor (CLI: `xray-4d plan --zone-camera "Erdgeschoss=EG south"`).
 - The 4D film has a "Finale" (Style): a slow dolly-in and a 90 degree orbit after the last work, with a "Complete" caption; the FZK-Haus sample uses it.
 - Issue pins and drawings are hidden while a fly-through, script or 4D film plays or is recorded, and come back exactly as they were

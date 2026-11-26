@@ -1093,6 +1093,114 @@ same defaults. Codes the rules produce must stay in the lists (a rule's code tha
 `classifyFacets`, `facetQuestions`, `estimateFacetCalls` (engine.ts), `facetProperties`, `makeManualFacet`, `facetCsvColumns` (write.ts),
 `defaultFacetDefs`, `parseFacets` (defs.ts). Everything there is pure TypeScript, no DOM.
 
+## Concrete
+
+Concrete elements get five more sets, `XR_ConcreteGeometry`, `XR_ConcreteElement`, `XR_ConcreteMethod`, `XR_ConcreteSpec` and
+`XR_ConcreteReinforcement`, so that cost, formwork, pours and later the rebar can be tied to a stable element with a role, a local frame and
+measured faces. The design is `docs/design/concrete-classification.md` (steps 1 and 2 are built: the measured geometry, marks, roles,
+method, specification and the reinforcement intent; the tree preset, colour and the quantity summary and the rebar matcher come later).
+Classify runs them after the facets, for the **whole model** at once (marks and pour groups need every concrete element). The Facets folder has a
+**Concrete** switch and, for the selected element, its concrete sets (role, method and reinforcement type can be set by hand; source `manual`).
+
+**Which elements.** Concrete material (the Material facet, else the keyword rule), or an `IfcFooting` / `IfcPile` whose material is not
+another one, or a slab, wall, column, beam, stair, ramp, member, plate, proxy and so on that has `Pset_ConcreteElementGeneral` or a
+`Pset_PrecastConcreteElement*` set. Masonry, steel and timber elements are not in the family. Every set has the core fields
+(`Code`, `Label`, `Confidence`, `Source`, `Model`, `NeedsReview`, `SchemeVersion = xr-concrete/1`).
+
+**XR_ConcreteGeometry** is measured, no model. Frame: IFC axes, right handed, `FrameOrigin` is the minimum corner of the element in its own
+frame; `FrameX`, `FrameY`, `FrameZ` are unit vectors ("x y z"). By role: slabs and footings Z up and X along the longer side (across two
+parallel line supports when that is all it bears on); walls Z up, X along the wall, Y out of the face (the exterior face when known);
+beams X along the axis, Z up; columns, piles Z along the axis and X along the longer section side; an inclined slab has Z normal to its top.
+
+| Property | Meaning |
+| --- | --- |
+| `Volume` (m3), `VolumeEstimated` | exact for a closed mesh; otherwise the bounds volume in the local frame, flagged and `NeedsReview` |
+| `FormworkArea` (m2) | faces that are not upward-facing (normal Z below 0.5) and not against another concrete element or the ground |
+| `TopArea`, `SoffitArea` | upward-facing area; formed downward-facing area (not against concrete or ground) |
+| `FrameOrigin`, `FrameX`, `FrameY`, `FrameZ` | the local frame |
+| `Length`, `Width`, `Thickness` (m) | slab, footing, beam: extents along X, Y, Z (beam depth is Thickness); wall: X, height, Y; column: height (Z), X, Y |
+| `SectionShape` | `RECT`, `CIRC`, `T`, `L`, `I`, `IRREGULAR`, from the end cap on a 16 x 16 grid |
+| `Faces` | planar faces: `NAME area`, `C<area>` against concrete, `G<area>` against ground, e.g. `TOP 12.3; BOTTOM 12.3 G12.3`. Names `TOP`, `BOTTOM`, `SIDE_X+/-`, `SIDE_Y+/-`, `END_+/-` (ends of beams, walls and columns), `INCL`, a repeat gets `#2` |
+| `Supports`, `Carries` | GlobalIds (comma separated, at most 20) of the concrete elements it bears on and of those that bear on it: bounds contact (bottom on top within 5 cm, plan overlap) refined by the face contact |
+
+Faces lie against another element when the point 2 cm outside the face is inside that element's bounds (a sampled test, so areas have
+about 1% noise); against the ground when below the ground level (the lowest storey's floor) and the role is a foundation or a slab on grade
+(soffit), or a footing, pile cap and so on (sides). Mesh units are metres.
+
+**XR_ConcreteElement** `Code` is a role: PAD_FOOTING, STRIP_FOOTING, RAFT, PILE_CAP, PILE, GRADE_BEAM, PLINTH, SLAB_ON_GRADE, SUSPENDED_SLAB, FLAT_SLAB,
+RIBBED_SLAB, WAFFLE_SLAB, TRANSFER_SLAB, TOPPING, LANDING, BEAM, DOWNSTAND_BEAM, UPSTAND_BEAM, TRANSFER_BEAM, COLUMN, PIER, WALL, SHEAR_WALL, CORE_WALL,
+RETAINING_WALL, BASEMENT_WALL, PARAPET, STAIR, RAMP, CORBEL, CURB, EQUIPMENT_PAD, PRECAST_PANEL, OTHER. Decided by: names and type names
+("pile cap", "Bodenplatte", "transfer", "Kern", "Unterzug"), the predefined type, the class, then the geometry (slab at the ground level on
+the lowest storey is SLAB_ON_GRADE, a slab resting on walls, columns or beams above ground is SUSPENDED_SLAB, a beam that carries a column is
+TRANSFER_BEAM, a footing by plan area and aspect, a wall below ground is a BASEMENT_WALL). A rule at 0.85 or more is final; below it the model is
+asked "what is its structural role?" with **only the codes allowed for the IFC class** (a slab is never asked COLUMN). Other fields: `Mark`,
+`MarkSource` (`ifc` or `generated`), `Storey` (0 = lowest storey), `HostGroup` (pour group).
+
+**Marks.** The mark is the IFC `PieceMark` (precast pset) or `Attr.Tag` when it is present and unique among the concrete elements, else
+`<role prefix><storey index>-<n>` (`S1-03` the third suspended slab on storey 1, `C0-12`, `W1-04`; prefixes: FP, FS, RF, PC, PL, GB, PT, SG, S, FL,
+RS, WS, TS, TP, LD, B, UB, TB, C, PR, W, SW, CW, RW, BW, PA, ST, RP, CB, CU, EP, PP, X). Each series is numbered by the frame origin's X, then Y
+(5 cm steps), then GlobalId, so the same model gives the same marks whatever the element order. **Pour groups** (`PG-<storey>-<n>`): elements that
+touch, are on one storey, are cast on site (CAST_IN_PLACE, POST_TENSIONED, COMPOSITE_DECK) and are in one class (slabs with their beams; walls with
+columns; foundations with the slab on grade). Precast and tilt-up elements and stairs have none.
+
+**XR_ConcreteMethod** `Code`: CAST_IN_PLACE, PRECAST, POST_TENSIONED, TILT_UP, COMPOSITE_DECK, UNKNOWN. From a precast pset, the IFC4
+`ConstructionMethod` (In-Situ or Precast), names ("PT", "post-tension", "precast", "hollowcore", "tilt-up", "metal deck"; "PC" is precast except on
+a footing), tendons next to the element, the role; foundations are cast in place; else CAST_IN_PLACE at 0.55 (needs review), or the model.
+
+**XR_ConcreteSpec** `Code` is the strength class (`UNKNOWN` when none). Read from the IFC properties first (`Source = ifc`), then parsed from
+the material, type and name; the cover from a table. Fields:
+
+| Property | Meaning |
+| --- | --- |
+| `StrengthClass`, `StrengthUnit`, `Standard` | EN 206 `C30/37`, `LC25/28`, `C30`; DIN `B35` becomes `C25/30`; ACI `4000 psi`, `5 ksi` (from `f'c = 5 ksi`) with the unit `psi` / `ksi`, `32 MPa`. `Standard` is `EN206` or `ACI318` |
+| `ExposureClass`, `ExposureSource` | EN 206 (X0, XC1-4, XD1-3, XS1-3, XF1-4, XA1-3, comma separated) or ACI 318 (F, S, W, C, from the IFC property only). `ExposureSource` is `ifc`, `rule` (named in the text) or `suggested` |
+| `CoverNominal`, `CoverMainBars`, `CoverLinks` (mm), `CoverSource` | from `ConcreteCover`, `ConcreteCoverAtMainBars`, `ConcreteCoverAtLinks` (a value below 1 is metres); else the table (`table`, `ifc+table`) |
+| `FireResistance` | `FireRating` (`REI 90` becomes `REI90`, a bare number `R60`) |
+| `ReinforcementGrade` | `ReinforcementStrengthClass` |
+| `Derived` | the fields this set filled that the IFC left empty (comma separated) |
+
+**Exposure is never decided by a rule or a model.** With nothing in the IFC or the text it is a suggestion from the Placement facet and the level
+(below ground XC2; EXT or BOUNDARY XC4, XF1; INT XC1), `ExposureSource = suggested` and the set `NeedsReview`. A cover taken from the table also
+sets `NeedsReview` until it is confirmed. The **cover table** is `public/classification/concrete-cover.json` (EN: cover by exposure class, a
+minimum by role for ground-cast members, the extra for the main bars of beams and columns; ACI: ground 75, weather 50, interior 40, slabs and walls
+inside 20 mm). Edit it to the project's specification; `ClassifyService.setCoverTable(json)` loads another one.
+
+**The IFC property names** were checked against the IFC4 (ADD2) and IFC2x3 property set templates. `Pset_ConcreteElementGeneral` has (IFC4)
+`ConstructionMethod`, `StructuralClass`, `StrengthClass`, `ExposureClass`, `ReinforcementVolumeRatio`, `ReinforcementAreaRatio`,
+`ConcreteCover`, `ConcreteCoverAtMainBars`, `ConcreteCoverAtLinks`, `ReinforcementStrengthClass` (IFC2x3: `EnvironmentalClass`, `FireRating`,
+`ConstructionType`, `ConcreteCoverAtMainBars`, `ConcreteCoverAtLinks`, `StructuralClass`); `Pset_PrecastConcreteElementGeneral` and `...Fabrication`
+have `TypeDesignator`, `ProductionLotId`, `PieceMark`. **`CastingMethod` and `AssemblyPlace` do not exist in IFC4**; `ConstructionMethod` is read instead.
+
+**XR_ConcreteReinforcement** is the intent, `Code`: REINFORCED, POST_TENSIONED, FIBRE, PLAIN, UNKNOWN (from the method, names such as
+"blinding" or "steel fibre", the IFC reinforcement properties; structural concrete is REINFORCED at 0.86; non-structural roles 0.6 and then the model).
+`Scheme`: slabs ONE_WAY / TWO_WAY (names, the role, bears on two opposite sides only, else the measured span ratio: 2 or more is one-way, 1.4 or
+less two-way, between it is asked of the model with the ratio in the state), walls SINGLE_LAYER (under 0.14 m) / DOUBLE_LAYER (0.2 m and over),
+beams, columns and piles LINKS, pad footings, rafts and pile caps TWO_WAY. `RatioEstimate` (kg/m3, `RatioSource` `ifc` or `rule`): the IFC
+`ReinforcementVolumeRatio`, else a table by role (footings 90, slabs 105, flat slabs 120, beams 175, columns 215, walls 80, transfer slabs 250,
+transfer beams 275; 0 for plain and fibre concrete), and `MassEstimate` (kg) = ratio x volume for a closed mesh. `BarCount`, `MeshCount`,
+`TendonCount`, `MatchedMass`, `MatchedRatio` and `RatioCheck` are filled by the rebar matcher later.
+
+**The decision model** is asked once per signature (the element's discipline signature plus what the answer depends on: class, size, ground
+and support classes) through the same providers, cache, calibration and review thresholds as the facets: `concrete_role` (options: the roles
+allowed for the class), `concrete_method`, `concrete_reinforcement`, `concrete_slab_scheme` (span ratio in the state). Exposure, strength, cover
+and fire resistance are never asked. A model failure leaves the weak rule, flagged for review. A manual role, method or reinforcement type wins.
+
+Queries (the bare names `ConcreteElement`, `ConcreteMethod`, `ConcreteSpec`, `ConcreteReinforcement` are aliases for `XR_<Set>.Code`; `contains` is
+`like '%...%'`):
+
+```
+count where ConcreteElement = 'SUSPENDED_SLAB'
+sum XR_ConcreteGeometry.Volume by XR_ConcreteSpec.StrengthClass
+where XR_ConcreteSpec.ExposureClass contains 'XD'
+sum XR_ConcreteGeometry.FormworkArea by Storey
+where XR_ConcreteSpec.NeedsReview = TRUE and ConcreteElement = 'WALL'
+```
+
+CSV and JSON exports gain the columns `XR_Concrete<Set>.<Field>` (JSON: a `concrete` object by GlobalId and `concreteScheme`). Code:
+`src/classify/concrete/`: `geometry.ts` (`concreteGeometry`, `meshVolume`, `minAreaRect`), `rules.ts`, `spec.ts` (`parseStrength`, `parseExposure`,
+`specOf`, `parseCoverTable`), `marks.ts`, `contacts.ts` (`contactGraph`, `pourGroups`), `engine.ts` (`classifyConcrete`), `write.ts`, `defs.ts`. Pure
+TypeScript, no DOM. Service: `concreteOn`, `concreteOf(id)`, `concreteResults()`, `runConcrete()`, `overrideConcrete(id, set, code)`.
+
 ## Review walk
 
 The **Review walk** (Classification tab, section **Review**, which replaces the tab's content while it runs; the command palette entry "Classify: review walk", key **Shift+R**) visits the

@@ -20,7 +20,9 @@ IFC4 already defines concrete properties. The facets read them first (`Source = 
 | --- | --- | --- |
 | `Pset_ConcreteElementGeneral` | `StrengthClass`, `ExposureClass`, `ReinforcementStrengthClass`, `ConcreteCover`, `ConcreteCoverAtMainBars`, `ConcreteCoverAtLinks`, `ReinforcementVolumeRatio`, `ReinforcementAreaRatio`, `CastingMethod` (INSITU / PRECAST), `AssemblyPlace` (SITE / FACTORY), `StructuralClass` | `XR_ConcreteSpec.*`, `XR_ConcreteReinforcement.*`, `XR_ConcreteMethod` |
 
-The implementation checks these names against the IFC4 property set definitions (ifcopenshell's pset templates in the skill's
+Checked against the IFC4 (ADD2) and IFC2x3 templates in ifcopenshell: `CastingMethod` and `AssemblyPlace` do not exist in IFC4; `Pset_ConcreteElementGeneral` has
+`ConstructionMethod` (In-Situ or Precast) instead, and `PieceMark` is in the precast sets. IFC2x3 has `EnvironmentalClass`, `FireRating`, `ConstructionType`. See
+classify.md, "Concrete". The implementation checks these names against the IFC4 property set definitions (ifcopenshell's pset templates in the skill's
 environment, or the buildingSMART documentation) and reads IFC2x3 files with whatever subset they carry.
 | `Pset_PrecastConcreteElementGeneral`, `Pset_PrecastConcreteElementFabrication` | `TypeDesignator`, `ProductionLotId`, `PieceMark` | `XR_ConcreteMethod.Code = PRECAST`, `XR_ConcreteElement.Mark` |
 | Predefined types (`IfcSlab.PredefinedType` FLOOR/ROOF/BASESLAB/LANDING, `IfcFooting` PAD_FOOTING/STRIP_FOOTING/PILE_CAP/FOOTING_BEAM, `IfcWall` SHEAR/RETAININGWALL/ELEMENTEDWALL, `IfcBeam` T_BEAM/LINTEL/SPANDREL, `IfcColumn`, `IfcPile`) | the predefined type | `XR_ConcreteElement.Code` (rule) |
