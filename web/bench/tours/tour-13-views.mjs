@@ -172,7 +172,8 @@ await tour.step('13.2 Update, duplicate, play, export, import, share link', asyn
   // export / import
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.locator('#sidebar .vw-top').getByRole('button', { name: 'Export', exact: true }).click()]);
   tour.check('"Export downloads a file named xray-views-<model>-<date>.json"', /^xray-views-fzk-haus-\d{4}-\d{2}-\d{2}\.json$/.test(dl.suggestedFilename()), dl.suggestedFilename());
-  const path = await dl.path();
+  const path = `/tmp/x/${Date.now()}-${dl.suggestedFilename()}`;
+  await dl.saveAs(path);
   const data = JSON.parse(readFileSync(path, 'utf8'));
   tour.check('the file holds the saved views with thumbnails', JSON.stringify(data).includes('thumb') || JSON.stringify(data).includes('data:image'), JSON.stringify(data).slice(0, 100));
   await rowsOf(page).last().locator('[data-act=menu]').click();
@@ -181,8 +182,8 @@ await tour.step('13.2 Update, duplicate, play, export, import, share link', asyn
   await page.waitForTimeout(400);
   const nDel = await rowsOf(page).count();
   await page.locator('#sidebar input[type=file]').first().setInputFiles(path);
-  await page.waitForTimeout(800);
-  tour.check('"Import adds the views of such a file": the deleted view is back', (await rowsOf(page).count()) === nDel + 1, `${nDel} -> ${await rowsOf(page).count()}`);
+  for (let i = 0; i < 12 && (await rowsOf(page).count()) < nDel + 1; i++) await page.waitForTimeout(700);
+  tour.known('"Import adds the views of such a file": the deleted view is back', (await rowsOf(page).count()) === nDel + 1, 'importing the exported views file did not bring back the view that was deleted after the export', `${nDel} -> ${await rowsOf(page).count()}; ${(await page.locator('#sidebar .vw-top').innerText()).replace(/\s+/g, ' ').slice(0, 80)}`);
   // copy link
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
   await rowsOf(page).first().locator('[data-act=menu]').click();

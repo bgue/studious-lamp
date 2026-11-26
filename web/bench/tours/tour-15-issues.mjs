@@ -139,6 +139,7 @@ await tour.step('15.2 Status, priority, assignee, due date, comments, history, l
   tour.check('search finds comment text', (await items(page).count()) === 1);
   await page.getByPlaceholder('Search title, description, comments').fill('');
   // top bar search finds issues
+  await page.evaluate(() => document.activeElement?.blur?.());
   await page.mouse.move(900, 500);
   await page.keyboard.press('/');
   await page.keyboard.type('sill');

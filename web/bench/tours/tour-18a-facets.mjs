@@ -12,7 +12,7 @@ const waitTrade = async (page, ms = 15000) => { await page.waitForTimeout(ms); r
 void nTrade;
 const search = async (page, text) => {
   await page.keyboard.press('Escape');
-  await page.locator('#c').hover();
+  await page.mouse.move(900, 500);
   await page.keyboard.press('/');
   await page.keyboard.press('Control+a');
   await page.keyboard.type(text);

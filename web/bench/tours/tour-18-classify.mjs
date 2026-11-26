@@ -10,7 +10,7 @@ const pane = (page) => page.locator('#dk-pane-classification');
 const results = (page) => page.evaluate(() => window.__xrayClassify.results().map((r) => ({ id: r.id, d: r.discipline.code, s: r.source, nr: r.needsReview, conf: r.discipline.confidence })));
 const search = async (page, text) => {
   await page.keyboard.press('Escape');
-  await page.locator('#c').hover();
+  await page.mouse.move(900, 500);
   await page.keyboard.press('/');
   await page.keyboard.press('Control+a');
   await page.keyboard.type(text);

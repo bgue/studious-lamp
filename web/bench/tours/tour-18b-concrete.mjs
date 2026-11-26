@@ -7,7 +7,7 @@ const tour = await startTour('tour-18b-concrete');
 const pane = (page) => page.locator('#dk-pane-classification');
 const search = async (page, text) => {
   await page.keyboard.press('Escape');
-  await page.locator('#c').hover();
+  await page.mouse.move(900, 500);
   await page.keyboard.press('/');
   await page.keyboard.press('Control+a');
   await page.keyboard.type(text);
@@ -20,22 +20,17 @@ await tour.step('18B.1 Try it: Concrete switch, Classify all, the Bodenplatte, t
   await ui.tab(page, 'Classification');
   await page.waitForTimeout(500);
   const f = pane(page).locator('details.xc-facets');
-  await f.locator('summary').click();
+  if (!(await f.evaluate((d) => d.open))) await f.locator('summary').click();
   const conc = f.locator('label', { hasText: /^Concrete/ }).locator('input');
   tour.check('step 1: "open the Facets folder and check that Concrete is on"', (await conc.count()) === 1 && (await conc.isChecked()));
   await pane(page).getByRole('button', { name: 'Classify all' }).click();
   await page.waitForFunction(() => window.__xrayClassify.results().length >= 82, null, { timeout: 180000 });
-  await page.waitForTimeout(4000);
-  const count = () => page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => e.properties && Object.keys(e.properties).some((k) => k.startsWith('XR_ConcreteElement'))).length);
-  let n = await count();
-  tour.known('step 1: "Click Classify all. Concrete runs after the facets"', n > 0, 'Classify all wrote no XR_ConcreteElement; the Facets: all button had to be pressed', String(n));
-  if (!n) { await f.getByRole('button', { name: 'Facets: all' }).click(); await page.waitForTimeout(8000); n = await count(); }
-  tour.check('concrete elements carry the XR_Concrete sets', n > 0, `${n} elements`);
+  await page.waitForTimeout(15000);
+  const q0 = await search(page, "count where ConcreteElement = 'SLAB_ON_GRADE'");
+  tour.check('step 1: "Click Classify all. Concrete runs after the facets": the concrete sets are queryable', /\b[1-9]\d* (elements|slabs?)/.test(q0) || /SUMMARY \/ [1-9]/.test(q0), q0.slice(0, 120));
   // step 2: select the Bodenplatte
-  await page.locator('#c').hover();
-  await page.keyboard.press('/');
-  await page.keyboard.type('Bodenplatte');
-  await page.waitForTimeout(1000);
+  const sr = await search(page, 'Bodenplatte');
+  tour.check('the search finds the Bodenplatte', /Bodenplatte/.test(sr), sr.slice(0, 100));
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await ui.waitStill(page, 15000);
@@ -47,7 +42,9 @@ await tour.step('18B.1 Try it: Concrete switch, Classify all, the Bodenplatte, t
   const txt = rows.map((r) => r.replace(/\s+/g, ' ')).join(' | ');
   tour.check('step 2: "read its concrete sets: role SLAB_ON_GRADE, mark SG0-01"', /SLAB_ON_GRADE/.test(txt) && /SG0-01/.test(txt), txt.slice(0, 400));
   tour.check('"Volume" and "FormworkArea" show for the geometry set', /Volume/.test(txt) && /FormworkArea/.test(txt), txt.slice(0, 400));
+  await f.evaluate((e) => e.scrollIntoView({ block: 'start' }));
   await page.mouse.move(700, 120);
+  await page.waitForTimeout(600);
   await tour.picture('concrete-sets', { page, element: '#dock' });
   const t3 = await search(page, "count where ConcreteElement = 'SLAB_ON_GRADE'");
   tour.check('step 3: "count where ConcreteElement = \'SLAB_ON_GRADE\'"', /\b\d+\b/.test(t3) && !/^QUERY \/ 0 /.test(t3), t3.slice(0, 140));

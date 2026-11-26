@@ -104,7 +104,7 @@ await tour.step('16.1 Try it: open sample-sheet.pdf, open page 1, pan, zoom, imp
   await page.locator('.markup-float:visible button[data-act=done]').first().click();
   await page.waitForTimeout(600);
   // picture
-  await page.evaluate(() => window.__xrayHelp?.disable?.());
+  await page.addStyleTag({ content: '#xray-help{display:none!important}' });
   await page.mouse.move(sb2.x + 20, sb2.y + sb2.height - 20);
   await page.waitForTimeout(1500);
   await ui.settle(page, 800);
