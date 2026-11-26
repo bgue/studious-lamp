@@ -10,6 +10,7 @@ const heads = (page) => page.locator('.xt-table thead th').allInnerTexts();
 
 await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   const page = await tour.open('model=synth5k');
+  page.setDefaultTimeout(20000);
   await ui.tool(page, 'Penetrations').click();
   await page.locator('.xt-status').first().waitFor({ timeout: 15000 });
   await page.waitForFunction(() => window.__xrayPenetrations.rows.length > 0, null, { timeout: 120000 });
@@ -18,7 +19,9 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   tour.check('step 2: "A wide drawer opens and analyses once"', sum.total > 0, JSON.stringify(sum));
   tour.check('step 3: "Read the summary counts at the top"', /\d+ penetrations: \d+ with opening, \d+ no opening, \d+ unknown/.test(status), status);
   const chipTexts = await page.locator('.xt-chip').allInnerTexts();
-  tour.check('step 3: "filter chips for status, storey and host class"', chipTexts.some((t) => /^opening/.test(t)) && chipTexts.some((t) => /^Level/.test(t)) && chipTexts.some((t) => /^(Slab|Wall|Beam)/.test(t)), chipTexts.join(' | '));
+  tour.check('step 3: "filter chips for status, storey and host class"', chipTexts.some((t) => /^opening/.test(t)) && chipTexts.some((t) => /^Level/.test(t)), chipTexts.join(' | '));
+  const hostClasses = await page.evaluate(() => [...new Set(window.__xrayPenetrations.rows.map((r) => window.__xray.app.controller.model.elements[r.host].ifcClass))]);
+  tour.check('step 3: the host class chips show when the hosts have more than one class', hostClasses.length > 1 ? chipTexts.some((t) => /^(Slab|Wall|Beam|Column)/.test(t)) : !chipTexts.some((t) => /^(Slab|Wall|Beam|Column)/.test(t)), `hosts: ${hostClasses.join(',')}`);
   tour.check('"On Synthetic 5k every crossing shows as opening": none without an opening', sum.none === 0 && sum.unknown === 0 && sum.opening === sum.total, JSON.stringify(sum));
   const gaps = await page.evaluate(() => [...new Set(window.__xrayPenetrations.rows.map((r) => Math.round(r.gapMm)))]);
   tour.check('"with a gap of 10 mm"', gaps.length === 1 && gaps[0] === 10, gaps.join(','));
@@ -40,13 +43,15 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   const nL1 = await rowsOf(page).count();
   tour.check('step 4: "Use the filter chips to narrow the list by storey"', nL1 > 0 && nL1 < nAll, `${nAll} -> ${nL1}`);
   await storeyChip.click();
-  const hostChip = page.locator('.xt-chip', { hasText: /^Wall$/ });
-  await hostChip.click();
-  await page.waitForTimeout(400);
-  const nWall = await rowsOf(page).count();
-  tour.check('step 4: "or host class"', nWall > 0 && nWall < nAll, `${nAll} -> ${nWall}`);
-  await hostChip.click();
-  await page.waitForTimeout(300);
+  const hostChip = page.locator('.xt-chip', { hasText: /^(Slab|Wall|Beam|Column)$/ }).first();
+  if (await hostChip.count()) {
+    await hostChip.click();
+    await page.waitForTimeout(400);
+    const nHost = await rowsOf(page).count();
+    tour.check('step 4: "or host class"', nHost > 0 && nHost < nAll, `${nAll} -> ${nHost}`);
+    await hostChip.click();
+    await page.waitForTimeout(300);
+  }
   tour.check('the filters can be cleared again', (await rowsOf(page).count()) === nAll);
   // step 5: click a row
   const row = rowsOf(page).nth(2);
@@ -58,7 +63,8 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   tour.check('step 5: "Click a row. The MEP element is selected"', sel.length === 1 && sel[0].id === rowData.mep, JSON.stringify(sel) + ' mep ' + rowData.mep);
   const c1 = await ui.cam(page);
   tour.check('step 5: "the camera flies to the crossing"', Math.hypot(...c1.p.map((v, i) => v - c0.p[i])) > 0.3, `moved ${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(1)} m`);
-  await rowsOf(page).nth(4).click({ modifiers: ['Control'] });
+  const other = await page.evaluate((mep0) => window.__xrayPenetrations.rows.findIndex((r, i) => r.mep !== mep0 && i < 500), rowData.mep);
+  await rowsOf(page).nth(other).click({ modifiers: ['Control'] });
   await page.waitForTimeout(500);
   tour.check('step 5: "Ctrl or Shift click selects several rows"', (await ui.selection(page)).length >= 2, String((await ui.selection(page)).length));
   // step 6: markers
@@ -73,7 +79,7 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   // step 7: export
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.getByRole('button', { name: /^Export CSV/ }).click()]);
   const csv = readFileSync(await dl.path(), 'utf8').split('\n').filter(Boolean);
-  tour.check('step 7: "Export CSV to save the filtered rows": the file has the location and orientation columns', csv.length === nAll + 1 && /orientation/i.test(csv[0]) && /location|x/i.test(csv[0]), csv[0]);
+  tour.check('step 7: "Export CSV to save the filtered rows": the file has the location and orientation columns', csv.length === nAll + 1 && /orientation/i.test(csv[0]) && /x_m,y_m,z_m/.test(csv[0]), csv[0]);
   // scope
   const orient = await page.evaluate(() => [...new Set(window.__xrayPenetrations.rows.map((r) => r.orientation))]);
   tour.check('"orientation: vertical, horizontal or inclined"', orient.every((o) => ['vertical', 'horizontal', 'inclined'].includes(o)), orient.join());
@@ -110,11 +116,12 @@ await tour.step('11.2 Raise findings as issues', async () => {
   await page.locator('.xt-table tbody tr').nth(1).click({ modifiers: ['Control'] });
   await btn.first().click();
   await page.waitForTimeout(2500);
-  const info = await page.evaluate(() => { const t = window.__xrayIssues?.list?.() ?? window.__xrayIssues?.issues ?? []; return Array.isArray(t) ? t.map((i) => i.title) : []; });
+  const issueTitles = () => page.evaluate(() => (window.__xrayBcf.currentTopics ?? window.__xrayBcf.topics).map((t) => t.title));
+  const info = await issueTitles();
   tour.check('"It makes one issue per row, titled like Penetration: Duct-12 through Wall-3": two selected rows make two issues', info.length === 2 && info.every((t) => /^Penetration: .+ through .+/.test(t)), `${rows} rows; ${JSON.stringify(info).slice(0, 200)}`);
   await btn.first().click();
   await page.waitForTimeout(2000);
-  const info2 = await page.evaluate(() => { const t = window.__xrayIssues?.list?.() ?? window.__xrayIssues?.issues ?? []; return Array.isArray(t) ? t.length : -1; });
+  const info2 = (await issueTitles()).length;
   tour.check('"Raising again only adds new pairs"', info2 === info.length, `${info.length} -> ${info2}`);
 });
 

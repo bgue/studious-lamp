@@ -7,7 +7,7 @@ import { startTour, ui } from './lib.mjs';
 import { drawThreeThings } from './views-helpers.mjs';
 
 const tour = await startTour('tour-15-issues');
-const issues = (page) => page.evaluate(() => window.__xrayIssues.list?.() ?? []);
+const issues = (page) => page.evaluate(() => (window.__xrayBcf.currentTopics ?? window.__xrayBcf.topics).map((t) => ({ guid: t.guid, title: t.title, status: t.topicStatus, priority: t.priority, assignedTo: t.assignedTo, due: t.dueDate, comments: t.comments.length })));
 const items = (page) => page.locator('#sidebar .is-item');
 const status = (page) => ui.statusText(page).then((t) => t.replace(/\s+/g, ' '));
 
@@ -110,7 +110,7 @@ await tour.step('15.2 Status, priority, assignee, due date, comments, history, l
   await det.getByLabel('Due date').fill('2026-12-24');
   await det.getByLabel('Due date').press('Enter').catch(() => {});
   await page.waitForTimeout(500);
-  const t0 = await page.evaluate(() => window.__xrayIssues.list()[0]);
+  const t0 = (await issues(page))[0];
   tour.check('status, priority, assignee and due date are stored', /progress/i.test(t0.status ?? t0.topicStatus ?? '') && /high/i.test(t0.priority ?? '') && /Mia/.test(t0.assignedTo ?? t0.assignee ?? JSON.stringify(t0)), JSON.stringify(t0).slice(0, 240));
   await det.getByLabel('Comment').fill('Checked on site.');
   await det.getByRole('button', { name: 'Add comment' }).click();

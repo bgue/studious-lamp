@@ -7,7 +7,7 @@ import { startTour, ui, webRoot } from './lib.mjs';
 import { drawThreeThings } from './views-helpers.mjs';
 
 const tour = await startTour('tour-17-bcf');
-const issues = (page) => page.evaluate(() => window.__xrayIssues.list?.() ?? []);
+const issues = (page) => page.evaluate(() => (window.__xrayBcf.currentTopics ?? window.__xrayBcf.topics).map((t) => ({ guid: t.guid, title: t.title, status: t.topicStatus, priority: t.priority, assignedTo: t.assignedTo, due: t.dueDate, comments: t.comments.length })));
 const userHides = (page) => page.evaluate(() => window.__xray.app.controller.settings.overrides.userHides.size);
 const isUnzip = async () => {
   try { return createRequire(import.meta.url)(webRoot + '/node_modules/fflate'); } catch { return null; }
