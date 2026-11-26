@@ -14,7 +14,7 @@ export function familyOf(schema: string | null | undefined): SchemaFamily | null
 }
 
 /** IFC types that Xray writes as property values. */
-export type ValueType = 'IfcLabel' | 'IfcText' | 'IfcIdentifier' | 'IfcBoolean' | 'IfcNormalisedRatioMeasure' | 'IfcDateTime';
+export type ValueType = 'IfcLabel' | 'IfcText' | 'IfcIdentifier' | 'IfcBoolean' | 'IfcNormalisedRatioMeasure' | 'IfcDateTime' | 'IfcReal';
 
 export interface PropSpec {
   name: string;
@@ -37,6 +37,8 @@ export function typedValue(p: PropSpec): string {
       return `IFCBOOLEAN(${p.value ? '.T.' : '.F.'})`;
     case 'IfcNormalisedRatioMeasure':
       return `IFCNORMALISEDRATIOMEASURE(${stepReal(Math.min(1, Math.max(0, Number(p.value))))})`;
+    case 'IfcReal':
+      return `IFCREAL(${stepReal(Number(p.value))})`;
   }
 }
 

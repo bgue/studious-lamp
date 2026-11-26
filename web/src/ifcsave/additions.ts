@@ -73,6 +73,30 @@ export interface ElementProps {
   cleanup: PropSpec[];
   /** `Xray_4D`: Location, Trade, Zone, ActivityIds. */
   fourD: PropSpec[];
+  /** The classification facet sets, by set name (`XR_Trade`, ...), each in field order. */
+  facets: Map<string, PropSpec[]>;
+}
+
+/** The IFC type of a facet value: booleans, numbers (Confidence as a ratio), short text as a label, long text as text. */
+export function facetPropSpec(field: string, value: string | number | boolean): PropSpec {
+  if (typeof value === 'boolean') return { name: field, type: 'IfcBoolean', value };
+  if (typeof value === 'number') return { name: field, type: field === 'Confidence' ? 'IfcNormalisedRatioMeasure' : 'IfcReal', value };
+  return { name: field, type: value.length > 255 ? 'IfcText' : 'IfcLabel', value };
+}
+
+/** Group flat `XR_<Facet>.<Field>` properties into sets; names without a set prefix are skipped. */
+export function facetSets(flat: Readonly<Record<string, string | number | boolean>>): Map<string, PropSpec[]> {
+  const out = new Map<string, PropSpec[]>();
+  for (const [k, v] of Object.entries(flat)) {
+    const dot = k.indexOf('.');
+    if (dot <= 0 || v === '' || v === undefined || v === null) continue;
+    const set = k.slice(0, dot);
+    if (!/^XR_[A-Za-z0-9_]+$/.test(set)) continue;
+    let l = out.get(set);
+    if (!l) out.set(set, (l = []));
+    l.push(facetPropSpec(k.slice(dot + 1), v));
+  }
+  return out;
 }
 
 const hashCache = new WeakMap<ClassificationSchema, string>();
@@ -85,7 +109,8 @@ const schemaHashOf = (schema: ClassificationSchema): string => {
 
 /** The properties of one element, in the fixed order of the design. Empty values are left out. */
 export function elementProps(e: ElementSave, schema: ClassificationSchema, family: SchemaFamily, o: SaveOptions): ElementProps {
-  const out: ElementProps = { classification: [], review: [], cleanup: [], fourD: [] };
+  const out: ElementProps = { classification: [], review: [], cleanup: [], fourD: [], facets: new Map() };
+  if (e.facets && o.includeFacets) out.facets = facetSets(e.facets);
   const r = e.result;
   if (r) {
     const n = propertyNames(schema);
@@ -198,7 +223,7 @@ export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, 
     props: PropSpec[];
     members: ElementSave[];
   }
-  const kinds: Array<{ kind: keyof ElementProps; setName: string }> = [
+  const kinds: Array<{ kind: Exclude<keyof ElementProps, 'facets'>; setName: string }> = [
     { kind: 'classification', setName: schema.psetName },
     { kind: 'review', setName: XRAY_DEFAULTS.psetReview },
     { kind: 'cleanup', setName: XRAY_DEFAULTS.psetCleanup },
@@ -210,6 +235,22 @@ export function emitAdditions(plan: FileSavePlan, schema: ClassificationSchema, 
     for (const e of plan.elements) {
       const ps = props.get(e.expressId)![kind];
       if (!ps.length) continue;
+      const key = ps.map(propKey).join('\n');
+      let g = m.get(key);
+      if (!g) m.set(key, (g = { setName, props: ps, members: [] }));
+      g.members.push(e);
+    }
+    groups.push(...m.values());
+  }
+  // The facet sets: one group per set name and identical tuple, like the fixed sets above.
+  const facetNames = new Set<string>();
+  for (const e of plan.elements) for (const n of props.get(e.expressId)!.facets.keys()) facetNames.add(n);
+  for (const setName of [...facetNames].sort()) {
+    if (setName === schema.psetName) continue; // never write a second set with the classification set's name
+    const m = new Map<string, Group>();
+    for (const e of plan.elements) {
+      const ps = props.get(e.expressId)!.facets.get(setName);
+      if (!ps || !ps.length) continue;
       const key = ps.map(propKey).join('\n');
       let g = m.get(key);
       if (!g) m.set(key, (g = { setName, props: ps, members: [] }));

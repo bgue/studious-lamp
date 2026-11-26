@@ -5,6 +5,7 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 ## Unreleased
 
+- Save IFC can write the classification facets: tick "Include classification facets" and every classified element gets its XR_Trade, XR_Placement, XR_Material, XR_Phase, XR_Orientation and XR_ClassRepair property sets in the saved file.
 - The 4D director has "Camera per floor" (Style): pick a saved view for a floor and the camera flies to it while the work lies on that floor (CLI: `xray-4d plan --zone-camera "Erdgeschoss=EG south"`).
 - The 4D film has a "Finale" (Style): a slow dolly-in and a 90 degree orbit after the last work, with a "Complete" caption; the FZK-Haus sample uses it.
 - Issue pins and drawings are hidden while a fly-through, script or 4D film plays or is recorded, and come back exactly as they were

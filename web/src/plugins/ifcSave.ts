@@ -9,6 +9,7 @@
 // Reviewer names and comments leave the viewer only when the box "Include reviewer names and comments" is ticked in the dialog
 // (or `includeReviewers: true` is passed to save()). The box is not remembered, not a setting and not in the params document.
 
+import { facetSetProperties } from '../classify/facets/write';
 import type { AppPlugin, ViewerApp } from '../app';
 import { defaultSchema } from '../classify/schema';
 import type { ClassificationSchema, ClassifyResult } from '../classify/types';
@@ -44,6 +45,8 @@ export interface SaveRequest {
   includeCleanupMarks?: boolean;
   /** Write Xray_4D (Location, Trade, Zone) from the accepted 4D assignments. Default: true when there are any. */
   includeFourD?: boolean;
+  /** Write the classification facet sets (XR_Trade, XR_Placement, ...). Default: true when there are facet results. */
+  includeFacets?: boolean;
   scope?: 'all' | 'reviewed';
   /** Default `download`. `none` keeps the outputs for `lastOutputs()` and writes nothing (tests, measurements). */
   target?: 'download' | 'none';
@@ -142,6 +145,7 @@ interface DirHandleLike { getFileHandle(name: string, o: { create: boolean }): P
 
 interface ClassifyLike {
   results(): ClassifyResult[];
+  facets?: { results(): Record<string, import('../classify/facets/defs').FacetSet> };
   schema(): unknown;
   review?: { history(): Array<import('../classify/reviewLog').ReviewCommit> };
 }
@@ -238,11 +242,24 @@ export const ifcSavePlugin: AppPlugin = (() => {
   };
   const fourDCount = (): number => fourDMap().size;
 
+  /** Facet properties by GlobalId, as the facet engine writes them into the model (flat XR_<Facet>.<Field>). */
+  const facetMap = (): ReadonlyMap<string, Record<string, string | number | boolean>> => {
+    const out = new Map<string, Record<string, string | number | boolean>>();
+    const res = classify()?.facets?.results() ?? {};
+    for (const [gid, set] of Object.entries(res)) {
+      const flat = facetSetProperties(set) as Record<string, string | number | boolean>;
+      if (Object.keys(flat).length) out.set(gid, flat);
+    }
+    return out;
+  };
+  const facetCount = (): number => facetMap().size;
+
   const options = (r: SaveRequest = {}): SaveOptions => ({
     ...DEFAULT_SAVE_OPTIONS,
     includeReviewers: r.includeReviewers === true,
     includeCleanupMarks: r.includeCleanupMarks ?? ownedCleanup().size > 0,
     includeFourD: r.includeFourD ?? fourDCount() > 0,
+    includeFacets: r.includeFacets ?? facetCount() > 0,
     scope: r.scope ?? 'all',
     toolVersion: 'xray-viewer',
   });
@@ -263,6 +280,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
       cleanup: o.includeCleanupMarks ? ownedCleanup() : undefined,
       revision: revisionStates(),
       fourD: o.includeFourD ? fourDMap() : undefined,
+      facets: o.includeFacets ? facetMap() : undefined,
     });
     // With 4D included, each file also gets the IfcWorkSchedule of the 4D tab's accepted links (the entities `xray-4d link
     // --write-ifc` writes), so a viewer save carries the schedule too and never drops one written earlier.
@@ -733,7 +751,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
     private readonly back = el('div', 'xis-back', { hidden: '' });
     private readonly box = el('div', 'xis-box', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'xis-title' });
     private body = el('div');
-    private opts: { includeReviewers: boolean; includeCleanupMarks: boolean; includeFourD: boolean; scope: 'all' | 'reviewed' } = { includeReviewers: false, includeCleanupMarks: true, includeFourD: false, scope: 'all' };
+    private opts: { includeReviewers: boolean; includeCleanupMarks: boolean; includeFourD: boolean; includeFacets: boolean; scope: 'all' | 'reviewed' } = { includeReviewers: false, includeCleanupMarks: true, includeFourD: false, includeFacets: false, scope: 'all' };
     private message = '';
     private progress: { text: string; frac: number } | null = null;
     private readonly onKey = (ev: KeyboardEvent): void => {
@@ -756,7 +774,7 @@ export const ifcSavePlugin: AppPlugin = (() => {
     show(): void {
       // every opening starts with the safe choices: the reviewer box is never remembered
       const owned = ownedCleanup().size;
-      this.opts = { includeReviewers: false, includeCleanupMarks: owned > 0, includeFourD: fourDCount() > 0, scope: 'all' };
+      this.opts = { includeReviewers: false, includeCleanupMarks: owned > 0, includeFourD: fourDCount() > 0, includeFacets: facetCount() > 0, scope: 'all' };
       this.message = '';
       this.progress = null;
       this.back.hidden = false;
@@ -835,12 +853,17 @@ export const ifcSavePlugin: AppPlugin = (() => {
       const fourDBox = checkBox('Include 4D location, trade and zone', n4 > 0 ? `${plural(n4, 'element')} with accepted 4D assignments or schedule links get the property set Xray_4D, with the task codes in ActivityIds. Off: nothing from the 4D tab is written.` : 'No element has an accepted 4D assignment yet. Assign values in the 4D tab first.',
         this.opts.includeFourD && n4 > 0, (v) => { this.opts.includeFourD = v; }, n4 === 0);
       fourDBox.setAttribute('data-help-key', '4D tab/Save with 4D');
+      const nf = facetCount();
+      const facetBox = checkBox('Include classification facets', nf > 0 ? `${plural(nf, 'element')} with facet results get their XR_ sets (XR_Trade, XR_Placement, XR_Material, XR_Phase, XR_Orientation, XR_ClassRepair and others). Off: none are written.` : 'No facet results yet: run Classify with facets on first.',
+        this.opts.includeFacets && nf > 0, (v) => { this.opts.includeFacets = v; }, nf === 0);
+      facetBox.setAttribute('data-help-key', 'Save IFC/Include classification facets');
       body.append(
         checkBox('Include reviewer names and comments', 'Off: no name or comment is written. On: the name of who confirmed a label and the review comments go into the file.',
           this.opts.includeReviewers, (v) => { this.opts.includeReviewers = v; }),
         checkBox('Mark cleanup matches', owned > 0 ? `Nothing is removed. The ${plural(marks || owned, 'element')} that cleanup hid get Xray_Cleanup.FlaggedForRemoval.` : 'Cleanup has not hidden anything, so there is nothing to mark.',
           this.opts.includeCleanupMarks && owned > 0, (v) => { this.opts.includeCleanupMarks = v; }, owned === 0),
         fourDBox,
+        facetBox,
       );
       const pset = schema().psetName;
       if (pset.startsWith('Pset_')) body.append(el('p', 'xis-warn', undefined, `The property set name ${pset} starts with Pset_, which buildingSMART reserves; some checkers will flag it. It is written as given.`));

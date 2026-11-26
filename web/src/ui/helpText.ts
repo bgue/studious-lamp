@@ -5307,6 +5307,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Tick the box when you have accepted labels.',
     'Report: Limitations and extensions, 4D mapping',
   ),
+  'Save IFC/Include classification facets': h(
+    'The box adds the facet property sets to the saved IFC file: XR_Trade, XR_Placement, XR_Material, XR_Phase, XR_Orientation and XR_ClassRepair.',
+    'Other tools read who builds each element, where it sits, its material and its direction. Off: the file gets none of these sets.',
+    'Run Classify with facets on, then tick the box.',
+    'Report: Limitations and extensions, classification',
+  ),
   '4D tab/Section Schedule': h(
     'The section loads a P6 schedule file and shows what it holds.',
     'You see the project, the date of the last update and the number of activities.',
