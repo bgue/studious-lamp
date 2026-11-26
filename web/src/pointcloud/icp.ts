@@ -17,6 +17,7 @@
 //
 // Work runs in time slices (default 8 ms) with a yield between them, so the page stays responsive; cancellable.
 
+import { nextSliceMs } from './sliceBudget';
 import { apply, identity, mul, rotationY, translation } from './register';
 import type { Mat4 } from './register';
 
@@ -292,7 +293,7 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
         sliceStart = performance.now();
         // adaptive slice, as in deviation.ts: when the gap was long (a heavy frame was drawn in between), take a
         // longer slice so the work still makes progress; on a fast machine the gap is ~0 and slices stay short
-        slice = Math.min(250, Math.max(sliceMs, (sliceStart - end) * 0.5));
+        slice = nextSliceMs(sliceMs, sliceStart - end);
         if (run.isCancelled?.()) {
           cancelled = true;
           return false;

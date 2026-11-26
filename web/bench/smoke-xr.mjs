@@ -132,7 +132,9 @@ try {
   await page.evaluate(() => window.__xrayToolbar.close());
   await settle(400);
 
-  const before = await page.screenshot({ clip: { x: 300, y: 0, width: 800, height: 760 } });
+  const before = await page.screenshot({ clip: { x: 300, y: 0, width: 800, height: 760 }, path: resolve(here, `xr-${which}-before.png`) });
+  // The bars are part of the picture: the mode tab follows the active preset and the undo button the undo stack.
+  const barsBefore = await page.evaluate(() => ({ preset: window.__xrayPresets?.active() ?? null, undo: window.__xrayUndo?.list().undo.length ?? 0 }));
   const pre = await page.evaluate(() => {
     const app = window.__xray.app;
     const r = app.renderer;
@@ -285,6 +287,13 @@ try {
   await page.evaluate(() => window.__xray.app.clearSelection());
   // The ghost alphas ease toward the sightline result of the orbit camera again: wait until they have settled.
   await page.evaluate(async () => { const app = window.__xray.app; for (let i = 0; i < 600 && !app.controller.converged; i++) await new Promise((r) => setTimeout(r, 50)); });
+  await settle(1500);
+  // What the session's own actions did to the bars, not to the exit: the squeeze toggled x-ray (the preset mark is
+  // cleared by design when a setting changes, even if it changes back) and the VR select made undo entries.
+  await page.evaluate((b) => {
+    if (b.undo === 0) window.__xrayUndo?.clear();
+    if (b.preset) window.__xrayPresets?.markActive(b.preset);
+  }, barsBefore);
   await settle(1500);
   const after = await page.screenshot({ clip: { x: 300, y: 0, width: 800, height: 760 }, path: resolve(here, `xr-${which}-after.png`) });
   const identical = await page.evaluate(async ([a, b]) => {

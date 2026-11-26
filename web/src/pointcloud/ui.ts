@@ -88,11 +88,10 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
   put(row(open, remove));
   const status = statusLine(c.status);
   status.setAttribute('data-pc-status', '');
-  // The status line never shrinks while the drawer is open (and scrolls beyond 7 lines): a progress line shorter than
-  // the previous result would otherwise pull every control below it up, and Stop ICP would move under the pointer.
-  status.style.maxHeight = '8.4em';
+  // A fixed height (it scrolls beyond that, the full text is the title): a status that wraps to more or fewer lines while
+  // ICP runs must not move the controls below it, or Stop ICP would shift under the pointer.
+  status.style.height = '7em';
   status.style.overflowY = 'auto';
-  let statusMin = 0;
   put(status);
 
   put(section('Display'));
@@ -192,13 +191,7 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
 
   const refresh = (): void => {
     status.set(c.status);
-    if (root.isConnected) {
-      const h = status.offsetHeight;
-      if (h > statusMin) {
-        statusMin = h;
-        status.style.minHeight = `${h}px`;
-      }
-    }
+    status.title = c.status;
     for (const w of ws) w.update();
     const d = c.stats.deviation;
     result.textContent = d
