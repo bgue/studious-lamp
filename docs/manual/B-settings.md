@@ -66,8 +66,10 @@ the left edge) has one button per tool and each opens a drawer. Drawers and fold
 | Point clouds | **Scan** tool | Point cloud, Scan drawer | 12 |
 | Views, drawings, issues, PDF sheets | **Views** and **Issues** tabs of the left sidebar | Sidebar/Views tab, Views panel, Sidebar/Issues tab, Issues panel, Drawing toolbar, Sheet view | 13 to 17 |
 | Classification (discipline) | **Classification** tab of the right sidebar | Right sidebar, Classify drawer | 18 |
-| 4D mapping and schedule | **4D** tab | 4D tab | 24 to 28 |
-| Animation scripts | **Script** tab | Script tab | 23 |
+| Facets, concrete, Colour by, Confidence shading | **Classification** tab, **Facets** folder and Output section | Classify drawer | 18A, 18B |
+| By classification tree | **Model** tab of the left sidebar, switch **Model tree** or **By classification** | Model tree | 18A.2 |
+| 4D mapping and schedule | **4D** tab: film bar, then Map, Link, Film | 4D tab | 24 to 28, 27A |
+| Animation scripts | **Script** tab (with a Parameters form above Run) | Script tab | 23, 23A |
 | Revisions | Revision banner and walk | Revision banner, Revision walk | 20 |
 | Map under the model | Parameters tab | Map | 6 |
 | Keys and navigation style | **Keyboard** folder | Keyboard, Shortcut sheet, Shortcut editor, Command palette | 3.2, Appendix A |
@@ -75,6 +77,24 @@ the left edge) has one button per tool and each opens a drawer. Drawers and fold
 | Search | Top bar | Search bar | 7 |
 | Large files | **Large model** tool | Large model drawer | 2 |
 | All settings as a file | **Export / import** folder | Export / import | 29 |
+
+## Classification and 4D film choices
+
+These choices are not in the generated settings file. They live in the tabs and, for 4D, in the `.4d.json`.
+
+| Where | Choice | Values | Chapter |
+| --- | --- | --- | --- |
+| Classification > Facets | a switch for each facet, and **Concrete** | on (all on by default) | 18A, 18B |
+| Classification > Output | **Colour by** | Off, Discipline, Trade, Placement, Material, Phase, Orientation | 18A.3 |
+| Classification > Output | **Confidence shading** | on, off | 18A.3 |
+| Model > By classification | **Group by** | Construction, Ownership, Envelope, Standard (UniFormat II), Custom | 18A.2 |
+| Save IFC dialog | **Include classification facets** | on when there are facet results | 19.3 |
+| 4D > Film > Style | **Explode**, **Fade in (s)**, **Issues and drawings in the film**, **Camera per floor**, **Finale**, **Legend**, **Strip** | see 27.2 | 27 |
+| 4D > Film > Temporary works | rules, and **Show in the film** | on, off | 27A.1 |
+| Script tab | **Parameters** form for `param` lines | your values, this browser only | 23A.5 |
+
+The cover table of the concrete sets is a file, `classification/concrete-cover.json` (18B).
+
 
 ## Navigation style
 

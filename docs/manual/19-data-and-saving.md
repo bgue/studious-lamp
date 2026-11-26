@@ -87,6 +87,8 @@ You need the IFC file itself. A model opened from a sample or a `.glb` has no so
 4. Leave **Include reviewer names and comments** off unless you mean it. It is off every time you open the dialog.
 5. Click **Write**. Where the browser supports it you choose the destination and the file streams to disk. Otherwise it downloads.
 6. The result is `AC20-FZK-Haus.xray.ifc`. Open it in another IFC program and look for the property sets below.
+   If you classified with facets (chapter 18A), leave **Include classification facets** ticked and look for `XR_Trade` and `XR_Placement`
+   on a wall.
 
 To drop what cleanup hid (chapter 9): run cleanup, click **Hide matches**, then in the **Model cleanup** folder click **Save
 cleaned copy...**. The dialog first plans the removal and shows a report. Nothing is written until you press **Save cleaned copy**.
@@ -103,6 +105,7 @@ memory. Nothing leaves your computer.
 | Classification values | The property set of the schema (default `XR_Classification`) |
 | Review state | `Xray_Review`: status, unsure, confidence, who proposed it, when reviewed, commit id; after a revision walk also `RevisionStatus` and `RevisionBaseline` |
 | Cleanup marks | `Xray_Cleanup`: `FlaggedForRemoval`, the rules and the reason. Nothing is removed |
+| Classification facets | `XR_Trade`, `XR_Placement`, `XR_Material`, `XR_Phase`, `XR_Orientation`, `XR_ClassRepair` and the concrete sets (chapters 18A, 18B), if you tick the box |
 | 4D | `Xray_4D`: `Location`, `Trade`, `Zone` of accepted assignments, if you tick the box |
 
 The set names are `Xray_...` and not `Pset_...`, because the `Pset_` prefix belongs to buildingSMART. IFC2X3, IFC4 and IFC4X3 are
@@ -126,6 +129,9 @@ derived, and the name says so.
 - **Write**: all classified, or only reviewed.
 - **Include reviewer names and comments**: adds `ReviewedBy` and `Comment`. API keys, tokens and pictures have no way in, whatever
   you tick.
+- **Include classification facets**: on when Classify has facet results. Every classified element gets its `XR_` property sets, each
+  with `Code`, `Label`, `Confidence`, `Source`, `Model`, `NeedsReview` and its own fields. Numbers are written as real numbers.
+  `XR_ClassRepair` is only a suggestion: the element's IFC class is not changed.
 - **Mark cleanup matches**: marks what cleanup hid. Elements you hid by hand are not marked.
 - **Also write the classification** and **Remove walls even if a door or window stays**, on the cleaned copy.
 

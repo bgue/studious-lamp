@@ -234,7 +234,12 @@ It shows once for each version, in each browser.
 
 The card stays away on the very first start in a browser, and in packed pages, kiosk pages, embedded pages and pages in a
 frame. It also stays away when the browser blocks local storage. The text comes from `CHANGELOG.md`, the file at the root of
-the repository that lists every release.
+the repository that lists every release. It reads the newest section that has a release number. A section called "Unreleased"
+(changes not yet released) is never shown.
+
+Try it: press `Ctrl+Shift+K`, choose **What's new**, and read the list. Version 32 lists the classification facets, the concrete data, the By classification
+tree, scripts with decisions and loops, the temporary works and the director's new options, one line each. The colour legend, the schedule strip
+and the storyboard PDF are still "Unreleased" in `CHANGELOG.md`, so the card does not show them yet. Chapters 18A, 18B, 23A and 27A say how to use them.
 
 ## 3.7 Keyboard, command palette, cheat sheet
 

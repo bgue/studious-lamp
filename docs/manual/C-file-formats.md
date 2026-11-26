@@ -18,7 +18,8 @@ Several IFC files are **federated**: read as one model. Storeys with the same na
 element with the same GlobalId, class and bounds as an earlier one is skipped. The same GlobalId with a different shape is
 renamed `<GlobalId>~<n>`. IFC and glb cannot be mixed in one opening. Only what the reader can mesh is shown (see appendix F).
 
-`Save IFC` writes a block, marked by two comment lines, with the classification, review marks and 4D values. It replaces its own
+`Save IFC` writes a block, marked by two comment lines, with the classification, the classification facets (`XR_` property sets, if you tick
+**Include classification facets**), review marks and 4D values. It replaces its own
 block on the next save and never edits what was in the file. Reviewer names go in only if you tick the box that asks for them.
 
 ## Issues and drawings
@@ -51,6 +52,7 @@ The kind of file is taken from its first bytes, so a wrongly named file still op
 | --- | --- | --- | --- |
 | Primavera P6 export (`.xer`) | yes | no | The schedule. One at a time. |
 | 4D configuration (`.4d.json`, `xray-4d-config/1`) | yes | yes | How activity codes, user fields and WBS levels map to location, trade and zone. Dropping one on the viewer loads it as a configuration. |
+| Storyboard (`.pdf`) | no | yes, **Storyboard PDF** or `xray-4d storyboard` | Still frames of the film with date, week, running work and the legend (27A.2). It is a picture book, not a file you can read back. |
 | 4D plan (`xray-4d-plan/1`) | `xray-4d`, packed pages | `xray-4d plan` | What each element does at each date. Used by the player and by `xray-4d`. It also ends in `.4d.json`, like the configuration. The `schema` field tells them apart. |
 | LinkML dataset (JSON) | yes | yes | Assignments, activity links and ties, with their review state. See below. |
 | IFC 4D (`Xray_4D`, `IfcTask`) | yes | yes | Accepted values inside an IFC copy. |
@@ -64,6 +66,15 @@ The schema is `schema/linkml/xray_4d.yaml`. Two files are made from it: `xray_4d
 - Rows have a status: `proposed`, `accepted`, `rejected` or `superseded`. Only accepted rows drive the 4D plan and go into the IFC.
 - Schedule dates have no time zone (as P6 writes them). Record times (`created_at`, `reviewed_at`) have one.
 - `reviewed_by` is personal data. It stays in the dataset. It is never in a link or a packed page, and goes into the IFC only if you ask.
+
+The 4D configuration may hold `temporaryWorks` rules (scaffold, falsework, formwork; chapter 27A) and film style choices such as the finale and
+a saved view for each storey. Both are optional: older files work as before.
+
+## Changelog and What's new
+
+`CHANGELOG.md`, at the root of the source, lists what changed in each release, newest first, with a heading `vN - date` for each. It is plain
+text. The viewer carries it inside the page, shows the newest release once (3.6), and does not read it from anywhere else. A section named
+"Unreleased" holds changes not yet released and is never shown.
 
 ## Looks, views and sharing
 

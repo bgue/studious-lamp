@@ -170,7 +170,7 @@ The messages you will meet:
 
 ### Limits and gotchas
 
-- A loop over elements runs at most 500 elements. Narrow it with `where`.
+- A loop over elements runs at most 500 elements. Narrow it with `where`. A script of more than 20,000 statements is refused.
 - `hide ... fading over N seconds` takes N seconds, and the next line waits for it.
 - A `set` line for a number blends over the time. A switch or a text value changes at the end of the time.
 - A setting path is checked against this build when a model loads. A path from a newer build is skipped.
@@ -202,6 +202,12 @@ The full grammar is in `web/docs-features/animation-script-grammar.md`. This is 
 | `repeat for each set in sets` ... `end repeat` | Once per stored set; `it` is its name | n/a |
 | `put <number> into <name>` | Keep a number; `+ - * /` and brackets | instant |
 
+More statements, with short examples, are in chapter 23A: `if ... else`, `repeat while`, `repeat until`, `repeat with`, `repeat for each item`,
+`exit repeat`, `next repeat`, `on name ... end name` (handler), `function name ... return ... end name`, `show issues`, `hide issues`,
+`show drawings`, `hide drawings`, `fade new elements over N seconds`, `param name default value` and `use "Name"`. Expressions also read
+`there are`, `the count of`, facts such as `the name of it`, `property "Pset.Prop" of it`, text tests, lists and chunks, maths and
+`random(n)`.
+
 The 4D statements are used with a plan (chapter 27). A plan name is one the viewer knows: the 4D tab registers the plan it builds
 as `4d:<model name>`, and a packed page registers each plan by its file name (chapter 30).
 
@@ -226,4 +232,5 @@ resolves when playback starts. The modules in `src/anim/script/` use no DOM, no 
 
 ### See also
 
-Chapter 8 (queries, sets), chapter 21 (the player), chapter 22 (exporting a video), chapter 27 (4D films).
+Chapter 23A (decisions, handlers, text and lists, parameters), chapter 8 (queries, sets), chapter 21 (the player), chapter 22 (exporting a
+video), chapter 27 (4D films).
