@@ -1,9 +1,20 @@
 import { startTour, ui } from './lib.mjs';
 const tour = await startTour('tour-03-screen');
-const page = await tour.open('model=building');
-page.setDefaultTimeout(8000);
-console.log(JSON.stringify(await page.evaluate(() => window.__xray.app.controller.model.elements.map(e => [e.id, e.ifcClass, e.name, e.bounds.map(v=>+v.toFixed(1)).join(',')]))));
-await ui.tool(page, 'Measure').click();
-console.log('snap default', await page.locator('label.xt-check', { hasText: 'Snap' }).locator('input').isChecked());
-console.log(await ui.cam(page).then(c=>JSON.stringify(c)));
+const page = await tour.open('model=fzk-haus');
+page.setDefaultTimeout(10000);
+const win = await ui.clickElement(page, { cls: 'IfcWindow' });
+await ui.waitStill(page, 12000);
+const c0 = await ui.cam(page);
+console.log('c0', c0.p.map(v=>v.toFixed(1)).join(','));
+await ui.tab(page, 'Views');
+const nb = page.getByLabel('New view name'); await nb.fill('W'); console.log('count', await page.getByLabel('New view name').count(), await page.evaluate(()=>document.activeElement?.outerHTML.slice(0,120))); await page.keyboard.press('Enter');
+await page.waitForTimeout(800);
+console.log('saved', JSON.stringify(await page.evaluate(() => { const v = window.__xrayViews.get(window.__xrayViews.list()[0].name); return v ? (v.camera ?? v.state?.camera ?? Object.keys(v)) : null; })).slice(0, 400));
+const box = await page.locator('#c').boundingBox();
+await page.mouse.move(box.x + 700, box.y + 450); await page.mouse.down(); await page.mouse.move(box.x + 560, box.y + 420, { steps: 6 }); await page.mouse.up();
+await ui.waitStill(page, 8000);
+const c1 = await ui.cam(page);
+console.log('c1', c1.p.map(v=>v.toFixed(1)).join(','));
+await page.locator('#sidebar .vw-row .vw-name').first().click();
+for (let i=0;i<8;i++){ await page.waitForTimeout(1500); const c=await ui.cam(page); console.log(i, c.p.map(v=>v.toFixed(1)).join(',')); }
 await tour.finish();
