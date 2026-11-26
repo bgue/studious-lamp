@@ -182,7 +182,7 @@ export async function startTour(name) {
     },
 
     /**
-     * Draw labelled boxes over parts of the page for a picture (the screen map). items: [{ selector | rect, text, side?: 'top'|'bottom'|'left'|'right'|'inside' }].
+     * Draw labelled boxes over parts of the page for a picture (the screen map). items: [{ selector | rect, text, side?: 'top'|'bottom'|'left'|'right'|'inside', dx?, dy? }] (dx, dy move the label only).
      * `tour.unannotate(page)` removes them.
      */
     async annotate(page, items) {
@@ -205,7 +205,7 @@ export async function startTour(name) {
           tag.textContent = it.text;
           const side = it.side ?? 'inside';
           const pos = side === 'bottom' ? `left:${r.x}px;top:${r.y + r.height + 4}px` : side === 'top' ? `left:${r.x}px;top:${Math.max(0, r.y - 28)}px` : side === 'left' ? `right:${innerWidth - r.x + 4}px;top:${r.y}px` : side === 'right' ? `left:${r.x + r.width + 4}px;top:${r.y}px` : `left:${r.x + 6}px;top:${r.y + 6}px`;
-          tag.style.cssText = `position:absolute;${pos};background:#d1480f;color:#fff;padding:2px 8px;border-radius:4px;white-space:nowrap`;
+          tag.style.cssText = `transform:translate(${it.dx ?? 0}px,${it.dy ?? 0}px);position:absolute;${pos};background:#d1480f;color:#fff;padding:2px 8px;border-radius:4px;white-space:nowrap`;
           layer.append(box, tag);
         }
         document.body.appendChild(layer);

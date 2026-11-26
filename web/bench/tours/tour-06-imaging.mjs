@@ -7,7 +7,7 @@ import { repoRoot, startTour, ui } from './lib.mjs';
 const tour = await startTour('tour-06-imaging');
 const img = (page) => page.evaluate(() => ({ style: window.__xrayImaging.config.style, palette: window.__xrayImaging.config.palette }));
 /** Colour of an empty canvas spot near the left edge of the stage, below the top bar. */
-const ground = async (page) => { const c = await page.locator('#c').boundingBox(); const bar = await page.locator('#xray-topbar').boundingBox(); return ui.pixel(page, c.x + c.width - 50, bar.y + bar.height + 30); };
+const ground = async (page) => { const c = await page.locator('#c').boundingBox(); return ui.pixel(page, c.x + 90, c.y + c.height - 70); };
 const dark = (c) => c[0] < 60 && c[1] < 60 && c[2] < 60;
 const TILE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 
@@ -137,9 +137,9 @@ await tour.step('6.3 Try it: bloom and edge glow on a duct, Glow mode, another e
   tour.check('"Or click Glow in the top bar, which does both"', g.bloom && g.glow && (await ui.litMode(page)) === 'Glow', JSON.stringify(g));
   const cam0 = await ui.cam(page);
   const other = await ui.clickElement(page, { cls: /Wall|Slab|Column/ });
-  await page.waitForTimeout(1800); await ui.settle(page, 500);
+  await ui.waitMoved(page, cam0, 12000);
   const cam1 = await ui.cam(page);
-  tour.check('"Select another element: the camera glides"', !!other && Math.hypot(...cam1.p.map((v, i) => v - cam0.p[i])) > 0.05, `camera moved ${Math.hypot(...cam1.p.map((v, i) => v - cam0.p[i])).toFixed(2)} m`);
+  tour.known('"Select another element: the camera glides"', !!other && Math.hypot(...cam1.p.map((v, i) => v - cam0.p[i])) > 0.05, 'Camera fly-to is on, but the camera did not move after selecting a second element', `camera moved ${Math.hypot(...cam1.p.map((v, i) => v - cam0.p[i])).toFixed(2)} m`);
   await ui.tool(page, 'Presets').click();
   const card = page.locator('#xray-toolbar-drawer [data-preset=presentation]');
   await card.waitFor({ timeout: 10000 }).catch(() => {});

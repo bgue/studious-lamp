@@ -53,7 +53,7 @@ await tour.step('5.1 picture: ghosted, peeled with solid surroundings, behind-on
   await page.keyboard.press('f');
   await page.waitForTimeout(1500); await ui.settle(page, 800);
   await ui.park(page);
-  await page.keyboard.press('Shift+1'); await ui.settle(page, 1500);
+  await ui.settle(page, 1500); // Ghost is already lit at start; Shift+1 on a lit mode would switch to Solid
   const ghost = await tour.shot(page, { element: '#stage' });
   await page.keyboard.press('Shift+4'); await page.waitForTimeout(1500); await ui.settle(page, 1500);
   const peel = await tour.shot(page, { element: '#stage' });

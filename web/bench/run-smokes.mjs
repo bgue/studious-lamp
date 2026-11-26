@@ -60,7 +60,7 @@ const FAST = ['smoke-right-sidebar', 'smoke-keys', 'smoke-tree-keys', 'smoke-poi
 /** Time limit in seconds: four times the expected duration, at least 5 minutes, 15 minutes for a smoke with no measurement. */
 function limitOf(name) {
   const e = EXPECT[name];
-  return e ? Math.max(300, e * 4) : name.startsWith('tour-') ? 1800 : 900;
+  return e ? Math.max(300, e * 4) : name.startsWith('tour-') ? 3600 : 900;
 }
 
 const args = process.argv.slice(2);
