@@ -87,12 +87,24 @@ export interface LookInput {
   style: Pick<FourDStyle, 'unbuilt' | 'colours'>;
   /** Video seconds per plan ms around now (for the 0.6 s of video fade). */
   secPerMs: number;
+  /** The fade time in seconds of film (style.fadeIn, a `fadeDefault` cue); absent: the rule 10 % of the interval or 0.6 s. 0: at once. */
+  fadeS?: number | undefined;
 }
 
 const STATIC: Look = Object.freeze({ hidden: false, alpha: 1, tint: null, tintAmount: 0, glow: 0, until: -Infinity }) as Look;
 
-/** Length of a fade or flash in plan ms: 10 % of the interval, at most 0.6 s of video (and at least 1 ms). */
-export function fadeMs(from: number, to: number, secPerMs: number): number {
+/**
+ * Length of a fade or flash in plan ms. Default: 10 % of the interval, at most 0.6 s of video (and at least 1 ms). With `fadeS`
+ * (seconds of film): that long, but never longer than the interval itself; 0 is 1 ms, so the change is at once.
+ */
+export function fadeMs(from: number, to: number, secPerMs: number, fadeS?: number): number {
+  if (fadeS !== undefined && Number.isFinite(fadeS)) {
+    if (fadeS <= 0) return 1;
+    const len = to - from;
+    const v = secPerMs > 0 ? fadeS / secPerMs : Infinity;
+    const capped = Number.isFinite(len) && len > 0 ? Math.min(v, len) : v;
+    return Number.isFinite(capped) ? Math.max(1, capped) : 1;
+  }
   const byVideo = secPerMs > 0 ? FADE_VIDEO_S / secPerMs : Infinity;
   const len = to - from;
   const byInterval = Number.isFinite(len) && len > 0 ? len * FADE_FRACTION : Infinity;
@@ -111,9 +123,10 @@ export function lookFor(inp: LookInput): Look {
       return STATIC;
     case S_ACTIVE:
     case S_BEHIND: {
-      const f = fadeMs(inp.from, inp.to, inp.secPerMs);
+      const f = fadeMs(inp.from, inp.to, inp.secPerMs, inp.fadeS);
       const e = inp.t - inp.from;
-      const a = code === S_ACTIVE ? Math.min(1, Math.max(0.02, e / f)) : 1;
+      const instant = inp.fadeS !== undefined && inp.fadeS <= 0;
+      const a = code === S_ACTIVE && !instant ? Math.min(1, Math.max(0.02, e / f)) : 1;
       const critical = inp.task?.critical === true;
       const tint = code === S_BEHIND ? BEHIND_RGB : hex(tradeColour(inp.task?.trade, inp.style.colours));
       return {
@@ -122,19 +135,19 @@ export function lookFor(inp: LookInput): Look {
         tint,
         tintAmount: code === S_BEHIND ? TINT_BEHIND : TINT_ACTIVE,
         glow: critical ? 2 : 1,
-        until: code === S_ACTIVE ? inp.from + f : -Infinity,
+        until: code === S_ACTIVE && !instant ? inp.from + f : -Infinity,
       };
     }
     case S_REMOVED: {
-      const f = fadeMs(inp.from, inp.to, inp.secPerMs);
+      const f = fadeMs(inp.from, inp.to, inp.secPerMs, inp.fadeS);
       const e = inp.t - inp.from;
-      if (e >= f) return { ...STATIC, hidden: true };
+      if (e >= f || (inp.fadeS !== undefined && inp.fadeS <= 0)) return { ...STATIC, hidden: true };
       return { hidden: false, alpha: Math.max(0.02, 1 - e / f), tint: REMOVED_RGB, tintAmount: TINT_REMOVED, glow: 0, until: inp.from + f };
     }
     case S_AHEAD: {
-      const f = fadeMs(inp.from, inp.to, inp.secPerMs);
+      const f = fadeMs(inp.from, inp.to, inp.secPerMs, inp.fadeS);
       const e = inp.t - inp.from;
-      if (e >= f) return STATIC;
+      if (e >= f || (inp.fadeS !== undefined && inp.fadeS <= 0)) return STATIC;
       return { hidden: false, alpha: 1, tint: AHEAD_RGB, tintAmount: TINT_AHEAD * (1 - e / f), glow: 0, until: inp.from + f };
     }
     default:

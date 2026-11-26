@@ -83,7 +83,7 @@ try {
   await page.evaluate(() => window.__xray4dSchedule.open('schedule'));
   await page.waitForSelector('#dk-pane-4d .x4');
   const secs = await page.evaluate(() => [...document.querySelectorAll('#dk-pane-4d details[data-sec]')].map((d) => d.getAttribute('data-sec')));
-  check('the 4D tab keeps the mapping sections and adds Schedule, Configure, Link, Style and Play before Import / Export', ['values', 'assign', 'suggest', 'coverage', 'schedule', 'configure', 'link', 'style', 'play', 'io'].every((s, i) => secs[i] === s), secs.join());
+  check('the 4D tab keeps the mapping sections and adds Schedule, Configure, Link, Style, Temporary works and Play before Import / Export', ['values', 'assign', 'suggest', 'coverage', 'schedule', 'configure', 'link', 'style', 'tempworks', 'play', 'io'].every((s, i) => secs[i] === s), secs.join());
 
   // 1. load the schedule by the file input
   await page.setInputFiles('#dk-pane-4d input[data-x4=xer-input]', XER);
@@ -138,7 +138,7 @@ try {
   check('linking covers every element (100 %)', sumL.elements.linked === sumL.elements.considered && sumL.elements.considered === opened.n && sumL.elements.unlinked === 0 && sumL.elements.tied === 0, JSON.stringify(sumL.elements));
   await page.waitForFunction(() => /Elements/.test(document.querySelector('#dk-pane-4d [data-x4=link-coverage]')?.textContent ?? ''));
   const covText = await page.locator('#dk-pane-4d [data-x4=link-coverage]').innerText();
-  check('the coverage is drawn with elements and activities', /Elements/.test(covText) && /100 %/.test(covText) && /Activities/.test(covText), covText.replace(/\s+/g, ' ').slice(0, 200));
+  check('the coverage is drawn with elements and activities', /Elements/.test(covText) && /100 %/.test(covText) && /activities/i.test(covText), covText.replace(/\s+/g, ' ').slice(0, 200));
   const popup = page.waitForEvent('popup');
   await page.locator('#dk-pane-4d button', { hasText: 'Open report' }).click();
   const rp = await popup;
@@ -161,7 +161,9 @@ try {
   await page.locator('#dk-pane-4d [data-x4=unlinked-groups] button', { hasText: 'Select' }).first().click();
   const gsel = await page.evaluate(() => window.__xray.app.selection.length);
   check('a group of the list selects its elements by its query', gsel > 0 && gsel <= wantWin && g0.includes(String(gsel)), `${gsel} of ${g0.replace(/\s+/g, ' ')}`);
-  check('activities without elements are listed', gap.noEl > 0 && (await page.locator('#dk-pane-4d [data-x4=unlinked-activities] summary').count()) === 1, `${gap.noEl}`);
+  // The Link step lists the open gaps and, apart, the activities marked "not modelled" (the sample marks 25).
+  const actLists = await page.locator('#dk-pane-4d [data-x4=unlinked-activities] summary').allInnerTexts();
+  check('activities without elements are listed: the open gaps and "Not in the model"', gap.noEl > 0 && actLists.length >= 1 && actLists.length <= 2 && (actLists.some((t) => /Not in the model \(\d+\)/.test(t)) || actLists.some((t) => /without elements/.test(t))), `${gap.noEl}: ${actLists.join(' | ')}`);
   await page.locator('#dk-pane-4d [data-trade="WINDOWS"] input[type=text]').fill(SAMPLE.tradeQueries.WINDOWS);
   await page.locator('#dk-pane-4d [data-trade="WINDOWS"] input[type=text]').press('Enter');
   await page.locator('#dk-pane-4d button', { hasText: 'Link schedule' }).click();
@@ -214,6 +216,39 @@ try {
   await page.locator('#dk-pane-4d input[data-style=labels]').press('Enter');
   const sty = await page.evaluate(() => window.__xray4dSchedule.config().style);
   check('the style controls change the configuration', sty.unbuilt === 'ghost' && sty.window.kind === 'lookahead' && sty.window.weeks === 8 && sty.pace === 'fixed' && sty.explode === 'off' && sty.labels === 2, JSON.stringify(sty).slice(0, 200));
+  // temporary works: the rules section of the Film step, edits go into the configuration and the .4d.json
+  await page.locator('#dk-pane-4d [data-sec=tempworks] > summary').click();
+  const tw0 = await page.evaluate(() => ({ rules: document.querySelectorAll('#dk-pane-4d [data-x4=temp-rules] [data-rule]').length, show: document.querySelector('#dk-pane-4d [data-tw=show]')?.checked }));
+  check('Temporary works: the section lists the rules of the config (the six of the sample) and shows the layer toggle on', tw0.rules === 6 && tw0.show === true, JSON.stringify(tw0));
+  await page.locator('#dk-pane-4d select[data-tw=add-kind]').selectOption('falsework');
+  await page.locator('#dk-pane-4d button[data-tw=add]').click();
+  await page.locator('#dk-pane-4d [data-x4=temp-rules] input[aria-label="Rule 7 for"]').fill("class = 'IfcSlab'");
+  await page.locator('#dk-pane-4d [data-x4=temp-rules] input[aria-label="Rule 7 for"]').press('Enter');
+  await page.locator('#dk-pane-4d [data-x4=temp-rules] input[aria-label="Rule 7 strike days after"]').fill('10');
+  await page.locator('#dk-pane-4d [data-x4=temp-rules] input[aria-label="Rule 7 strike days after"]').press('Enter');
+  const twc = await page.evaluate(() => ({ cfg: window.__xray4dSchedule.config().temporaryWorks, file: JSON.parse(window.__xray4dSchedule.exportConfig()).temporaryWorks, rows: document.querySelectorAll('#dk-pane-4d [data-x4=temp-rules] [data-rule]').length }));
+  check('Temporary works: Add rule and the edits change the configuration, which the .4d.json carries', twc.cfg?.version === 1 && twc.cfg.rules.length === 7 && twc.cfg.rules[6].kind === 'falsework' && twc.cfg.rules[6].for === "class = 'IfcSlab'" && twc.cfg.rules[6].strike?.daysAfter === 10 && twc.file?.rules?.length === 7 && twc.rows === 7, JSON.stringify(twc.cfg?.rules?.[6]));
+  await page.locator('#dk-pane-4d [data-x4=temp-rules] button', { hasText: 'Remove' }).last().click();
+  check('Temporary works: Remove takes the rule out again', await page.evaluate(() => window.__xray4dSchedule.config().temporaryWorks?.rules.length === 6));
+  // each floor apart, fade in and issues and drawings: the controls, the configuration and the file round trip
+  await page.locator('#dk-pane-4d select[data-style=explode]').selectOption('floor');
+  await page.locator('#dk-pane-4d input[data-style="fade auto"]').uncheck();
+  await page.locator('#dk-pane-4d input[data-style="fade in"]').fill('1.5');
+  await page.locator('#dk-pane-4d input[data-style="fade in"]').press('Enter');
+  await page.locator('#dk-pane-4d input[data-style="issues in film"]').check();
+  const styFloor = await page.evaluate(() => window.__xray4dSchedule.config().style);
+  check('Style: Each floor apart, Fade in (s) and Issues and drawings in the film change the configuration', styFloor.explode === 'floor' && styFloor.fadeIn === 1.5 && styFloor.issuesInFilm === true, JSON.stringify({ e: styFloor.explode, f: styFloor.fadeIn, i: styFloor.issuesInFilm }));
+  const file2 = await page.evaluate(() => window.__xray4dSchedule.exportConfig());
+  const fileStyle = JSON.parse(file2).style;
+  check('the .4d.json holds explode floor, fadeIn and issuesInFilm', fileStyle.explode === 'floor' && fileStyle.fadeIn === 1.5 && fileStyle.issuesInFilm === true, JSON.stringify({ e: fileStyle.explode, f: fileStyle.fadeIn, i: fileStyle.issuesInFilm }));
+  await page.locator('#dk-pane-4d input[data-style="fade auto"]').check();
+  await page.locator('#dk-pane-4d input[data-style="issues in film"]').uncheck();
+  const auto = await page.evaluate(() => window.__xray4dSchedule.config().style);
+  check('Fade in "Auto" removes the fade time again (the default rule)', auto.fadeIn === undefined && !auto.issuesInFilm, JSON.stringify({ f: auto.fadeIn }));
+  const back2 = await page.evaluate((t) => { const r = window.__xray4dSchedule.loadConfig(t); const c = window.__xray4dSchedule.config().style; return { ok: !!r.config, problems: r.problems.length, e: c.explode, f: c.fadeIn, i: c.issuesInFilm }; }, file2);
+  check('importing that file brings the three settings back', back2.ok && back2.problems === 0 && back2.e === 'floor' && back2.f === 1.5 && back2.i === true, JSON.stringify(back2));
+  await page.locator('#dk-pane-4d input[data-style="fade auto"]').check();
+  await page.locator('#dk-pane-4d input[data-style="issues in film"]').uncheck();
   await page.locator('#dk-pane-4d select[data-style=unbuilt]').selectOption('hidden');
   await page.locator('#dk-pane-4d select[data-style=window]').selectOption('all');
   await page.locator('#dk-pane-4d select[data-style=pace]').selectOption('warp');
@@ -224,8 +259,8 @@ try {
   await page.locator('#dk-pane-4d select[data-style="pace mode"]').selectOption('length');
   await page.locator('#dk-pane-4d input[data-style="pace value"]').fill('24');
   await page.locator('#dk-pane-4d input[data-style="pace value"]').press('Enter');
-  const sty2 = await page.evaluate(() => window.__xray4dSchedule.config().style);
-  check('the style goes back to the defaults with a film of 24 seconds', sty2.unbuilt === 'hidden' && sty2.window.kind === 'all' && sty2.view === 'planned' && sty2.length === 24 && sty2.daysPerSecond === undefined && sty2.camera === 'director', JSON.stringify(sty2).slice(0, 200));
+  const styB = await page.evaluate(() => window.__xray4dSchedule.config().style);
+  check('the style goes back to the defaults with a film of 24 seconds', styB.unbuilt === 'hidden' && styB.window.kind === 'all' && styB.view === 'planned' && styB.length === 24 && styB.daysPerSecond === undefined && styB.camera === 'director', JSON.stringify(styB).slice(0, 200));
   const tradeColours = await page.locator('#dk-pane-4d [data-x4=trade-colours] input[type=color]').count();
   check('trade colours are listed (from the mapping tool or the configuration)', tradeColours >= 5, `${tradeColours}`);
 
@@ -356,6 +391,8 @@ try {
   const smp = await sp.evaluate(() => ({ sum: window.__xray4dSchedule.summary(), cov: window.__xray4dSchedule.report().coverage.elements, tab: window.__xrayRightSidebar.state(), playOpen: document.querySelector('#dk-pane-4d details[data-sec=play]').open, plans: window.__xray4d.plans(), n: window.__xray.app.controller.model.elements.length }));
   check('FZK-Haus 4D loads the model, the sample schedule and configuration, and links every element', smp.sum.project === 'FZK-HAUS' && smp.cov.linked === smp.n && smp.cov.unlinked === 0, JSON.stringify(smp.cov));
   check('it leaves the 4D tab open on Play with the plan ready', smp.tab.tab === '4d' && !smp.tab.collapsed && smp.playOpen && smp.plans.some((p) => p.startsWith('4d:')), JSON.stringify(smp.tab));
+  const twS = await sp.evaluate(() => { const t = window.__xray4dSchedule.tempWorks(); return { rules: window.__xray4dSchedule.config().temporaryWorks?.rules.length, kinds: [...new Set(t.groups.map((g) => g.kind))].sort(), n: t.groups.length }; });
+  check('the sample carries temporary works rules and the plan has scaffold, falsework and formwork groups', twS.rules === 6 && twS.kinds.join() === 'falsework,formwork,scaffold' && twS.n === 6, JSON.stringify(twS));
   const nm = await sp.evaluate(() => ({ step: window.__xray4dSchedule.step(), tabs: [...document.querySelectorAll('#dk-pane-4d [role=tablist] [role=tab]')].map((t) => t.textContent), act: window.__xray4dSchedule.report().coverage.activities, status: document.querySelector('#dk-pane-4d [data-x4=film-status]')?.textContent, cfg: Object.values(window.__xray4dSchedule.config().activities ?? {}).filter((a) => a.notModelled).length }));
   check('the 4D tab shows three steps and starts a linked sample on Film', nm.tabs.length === 3 && /^1 Map/.test(nm.tabs[0]) && /^3 Film/.test(nm.tabs[2]) && nm.step === 'film', JSON.stringify(nm.tabs));
   check('the sample marks its 25 activities without elements as not in the model; coverage does not count them as a gap', nm.cfg === 25 && nm.act.notModelled === 25 && nm.act.unlinked === 0 && nm.act.total === 15 && /15 of 15 modelled activities have elements . 25 not in the model/.test(nm.status ?? ''), JSON.stringify(nm.act) + ' ' + nm.status);

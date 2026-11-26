@@ -244,7 +244,10 @@ try {
   await settle(page, 200);
   check('arrow: Esc cancels the box (nothing selected, box hidden)', (await selSize(page)) === 0 && (await page.evaluate(() => getComputedStyle(document.getElementById('xray-boxselect')).display === 'none')));
 
-  // Shift adds
+  // Shift adds. Frame the whole model first: earlier drags move the orbit centre (orbits turn around the point grabbed), so the
+  // corner the second box covers could otherwise be empty.
+  await page.keyboard.press('Home');
+  await settle(page, 800);
   await page.mouse.move(bx0, by0);
   await page.mouse.down();
   await page.mouse.move(bx1, by1, { steps: 5 });
@@ -259,7 +262,14 @@ try {
   await page.keyboard.up('Shift');
   await settle(page, 300);
   const a2 = await selSize(page);
-  check('arrow: Shift adds a second box to the selection', a1 > 0 && a2 > a1, `${a1} -> ${a2}`);
+  const boxDiag = await page.evaluate(([x0, y0, x1, y1]) => {
+    const cb = window.__xray.app.canvas.getBoundingClientRect();
+    const rect = { x0: x0 - cb.left, y0: y0 - cb.top, x1: x1 - cb.left, y1: y1 - cb.top };
+    const ids = window.__xrayPointer?.pick?.(rect, 'crossing') ?? null;
+    const sel = new Set(window.__xray.app.selection);
+    return { picked: ids?.length ?? null, newOnes: ids ? ids.filter((i) => !sel.has(i)).length : null, mode: window.__xrayPointer?.mode, walking: !!document.getElementById('xray-walk-chip')?.offsetParent, cam: window.__xray.renderer.camera.position.toArray().map((v) => +v.toFixed(2)) };
+  }, [cb.x + cb.width * 0.97, cb.y + cb.height * 0.97, cb.x + cb.width * 0.7, cb.y + cb.height * 0.2]);
+  check('arrow: Shift adds a second box to the selection', a1 > 0 && a2 > a1, `${a1} -> ${a2} ${JSON.stringify(boxDiag)}`);
 
   // hidden elements are not picked
   const hiddenCheck = await page.evaluate(() => {

@@ -1,0 +1,25 @@
+{
+  "version": "xr-concrete-cover/1",
+  "unit": "mm",
+  "note": "Typical nominal cover (outermost reinforcement) for a 50 year design life. Edit to the project's national annex and specification. Used only when the IFC model carries no cover; every value taken from here is marked for review.",
+  "en": {
+    "exposure": {
+      "X0": 20, "XC1": 25, "XC2": 35, "XC3": 35, "XC4": 40,
+      "XD1": 45, "XD2": 50, "XD3": 55, "XS1": 45, "XS2": 50, "XS3": 55,
+      "XF1": 35, "XF2": 40, "XF3": 40, "XF4": 45, "XA1": 35, "XA2": 40, "XA3": 45
+    },
+    "roleMinimum": {
+      "PAD_FOOTING": 50, "STRIP_FOOTING": 50, "RAFT": 50, "PILE_CAP": 50, "GRADE_BEAM": 50, "PLINTH": 50, "PILE": 60, "SLAB_ON_GRADE": 40, "BASEMENT_WALL": 40, "RETAINING_WALL": 40
+    },
+    "mainBarExtra": {
+      "BEAM": 10, "DOWNSTAND_BEAM": 10, "UPSTAND_BEAM": 10, "TRANSFER_BEAM": 10, "GRADE_BEAM": 10, "COLUMN": 10, "PIER": 10, "PILE": 10, "PLINTH": 10
+    },
+    "defaultExposure": "XC1"
+  },
+  "aci": {
+    "ground": 75,
+    "weather": 50,
+    "interior": 40,
+    "interiorSlabWall": 20
+  }
+}

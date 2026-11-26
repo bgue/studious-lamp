@@ -2,6 +2,8 @@
 // Rows are virtual: the accessors read the ElementRecord directly, so building the table costs one pass for the
 // storey lookup and one for the property keys, and a query allocates nothing per element.
 
+import { FACET_IDS } from '../classify/facets/defs';
+import { CONCRETE_FACET_IDS } from '../classify/concrete/defs';
 import type { ElementRecord, SceneModel } from '../types';
 import type { Accessor, QueryTable } from './compile';
 import type { Value } from './parser';
@@ -54,6 +56,9 @@ const ALIASES: Record<string, string> = {
   guid: 'globalId',
   elevation: 'storeyElevation',
 };
+
+/** Bare facet names (`trade`, `phase`, `placement`, `orientation`, `classrepair`) stand for the code of the facet: `XR_Trade.Code`. `material` stays the core IFC material column. */
+const FACET_CODE_ALIAS = new Map<string, string>([...FACET_IDS, ...CONCRETE_FACET_IDS].map((f) => [f.toLowerCase(), `XR_${f}.Code`]));
 
 const CORE_BY_LOWER = new Map<string, string>(CORE_COLUMNS.map(([n]) => [n.toLowerCase(), n]));
 
@@ -108,6 +113,11 @@ export class ModelTable implements QueryTable {
         this.propShort.set(short, this.propShort.has(short) ? null : k);
       }
     }
+    // The facet sets repeat Confidence, Source, NeedsReview: a bare name that more than one set has stays the discipline's (XR_Classification.<name>).
+    for (const [short, key] of this.propShort) {
+      if (key !== null) continue;
+      for (const k of this.propCount.keys()) if (k.startsWith('XR_Classification.') && k.slice(18).toLowerCase() === short) this.propShort.set(short, k);
+    }
   }
 
   /** Element id of a row. */
@@ -136,6 +146,9 @@ export class ModelTable implements QueryTable {
     if (core) return core;
     if (this.propCount.has(name)) return name;
     const l = name.toLowerCase();
+    // `Trade` is the facet's code when the model has the facet written (XR_Trade.Code).
+    const facet = FACET_CODE_ALIAS.get(l);
+    if (facet && this.propCount.has(facet)) return facet;
     // A bare property name finds the property when only one set has it: `discipline` for `XR_Classification.Discipline`.
     return this.propLower.get(l) ?? this.propShort.get(l) ?? null;
   }

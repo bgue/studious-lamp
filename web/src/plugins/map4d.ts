@@ -22,6 +22,8 @@ import type { PanelHandle } from '../map4d/panel';
 import type { Target } from '../map4d/targets';
 import type { Assignment, AttributeKind, FourDConfig, FourDLinks, FourDPlan, ReviewStatus } from '../schedule/types';
 import type { LinkReport } from '../schedule/report';
+import { getTempWorksLayer } from '../anim/fourd/tempWorksLayer';
+import type { TempWorksLayer } from '../anim/fourd/tempWorksLayer';
 import { addRightSidebarTab } from './rightSidebar';
 import type { RightTabHandle } from './rightSidebar';
 
@@ -75,6 +77,9 @@ export interface Schedule4dApi {
   /** Jump to a schedule date (plan time, ms). */
   seekDate(planMs: number): Promise<boolean>;
   record(): Promise<PlayResult>;
+  /** The storyboard PDF (stills of the film at weekly dates in a grid). `download: false` keeps the file (read lastStoryboard). */
+  storyboard(o?: { every?: string; page?: 'A3' | 'A4'; cols?: number; download?: boolean }): Promise<PlayResult & { pages?: number; frames?: number; bytes?: number }>;
+  readonly lastStoryboard: { pages: number; frames: number; bytes: number; name: string } | null;
   /** Make the film a script: build the plan as Play does, run the camera director, register the plan by the schedule's name and open the Script tab with the text (unsaved). */
   openAsScript(): Promise<PlayResult & { name?: string; lines?: number }>;
   /** GlobalId -> comma-separated task codes of the accepted build links (what Save IFC writes as Xray_4D.ActivityIds). */
@@ -89,6 +94,8 @@ export interface Schedule4dApi {
   step(id?: 'map' | 'link' | 'film'): 'map' | 'link' | 'film' | null;
   /** Mark activities as not in the model (or clear the mark): kept with the configuration. */
   markNotModelled(codes: string[], on?: boolean): void;
+  /** The temporary works layer of the film: its visibility, the groups of the plan, their state now (phase, progress, pieces shown) and the label of the piece under a point (NDC). */
+  tempWorks(set?: { visible?: boolean }): { visible: boolean; groups: NonNullable<FourDPlan['temporaryWorks']>['groups']; state: ReturnType<TempWorksLayer['state']>; pick(ndcX: number, ndcY: number): string | null };
   ready(): Promise<void>;
   flush(): Promise<boolean>;
   reset(): void;
@@ -160,6 +167,8 @@ export const map4dPlugin: AppPlugin = (() => {
         stop: () => sc.stopPlay(),
         seekDate: (ms) => sc.seekDate(ms),
         record: () => sc.record(),
+        storyboard: async (o) => { const { data: _d, ...r } = await sc.storyboard(o); return r; },
+        get lastStoryboard() { return sc.lastStoryboard; },
         openAsScript: () => sc.openAsScript(),
         activityIds: () => sc.activityIds(),
         workSchedule: (ids) => sc.workSchedule(ids),
@@ -167,6 +176,11 @@ export const map4dPlugin: AppPlugin = (() => {
         open,
         step: (id) => panel?.showStep(id) ?? null,
         markNotModelled: (codes, on = true) => sc.markNotModelled(codes, on),
+        tempWorks: (set) => {
+          const l = getTempWorksLayer(app);
+          if (set?.visible !== undefined) { l.setVisible(set.visible); panel?.render(); }
+          return { visible: l.visible, groups: sc.plan?.temporaryWorks?.groups ?? [], state: l.state(), pick: (x, y) => l.describeAt(x, y) };
+        },
         ready: () => sc.ready(),
         flush: () => sc.flush(),
         reset: () => sc.reset(),

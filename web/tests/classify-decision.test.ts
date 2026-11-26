@@ -16,7 +16,7 @@ import {
 import type { CacheStorageLike, DecisionOptions, GpuProbe, TransformersModule } from '../src/classify/providers/decision';
 import { MemoryStorage } from '../src/selectionSets';
 import * as fake from '../bench/fake-transformers.mjs';
-import { jsonResponse, sidecarModel } from './classify-helpers';
+import { jsonResponse, offFacets, sidecarModel } from './classify-helpers';
 
 const lib = fake as unknown as TransformersModule;
 const SIGNAL = new AbortController().signal;
@@ -639,7 +639,7 @@ describe('the service with the decision provider', () => {
   it('classifies synth5k with the rules off, one decision per signature, and counts the passes', async () => {
     fake.__reset();
     const svc = service();
-    svc.setModel(sidecarModel('synth5k'), 'synth5k');
+    svc.setModel(sidecarModel('synth5k'), 'synth5k'); offFacets(svc);
     svc.patch({ provider: 'decision' });
     const r = await svc.classify('all', { rules: false });
     expect(r).toHaveLength(5000);

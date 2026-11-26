@@ -90,6 +90,20 @@ describe('collision maths', () => {
     expect(collideMove(new Vector3(), new Vector3(0.1, 0, 0), slab).x).toBeCloseTo(0.1);
     expect(collideMove(new Vector3(), new Vector3(0.1, 0, 0), wallAt(0.45)).x).toBeCloseTo(0.1);
   });
+  it('in a corner the slide along one wall does not run through the other', () => {
+    // Walls at x = 0.6 (normal -x) and z = -0.6 (normal +z); the walker at the origin moves diagonally into the corner.
+    const corner = (o: Vector3, d: Vector3, max: number) => {
+      const hits: Array<{ distance: number; normal: { x: number; y: number; z: number } }> = [];
+      if (d.x > 1e-9) { const t = (0.6 - o.x) / d.x; if (t >= 0 && t <= max) hits.push({ distance: t, normal: { x: -1, y: 0, z: 0 } }); }
+      if (d.z < -1e-9) { const t = (-0.6 - o.z) / d.z; if (t >= 0 && t <= max) hits.push({ distance: t, normal: { x: 0, y: 0, z: 1 } }); }
+      hits.sort((a, b) => a.distance - b.distance);
+      return hits[0] ?? null;
+    };
+    const eye = new Vector3(0, 1.6, 0);
+    for (let i = 0; i < 40; i++) eye.add(collideMove(eye, new Vector3(0.2, 0, -0.1), corner));
+    expect(eye.x).toBeLessThanOrEqual(0.6 - 0.3 + 1e-6);
+    expect(eye.z).toBeGreaterThanOrEqual(-0.6 + 0.3 - 1e-6);
+  });
   it('keeps the vertical part of the move', () => {
     expect(collideMove(new Vector3(), new Vector3(0.5, 0.2, 0), wallAt(0.6)).y).toBe(0.2);
   });

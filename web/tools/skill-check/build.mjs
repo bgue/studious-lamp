@@ -14,15 +14,21 @@ const lib = readFileSync(join(tmp, 'check.mjs'), 'utf8');
 rmSync(tmp, { recursive: true, force: true });
 const cli = `
 // ---- CLI
-import { readFileSync as __read } from 'node:fs';
+import { readFileSync as __read, readdirSync as __dir } from 'node:fs';
+import { dirname as __dirname, join as __join } from 'node:path';
 const __args = process.argv.slice(2);
 if (!__args.length || __args.includes('--help')) {
-  console.log('usage: node xrayanim_check.mjs film.xrayanim [--plan NAME=plan.4d.json ...]\\nCompiles the script with the X-ray viewer\\'s compiler; prints JSON {ok, errors, cues, duration, kinds}; exit 1 on errors.');
+  console.log('usage: node xrayanim_check.mjs film.xrayanim [--plan NAME=plan.4d.json ...] [--param name=value ...]\\nuse "Name" lines are resolved against NAME.xrayanim files next to the script. Compiles the script with the X-ray viewer\\'s compiler; prints JSON {ok, errors, cues, duration, kinds}; exit 1 on errors.');
   process.exit(__args.length ? 0 : 2);
 }
 const __plans = {};
 for (let i = 1; i < __args.length; i++) if (__args[i] === '--plan') { const [n, p] = __args[++i].split('='); __plans[n] = JSON.parse(__read(p, 'utf8')); }
-const __r = check(__read(__args[0], 'utf8'), __plans);
+const __params = {};
+for (let i = 1; i < __args.length; i++) if (__args[i] === '--param') { const v = __args[++i]; const e = v.indexOf('='); __params[v.slice(0, e)] = v.slice(e + 1); }
+const __folder = __dirname(__args[0]);
+const __libs = () => __dir(__folder).filter((f) => /\\.xrayanim$/i.test(f)).map((f) => f.replace(/\\.xrayanim$/i, ''));
+const __library = (n) => { const hit = __libs().find((f) => f.toLowerCase() === n.trim().toLowerCase()); return hit ? __read(__join(__folder, hit + '.xrayanim'), 'utf8') : null; };
+const __r = check(__read(__args[0], 'utf8'), __plans, { params: __params, library: __library, libraryNames: __libs });
 console.log(JSON.stringify(__r, null, 2));
 process.exit(__r.ok ? 0 : 1);
 `;

@@ -33,6 +33,9 @@ export interface SaveOptions {
   includeCleanupMarks: boolean;
   /** Write Xray_4D (Location, Trade, Zone, ActivityIds) for the elements that have accepted 4D assignments. Default false. */
   includeFourD?: boolean;
+  /** Write the classification facet sets (XR_Trade, XR_Placement, XR_Material, XR_Phase, XR_Orientation, XR_ClassRepair, and any
+   *  other XR_<Facet> set the facet engine produces) for the elements that have facet results. Default false. */
+  includeFacets?: boolean;
   scope: 'all' | 'reviewed';
   /** Goes into the block comment. Default "dev". */
   toolVersion?: string;
@@ -68,6 +71,8 @@ export interface ElementSave {
   cleanup?: { rules: string[]; reasons: string[]; keptBecause?: string };
   /** Accepted 4D values (property names Location, Trade, Zone), only with `includeFourD`. */
   fourD?: FourDValues;
+  /** Facet properties as flat `XR_<Facet>.<Field>` names (`facetSetProperties`), only with `includeFacets`. */
+  facets?: Readonly<Record<string, string | number | boolean>>;
 }
 
 export interface FileSavePlan {
@@ -90,6 +95,8 @@ export interface SaveExtra {
   cleanup?: ReadonlyMap<string, { rules: string[]; reasons: string[]; keptBecause?: string }>;
   /** Accepted 4D assignments by GlobalId (used only when `includeFourD` is on). */
   fourD?: ReadonlyMap<string, FourDValues>;
+  /** Facet properties by GlobalId, flat `XR_<Facet>.<Field>` names (used only when `includeFacets` is on). */
+  facets?: ReadonlyMap<string, Readonly<Record<string, string | number | boolean>>>;
 }
 
 export class UnsupportedSchemaError extends Error {
@@ -130,8 +137,10 @@ export function planSave(
     const revision = extra.revision?.get(e.globalId);
     const fd = o.includeFourD ? extra.fourD?.get(e.globalId) : undefined;
     const fourD = fd && (fd.location || fd.trade || fd.zone || fd.activityIds) ? fd : undefined;
+    const fc = o.includeFacets ? extra.facets?.get(e.globalId) : undefined;
+    const facets = fc && Object.keys(fc).length ? fc : undefined;
     // Revision state belongs to the review set, which exists only for an element with a result.
-    if (!result && !cleanup && !fourD) continue;
+    if (!result && !cleanup && !fourD && !facets) continue;
     seen.add(key);
     const comment = extra.comments?.get(e.globalId);
     plan.elements.push({
@@ -142,6 +151,7 @@ export function planSave(
       ...(revision && result ? { revision } : {}),
       ...(cleanup ? { cleanup } : {}),
       ...(fourD ? { fourD } : {}),
+      ...(facets ? { facets } : {}),
     });
   }
   for (const p of plans) p.elements.sort((a, b) => a.expressId - b.expressId);

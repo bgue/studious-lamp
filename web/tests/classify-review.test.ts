@@ -9,7 +9,7 @@ import { makeManual, ResultStore } from '../src/classify/results';
 import { defaultSchema, schemaHash } from '../src/classify/schema';
 import { MemoryStorage } from '../src/selectionSets';
 import type { ClassifyResult } from '../src/classify/types';
-import { sidecarModel } from './classify-helpers';
+import { offFacets, sidecarModel } from './classify-helpers';
 
 import { overallConfidence as overallOf } from '../src/classify/review';
 
@@ -31,7 +31,7 @@ function make(opts: { storage?: MemoryStorage; persistence?: ReviewPersistence; 
   const svc = new ClassifyService({ storage: kv(storage), keyStorages: { session: kv(new MemoryStorage()), local: kv(new MemoryStorage()) }, reviewPersistence: persistence });
   const name = opts.model ?? 'process-plant';
   const model = sidecarModel(name);
-  svc.setModel(model, name);
+  svc.setModel(model, name); offFacets(svc);
   return { svc, storage, persistence, model, name };
 }
 

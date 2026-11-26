@@ -34,6 +34,10 @@ export interface Schedule4dRunnerOptions {
   cueDur: number;
   /** The x-ray focus changes at most this often, in video seconds (default 0.25). */
   focusEveryS?: number;
+  /** Fade time of what appears or disappears, seconds of film; absent: the plan's style, else the rule (10 % of the interval or 0.6 s). 0: at once. */
+  fadeIn?: number;
+  /** Temporary works drawn beside the model (scaffold, falsework, formwork): told the plan time every frame. */
+  tempWorks?: { update(planMs: number): void; reset(): void };
 }
 
 export type ScheduleSet = 'active' | 'completed' | 'critical' | 'future';
@@ -56,6 +60,11 @@ export class Schedule4dRunner implements CueRunner {
   private readonly focusEvery: number;
   private readonly cueDur: number;
   private disposed = false;
+  private readonly tempWorks: Schedule4dRunnerOptions['tempWorks'];
+  private fadeS: number | undefined;
+  /** The fade setting each element started its current state with (NaN: not seen yet), so a `fadeDefault` changes only what starts later. */
+  private readonly fadeOf: Float64Array;
+  private readonly lastCode: Int8Array;
 
   constructor(opts: Schedule4dRunnerOptions) {
     this.plan = opts.plan;
@@ -63,10 +72,19 @@ export class Schedule4dRunner implements CueRunner {
     this.sink = opts.sink;
     this.cueDur = opts.cueDur;
     this.focusEvery = opts.focusEveryS ?? 0.25;
+    this.fadeS = opts.fadeIn ?? opts.plan.style.fadeIn;
+    this.tempWorks = opts.tempWorks;
     this.evaluator = new PlanEvaluator(opts.plan);
     for (const t of opts.plan.tasks) this.tasks.set(t.code, t);
     this.hid = new Uint8Array(this.evaluator.n);
     this.activeFlag = new Uint8Array(this.evaluator.n);
+    this.fadeOf = new Float64Array(this.evaluator.n).fill(NaN);
+    this.lastCode = new Int8Array(this.evaluator.n).fill(-1);
+  }
+
+  /** A `fadeDefault` cue: activities that start from now on fade over this many seconds (0: at once). */
+  setFadeSeconds(s: number): void {
+    this.fadeS = s;
   }
 
   update(progress: number): void {
@@ -86,6 +104,7 @@ export class Schedule4dRunner implements CueRunner {
     }
     if (this.transient.size) for (const e of [...this.transient]) if (!seen.has(e)) this.apply(e, t, spm);
     this.updateFocus(p);
+    this.tempWorks?.update(t);
     this.sink.commit();
   }
 
@@ -95,6 +114,10 @@ export class Schedule4dRunner implements CueRunner {
     if (isActive !== this.activeFlag[e]) {
       this.activeFlag[e] = isActive;
       this.activeVersion++;
+    }
+    if (code !== this.lastCode[e]) {
+      this.lastCode[e] = code;
+      this.fadeOf[e] = this.fadeS ?? NaN;
     }
     const id = this.ids[e]!;
     if (id < 0) return;
@@ -107,6 +130,7 @@ export class Schedule4dRunner implements CueRunner {
       task: iv ? this.tasks.get(iv.task) : undefined,
       style: this.plan.style,
       secPerMs: spm,
+      fadeS: Number.isNaN(this.fadeOf[e]!) ? undefined : this.fadeOf[e]!,
     });
     if (look.until > t) this.transient.add(e);
     else this.transient.delete(e);
@@ -183,6 +207,7 @@ export class Schedule4dRunner implements CueRunner {
   restore(): void {
     this.disposed = true;
     this.transient.clear();
+    this.tempWorks?.reset();
     this.sink.reset();
   }
 
@@ -190,5 +215,6 @@ export class Schedule4dRunner implements CueRunner {
   abandon(): void {
     this.disposed = true;
     this.transient.clear();
+    this.tempWorks?.reset();
   }
 }

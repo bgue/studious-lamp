@@ -20,11 +20,20 @@ The score player plays a **4D plan** (`FourDPlan`, `src/schedule/types.ts`; desi
 | --- | --- |
 | `future` | hidden, or with `style.unbuilt: 'ghost'` a faint ghost (alpha 0.06) |
 | `existing` | visible, slightly desaturated (22 % toward grey) |
-| `active` | visible, fades in over the first 10 % of its interval or 0.6 s of video (the shorter), tinted 70 % in its trade colour, with edge glow. Critical task (`plan.tasks[].critical`): the glow is red |
+| `active` | visible, fades in over the fade time (below: by default the first 10 % of its interval or 0.6 s of video, the shorter), tinted 70 % in its trade colour, with edge glow. Critical task (`plan.tasks[].critical`): the glow is red |
 | `complete` | visible, own colour, no glow |
-| `removed` | fades out tinted red over the same time, then hidden |
+| `removed` | fades out tinted red over the fade time, then hidden |
 | `behind` | red tint (60 %), glow like active |
-| `ahead` | a green flash that fades over the same time |
+| `ahead` | a green flash that fades over the fade time |
+
+### Fade-in time
+
+How long a newly built element takes to fade in, and a removed one to fade out, in seconds of film:
+
+- **Default**: 10 % of the activity's interval or 0.6 s, the shorter.
+- **`style.fadeIn`** (seconds, in the 4D tab: Style > **Fade in (s)**, with **Auto** for the default): that many seconds, but never longer than the activity itself. 0 shows new parts and removes old ones at once (no fade and no green flash).
+- **`schedule4d.fadeIn`** (a field of the cue) wins over the style for that cue.
+- **`fadeDefault`** cue `{ seconds }` sets the fade time from that moment on: activities that start after it use it (an element that is already fading keeps the time it started with), and so do `visibility` cues without a duration (`dur: 0`), which then fade over `seconds` on the clock instead of switching at once. `seconds: 0` is at once. A seek replays the cues, so the picture never depends on how the time got there.
 
 Trade colours come from `style.colours` by trade, else a default palette by trade name (structure amber, steel blue, envelope cyan, services green, fit-out purple, and so on; unknown trades get a stable colour from a short list). The glow is the renderer's edge glow (`renderer.setEdgeGlow`, with an additive `accent` set for the red critical glow), and it takes over from the Cinematic edge glow while the film plays. With `style.xrayFocus` the **active elements are the x-ray focus**: they are selected quietly (no fly-to), which is what the sightlines make the focus from, and only when the active set changes and at most every 0.25 s of video. Hidden elements use the hides of the overrides, so the sightlines ignore elements that are not built yet; the sightlines re-run at most every 0.4 s on screen and every frame in a video export.
 
@@ -39,8 +48,17 @@ Trade colours come from `style.colours` by trade, else a default palette by trad
 | `tint` | `{ elements, colour }` fades the colour in over the cue (80 % toward it, with the cue's ease); `colour: null` fades the tint the elements have now out and removes it |
 | `explode` | `{ mode: 'storeys' \| 'radial', factor? }` moves every element, eased over the cue. `storeys` lifts each storey by `factor` times the median storey spacing of the model; `radial` pushes elements out from the model centre by `factor` times their distance. A second explode continues from where the building is |
 | `collapse` | eases the explode back to 0 and clears the offsets. The Cinematic explode of the user is not touched and writes its offsets again afterwards |
-| `focus` | `{ elements }` sets the x-ray focus (a quiet selection) once at the start; `null` gives it back to the selection as it was |
+| `focus` | `{ elements }` sets the x-ray focus (a quiet selection) once at the start; `null` gives it back to the selection as it was. While a `focus` on elements is held, the schedule's own follow-the-active-work focus waits; `focus { schedule: 'active' }` (or `null`) gives it back |
 | `sectionBox` | `{ around, margin? }` with `around` elements or `{ storey: 'Level 3' }` (by name) closes the section box in from the model (or from the box that is on) to the box around them plus the margin (default: the section tool's margin), eased over the cue; `around: null` opens it out to the model and switches it off at the end |
+
+| `overlays` | `{ issues?, drawings? }` shows or hides the issue pins and the drawings from this moment (see below) |
+| `fadeDefault` | `{ seconds }` the default fade for what appears or disappears from here on (see Fade-in time) |
+
+## Issues and drawings while a score plays
+
+Issue pins and drawings (the pins of the issues, the drawings on the model including the view-locked ones, the sketches of sheets in 3D) are review marks, not part of a film. **Whenever any score plays** (fly-through, script, 4D film, packed-page autoplay, `xray-4d render`, video export) they are hidden, and **put back exactly as they were** when playback ends or is stopped. The hiding is a CSS class on the page that hides the overlay layers (`bcf-markup`, `markup`, `sheet-sketches`), so nothing of the issue and drawing state is touched and nothing needs to be remembered; the pins and drawings keep their own on and off switches.
+
+Ways to change it, strongest first: an `overlays` cue switches them during playback (a field it does not name stays); `PlayOptions.overlays` (`{ issues?, drawings? }`) sets the state at the start; a 4D plan whose style has `issuesInFilm: true` (4D tab, Film step > Style > **Issues and drawings in the film**; part of the style, so it travels in the `.4d.json` and in the plan) keeps both; a fly-through can keep them with its own option (see [flythrough.md](flythrough.md)). The default is both hidden. The video export frames hold the 3D view and the HUD (the pins and drawings are not drawn into them); the export plays the same score, so the viewer behaves the same while it runs.
 
 ## HUD items
 
@@ -51,10 +69,13 @@ While a `schedule4d` cue runs the HUD layer draws, besides captions and labels:
   Activities marked `notModelled` in the configuration (work the model does not contain) have no elements and no row; while they run, one dim line under the rows reads `Also under way (not in the model): A, B +N more` (at most two names; `FourDView.notInModel`).
 - **S-curve** (top right, below the compass when it is on): planned progress over the whole window, actual progress up to the last actual sample, a marker for now.
 - **Milestone caption** (top centre): the plan's milestone names, held for `style.milestoneHold` seconds of video from the moment the film reaches them, with a short fade.
-- **Legend** (bottom left, above the progress bar): the trade colours of the work going on, `Critical` (red outline), and, when the plan has actuals, `Behind` and `Ahead`.
+- **Colour legend** (bottom left, above the strip; `src/anim/hud/legend.ts`, content in `src/anim/fourd/legend.ts`): the trade colours of the trades that appear in the film (at most 8, then `+N more`) and the state key: `Planned` (ghost view), `Active` (trade tint with a bright edge), `Built`, `Existing` and `Removed` (red) when the plan has them, `Critical` (red outline), `Behind` and `Ahead` in the variance view or when the plan has actuals, and the colours of temporary works when the plan carries them (`plan.temporary`: `{ colour, label? }` or a list of them). Fixed light-on-dark panel, so a video looks the same whatever the viewer theme. It wraps to the width it has (compact on a phone) and falls back to one run-on line when the top left is crowded.
+- **Schedule strip** (along the bottom, above the progress bar; `src/anim/hud/strip.ts`): a thin Gantt band over the film's date range. One row per trade (the 12 trades that start first, the others folded into one `Other` row), one bar per activity, critical activities with red edges, the running bars bright and the others dim, milestones as amber diamonds on a row of their own, the current date as a white marker with its label. The legend sits above it, so the two never overlap.
 - **Data-date mark** on the progress bar: an amber tick where the plan's `schedule.dataDate` sits in the film.
 
 The options are in the **On-screen display** block of the fly-through section of the Views tab (and in `HudSettings`, `src/anim/hud/settings.ts`): `scheduleDate`, `sCurve`, `activities`, `milestones` and `legend`, all on by default. They are saved with the other HUD options.
+
+The legend and the strip are also part of the film's **style** (they travel in the `.4d.json` and in the plan): `legend: 'on' | 'off'` and `strip: 'on' | 'off'`, both on when absent. Film step > Style has a switch for each; `xray-4d plan` and `xray-4d render` take `--legend on|off` and `--strip on|off`. The legend is drawn when both the HUD option and the style say on. Both are drawn by the HUD layer only while a `schedule4d` cue runs, so a plain fly-through never shows them; the video export and the packed page's autoplay use the same layer and show them. A storyboard PDF repeats the legend once per page: see [4d-storyboard.md](4d-storyboard.md).
 
 ## Showing it without a schedule: the demo plan
 

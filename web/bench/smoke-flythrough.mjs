@@ -468,6 +468,42 @@ async function main(browser) {
     return { n: window.__xrayFlythrough.buildFromViews(), names: window.__xrayFlythrough.keyframes().map((k) => k.name) };
   });
   check('build from saved views: one keyframe per saved view', views.n === 2 && views.names.join() === 'Va,Vb', JSON.stringify(views));
+  // ---------------------------------------------------------------- issue pins and drawings during a fly-through
+  await page.evaluate(() => {
+    const w = window.__xray.app.controller.model.elements.find((e) => e.globalId && /Wall/.test(e.ifcClass));
+    window.__xrayBcf.createTopic({ title: 'Smoke pin', globalIds: [w.globalId], snapshot: false });
+    window.__xrayIssues.open('issues');
+    window.__xrayMarkup.create('Smoke drawing');
+    window.__xrayMarkup.add({ kind: 'rect', fractions: { points: [[0.3, 0.3], [0.6, 0.55]], depth: 8 } });
+    window.__xrayFlythrough.setOptions({ timing: 'seconds', segmentS: 3 });
+  });
+  await page.waitForFunction(() => document.querySelector('svg.xray-svg-overlay g[data-layer="bcf-markup"]')?.childElementCount > 0 && document.querySelector('svg.xray-svg-overlay g[data-layer="markup"]')?.childElementCount > 0, null, { timeout: 60000 });
+  const ovl = () => page.evaluate(() => {
+    const q = (l) => { const g = document.querySelector(`svg.xray-svg-overlay g[data-layer="${l}"]`); return !!g && g.childElementCount > 0 && getComputedStyle(g).display !== 'none'; };
+    return { pins: q('bcf-markup'), drawings: q('markup'), cls: document.documentElement.className };
+  });
+  const o0 = await ovl();
+  await page.evaluate(() => window.__xrayFlythrough.play({}));
+  await page.waitForFunction(() => window.__xrayFlythrough.state().playing && window.__xrayFlythrough.state().time > 0.5, null, { timeout: 120000 });
+  const o1 = await ovl();
+  await page.evaluate(() => window.__xrayFlythrough.stop());
+  await sleep(page, 400);
+  const o2 = await ovl();
+  check('fly-through: the pins and the drawings are hidden while it plays and back after Stop', o0.pins && o0.drawings && !o1.pins && !o1.drawings && o2.pins && o2.drawings && o2.cls === o0.cls, JSON.stringify({ o0, o1, o2 }));
+  await page.evaluate(() => window.__xrayFlythrough.setOptions({ overlays: true }));
+  await sleep(page, 200);
+  const optOn = await page.evaluate(() => ({ chk: document.querySelector('.fl input[type=checkbox][data-help-key="Sidebar/Fly-through issues and drawings"]')?.checked, cue: window.__xrayFlythrough.compile().cues.some((c) => c.kind === 'overlays' && c.issues && c.drawings) }));
+  await page.evaluate(() => window.__xrayFlythrough.play({}));
+  await page.waitForFunction(() => window.__xrayFlythrough.state().playing && window.__xrayFlythrough.state().time > 0.5, null, { timeout: 120000 });
+  const o3 = await ovl();
+  await page.evaluate(() => window.__xrayFlythrough.stop());
+  await sleep(page, 400);
+  const o4 = await ovl();
+  check('fly-through: with the option "Issues and drawings" on (a checkbox in the settings, an overlays cue at 0) they stay during playback', optOn.chk === true && optOn.cue && o3.pins && o3.drawings && o4.pins && o4.drawings, JSON.stringify({ optOn, o3, o4 }));
+  await page.evaluate(() => window.__xrayFlythrough.setOptions({ overlays: false, segmentS: 1 }));
+  const kept = await page.evaluate(() => { const f = window.__xrayFlythrough; f.setOptions({ overlays: true }); const json = String(f.exportJson()); f.setOptions({ overlays: false }); return json.includes('"overlays":true'); });
+  check('fly-through: the option is saved with the fly-through (export JSON)', kept === true, String(kept));
+
   const rec = await page.evaluate(async () => {
     const cin = window.__cinematic;
     window.__xrayFlythrough.setOptions({ timing: 'seconds', segmentS: 1 });

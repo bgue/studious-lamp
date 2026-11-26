@@ -7,6 +7,8 @@ export interface ScriptExample {
   /** One line for the menu. */
   about: string;
   text: string;
+  /** A saved script the example `use`s: loading the example saves it under this name when there is none yet. */
+  library?: { name: string; text: string };
 }
 
 export const EXAMPLES: readonly ScriptExample[] = [
@@ -85,6 +87,54 @@ mode solid
 `,
   },
   {
+    id: 'floors',
+    title: 'Floor by floor',
+    about: 'A handler for each storey, called in a counting loop; a storey without walls is skipped (synth5k).',
+    text: `-- Floor by floor: one handler, called for each storey. A storey with no walls is skipped.
+-- (try it on the synth5k sample: its storeys are "Level 1" ... "Level 5")
+on showFloor name
+  if there are (where class = IfcWall and storey = name) then
+    show where storey = name fading over 0.5 seconds
+    fly to where storey = name over 2 seconds margin 2
+    caption name "Walls: " & the count of (where class = IfcWall and storey = name) for 2 seconds
+  end if
+end showFloor
+
+mode ghost
+hide everything
+fly to everything over 2 seconds
+repeat with i from 1 to 6
+  showFloor "Level " & i
+end repeat
+show everything fading over 1 seconds
+`,
+  },
+  {
+    id: 'pumpcount',
+    title: 'Count the pumps',
+    about: 'Decide by what the model holds: a function for the wording, an if for the story (process-plant).',
+    text: `-- Tell the story of the pumps. The script looks at the model when it compiles and picks what to show.
+function plural n
+  if n = 1 then return n & " pump"
+  return n & " pumps"
+end plural
+
+put the count of class IfcPump into pumps
+if pumps = 0 then
+  caption "No pumps" "This model has none" for 3 seconds
+else
+  mode ghost
+  caption "Pumps" "This model has " & plural(pumps) for 3 seconds
+  fly to class IfcPump over 3 seconds margin 2.5
+  select class IfcPump
+  if pumps > 1 then
+    orbit 90 degrees about class IfcPump over 4 seconds
+  end if
+  select nothing
+end if
+`,
+  },
+  {
     id: 'film4d',
     title: 'A 4D film: follow the work',
     about: 'Play a 4D plan, follow the active work, explode the storeys when it spreads, clip to one storey (needs a plan named "Demo").',
@@ -108,5 +158,59 @@ at date "2027-03-01"
   section box off over 1 seconds
   tint critical red fading over 1 seconds
 `,
+  },
+  {
+    id: 'firewalls',
+    title: 'Label the fire-rated walls',
+    about: 'Read a property of each wall, keep the ones whose rating contains a text, label them one by one.',
+    text: `-- Label the fire-rated walls. Try it on a model whose walls have Pset_WallCommon.FireRating (for example "EI 60").
+mode ghost
+put 0 into found
+repeat for each element in class IfcWall
+  put property "Pset_WallCommon.FireRating" of it into rating
+  if rating contains "60" or rating contains "90" then
+    put found + 1 into found
+    together
+      fly to it over 1.5 seconds margin 3
+      label it with name, "Pset_WallCommon.FireRating" for 2 seconds
+      caption the name of it && "is rated" && rating for 2 seconds
+    end together
+  end if
+  if found = 8 then exit repeat
+end repeat
+if found = 0 then
+  caption "No wall has a 60 or 90 minute rating" for 3 seconds
+else
+  caption found & " fire-rated walls shown" for 3 seconds
+end if
+`,
+  },
+  {
+    id: 'anyfloor',
+    title: 'One script, any floor',
+    about: 'A parameter picks the floor (change it in the Parameters form); the handlers come from the saved script "Floor helpers".',
+    text: `-- One script, any floor. Change the floor in the Parameters form above Run.
+-- The handlers live in the saved script "Floor helpers" (this example saves it for you).
+use "Floor helpers"
+param floor default "Level 1"
+param pause default 3
+mode ghost
+fly to where storey = floor over 3 seconds
+showFloor floor
+caption floorLabel(floor) for pause seconds
+`,
+    library: {
+      name: 'Floor helpers',
+      text: `-- Floor helpers: handlers and functions that other scripts pull in with: use "Floor helpers"
+on showFloor name
+  show where storey = name fading over 1 seconds
+  select where storey = name
+end showFloor
+
+function floorLabel name
+  return name & " (" & the count of (where storey = name) & " elements)"
+end floorLabel
+`,
+    },
   },
 ];

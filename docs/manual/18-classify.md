@@ -4,6 +4,9 @@ A model arrives with 20,000 elements and no trade on any of them. You need to kn
 which belong to the piping contractor. Doing that by hand takes days, and two people will draw the line in different places.
 A check, a quantity sum or a query that depends on the answer is only as good as the labels.
 
+This chapter covers the discipline and its review. The other questions (who builds it, is it outside, when is it built) are
+facets, chapter 18A. Concrete elements get extra data, chapter 18B.
+
 ## 18.1 Run rules and a decision model
 
 ### The idea
@@ -239,5 +242,5 @@ The repository ships a truth file for the Process plant (`models/Process-Plant.t
 
 ### See also
 
-Chapter 8 (queries over the classification properties), chapter 19 (writing results into the IFC), chapter 20 (carrying
+Chapter 18A (facets, the By classification tree, colour by facet), chapter 18B (concrete), chapter 8 (queries over the classification properties), chapter 19 (writing results into the IFC), chapter 20 (carrying
 decisions into a new model version).

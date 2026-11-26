@@ -60,7 +60,7 @@ export interface FlythroughApi {
   rename(key: string, name: string): void;
   duplicate(key: string): string | null;
   removeFlythrough(key: string): void;
-  setOptions(o: Partial<Pick<FlyThrough, 'timing' | 'speed' | 'segmentS' | 'lookAtSelection' | 'loop'>>): void;
+  setOptions(o: Partial<Pick<FlyThrough, 'timing' | 'speed' | 'segmentS' | 'lookAtSelection' | 'loop' | 'overlays'>>): void;
   /** Keyframes of the active fly-through (without the thumbnails and the params snapshots). */
   keyframes(): Array<{ id: string; name: string; travel: number; hold: number; ease: boolean; fade: boolean; fadeFraction: number; switchAt: string; caption?: { title?: string; text?: string }; labels?: { fields: string[] }; hover?: boolean; selection: number; hasThumb: boolean; camera: SavedView['camera'] }>;
   /** Add the current view (or a saved view by id or name) as a keyframe at the end or at `at`. */

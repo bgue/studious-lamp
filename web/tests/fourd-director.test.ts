@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { directFourD } from '../src/schedule/director';
+import { directFourD, finaleSeconds } from '../src/schedule/director';
 import type { DirectorResult } from '../src/schedule/director';
 import { scriptFromPlan } from '../src/schedule/directorScript';
 import { compileScript } from '../src/anim/script/compiler';
@@ -252,7 +252,10 @@ const file = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
 const schedule = parseXer(readFileSync(file('../public/samples/fzk-haus.xer')));
 const config = JSON.parse(readFileSync(file('../public/samples/fzk-haus.4d.json'), 'utf8')) as FourDConfig;
 const fzkModel = fromSidecar(JSON.parse(readFileSync(file('../public/models/fzk-haus.json'), 'utf8')), { identityKey: 'fzk-sample' });
-const fzkPlan = buildPlan(schedule, linkSchedule(schedule, fzkModel, config, []), fzkModel, config.style);
+const fzkLinks = linkSchedule(schedule, fzkModel, config, []);
+/** The sample as the sample ships it (each floor apart), and with the work-spread explode and the milestone beats. */
+const fzkFloorPlan = buildPlan(schedule, fzkLinks, fzkModel, config.style);
+const fzkPlan = buildPlan(schedule, fzkLinks, fzkModel, { ...config.style, explode: 'auto' });
 
 describe('director on the FZK-Haus sample', () => {
   const r = directFourD(fzkPlan, fzkModel);
@@ -290,7 +293,7 @@ describe('director on the FZK-Haus sample', () => {
 
   it('is deterministic and fits the film', () => {
     expect(JSON.stringify(directFourD(fzkPlan, fzkModel))).toBe(JSON.stringify(r));
-    for (const c of r.cues) expect(c.at + c.dur).toBeLessThanOrEqual(90 + 1e-6);
+    for (const c of r.cues) expect(c.at + c.dur).toBeLessThanOrEqual(90 + finaleSeconds(fzkPlan.style.finale) + 0.000001);
   });
 });
 

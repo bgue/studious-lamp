@@ -23,7 +23,7 @@ import { encodeViewShare, VIEW_EXCLUDED_SECTIONS } from '../src/views/model';
 import { buildBoot, injectTemplate, injectionScript, parseArgs, INJECT_BEGIN, INJECT_END } from '../tools/pack/lib.mjs';
 import { fakeApp } from './presets-helpers';
 import { capturePreset } from '../src/presets/engine';
-import { jsonResponse, sidecarModel } from './classify-helpers';
+import { jsonResponse, offFacets, sidecarModel } from './classify-helpers';
 
 const KEY = 'sk-live-ABCDEF-0123456789';
 const HF_TOKEN = 'hf_QWERTYUIOPasdfghjkl0123456789';
@@ -171,7 +171,7 @@ describe('the API key never leaves the key store', () => {
     }) as unknown as typeof fetch;
     const { svc, storage, k } = makeService({ fetchImpl, geometry: (id: number) => ({ id, legend: 'Geometry as SVG, metres.', svg: SVG_MARK, tokens: 50, neighbours: 0, views: [{ name: 'plan', svg: SVG_MARK }] }), thumbnails: async (id, st) => ({ id, settings: st, neighbours: [], note: PICTURE_NOTE, thumbs: [{ view: 'isolated', label: 'element alone', dataUrl: THUMB, width: st.size, height: st.size, scaleBarM: 1, neighbours: [] }] }) });
     const f = fakeApp();
-    svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
+    svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus'); offFacets(svc);
     svc.patch(PATCH[provider] as never);
     svc.keys.set(KEY, true); // even with "remember on this device"
     svc.hfToken.set(HF_TOKEN, true);
@@ -263,7 +263,7 @@ describe('the API key never leaves the key store', () => {
   it('Save IFC writes no key, token, picture or reviewer name unless the box is ticked, and keeps the source out of params, links and views', async () => {
     const { svc } = makeService();
     const f = fakeApp();
-    svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
+    svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus'); offFacets(svc);
     svc.keys.set(KEY, true);
     svc.hfToken.set(HF_TOKEN, true);
     svc.d3Key.set(D3_KEY, true);
@@ -337,7 +337,7 @@ describe('the service: properties, persistence, overrides', () => {
   it('writes the results as properties that the query engine and the search bar see', async () => {
     const { svc } = makeService();
     const m = sidecarModel('synth5k');
-    svc.setModel(m, 'synth5k');
+    svc.setModel(m, 'synth5k'); offFacets(svc);
     const before = modelTable(m);
     expect(before.resolve('discipline')).toBeNull();
     await svc.classify('all');
@@ -360,7 +360,7 @@ describe('the service: properties, persistence, overrides', () => {
   it('answers count and sum by discipline through the aggregate engine', async () => {
     const { svc } = makeService();
     const m = sidecarModel('synth5k');
-    svc.setModel(m, 'synth5k');
+    svc.setModel(m, 'synth5k'); offFacets(svc);
     await svc.classify('all');
     const { runAggregate } = await import('../src/query');
     const c = runAggregate(modelTable(m), "count where discipline = 'MEC'");
@@ -379,7 +379,7 @@ describe('the service: properties, persistence, overrides', () => {
   it('does not write properties when writePset is off, and removes them on clear', async () => {
     const { svc } = makeService();
     const m = sidecarModel('fzk-haus');
-    svc.setModel(m, 'fzk-haus');
+    svc.setModel(m, 'fzk-haus'); offFacets(svc);
     svc.patch({ writePset: false });
     await svc.classify('all');
     expect(freshTable(m).propKeys().some((k) => k.startsWith('XR_Classification.'))).toBe(false);
@@ -394,26 +394,26 @@ describe('the service: properties, persistence, overrides', () => {
     const storage = new MemoryStorage();
     const m = sidecarModel('fzk-haus');
     const a = makeService({ storage });
-    a.svc.setModel(m, 'fzk-haus');
+    a.svc.setModel(m, 'fzk-haus'); offFacets(a.svc);
     a.svc.patch({ provider: 'mock' });
     await a.svc.classify('all', { rules: false });
     const calls1 = a.svc.stats().calls;
     expect(calls1).toBeGreaterThan(0);
     // a new session with the same storage: no request
     const b = makeService({ storage });
-    b.svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
+    b.svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus'); offFacets(b.svc);
     b.svc.patch({ provider: 'mock' });
     await b.svc.classify('all', { rules: false });
     expect(b.svc.stats().calls).toBe(0);
     expect(b.svc.stats().bySource.cache).toBe(82);
     // another model name, another schema, another provider: separate caches
     const c = makeService({ storage });
-    c.svc.setModel(sidecarModel('fzk-haus'), 'other-model');
+    c.svc.setModel(sidecarModel('fzk-haus'), 'other-model'); offFacets(c.svc);
     c.svc.patch({ provider: 'mock' });
     await c.svc.classify('all', { rules: false });
     expect(c.svc.stats().calls).toBeGreaterThan(0);
     const d = makeService({ storage });
-    d.svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
+    d.svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus'); offFacets(d.svc);
     const custom = JSON.parse(JSON.stringify(defaultSchema()));
     custom.disciplines[0].description += ' (changed)';
     expect(d.svc.setSchema(custom)).toEqual([]);
@@ -430,7 +430,7 @@ describe('the service: properties, persistence, overrides', () => {
     const storage = new MemoryStorage();
     const m = sidecarModel('fzk-haus');
     const { svc } = makeService({ storage });
-    svc.setModel(m, 'fzk-haus');
+    svc.setModel(m, 'fzk-haus'); offFacets(svc);
     await svc.classify('all');
     const door = m.elements.find((e) => e.ifcClass === 'IfcDoor')!;
     const r = svc.override(door.globalId, { discipline: 'STR', subDiscipline: 'BRC', masterformat: '05' });
@@ -446,7 +446,7 @@ describe('the service: properties, persistence, overrides', () => {
     // after a reload with the same storage the override is back, and it still wins
     const again = makeService({ storage });
     const m2 = sidecarModel('fzk-haus');
-    again.svc.setModel(m2, 'fzk-haus');
+    again.svc.setModel(m2, 'fzk-haus'); offFacets(again.svc);
     expect(again.svc.results().map((x) => x.id)).toEqual([door.globalId]);
     await again.svc.classify('all');
     expect(again.svc.store.get(door.globalId)!.source).toBe('manual');
@@ -461,7 +461,7 @@ describe('the service: properties, persistence, overrides', () => {
   it('marks and selects needs-review elements and exports CSV and JSON', async () => {
     const { svc } = makeService();
     const m = sidecarModel('fzk-haus');
-    svc.setModel(m, 'fzk-haus');
+    svc.setModel(m, 'fzk-haus'); offFacets(svc);
     svc.patch({ provider: 'mock' });
     await svc.classify('all'); // the 42 IfcMember go to the mock model
     const nr = svc.needsReviewIds();
@@ -481,7 +481,7 @@ describe('the service: properties, persistence, overrides', () => {
   it('shows the exact payload through questions() and estimates the requests before a run', () => {
     const { svc } = makeService();
     const m = sidecarModel('synth5k');
-    svc.setModel(m, 'synth5k');
+    svc.setModel(m, 'synth5k'); offFacets(svc);
     const q = svc.questions(svc.buildInput(m.elements.find((e) => e.ifcClass === 'IfcPipeSegment')!.id)!);
     expect(q.model).toBe('jev-1.13.0');
     expect(q.main.questions).toEqual(mainQuestions(svc.schema));
@@ -510,7 +510,7 @@ describe('the service: properties, persistence, overrides', () => {
   it('uses a custom schema end to end: the questions, the pset name and the property names', async () => {
     const { svc } = makeService();
     const m = sidecarModel('fzk-haus');
-    svc.setModel(m, 'fzk-haus');
+    svc.setModel(m, 'fzk-haus'); offFacets(svc);
     const s = JSON.parse(JSON.stringify(defaultSchema()));
     s.psetName = 'Throughline_Class';
     s.properties = { discipline: 'Disc', subDiscipline: 'Sub' };

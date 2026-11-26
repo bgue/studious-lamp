@@ -8,6 +8,7 @@ export { fromSidecar } from '../../src/schedule/model';
 export { linkSchedule } from '../../src/schedule/link';
 export { buildReport, renderReportHtml } from '../../src/schedule/report';
 export { buildPlan } from '../../src/schedule/plan';
+export { parseTempWorks } from '../../src/schedule/tempworks';
 export { DEFAULT_STYLE } from '../../src/schedule/types';
 export { parseLocal, formatLocal, formatDate } from '../../src/schedule/planTime';
 export { buildWorkSchedule } from '../../src/ifcsave/workSchedule';
@@ -18,3 +19,6 @@ export type { FourDConfig, FourDLinks, FourDPlan, FourDStyle } from '../../src/s
 export { directFourD } from '../../src/schedule/director';
 export { scriptFromPlan } from '../../src/schedule/directorScript';
 export { compileScript } from '../../src/anim/script/compiler';
+// The storyboard (xray-4d storyboard): frame dates, captions, page layout and the PDF assembly (pdf-lib is handed in).
+export { parseEvery, planStoryboard, storyboardDates, captionAt, pageLayout, buildStoryboardPdf } from '../../src/schedule/storyboard';
+export { secondsAtPlan, mapSpan } from '../../src/anim/fourd/timeline';

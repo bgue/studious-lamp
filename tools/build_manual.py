@@ -71,9 +71,9 @@ def slug_section(num: str) -> str:
 def chapter_files() -> list[tuple[str, Path]]:
     files = []
     for p in sorted(MAN.glob("*.md")):
-        m = re.match(r"^(\d\d)-", p.name)
+        m = re.match(r"^(\d\d)([a-z]?)-", p.name)
         if m:
-            files.append((str(int(m.group(1))), p))
+            files.append((str(int(m.group(1))) + m.group(2).upper(), p))
     for p in sorted(MAN.glob("[A-H]-*.md")):
         files.append((p.name[0], p))
     return files
@@ -86,7 +86,7 @@ def read_parts() -> list[tuple[str, list[str]]]:
         if line.startswith("## Part ") or line.startswith("## Appendices"):
             parts.append((line[3:].strip(), []))
         else:
-            m = re.match(r"^### (\d+)\. ", line) or re.match(r"^### (?:Appendix )?([A-H])[.:] ", line)
+            m = re.match(r"^### (\d+[A-Z]?)\. ", line) or re.match(r"^### (?:Appendix )?([A-H])[.:] ", line)
             if m and parts:
                 parts[-1][1].append(m.group(1))
     return parts
@@ -120,7 +120,7 @@ def render_chapter(key: str, path: Path) -> tuple[str, str, list[tuple[str, str]
     text = path.read_text(encoding="utf-8")
     first, _, body = text.partition("\n")
     title = re.sub(r"^#\s+", "", first).strip()
-    title = re.sub(r"^(Appendix [A-H]\.|\d+\.)\s*", "", title)
+    title = re.sub(r"^(Appendix [A-H]\.|\d+[A-Z]?\.)\s*", "", title)
     sections: list[tuple[str, str]] = []
 
     def head(m: re.Match) -> str:
@@ -128,7 +128,7 @@ def render_chapter(key: str, path: Path) -> tuple[str, str, list[tuple[str, str]
         sections.append((num, t))
         return f'## {t} {{: #{slug_section(num)} data-num="{num}" }}'
 
-    body = re.sub(r"^## ((?:\d+|[A-H])\.\d+)\s+(.+)$", head, body, flags=re.M)
+    body = re.sub(r"^## ((?:\d+[A-Z]?|[A-H])\.\d+)\s+(.+)$", head, body, flags=re.M)
     body = normalise(body)
     md = markdown.Markdown(extensions=["tables", "fenced_code", "attr_list", "sane_lists"], output_format="html")
     out = md.convert(body)
@@ -173,9 +173,9 @@ def link_refs(h: str, known_ch: set[str], known_sec: set[str]) -> str:
     for i, s in enumerate(parts):
         if not s or s.startswith("<"):
             continue
-        s = re.sub(r"\b(chapters) (\d+)(,? and |, | or |-|–)(\d+)\b", chs, s)
-        s = re.sub(r"\b([Cc]hapter) (\d+)\b", ch, s)
-        s = re.sub(r"(?<![\d.\w])(\d{1,2}\.\d{1,2})(?![\d.]\d)", sec, s)
+        s = re.sub(r"\b(chapters) (\d+[A-Z]?)(,? and |, | or |-|–)(\d+[A-Z]?)\b", chs, s)
+        s = re.sub(r"\b([Cc]hapter) (\d+[A-Z]?)\b", ch, s)
+        s = re.sub(r"(?<![\d.\w])(\d{1,2}[A-Z]?\.\d{1,2})(?![\d.]\d)", sec, s)
         s = re.sub(r"\bAppendix ([A-H])\b", app, s)
         parts[i] = s
     return "".join(parts)
@@ -316,7 +316,7 @@ def build(fragment: bool) -> str:
     for part, keys in parts:
         keys = [k for k in keys if k in rendered]
         if part.startswith("Appendices"):
-            keys = [k for k, _ in chapter_files() if k.isalpha()]
+            keys = [k for k, _ in chapter_files() if k.isalpha() and len(k) == 1]
         if not keys:
             continue
         label = re.sub(r"^Part ([IVX]+)\.\s*", r"\1 · ", part)
@@ -327,7 +327,7 @@ def build(fragment: bool) -> str:
             placed.add(k)
             search = (title + " " + " ".join(t for _, t in secs)).lower()
             nav.append(f'<li><a href="#ch-{k}" data-search="{html.escape(search, quote=True)}"><span class="n">{k}</span><span>{html.escape(title)}</span></a></li>')
-            cn = f"Appendix {k}" if k.isalpha() else f"{k}."
+            cn = f"Appendix {k}" if k.isalpha() and len(k) == 1 else f"{k}."
             body.append(f'<section class="chapter" id="ch-{k}"><h1><span class="cn">{cn}</span>{html.escape(title)}</h1>{link_refs(h, known_ch, known_sec)}</section>')
         nav.append("</ol></div>")
     missing = sorted(set(rendered) - placed)
@@ -346,7 +346,7 @@ def build(fragment: bool) -> str:
     page = (
         '<div class="shell">'
         '<nav class="toc" aria-label="Contents">'
-        '<p class="brand">X-ray viewer</p><p class="brand-sub">User manual · 35 chapters, 8 appendices</p>'
+        f'<p class="brand">X-ray viewer</p><p class="brand-sub">User manual · {sum(1 for k in rendered if not (k.isalpha() and len(k) == 1))} chapters, {sum(1 for k in rendered if k.isalpha() and len(k) == 1)} appendices</p>'
         '<input id="toc-filter" class="filter" type="search" placeholder="Filter chapters and sections" aria-label="Filter chapters and sections">'
         + "".join(nav)
         + "</nav>"

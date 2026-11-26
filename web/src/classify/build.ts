@@ -4,6 +4,7 @@
 
 import type { ElementId, ElementRecord, SceneModel } from '../types';
 import { isProcessModel, processEvidenceOf } from './rules';
+import { isFacetKey } from './facets/write';
 import type { ClassifyInput, PsetRecord, PsetValue, RelatedElement } from './types';
 
 const QTO = /^(Qto_|BaseQuantities$)/;
@@ -15,7 +16,7 @@ export function splitProps(props: Record<string, string | number | boolean> | un
   if (props) {
     for (const [key, v] of Object.entries(props)) {
       const dot = key.indexOf('.');
-      if (dot <= 0) continue;
+      if (dot <= 0 || isFacetKey(key)) continue; // our own facet results are outputs, never inputs
       const set = key.slice(0, dot);
       const target = QTO.test(set) ? quantities : psets;
       (target[set] ??= {})[key.slice(dot + 1)] = v as PsetValue;

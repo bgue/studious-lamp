@@ -78,5 +78,9 @@ wbs_path, activity_type, activity_status, start, finish, location, trade, zone, 
 
 `.xrayanim` text in the X-ray animation script language. The reference, grammar and guide are in the xray-ref docs:
 `web/docs-features/animation-script*.md`. `xrayanim_check.mjs` prints
-`{ ok, errors: [{line, col, message, hint, severity}], cues, duration, kinds }` and exits 1 on errors. Pass
-`--plan NAME=plan.json` to check scripts that use the 4D statements against a plan.
+`{ ok, errors: [{line, col, message, hint, severity}], params: [{name, kind, default, value}], cues, duration, kinds }` and exits 1 on errors. Pass
+`--plan NAME=plan.json` to check scripts that use the 4D statements against a plan, and `--param name=value` (repeatable) for the
+script's `param name default value` lines (an undeclared name is a warning). `use "Name"` lines are resolved against `Name.xrayanim`
+files in the folder of the script.
+The language includes flow control (`if`, `repeat while|until|with`) and your own commands (`on`, `function`), decided when the script
+compiles, plus text and list values (`contains`, `item 2 of`, `sort items of`), maths and a seeded `random`; conditions on the model (`the count of`, `there are`) cannot be checked without a model and are reported as errors by this checker.

@@ -34,7 +34,7 @@ finished film is not.
 ### The 4D tab: a film bar and three steps
 
 All of this happens in the **4D** tab of the right sidebar. At the top sits the **film bar**: **Play**, **Pause**, **Stop**, the
-date slider, **Record** and **Open as script**. It stays in view while you work below it. It also shows how far the linking
+date slider, **Record**, **Open as script** and **Storyboard PDF**. It stays in view while you work below it. It also shows how far the linking
 has come, in one line, for example "82 of 82 elements linked · 15 of 15 modelled activities have elements · 25 not in the model".
 
 Under the film bar are three **steps**. Click one to see its sections; the others are hidden until you click them.
@@ -43,7 +43,10 @@ Under the film bar are three **steps**. Click one to see its sections; the other
 | --- | --- | --- |
 | **Map** | Values, Assign, Suggest, Coverage | give elements a location, trade and zone (chapter 25) |
 | **Link** | Schedule, Configure, Link, Decided links, Not in the model | open the schedule, say what its codes mean, link, decide (chapter 26) |
-| **Film** | Style, Save IFC with 4D links, Import / Export | choose the look, save the links, exchange files (chapters 27 and 28) |
+| **Film** | Style, Temporary works, Save IFC with 4D links, Import / Export | choose the look, add scaffold and formwork, save the links, exchange files (chapters 27 and 28) |
+
+The three steps are a **Map, Link, Film** line: label the elements, link the schedule, then shoot the film. The film bar sits above them
+because **Play**, **Open as script** (a film you can edit, chapter 27) and **Storyboard PDF** (stills for a report, 27A.2) work from any step.
 
 Each step shows its state under its name: a check mark when it is done, a count when it needs you (for example "3 ties" or
 "2 to decide"), or "not started". The tab opens on **Link** while there is no schedule, and on **Film** once the schedule is
@@ -85,15 +88,19 @@ starts on 1 March 2027.
 1. Open the **Parameters** tab of the right sidebar and the **Sample Projects** folder.
 2. In the **Model** list, choose **FZK-Haus 4D**. The viewer loads the house, then the schedule and its configuration,
    links every element it can, builds the plan and opens the **4D** tab on the **Film** step. The **film bar** sits at the top of
-   the tab: **Play**, **Pause**, **Stop**, the date slider, **Record** and **Open as script**. It stays in view when you
+   the tab: **Play**, **Pause**, **Stop**, the date slider, **Record**, **Open as script** and **Storyboard PDF**. It stays in view when you
    switch steps or scroll. Its status line reads "82 of 82 elements linked · 15 of 15 modelled activities have elements · 25 not
    in the model".
 3. Press **Play**. The house builds over about 90 s: first the ground slab, then the walls, the roof frame and roof deck,
    then windows, doors, stair and railings. The date, the week and the percentage complete are drawn on the picture.
 4. Drag the date slider in the film bar. It scrubs by schedule date: you see the house as it stands on that day.
 5. Scrub to 19 May 2027, the data date. One activity is under way: the rafters.
+6. Press **Play** again and watch for four things the sample is set up to show. Scaffold goes up along the outer walls before the masonry,
+   and comes down after the facade. Props stand under the first-floor slab and formwork around the ground slab (27A.1). The ground floor and the
+   roof storey are built **apart**: the storeys move away from each other around the floor being built (27.3). At the end the camera
+   dollies in and orbits the finished house, and a caption says "Complete".
 
-> Picture (4d-film-midway): the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.
+> Picture (4d-midfilm): the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.
 
 ### What the example is built to show
 
@@ -133,4 +140,4 @@ files, so you can mix them.
 
 - Chapter 25: giving elements a location, trade and zone (the Map step).
 - Chapter 26: linking the schedule and reviewing links (the Link step).
-- Chapter 27: playing and recording the film (the Film step). Chapter 21: the player.
+- Chapter 27: playing and recording the film (the Film step), temporary works and the storyboard PDF. Chapter 21: the player.

@@ -38,6 +38,7 @@ Every command has `--help`.
 | `link` | links activities to elements | `links.json`, optional report and IFC copy |
 | `plan` | builds the 4D plan | `build.4d.json` |
 | `script` | the director writes an editable script | `film.xrayanim` |
+| `storyboard` | still frames of the film as a PDF | `board.pdf` |
 | `render` | records the film headless, frame by frame | `build.mp4`, `.webm` or a PNG zip |
 | `pack` | a single-file kiosk page that plays the film | `build.html` |
 | `all` | link, plan, render and pack in one run | a folder |
@@ -83,6 +84,11 @@ xray-4d plan model.ifc schedule.xer links.json --config map.4d.json [--view plan
              -o build.4d.json
 ```
 
+More flags: `--explode auto|floor|off` (`floor` is each floor apart), `--fade S` (fade-in seconds), `--issues` (keep issue pins and drawings in
+the film), `--zone-camera "Erdgeschoss=EG south"` (repeatable: a saved view for a storey; `--views views.json`, an export of the Views tab, checks
+the names), `--legend on|off`, `--strip on|off` and `--no-temporary-works` (leave out the rules of chapter 27A). `xray-4d all` takes
+`--no-temporary-works` too.
+
 The style comes from the configuration; flags override it. `--length` fits the film to a length. `--pace 1w=2s` fixes the
 speed (one schedule week per 2 s). Give one of them, not both. `lookahead:6w` starts at the data date. A baseline `.xer` is
 matched by activity code and gives the planned side of the variance view.
@@ -91,7 +97,7 @@ matched by activity code and gives the planned side of the variance view.
 
 ```
 xray-4d script build.4d.json --model model.ifc [--style calm|dynamic] [--labels N] [--no-explode] [--no-section]
-               [--name NAME] -o film.xrayanim [--notes notes.txt]
+               [--explode auto|floor|off] [--fade S] [--name NAME] -o film.xrayanim [--notes notes.txt]
 ```
 
 This is the director of chapter 27. The plan carries no geometry, so it needs `--model`: the IFC itself, or the sidecar
@@ -101,7 +107,7 @@ written, as a check.
 ### render and pack
 
 ```
-xray-4d render model.ifc build.4d.json [--script film.xrayanim] [--size 1920x1080] [--fps 30] [--format mp4|webm|png] [--hud on|off] -o build.mp4
+xray-4d render model.ifc build.4d.json [--script film.xrayanim] [--size 1920x1080] [--fps 30] [--format mp4|webm|png] [--hud on|off] [--legend on|off] [--strip on|off] -o build.mp4
 xray-4d pack   model.ifc build.4d.json [--script film.xrayanim] [--loop] [--title T] -o build.html
 ```
 
@@ -114,8 +120,25 @@ milliseconds.
 Without a GPU, the software renderer is slow. Measured on the FZK-Haus sample: 2 s at 320x180 and 12 fps in 12 s in all,
 and 10 s at 640x360 and 24 fps in 54 s (about 0.2 s per frame). Larger sizes cost more.
 
+A script with `param` lines takes `--param name=value` (repeatable), and `--use-dir folder` finds the libraries of its `use` lines (chapter 23A).
+
+`--legend` and `--strip` switch the colour legend and the schedule strip of the film for this render. Both are on unless the plan says off.
+
 `pack` is `xray-pack` with the plan, the autoplay and the kiosk options. The page plays itself, and a press or a wheel turn
 stops it. `--loop` plays it again and again. If you give a script, its camera moves and captions are added to the plan's film.
+
+### storyboard
+
+```
+xray-4d storyboard build.4d.json --model model.ifc [--every week|month|milestone|N] [--page A3|A4] [--cols 3]
+                   [--script film.xrayanim] [--size 960x540] -o board.pdf
+```
+
+A PDF of still frames of the film (27A.2). It needs Playwright with Chromium, like `render`. `--every week` (default) takes a frame on the
+first day of the window and every 7 days after; `month` the first of each month; `milestone` one per milestone; a number N spreads N frames evenly.
+The last day is always the last frame, except for `milestone` and a number. At most 200 frames. `--page` is `A4` (default) or `A3`, landscape.
+`--cols` is 1 to 8 (default 3). `--script` gives each frame its camera, as for `render`. The first frame is the start of the first work in the
+model. The last line on stdout is a JSON summary (file, pages, frames, bytes). Exit code 5 when the render fails.
 
 ### all
 

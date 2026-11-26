@@ -658,7 +658,8 @@ try {
     const st = [...m.storeys].sort((a, b) => a.elevation - b.elevation);
     // Centre of the ground floor elements on the horizontal plane.
     const els = m.elements.filter((e) => e.storey === st[0].id);
-    const b = els.reduce((acc, e) => [Math.min(acc[0], e.bounds[0]), Math.min(acc[2], e.bounds[2]), Math.max(acc[3], e.bounds[3]), Math.max(acc[5], e.bounds[5])], [1e9, 1e9, -1e9, -1e9]);
+    // acc = [min x, min z, max x, max z]; bounds = [min x, min y, min z, max x, max y, max z]
+    const b = els.reduce((acc, e) => [Math.min(acc[0], e.bounds[0]), Math.min(acc[1], e.bounds[2]), Math.max(acc[2], e.bounds[3]), Math.max(acc[3], e.bounds[5])], [1e9, 1e9, -1e9, -1e9]);
     return { floorY: st[0].elevation - shift, upperY: st[1] ? st[1].elevation - shift : null, cx: (b[0] + b[2]) / 2, cz: (b[1] + b[3]) / 2 };
   });
   const standAt = (x, y, z, dx, dz) => page.evaluate(([x, y, z, dx, dz]) => {
@@ -674,7 +675,8 @@ try {
   // Find a screen point on an up-facing surface about at the ground floor level (tilt the view down to see the floor).
   await page.evaluate(([x, y, z]) => {
     const r = window.__xray.renderer;
-    r.controls.target.set(x, y - 1.2, z - 1.5);
+    // nearly straight down: a wall or door a metre away must not hide the floor
+    r.controls.target.set(x, y - 1.5, z - 0.35);
     r.controls.update();
     r.markDirty();
   }, [fzk.cx, fzk.floorY + 1.6, fzk.cz]);
@@ -724,8 +726,12 @@ try {
     let best = null;
     for (let i = 0; i < 16; i++) {
       const a = (i / 16) * Math.PI * 2, d = new o.constructor(Math.sin(a), 0, -Math.cos(a));
+      // A wall met square-on, with nothing else (no door) in front of it: the side of a door opening, met at a slant, would let
+      // the walker slide through the doorway, which is the intended behaviour and not what this check is about.
       const h = r.raycastVisible(o, d, 40, (id) => els[id].ifcClass !== 'IfcDoor');
-      if (h && Math.abs(h.normal.y) < 0.3 && (!best || h.distance < best.distance)) best = { distance: h.distance, dx: d.x, dz: d.z, px: h.point.x, pz: h.point.z };
+      const any = r.raycastVisible(o, d, 40);
+      const square = h && -(h.normal.x * d.x + h.normal.z * d.z) > 0.9;
+      if (h && any && any.id === h.id && square && h.distance > 0.6 && (!best || h.distance < best.distance)) best = { distance: h.distance, dx: d.x, dz: d.z, px: h.point.x, pz: h.point.z, nx: h.normal.x, nz: h.normal.z };
     }
     return best;
   });
@@ -741,9 +747,11 @@ try {
     await page.keyboard.up('Shift');
     await page.waitForTimeout(200);
     const collEnd = await pose();
-    const toFzkWall = (fzkWall.px - collEnd.p[0]) * fzkWall.dx + (fzkWall.pz - collEnd.p[2]) * fzkWall.dz; // distance still ahead of the eye
-    const moved = (collEnd.p[0] - fzk.cx) * fzkWall.dx + (collEnd.p[2] - fzk.cz) * fzkWall.dz;
-    check('with Walk collision on, holding w toward a wall stops short of it', moved > 0.05 && toFzkWall > 0.15 && toFzkWall < 0.7, `wall ${fzkWall.distance.toFixed(2)} m away, stopped ${toFzkWall.toFixed(2)} m short`);
+    // Distance from the eye to the wall's plane, square to it (the walker slides along the wall once it is close, so the
+    // distance along the slanted line of travel would count the slide as progress).
+    const toFzkWall = (collEnd.p[0] - fzkWall.px) * fzkWall.nx + (collEnd.p[2] - fzkWall.pz) * fzkWall.nz;
+    const startGap = (fzk.cx - fzkWall.px) * fzkWall.nx + (fzk.cz - fzkWall.pz) * fzkWall.nz;
+    check('with Walk collision on, holding w toward a wall stops short of it', startGap - toFzkWall > 0.05 && toFzkWall > 0.15 && toFzkWall < 0.45, `wall ${startGap.toFixed(2)} m away square to it, stopped ${toFzkWall.toFixed(2)} m from it`);
     await collisionOn(false);
     await page.keyboard.press('Escape');
   }

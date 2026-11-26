@@ -143,7 +143,7 @@ Pressing a lit top bar mode again switches to Solid. Solid itself does nothing w
 | Classify: start the review walk | `Shift+r` |
 | Revision: start the review walk | `Shift+v` |
 
-### Keys in a list (model tree, Views, Sets)
+### Keys in a list (model tree, By classification tree, Views, Sets)
 
 While one of these lists has focus, it keeps the arrow keys, `Home`, `End`, `PageUp`, `PageDown`, `Enter` and `Space`. Keys it
 does not use (`f`, `h`, `x`, `[`, `?`, and chords with `Ctrl`, `Alt` or `Meta`) still act on the selection. `Escape` returns

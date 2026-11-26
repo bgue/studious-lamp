@@ -583,7 +583,7 @@ function lexLine(text, line) {
 			continue;
 		}
 		const two = text.slice(i, i + 2);
-		if (two === "!=" || two === "<>" || two === "<=" || two === ">=" || two === "==") {
+		if (two === "!=" || two === "<>" || two === "<=" || two === ">=" || two === "==" || two === "&&") {
 			toks.push({
 				type: "punct",
 				text: two,
@@ -594,7 +594,7 @@ function lexLine(text, line) {
 			i += 2;
 			continue;
 		}
-		if ("=<>(),+-*/&".includes(c)) {
+		if ("=<>(),+-*/&^".includes(c)) {
 			toks.push({
 				type: "punct",
 				text: c,
@@ -606,7 +606,7 @@ function lexLine(text, line) {
 			continue;
 		}
 		if (c === "'") return new ScriptError("Use double quotes \" for text, not single quotes '.", line, start + 1, start + 2);
-		return new ScriptError(`Unexpected character \`${c}\`.`, line, start + 1, start + 2, "A script line holds words, numbers, \"quoted text\" and a few signs: + - * / ( ) , = < >.");
+		return new ScriptError(`Unexpected character \`${c}\`.`, line, start + 1, start + 2, "A script line holds words, numbers, \"quoted text\" and a few signs: + - * / ^ & && ( ) , = < >.");
 	}
 	return toks;
 }
@@ -638,6 +638,16 @@ var STATEMENT_WORDS = [
 	"collapse",
 	"focus",
 	"section",
+	"if",
+	"else",
+	"on",
+	"function",
+	"return",
+	"fade",
+	"param",
+	"use",
+	"exit",
+	"next",
 	"end"
 ];
 /** The colour words of `tint` and their colours (#rrggbb). */
@@ -680,7 +690,45 @@ var STOP_WORDS = /* @__PURE__ */ new Set([
 	"for",
 	"with",
 	"about",
-	"by"
+	"by",
+	"then",
+	"into"
+]);
+/** Statements that may stand in a function: it computes, it does not act on the timeline. */
+var FUNCTION_KINDS = /* @__PURE__ */ new Set([
+	"put",
+	"if",
+	"while",
+	"repeat",
+	"repeatWith",
+	"forEachChunk",
+	"exitRepeat",
+	"nextRepeat",
+	"seed",
+	"return"
+]);
+/** Words that cannot follow `then` on the same line: they open or close a block. */
+var BLOCK_WORDS = /* @__PURE__ */ new Set([
+	"together",
+	"repeat",
+	"if",
+	"on",
+	"function",
+	"else",
+	"end"
+]);
+var CMP_OPS = /* @__PURE__ */ new Map([
+	["=", "="],
+	["==", "="],
+	["<>", "<>"],
+	["!=", "<>"],
+	["≠", "<>"],
+	["<", "<"],
+	[">", ">"],
+	["<=", "<="],
+	["≤", "<="],
+	[">=", ">="],
+	["≥", ">="]
 ]);
 var SCHEDULE_VIEWS = [
 	"planned",
@@ -699,6 +747,39 @@ var DEGREE_UNITS = /* @__PURE__ */ new Set([
 	"degrees",
 	"deg"
 ]);
+/** Element facts of `the <field> of`, and the lists of `the <plural> of <elements>`. */
+var FIELD_WORDS = [
+	"name",
+	"class",
+	"storey",
+	"type",
+	"globalid",
+	"material"
+];
+var LIST_WORDS = /* @__PURE__ */ new Map([
+	["names", "name"],
+	["globalids", "globalid"],
+	["classes", "class"],
+	["storeys", "storey"],
+	["types", "type"]
+]);
+/** The chunk words: `item 2 of x` (singular) and `the number of items in x` / `repeat for each item` (either). */
+var CHUNK_ONE = /* @__PURE__ */ new Map([
+	["item", "item"],
+	["word", "word"],
+	["line", "line"],
+	["char", "char"],
+	["character", "char"]
+]);
+var CHUNK_ANY = new Map([
+	...CHUNK_ONE,
+	["items", "item"],
+	["words", "word"],
+	["lines", "line"],
+	["chars", "char"],
+	["characters", "char"]
+]);
+var COUNT_HINT = "For example: the count of class IfcDoor, or with a condition in parentheses: the count of (where class = IfcDoor and storey = \"Level 1\").";
 var QUERY_KEYWORDS = /* @__PURE__ */ new Set([
 	"AND",
 	"OR",
@@ -711,14 +792,14 @@ var QUERY_KEYWORDS = /* @__PURE__ */ new Set([
 	"TRUE",
 	"FALSE"
 ]);
-var BOOL_WORDS = {
-	true: true,
-	on: true,
-	yes: true,
-	false: false,
-	off: false,
-	no: false
-};
+var BOOL_WORDS = /* @__PURE__ */ new Map([
+	["true", true],
+	["on", true],
+	["yes", true],
+	["false", false],
+	["off", false],
+	["no", false]
+]);
 var span = (a, b = a) => ({
 	line: a.line,
 	col: a.col,
@@ -734,6 +815,8 @@ var Cursor = class {
 	toks;
 	lineNo;
 	i = 0;
+	/** Reading a full expression (text, comparisons, `there are`) rather than only a number. */
+	rich = false;
 	constructor(toks, lineNo) {
 		this.toks = toks;
 		this.lineNo = lineNo;
@@ -808,12 +891,13 @@ function parseTerm(c) {
 	let left = parseUnary(c);
 	for (;;) {
 		const t = c.peek();
-		if (t && t.type === "punct" && (t.text === "*" || t.text === "/")) {
+		const op = t && t.type === "punct" && (t.text === "*" || t.text === "/") ? t.text : t && t.type === "word" && (t.text.toLowerCase() === "mod" || t.text.toLowerCase() === "div") ? t.text.toLowerCase() : null;
+		if (t && op) {
 			c.i++;
 			const right = parseUnary(c);
 			left = {
 				k: "bin",
-				op: t.text,
+				op,
 				a: left,
 				b: right,
 				...span(left, right)
@@ -838,7 +922,91 @@ function parseUnary(c) {
 		c.i++;
 		return parseUnary(c);
 	}
-	return parsePrimary(c);
+	return parsePower(c);
+}
+/** `a ^ b`: right to left, and tighter than a minus sign in front (-2 ^ 2 is -4). */
+function parsePower(c) {
+	const base = parsePrimary(c);
+	const t = c.peek();
+	if (t && t.type === "punct" && t.text === "^") {
+		c.i++;
+		const exp = parseUnary(c);
+		return {
+			k: "bin",
+			op: "^",
+			a: base,
+			b: exp,
+			...span(base, exp)
+		};
+	}
+	return base;
+}
+/** The thing after `of` / `in` of a property, a chunk or a sort: one value (a name, text, a call, `it`, another `the ... of`). */
+function parseOperand(c) {
+	const was = c.rich;
+	c.rich = true;
+	try {
+		return parsePrimary(c);
+	} finally {
+		c.rich = was;
+	}
+}
+/** Does `item`, `word`, `line` or `char` at the cursor start a chunk (`item 2 of x`), rather than being a name? It does when an `of` follows the number. */
+function looksLikeChunk(c) {
+	if (!CHUNK_ONE.has(c.word())) return false;
+	let depth = 0;
+	for (let j = c.i + 1; j < c.toks.length; j++) {
+		const x = c.toks[j];
+		if (x.type === "punct") {
+			if (x.text === "(") depth++;
+			else if (x.text === ")" && --depth < 0) return false;
+			else if (depth === 0 && [
+				",",
+				"=",
+				"<",
+				">",
+				"<>",
+				"<=",
+				">=",
+				"&",
+				"&&",
+				"==",
+				"!="
+			].includes(x.text)) return false;
+		} else if (x.type === "word") {
+			const w = x.text.toLowerCase();
+			if (depth === 0 && w === "of") return j > c.i + 1;
+			if ([
+				"then",
+				"into",
+				"and",
+				"or",
+				"not",
+				"for",
+				"over",
+				"in"
+			].includes(w)) return false;
+		} else if (x.type === "string" && j === c.i + 1) return false;
+	}
+	return false;
+}
+/** Does the cursor start one of the text, list and property values (so a caption reads it as a value, not as a name)? */
+function startsValue(c) {
+	const t = c.peek();
+	if (!t || t.type !== "word") return false;
+	const w = lowerWord(t);
+	const w1 = c.word(1);
+	if (w === "the") return w1 === "count" || w1 === "number" && c.word(2) === "of" || (FIELD_WORDS.includes(w1) || LIST_WORDS.has(w1)) && c.word(2) === "of";
+	if (w === "property") {
+		const n = c.peek(1);
+		return n?.type === "string" || n?.type === "word" && c.word(2) === "of";
+	}
+	if (w === "sort") return [
+		"items",
+		"words",
+		"lines"
+	].includes(w1);
+	return looksLikeChunk(c);
 }
 function parsePrimary(c) {
 	const t = c.peek();
@@ -851,7 +1019,154 @@ function parsePrimary(c) {
 			...tspan(t)
 		};
 	}
+	if (t.type === "string" && c.rich) {
+		c.i++;
+		return {
+			k: "str",
+			v: t.text,
+			...tspan(t)
+		};
+	}
 	if (t.type === "word") {
+		const w = t.text.toLowerCase();
+		const n = c.peek(1);
+		if (n && n.type === "punct" && n.text === "(" && n.col === t.end && ![
+			"not",
+			"and",
+			"or"
+		].includes(w)) return parseCall(c);
+		if (w === "the" && c.word(1) === "count") {
+			c.i += 2;
+			if (!c.eatWord("of")) throw c.fail(`Expected \`of\` after \`the count\`, found ${describe(c.peek())}.`, "For example: the count of class IfcDoor.");
+			const target = parseElementsArg(c);
+			return {
+				k: "count",
+				target,
+				...span(tspan(t), target)
+			};
+		}
+		if (w === "the") {
+			const w1 = c.word(1);
+			if (w1 === "number" && c.word(2) === "of") {
+				c.i += 3;
+				const u = c.peek();
+				const unit = CHUNK_ANY.get(lowerWord(u));
+				if (!unit) throw c.fail(`Expected \`items\`, \`words\`, \`lines\` or \`chars\` after \`the number of\`, found ${describe(u)}.`, "For example: the number of items in list.");
+				c.i++;
+				if (!c.eatWord("in")) throw c.fail(`Expected \`in\` and the text, found ${describe(c.peek())}.`, "For example: the number of items in list.");
+				const of = parseOperand(c);
+				return {
+					k: "number",
+					unit,
+					of,
+					...span(tspan(t), of)
+				};
+			}
+			if (FIELD_WORDS.includes(w1) && c.word(2) === "of") {
+				c.i += 3;
+				const of = parseOperand(c);
+				return {
+					k: "prop",
+					field: w1,
+					of,
+					...span(tspan(t), of)
+				};
+			}
+			if (LIST_WORDS.has(w1) && c.word(2) === "of") {
+				c.i += 3;
+				const target = parseElementsArg(c);
+				return {
+					k: "elist",
+					field: LIST_WORDS.get(w1),
+					target,
+					...span(tspan(t), target)
+				};
+			}
+		}
+		if (w === "property" && (n?.type === "string" || n?.type === "word" && c.word(2) === "of")) {
+			c.i++;
+			const f = c.next();
+			if (!c.eatWord("of")) throw c.fail(`Expected \`of\` and the element after the property name, found ${describe(c.peek())}.`, "For example: property \"Pset_WallCommon.FireRating\" of it.");
+			const of = parseOperand(c);
+			const fieldNode = f.type === "word" ? {
+				k: "var",
+				name: f.text,
+				...tspan(f)
+			} : void 0;
+			return {
+				k: "prop",
+				field: f.type === "string" ? f.text : "",
+				...fieldNode ? { fieldNode } : {},
+				of,
+				...span(tspan(t), of)
+			};
+		}
+		if (w === "sort" && [
+			"items",
+			"words",
+			"lines"
+		].includes(c.word(1))) {
+			const unit = CHUNK_ANY.get(c.word(1));
+			c.i += 2;
+			if (!c.eatWord("of")) throw c.fail(`Expected \`of\` and the text after \`sort ${unit}s\`, found ${describe(c.peek())}.`, `For example: sort ${unit}s of list descending.`);
+			const of = parseOperand(c);
+			let descending = false;
+			let numeric = false;
+			for (;;) {
+				const o = c.word();
+				if (o === "descending" || o === "ascending") descending = o === "descending";
+				else if (o === "numeric" || o === "numerically") numeric = true;
+				else break;
+				c.i++;
+			}
+			return {
+				k: "sort",
+				unit,
+				of,
+				descending,
+				numeric,
+				...span(tspan(t), tspan(c.last()))
+			};
+		}
+		if (CHUNK_ONE.has(w) && looksLikeChunk(c)) {
+			const unit = CHUNK_ONE.get(w);
+			c.i++;
+			const index = parseExpr(c);
+			let to;
+			if (c.eatWord("to")) to = parseExpr(c);
+			if (!c.eatWord("of")) throw c.fail(`Expected \`of\` and the text after the ${unit} number, found ${describe(c.peek())}.`, `For example: ${unit} 2 of list.`);
+			const of = parseOperand(c);
+			return {
+				k: "chunk",
+				unit,
+				index,
+				...to ? { to } : {},
+				of,
+				...span(tspan(t), of)
+			};
+		}
+		if (c.rich) {
+			if (BOOL_WORDS.has(w)) {
+				c.i++;
+				return {
+					k: "bool",
+					v: BOOL_WORDS.get(w),
+					...tspan(t)
+				};
+			}
+			if (w === "there") {
+				c.i++;
+				if (!c.eatWord("is", "are")) throw c.fail(`Expected \`is\` or \`are\` after \`there\`, found ${describe(c.peek())}.`, "For example: there are class IfcDoor.");
+				const none = !!c.eatWord("no");
+				const target = parseElementsArg(c);
+				return {
+					k: "there",
+					target,
+					none,
+					...span(tspan(t), target)
+				};
+			}
+		}
 		c.i++;
 		return {
 			k: "var",
@@ -861,7 +1176,7 @@ function parsePrimary(c) {
 	}
 	if (t.type === "punct" && t.text === "(") {
 		c.i++;
-		const e = parseExpr(c);
+		const e = c.rich ? parseOr(c) : parseExpr(c);
 		const close = c.eatPunct(")");
 		if (!close) throw c.fail(`Expected \`)\` to close the \`(\` at column ${t.col}, found ${describe(c.peek())}.`);
 		return {
@@ -872,6 +1187,173 @@ function parsePrimary(c) {
 		};
 	}
 	throw c.fail(`Expected a number, found ${describe(t)}.`, t.type === "string" ? "Numbers are written without quotes." : void 0);
+}
+/** `name(arg, arg)`: the name and the `(` touch. */
+function parseCall(c) {
+	const t = c.next();
+	c.i++;
+	const args = [];
+	if (!c.eatPunct(")")) {
+		for (;;) {
+			args.push(parseFull(c));
+			if (c.eatPunct(",")) continue;
+			break;
+		}
+		const close = c.eatPunct(")");
+		if (!close) throw c.fail(`Expected \`,\` or \`)\` in the call of \`${t.text}\`, found ${describe(c.peek())}.`, `Close the call with \`)\`, like ${t.text}(1, 2).`);
+		return {
+			k: "call",
+			name: t.text,
+			args,
+			...span(tspan(t), tspan(close))
+		};
+	}
+	return {
+		k: "call",
+		name: t.text,
+		args,
+		...span(tspan(t), tspan(c.last()))
+	};
+}
+/** Elements after `the count of` / `there are`: as everywhere, or in parentheses (needed when more follows a `where`). */
+function parseElementsArg(c) {
+	try {
+		return parseElementsArg1(c);
+	} catch (e) {
+		if (e instanceof ScriptError && /^Expected which elements/.test(e.message)) throw new ScriptError(e.message, e.line, e.col, e.end, `${e.hint ?? ""} ${COUNT_HINT}`.trim());
+		throw e;
+	}
+}
+function parseElementsArg1(c) {
+	const t = c.peek();
+	if (t && t.type === "punct" && t.text === "(") {
+		let depth = 0;
+		let j = c.i;
+		for (; j < c.toks.length; j++) {
+			const x = c.toks[j];
+			if (x.type === "punct" && x.text === "(") depth++;
+			else if (x.type === "punct" && x.text === ")" && --depth === 0) break;
+		}
+		if (j >= c.toks.length) throw c.fail(`Expected \`)\` to close the \`(\` at column ${t.col}.`, void 0, t);
+		const inner = c.toks.slice(c.i + 1, j);
+		if (inner.length === 0) throw c.fail("Expected which elements inside the parentheses.", ELEMENT_HELP, t);
+		const ic = new Cursor(inner, c.lineNo);
+		const e = parseElements(ic);
+		if (!ic.atEnd) throw ic.fail(`I did not expect ${describe(ic.peek())} after the elements.`, "Elements are `where <criteria>`, `class IfcDoor`, `set \"Name\"`, ... A criteria joins its tests with `and` inside the `where`: where class = IfcDoor and storey = \"Level 1\".");
+		c.i = j + 1;
+		return e;
+	}
+	return parseElements(c);
+}
+/** A full expression: numbers, text, `&`, comparisons, `and` `or` `not`, `there are`, calls. */
+function parseFull(c) {
+	const was = c.rich;
+	c.rich = true;
+	try {
+		return parseOr(c);
+	} finally {
+		c.rich = was;
+	}
+}
+function parseOr(c) {
+	let left = parseAnd(c);
+	for (;;) {
+		if (!c.eatWord("or")) return left;
+		const right = parseAnd(c);
+		left = {
+			k: "or",
+			a: left,
+			b: right,
+			...span(left, right)
+		};
+	}
+}
+function parseAnd(c) {
+	let left = parseNot(c);
+	for (;;) {
+		if (!c.eatWord("and")) return left;
+		const right = parseNot(c);
+		left = {
+			k: "and",
+			a: left,
+			b: right,
+			...span(left, right)
+		};
+	}
+}
+function parseNot(c) {
+	const t = c.peek();
+	if (t && t.type === "word" && t.text.toLowerCase() === "not") {
+		c.i++;
+		const a = parseNot(c);
+		return {
+			k: "not",
+			a,
+			line: t.line,
+			col: t.col,
+			end: a.end
+		};
+	}
+	return parseCmp(c);
+}
+function parseCmp(c) {
+	const left = parseCat(c);
+	const w = c.word();
+	const w1 = c.word(1);
+	const textOp = w === "contains" ? {
+		op: "contains",
+		skip: 1
+	} : (w === "begins" || w === "ends") && w1 === "with" ? {
+		op: w,
+		skip: 2
+	} : w === "is" && w1 === "in" ? {
+		op: "in",
+		skip: 2
+	} : w === "is" && w1 === "not" && c.word(2) === "in" ? {
+		op: "notin",
+		skip: 3
+	} : null;
+	if (textOp) {
+		c.i += textOp.skip;
+		const right = parseCat(c);
+		return {
+			k: "textTest",
+			op: textOp.op,
+			a: left,
+			b: right,
+			...span(left, right)
+		};
+	}
+	const t = c.peek();
+	const op = t && (t.type === "punct" || t.type === "word") ? CMP_OPS.get(t.text) : void 0;
+	if (!t || !op) return left;
+	c.i++;
+	const right = parseCat(c);
+	const n = c.peek();
+	if (n && (n.type === "punct" || n.type === "word") && CMP_OPS.has(n.text)) throw c.fail("Two comparisons in a row.", "Join them with `and`: x > 1 and x < 5.");
+	return {
+		k: "cmp",
+		op,
+		a: left,
+		b: right,
+		...span(left, right)
+	};
+}
+function parseCat(c) {
+	let left = parseExpr(c);
+	for (;;) {
+		let space = false;
+		if (c.eatPunct("&&")) space = true;
+		else if (!c.eatPunct("&")) return left;
+		const right = parseExpr(c);
+		left = {
+			k: "cat",
+			a: left,
+			b: right,
+			...space ? { space: true } : {},
+			...span(left, right)
+		};
+	}
 }
 /** A number with an optional unit word after it. */
 function parseQuantity(c, units) {
@@ -894,7 +1376,11 @@ function parseStr(c, what) {
 				k: "text",
 				v: t.text
 			});
-		} else if (t.type === "word") {
+		} else if (t.type === "word" && (c.peek(1)?.text === "(" && c.peek(1).col === t.end || startsValue(c))) parts.push({
+			k: "num",
+			n: parseExpr(c)
+		});
+		else if (t.type === "word") {
 			c.i++;
 			parts.push({
 				k: "name",
@@ -907,7 +1393,11 @@ function parseStr(c, what) {
 		});
 		else throw c.fail(`Expected ${what}, found ${describe(t)}.`, "Write it in double quotes, like \"Level 2\".");
 		endTok = c.last();
-		if (!c.eatPunct("&")) break;
+		if (c.eatPunct("&&")) parts.push({
+			k: "text",
+			v: " "
+		});
+		else if (!c.eatPunct("&")) break;
 	}
 	return {
 		parts,
@@ -974,6 +1464,7 @@ function parseOptions(c, allowed) {
 function buildQuery(toks) {
 	let text = "";
 	const starts = [];
+	const subs = [];
 	let valuePos = false;
 	let betweenPending = false;
 	let prevIn = false;
@@ -981,6 +1472,7 @@ function buildQuery(toks) {
 	let prev = "";
 	for (const t of toks) {
 		let piece = t.text;
+		let pendingSub = "";
 		const wasIn = prevIn;
 		prevIn = false;
 		if (t.type === "word") {
@@ -1001,6 +1493,7 @@ function buildQuery(toks) {
 				else valuePos = false;
 			} else {
 				piece = valuePos ? `'${t.text.replace(/'/g, "''")}'` : t.text;
+				if (valuePos) pendingSub = t.text;
 				valuePos = false;
 			}
 		} else if (t.type === "string") {
@@ -1026,12 +1519,18 @@ function buildQuery(toks) {
 		].includes(t.text);
 		const glue = text.length === 0 || prev === "(" || piece === ")" || piece === "," || prev === "-" && t.type === "number";
 		starts.push(text.length + (glue ? 0 : 1));
+		if (pendingSub) subs.push({
+			at: text.length + (glue ? 0 : 1),
+			len: piece.length,
+			name: pendingSub
+		});
 		text += (glue ? "" : " ") + piece;
 		prev = piece;
 	}
 	return {
 		text,
-		starts
+		starts,
+		subs
 	};
 }
 var isColourTok = (t) => !!t && (t.type === "colour" || t.type === "word" && (t.text.toLowerCase() in COLOUR_NAMES || TINT_OFF.includes(t.text.toLowerCase())));
@@ -1072,7 +1571,7 @@ function parseWhere(c, kw, endColour = false) {
 		c.i++;
 	}
 	if (toks.length === 0) throw c.fail("Expected a condition after `where`.", "For example: where class = IfcPump and storey = \"Level 2\".", kw);
-	const { text, starts } = buildQuery(toks);
+	const { text, starts, subs } = buildQuery(toks);
 	try {
 		parseQuery(text);
 	} catch (e) {
@@ -1088,6 +1587,7 @@ function parseWhere(c, kw, endColour = false) {
 	return {
 		k: "query",
 		query: text,
+		...subs.length ? { subs } : {},
 		...span(tspan(kw), tspan(toks[toks.length - 1]))
 	};
 }
@@ -1134,9 +1634,23 @@ function parseElements(c, endColour = false) {
 				if (!c.eatPunct(",")) break;
 			}
 			const q = (n) => `'${n.text.replace(/'/g, "''")}'`;
+			const query = names.length === 1 ? `class = ${q(names[0])}` : `class IN (${names.map(q).join(", ")})`;
+			const subs = [];
+			let from = 0;
+			for (const n of names) {
+				const piece = q(n);
+				const at = query.indexOf(piece, from);
+				from = at + piece.length;
+				if (n.type === "word") subs.push({
+					at,
+					len: piece.length,
+					name: n.text
+				});
+			}
 			return {
 				k: "query",
-				query: names.length === 1 ? `class = ${q(names[0])}` : `class IN (${names.map(q).join(", ")})`,
+				query,
+				...subs.length ? { subs } : {},
 				...span(tspan(t), tspan(names[names.length - 1]))
 			};
 		}
@@ -1221,11 +1735,11 @@ function parseValue(c) {
 		const w = t.text.toLowerCase();
 		const n = c.peek(1);
 		const alone = !n || n.type === "word" && (STOP_WORDS.has(n.text.toLowerCase()) || n.text.toLowerCase() === "over");
-		if (w in BOOL_WORDS && alone) {
+		if (BOOL_WORDS.has(w) && alone) {
 			c.i++;
 			return {
 				k: "bool",
-				v: BOOL_WORDS[w],
+				v: BOOL_WORDS.get(w),
 				...tspan(t)
 			};
 		}
@@ -1246,12 +1760,35 @@ function parseValue(c) {
 		...span(items[0], items[items.length - 1])
 	};
 }
+var blk = (kind) => ({
+	word: kind,
+	kind
+});
+var article = (kind) => /^[aeiou]/.test(kind) ? "an" : "a";
 var Parser = class {
 	lines;
 	errors = [];
 	idx = 0;
+	/** Set by parseBlock when an `else` line ended an `if` branch (the line is kept, the block goes on with the next branch). */
+	elseLine = null;
+	/** Inside the body of a `function` or an `on` handler. */
+	defKind = null;
+	/** The (lower case) name of the handler or function being read, for `exit <name>`. */
+	defName = "";
+	/** How many `repeat` loops enclose the line being read. */
+	loops = 0;
+	/** The handlers and functions the script defines (their lines are read first, so a call may come before the definition). */
+	defNames = /* @__PURE__ */ new Set();
+	/** The script has a `use "Name"` line: a statement it does not know may be a handler of that library (the compiler checks the name). */
+	hasUse;
 	constructor(lines) {
 		this.lines = lines;
+		this.hasUse = lines.some((sl) => lowerWord(sl.tokens[0]) === "use" && sl.tokens[1]?.type === "string");
+		for (const sl of lines) {
+			const f = lowerWord(sl.tokens[0]);
+			const n = sl.tokens[1];
+			if ((f === "on" || f === "function") && n && n.type === "word") this.defNames.add(n.text.toLowerCase());
+		}
 	}
 	parseProgram() {
 		return { body: this.parseBlock(null, 0, 0) };
@@ -1262,19 +1799,42 @@ var Parser = class {
 		while (this.idx < this.lines.length) {
 			const sl = this.lines[this.idx];
 			const c = new Cursor(sl.tokens, sl.line);
-			if (c.word() === "end") {
+			const first = c.word();
+			if (first === "else") {
+				this.idx++;
+				if (closer && closer.word === "if" && !closer.afterElse) {
+					this.elseLine = sl;
+					return body;
+				}
+				const t = c.peek();
+				let msg;
+				let hint;
+				if (!closer) {
+					msg = "`else` has no `if` before it.";
+					hint = "`else` goes between the branches of an `if ... end if`.";
+				} else if (closer.word === "if") {
+					msg = `\`else\` comes after the \`else\` of the \`if\` on line ${openLine}; an \`if\` has one \`else\`, last.`;
+					hint = "Use `else if <condition> then` for another branch before it.";
+				} else {
+					msg = `\`else\` is inside ${article(closer.kind)} \`${closer.kind}\` (line ${openLine}), not directly in an \`if\`.`;
+					hint = `Close the \`${closer.kind}\` with \`end ${closer.word}\` before \`else\`.`;
+				}
+				this.errors.push(new ScriptError(msg, t.line, t.col, t.end, hint));
+				continue;
+			}
+			if (first === "end") {
 				this.idx++;
 				const what = c.word(1);
 				const endTok = c.peek(1);
 				if (closer === null) {
-					this.errors.push(c.fail(`\`end${what ? ` ${what}` : ""}\` has no block to close.`, "Every `end` closes a `together` or a `repeat` above it.", c.peek()));
+					this.errors.push(c.fail(`\`end${what ? ` ${what}` : ""}\` has no block to close.`, "Every `end` closes a block above it: `end together`, `end repeat`, `end if`, or `end <name>` for a handler or a function.", c.peek()));
 					continue;
 				}
-				if (!endTok || what !== closer) {
-					this.errors.push(c.fail(endTok ? `\`end ${endTok.text}\` does not match: the open block (line ${openLine}) is a \`${closer}\`.` : `\`end\` needs the block name: \`end ${closer}\`.`, `Write \`end ${closer}\` to close the \`${closer}\` of line ${openLine}.`, endTok ?? c.peek()));
+				if (!endTok || what !== closer.word) {
+					this.errors.push(c.fail(endTok ? `\`end ${endTok.text}\` does not match: the open block (line ${openLine}) is ${article(closer.kind)} \`${closer.kind}\`.` : `\`end\` needs the block name: \`end ${closer.word}\`.`, `Write \`end ${closer.word}\` to close the \`${closer.kind}\` of line ${openLine}.`, endTok ?? c.peek()));
 					return body;
 				}
-				if (c.peek(2)) this.errors.push(c.fail(`I did not expect ${describe(c.peek(2))} after \`end ${closer}\`.`, void 0, c.peek(2)));
+				if (c.peek(2)) this.errors.push(c.fail(`I did not expect ${describe(c.peek(2))} after \`end ${closer.word}\`.`, void 0, c.peek(2)));
 				return body;
 			}
 			this.idx++;
@@ -1288,11 +1848,26 @@ var Parser = class {
 		}
 		if (closer !== null) {
 			const t = this.lines.find((x) => x.line === openLine)?.tokens[0];
-			this.errors.push(new ScriptError(`The \`${closer}\` on line ${openLine} has no \`end ${closer}\`.`, openLine, t?.col ?? 1, t?.end ?? 2, `Add a line \`end ${closer}\` after its last statement.`));
+			this.errors.push(new ScriptError(`The \`${closer.kind}\` on line ${openLine} has no \`end ${closer.word}\`.`, openLine, t?.col ?? 1, t?.end ?? 2, `Add a line \`end ${closer.word}\` after its last statement.`));
 		}
 		return body;
 	}
+	/** The body of a `repeat` loop: `exit repeat` and `next repeat` are allowed inside. */
+	loopBody(sl, depth) {
+		this.loops++;
+		try {
+			return this.parseBlock(blk("repeat"), sl.line, depth + 1);
+		} finally {
+			this.loops--;
+		}
+	}
+	/** A statement, checked against where it stands: a function only computes. */
 	parseStatement(c, sl, depth) {
+		const stmt = this.parseStatement1(c, sl, depth);
+		if (stmt && this.defKind === "function" && !FUNCTION_KINDS.has(stmt.kind)) throw new ScriptError(`A function cannot do this: it only computes a value.`, stmt.line, stmt.col, stmt.end, "Use `put`, `if`, `repeat` and `return` in a function; a handler (`on name ... end name`) can move the camera, show and hide, and wait.");
+		return stmt;
+	}
+	parseStatement1(c, sl, depth) {
 		const t0 = c.peek();
 		const first = lowerWord(t0);
 		const lineSpan = () => span(tspan(t0), tspan(sl.tokens[sl.tokens.length - 1]));
@@ -1336,6 +1911,17 @@ var Parser = class {
 				};
 			}
 			case "set": {
+				if (c.word() === "the" && c.word(1) === "random" && c.word(2) === "seed") {
+					c.i += 3;
+					if (!c.eatWord("to")) throw c.fail(`Expected \`to\` and a number after \`set the random seed\`, found ${describe(c.peek())}.`, "For example: set the random seed to 7.");
+					const value = parseExpr(c);
+					endOfStatement(c, [], "A seed statement is `set the random seed to N`.");
+					return {
+						kind: "seed",
+						value,
+						...lineSpan()
+					};
+				}
 				const p = c.peek();
 				if (!p || p.type !== "word") throw c.fail(`Expected the setting to change, found ${describe(p)}.`, "For example: set xray.alphaMax to 0.3 over 2 seconds.");
 				c.i++;
@@ -1379,6 +1965,23 @@ var Parser = class {
 			case "show":
 			case "hide":
 			case "isolate": {
+				if (first !== "isolate" && ["issues", "drawings"].includes(c.word())) {
+					const o = {};
+					for (;;) {
+						const w = c.word();
+						if (w !== "issues" && w !== "drawings") throw c.fail(`Expected \`issues\` or \`drawings\`, found ${describe(c.peek())}.`, `For example: ${first} issues, or ${first} issues and drawings.`);
+						if (o[w] !== void 0) throw c.fail(`\`${w}\` is given twice in this statement.`);
+						c.i++;
+						o[w] = first === "show";
+						if (!c.eatPunct(",") && !c.eatWord("and")) break;
+					}
+					endOfStatement(c, [], `Write ${first} issues, ${first} drawings, or ${first} issues and drawings.`);
+					return {
+						kind: "overlays",
+						...o,
+						...lineSpan()
+					};
+				}
 				const target = parseElements(c);
 				const o = parseOptions(c, ["fading"]);
 				return {
@@ -1467,12 +2070,12 @@ var Parser = class {
 				};
 			}
 			case "put": {
-				const value = parseExpr(c);
-				if (!c.eatWord("into")) throw c.fail(`Expected \`into\` and a name after the number, found ${describe(c.peek())}.`, "For example: put 2 * 3 into pause.");
+				const value = parseFull(c);
+				if (!c.eatWord("into")) throw c.fail(`Expected \`into\` and a name after the value, found ${describe(c.peek())}.`, "For example: put 2 * 3 into pause, or put \"Level \" & 2 into name.");
 				const n = c.peek();
 				if (!n || n.type !== "word") throw c.fail(`Expected a name to put the number into, found ${describe(n)}.`);
 				c.i++;
-				endOfStatement(c, [], "A put statement is `put <number> into <name>`.");
+				endOfStatement(c, [], "A put statement is `put <value> into <name>`.");
 				return {
 					kind: "put",
 					value,
@@ -1509,15 +2112,17 @@ var Parser = class {
 						"view",
 						"from",
 						"to",
-						"over"
+						"over",
+						"fade"
 					].includes(w)) {
 						const dym = o.type === "word" ? didYouMean(o.text, [
 							"view",
 							"from",
 							"to",
-							"over"
+							"over",
+							"fade"
 						]) : "";
-						throw c.fail(`I did not expect ${describe(o)} here.`, `${dym ? `${dym} ` : ""}A schedule statement can end with \`view planned|actual|variance\`, \`from "date"\`, \`to "date"\` and \`over N seconds\`.`);
+						throw c.fail(`I did not expect ${describe(o)} here.`, `${dym ? `${dym} ` : ""}A schedule statement can end with \`view planned|actual|variance\`, \`from "date"\`, \`to "date"\`, \`over N seconds\` and \`fade N seconds\`.`);
 					}
 					if (out[w] !== void 0) throw c.fail(`\`${w}\` is given twice in this statement.`);
 					c.i++;
@@ -1529,6 +2134,7 @@ var Parser = class {
 						out.view = vw;
 					} else if (w === "from") out.from = textOpt("from");
 					else if (w === "to") out.to = textOpt("to");
+					else if (w === "fade") out.fade = parseQuantity(c, SECOND_UNITS);
 					else out.over = parseQuantity(c, SECOND_UNITS);
 				}
 				return out;
@@ -1656,12 +2262,139 @@ var Parser = class {
 					...lineSpan()
 				};
 			}
+			case "fade": {
+				if (!(c.eatWord("new") && c.eatWord("elements"))) throw c.fail(`Expected \`new elements\` after \`fade\`, found ${describe(c.peek())}.`, "For example: fade new elements over 1.5 seconds, or fade new elements instantly.");
+				if (c.eatWord("instantly", "instant")) {
+					endOfStatement(c, [], "Nothing follows `instantly`.");
+					return {
+						kind: "fadeDefault",
+						...lineSpan()
+					};
+				}
+				if (!c.eatWord("over")) throw c.fail(`Expected \`over N seconds\` or \`instantly\`, found ${describe(c.peek())}.`, "For example: fade new elements over 1.5 seconds.");
+				const seconds = parseQuantity(c, SECOND_UNITS);
+				endOfStatement(c, [], "A fade statement is `fade new elements over N seconds` or `fade new elements instantly`.");
+				return {
+					kind: "fadeDefault",
+					seconds,
+					...lineSpan()
+				};
+			}
+			case "param": {
+				if (depth > 0 || this.defKind) throw new ScriptError("`param` goes at the top level of the script, not inside a block.", t0.line, t0.col, t0.end, "Declare parameters first, before the statements that use them.");
+				const n = c.peek();
+				if (!n || n.type !== "word") throw c.fail(`Expected the name of the parameter after \`param\`, found ${describe(n)}.`, "For example: param floor default \"Level 1\".");
+				c.i++;
+				if (!c.eatWord("default")) throw c.fail(`Expected \`default\` and the value after \`param ${n.text}\`, found ${describe(c.peek())}.`, `For example: param ${n.text} default "Level 1", param seconds default 3, or param details default yes.`);
+				const v = c.peek();
+				let def;
+				if (v && v.type === "string") {
+					c.i++;
+					def = {
+						k: "str",
+						v: v.text
+					};
+				} else if (v && v.type === "number") {
+					c.i++;
+					def = {
+						k: "num",
+						v: v.num
+					};
+				} else if (v && v.type === "punct" && v.text === "-" && c.peek(1)?.type === "number") {
+					c.i += 2;
+					def = {
+						k: "num",
+						v: -c.last().num
+					};
+				} else if (v && v.type === "word" && BOOL_WORDS.has(v.text.toLowerCase())) {
+					c.i++;
+					def = {
+						k: "bool",
+						v: BOOL_WORDS.get(v.text.toLowerCase())
+					};
+				} else throw c.fail(`Expected the default value (text in double quotes, a number, or yes/no), found ${describe(v)}.`, `For example: param ${n.text} default "Level 1".`);
+				endOfStatement(c, [], "A parameter line is `param name default value`.");
+				return {
+					kind: "param",
+					name: n.text,
+					nameSpan: tspan(n),
+					default: def,
+					...lineSpan()
+				};
+			}
+			case "use": {
+				if (depth > 0 || this.defKind) throw new ScriptError("`use` goes at the top level of the script, not inside a block.", t0.line, t0.col, t0.end, "Write the `use \"Name\"` lines first.");
+				const n = c.peek();
+				if (!n || n.type !== "string") throw c.fail(`Expected the name of a saved script in double quotes after \`use\`, found ${describe(n)}.`, "For example: use \"Floor helpers\".");
+				c.i++;
+				endOfStatement(c, [], "A use line is `use \"Name\"`.");
+				return {
+					kind: "use",
+					library: {
+						v: n.text,
+						...tspan(n)
+					},
+					...lineSpan()
+				};
+			}
+			case "exit":
+			case "next": {
+				const w = c.peek();
+				const word = lowerWord(w);
+				if (first === "next") {
+					if (word !== "repeat") throw c.fail(`Expected \`repeat\` after \`next\`, found ${describe(w)}.`, "Write `next repeat` to go on with the next round of the loop.");
+					c.i++;
+					endOfStatement(c, [], "`next repeat` stands alone.");
+					if (this.loops === 0) throw new ScriptError("`next repeat` is outside a loop.", t0.line, t0.col, w.end, "Use it inside `repeat ... end repeat`.");
+					return {
+						kind: "nextRepeat",
+						...lineSpan()
+					};
+				}
+				if (!w || w.type !== "word") throw c.fail(`Expected \`repeat\` or the name of a handler after \`exit\`, found ${describe(w)}.`, "Write `exit repeat` to leave a loop, or `exit <handler name>` to leave a handler.");
+				c.i++;
+				endOfStatement(c, [], `\`exit ${w.text}\` stands alone.`);
+				if (word === "repeat") {
+					if (this.loops === 0) throw new ScriptError("`exit repeat` is outside a loop.", t0.line, t0.col, w.end, "Use it inside `repeat ... end repeat`; to leave a handler write `exit <handler name>`.");
+					return {
+						kind: "exitRepeat",
+						...lineSpan()
+					};
+				}
+				if (this.defKind === "on" && word === this.defName) return {
+					kind: "exitHandler",
+					name: w.text,
+					...lineSpan()
+				};
+				const known = this.defNames.has(word);
+				throw new ScriptError(this.defKind === "function" && word === this.defName ? `\`exit ${w.text}\`: a function ends with \`return <value>\`.` : known && this.defKind === "on" ? `\`exit ${w.text}\` is outside the handler \`${w.text}\`: you are in \`${this.defName}\`.` : known ? `\`exit ${w.text}\` is outside the handler \`${w.text}\`.` : `I do not know what to exit: \`${w.text}\` is not \`repeat\` or a handler.`, t0.line, t0.col, w.end, this.defKind === "on" ? `Inside this handler write \`exit ${this.defName}\`.` : "Write `exit repeat` inside a loop, or `exit <name>` inside the handler of that name.");
+			}
+			case "return":
+				if (!this.defKind) throw new ScriptError("`return` is outside a function or a handler.", t0.line, t0.col, t0.end, "`return <value>` gives back the value of a `function`; `return` alone ends an `on` handler early.");
+				if (this.defKind === "function") {
+					if (c.atEnd) throw c.failEnd("A function returns a value: `return` needs one.", "For example: return n * 2.");
+					const value = parseFull(c);
+					endOfStatement(c, [], "A return statement is `return <value>`.");
+					return {
+						kind: "return",
+						value,
+						...lineSpan()
+					};
+				}
+				if (!c.atEnd) throw c.fail("A handler does not return a value.", "Write just `return` to end the handler early, or use a `function` to give a value back.");
+				return {
+					kind: "return",
+					...lineSpan()
+				};
+			case "if": return this.parseIf(c, sl, t0, depth);
+			case "on":
+			case "function": return this.parseDef(c, sl, t0, first, depth);
 			case "together":
 				endOfStatement(c, [], "`together` stands alone on its line; the statements follow below it.");
 				if (depth >= 8) throw new ScriptError(`Blocks are nested more than 8 deep.`, sl.line, t0.col, t0.end, "Flatten the script.");
 				return {
 					kind: "together",
-					body: this.parseBlock("together", sl.line, depth + 1),
+					body: this.parseBlock(blk("together"), sl.line, depth + 1),
 					...lineSpan()
 				};
 			case "repeat": {
@@ -1679,7 +2412,7 @@ var Parser = class {
 							kind: "forEach",
 							each: "element",
 							target,
-							body: this.parseBlock("repeat", sl.line, depth + 1),
+							body: this.loopBody(sl, depth),
 							...lineSpan()
 						};
 					}
@@ -1690,27 +2423,287 @@ var Parser = class {
 						return {
 							kind: "forEach",
 							each: "set",
-							body: this.parseBlock("repeat", sl.line, depth + 1),
+							body: this.loopBody(sl, depth),
 							...lineSpan()
 						};
 					}
-					throw c.fail(`Expected \`element\` or \`set\` after \`repeat for each\`, found ${describe(kind)}.`, kind?.type === "word" ? didYouMean(kind.text, ["element", "set"]) : void 0);
+					const unit = CHUNK_ANY.get(kw);
+					if (unit) {
+						c.i++;
+						const n = c.peek();
+						if (!n || n.type !== "word" || n.text.toLowerCase() === "in") throw c.fail(`Expected a name for each ${unit} after \`repeat for each ${kind.text}\`, found ${describe(n)}.`, `For example: repeat for each ${unit} v in list.`);
+						c.i++;
+						if (!c.eatWord("in")) throw c.fail(`Expected \`in\` and the text, found ${describe(c.peek())}.`, `For example: repeat for each ${unit} ${n.text} in list.`);
+						const list = parseFull(c);
+						endOfStatement(c, [], "Nothing follows the text on a `repeat for each` line.");
+						const body = this.loopBody(sl, depth);
+						return {
+							kind: "forEachChunk",
+							unit,
+							name: n.text,
+							nameSpan: tspan(n),
+							list,
+							body,
+							...lineSpan()
+						};
+					}
+					throw c.fail(`Expected \`element\` or \`set\` after \`repeat for each\`, found ${describe(kind)}.`, `${kind?.type === "word" ? didYouMean(kind.text, [
+						"element",
+						"set",
+						"item",
+						"word",
+						"line",
+						"char"
+					]) : ""} For the pieces of a text write \`repeat for each item v in list\` (also word, line, char).`.trim());
+				}
+				if (c.eatWord("with")) {
+					const n = c.peek();
+					if (!n || n.type !== "word") throw c.fail(`Expected a name for the counter after \`repeat with\`, found ${describe(n)}.`, "For example: repeat with i from 1 to 5.");
+					c.i++;
+					if (!c.eatWord("from")) throw c.fail(`Expected \`from\` after \`repeat with ${n.text}\`, found ${describe(c.peek())}.`, `For example: repeat with ${n.text} from 1 to 5.`);
+					const from = parseExpr(c);
+					const down = !!c.eatWord("down");
+					if (!c.eatWord("to")) throw c.fail(`Expected \`${down ? "down to" : "to"}\` and the last value, found ${describe(c.peek())}.`, `For example: repeat with ${n.text} from 5 down to 1.`);
+					const to = parseExpr(c);
+					let by;
+					if (c.eatWord("by")) by = parseExpr(c);
+					endOfStatement(c, ["by"], "A counting loop is `repeat with i from A to B [by S]`.");
+					const body = this.loopBody(sl, depth);
+					return {
+						kind: "repeatWith",
+						name: n.text,
+						nameSpan: tspan(n),
+						from,
+						to,
+						down,
+						...by ? { by } : {},
+						body,
+						...lineSpan()
+					};
+				}
+				if (c.word() === "while" || c.word() === "until") {
+					const until = c.word() === "until";
+					c.i++;
+					return {
+						kind: "while",
+						until,
+						cond: this.header(() => parseFull(c), c),
+						body: this.loopBody(sl, depth),
+						...lineSpan()
+					};
 				}
 				const times = parseExpr(c);
-				if (!c.eatWord("times", "time")) throw c.fail(`Expected \`times\` after the count, found ${describe(c.peek())}.`, "For example: repeat 3 times.");
+				if (!c.eatWord("times", "time")) throw c.fail(`Expected \`times\` after the count, found ${describe(c.peek())}.`, "For example: repeat 3 times, repeat while n < 5, or repeat with i from 1 to 5.");
 				endOfStatement(c, [], "Nothing follows `times`.");
 				return {
 					kind: "repeat",
 					times,
-					body: this.parseBlock("repeat", sl.line, depth + 1),
+					body: this.loopBody(sl, depth),
 					...lineSpan()
 				};
 			}
 			default: {
-				const dym = didYouMean(t0.text, STATEMENT_WORDS);
-				throw c.fail(`I do not know the statement \`${t0.text}\`.`, `${dym ? `${dym} ` : ""}Statements start with ${STATEMENT_WORDS.filter((w) => w !== "end").join(", ")}.`, t0);
+				if (this.defNames.has(first) || this.hasUse) {
+					const args = [];
+					if (!c.atEnd) {
+						for (;;) {
+							args.push(parseFull(c));
+							if (!c.eatPunct(",")) break;
+						}
+						endOfStatement(c, [], `Give the values of the call separated by commas: ${t0.text} 1, 2.`);
+					}
+					return {
+						kind: "call",
+						name: t0.text,
+						nameSpan: tspan(t0),
+						args,
+						...lineSpan()
+					};
+				}
+				const dym = didYouMean(t0.text, [...STATEMENT_WORDS, ...this.defNames]);
+				throw c.fail(`I do not know the statement \`${t0.text}\`.`, `${dym ? `${dym} ` : ""}Statements start with ${STATEMENT_WORDS.filter((w) => w !== "end").join(", ")}${this.defNames.size ? `, or the name of a handler (${[...this.defNames].join(", ")})` : ""}.`, t0);
 			}
 		}
+	}
+	/** Parse a block header (a condition): on an error, record it and carry on with a condition that is never true, so the lines of
+	*  the block are not read as statements of the outer level. */
+	header(f, c) {
+		try {
+			return f();
+		} catch (e) {
+			if (!(e instanceof ScriptError)) throw e;
+			this.errors.push(e);
+			c.i = c.toks.length;
+			return {
+				k: "bool",
+				v: false,
+				line: c.lineNo,
+				col: 1,
+				end: 2
+			};
+		}
+	}
+	parseIf(c, sl, t0, depth) {
+		if (depth >= 8) throw new ScriptError(`Blocks are nested more than 8 deep.`, sl.line, t0.col, t0.end, "Flatten the script.");
+		const lineSpan = () => span(tspan(t0), tspan(sl.tokens[sl.tokens.length - 1]));
+		const thenAt = (cc) => cc.toks.findIndex((t, j) => j >= cc.i && t.type === "word" && t.text.toLowerCase() === "then");
+		let cond;
+		let oneLine = false;
+		try {
+			cond = parseFull(c);
+			if (!c.eatWord("then")) throw c.fail(`Expected \`then\` after the condition, found ${describe(c.peek())}.`, "Write: if <condition> then. For example: if there are class IfcPump then.");
+			oneLine = !c.atEnd;
+		} catch (e) {
+			if (!(e instanceof ScriptError)) throw e;
+			this.errors.push(e);
+			cond = {
+				k: "bool",
+				v: false,
+				line: sl.line,
+				col: 1,
+				end: 2
+			};
+			const k = thenAt(new Cursor(sl.tokens, sl.line));
+			if (k >= 0 && k < sl.tokens.length - 1) return null;
+			c.i = c.toks.length;
+		}
+		if (oneLine) {
+			const rest = sl.tokens.slice(c.i);
+			const w = lowerWord(rest[0]);
+			if (BLOCK_WORDS.has(w)) throw new ScriptError(`A one-line \`if\` holds one plain statement, not \`${rest[0].text}\`.`, rest[0].line, rest[0].col, rest[0].end, "Put the statement on its own lines: end the `if` line with `then` and close with `end if`.");
+			const rc = new Cursor(rest, sl.line);
+			const stmt = this.parseStatement(rc, {
+				...sl,
+				tokens: rest
+			}, depth);
+			if (!stmt) return null;
+			return {
+				kind: "if",
+				branches: [{
+					cond,
+					body: [stmt],
+					...lineSpan()
+				}],
+				...lineSpan()
+			};
+		}
+		const branches = [];
+		let otherwise;
+		let cur = {
+			cond,
+			body: [],
+			...lineSpan()
+		};
+		branches.push(cur);
+		let afterElse = false;
+		let openLine = sl.line;
+		for (;;) {
+			this.elseLine = null;
+			const body = this.parseBlock({
+				word: "if",
+				kind: "if",
+				afterElse
+			}, openLine, depth + 1);
+			if (afterElse) otherwise = body;
+			else cur.body = body;
+			const el = this.elseLine;
+			if (!el) break;
+			openLine = el.line;
+			const ec = new Cursor(el.tokens, el.line);
+			ec.i = 1;
+			if (ec.eatWord("if")) {
+				let c2;
+				try {
+					c2 = parseFull(ec);
+					if (!ec.eatWord("then")) throw ec.fail(`Expected \`then\` after the condition, found ${describe(ec.peek())}.`, "Write: else if <condition> then.");
+					if (!ec.atEnd) throw ec.fail("Put the statements of an `else if` on the lines below it.", "A one-line form exists only for a plain `if`.");
+				} catch (e) {
+					if (!(e instanceof ScriptError)) throw e;
+					this.errors.push(e);
+					c2 = {
+						k: "bool",
+						v: false,
+						line: el.line,
+						col: 1,
+						end: 2
+					};
+				}
+				cur = {
+					cond: c2,
+					body: [],
+					line: el.line,
+					col: el.tokens[0].col,
+					end: el.tokens[el.tokens.length - 1].end
+				};
+				branches.push(cur);
+			} else {
+				if (!ec.atEnd) this.errors.push(ec.fail("Put the statements of an `else` on the lines below it.", "Write `else` alone on its line; for another test use `else if <condition> then`."));
+				afterElse = true;
+			}
+		}
+		return {
+			kind: "if",
+			branches,
+			...otherwise ? { otherwise } : {},
+			...lineSpan()
+		};
+	}
+	parseDef(c, sl, t0, form, depth) {
+		const f = form;
+		const lineSpan = () => span(tspan(t0), tspan(sl.tokens[sl.tokens.length - 1]));
+		if (depth > 0 || this.defKind) throw new ScriptError(`\`${f}\` defines a ${f === "on" ? "handler" : "function"} and goes at the top level of the script, not inside another block.`, t0.line, t0.col, t0.end, `Move the \`${f}\` ... \`end\` lines out of the block; they may stand anywhere at the top level, before or after the lines that use them.`);
+		const nameTok = c.peek();
+		let name = "";
+		let nameSpan = tspan(t0);
+		const params = [];
+		let headerOk = true;
+		try {
+			if (!nameTok || nameTok.type !== "word") throw c.fail(`Expected the name of the ${f === "on" ? "handler" : "function"} after \`${f}\`, found ${describe(nameTok)}.`, `For example: ${f === "on" ? "on showFloor name" : "function double x"}.`);
+			c.i++;
+			name = nameTok.text;
+			nameSpan = tspan(nameTok);
+			if (!c.atEnd) {
+				for (;;) {
+					const p = c.peek();
+					if (!p || p.type !== "word") throw c.fail(`Expected a parameter name, found ${describe(p)}.`, "Parameters are names separated by commas: on showFloor name, seconds.");
+					c.i++;
+					params.push({
+						name: p.text,
+						span: tspan(p)
+					});
+					if (!c.eatPunct(",")) break;
+				}
+				endOfStatement(c, [], "Separate the parameters with commas.");
+			}
+		} catch (e) {
+			if (!(e instanceof ScriptError)) throw e;
+			this.errors.push(e);
+			headerOk = false;
+		}
+		const was = this.defKind;
+		const wasName = this.defName;
+		this.defKind = f;
+		this.defName = name.toLowerCase();
+		let body;
+		try {
+			body = this.parseBlock({
+				word: name.toLowerCase() || f,
+				kind: name ? `${f} ${name}` : f
+			}, sl.line, depth + 1);
+		} finally {
+			this.defKind = was;
+			this.defName = wasName;
+		}
+		if (!headerOk) return null;
+		return {
+			kind: "def",
+			form: f,
+			name,
+			nameSpan,
+			params,
+			body,
+			...lineSpan()
+		};
 	}
 };
 /** Parse a script text. Never throws. */
@@ -1724,6 +2717,22 @@ function parseScript(source) {
 		program,
 		errors
 	};
+}
+/** The parameters declared at the top level of a parsed script (the form of the Script tab is built from them). */
+function paramDecls(program) {
+	const out = [];
+	for (const s of program.body) {
+		if (s.kind !== "param") continue;
+		out.push({
+			name: s.name,
+			kind: s.default.k === "str" ? "text" : s.default.k === "num" ? "number" : "yesno",
+			default: s.default.v,
+			line: s.line,
+			col: s.col,
+			end: s.end
+		});
+	}
+	return out;
 }
 // src/anim/fourd/plans.ts
 var plans = /* @__PURE__ */ new Map();
@@ -1778,7 +2787,8 @@ var LIMITS = {
 	maxIterations: 500,
 	maxSteps: 2e4,
 	maxCues: 5e3,
-	maxDuration: 3600
+	maxDuration: 3600,
+	maxCallDepth: 16
 };
 /** Default lengths in seconds. */
 var DEFAULT_SECONDS = {
@@ -1812,7 +2822,12 @@ var LABEL_FIELDS = [
 	"finish"
 ];
 var RESERVED = /* @__PURE__ */ new Set([
-	...STATEMENT_WORDS,
+	...STATEMENT_WORDS.filter((w) => w !== "fade"),
+	"then",
+	"and",
+	"or",
+	"not",
+	"there",
 	"it",
 	"index",
 	"over",
@@ -1866,18 +2881,104 @@ function parsePlanDate(text) {
 	return ms;
 }
 var Abort = class extends Error {};
+/** `return` in a function or a handler: unwinds to the call. */
+var ReturnSignal = class {
+	value;
+	t;
+	constructor(value, t) {
+		this.value = value;
+		this.t = t;
+	}
+};
+/** `exit repeat` / `next repeat`: unwinds to the loop, carrying the time reached. */
+var LoopSignal = class {
+	kind;
+	t;
+	constructor(kind, t) {
+		this.kind = kind;
+		this.t = t;
+	}
+};
+/** FNV-1a of a text: the default seed of the random generator, so the same script gives the same film. */
+function fnv1a(text) {
+	let h = 2166136261;
+	for (let i = 0; i < text.length; i++) {
+		h ^= text.charCodeAt(i);
+		h = Math.imul(h, 16777619);
+	}
+	return h >>> 0;
+}
+var CHUNK_JOIN = {
+	item: ",",
+	word: " ",
+	line: "\n",
+	char: ""
+};
+var CHUNK_NAME = {
+	item: "item",
+	word: "word",
+	line: "line",
+	char: "char"
+};
+/** The pieces of a text: items (between commas, trimmed), words (between spaces), lines (between line breaks), chars. */
+function chunksOf(text, unit) {
+	switch (unit) {
+		case "item": return text.trim() === "" ? [] : text.split(",").map((x) => x.trim());
+		case "word": return text.split(/\s+/).filter(Boolean);
+		case "line": return text === "" ? [] : text.split(/\r\n|\r|\n/);
+		case "char": return Array.from(text);
+	}
+}
+/** Names the script may read without defining them. A name of the script's own wins. */
+var CONSTANTS = /* @__PURE__ */ new Map([
+	["pi", Math.PI],
+	["empty", ""],
+	["space", " "],
+	["tab", "	"],
+	["comma", ","],
+	["quote", "\""],
+	["newline", "\n"]
+]);
+/** The built-in functions (a function of the script with the same name wins). */
+var BUILTIN_FUNCTIONS = [
+	"round",
+	"trunc",
+	"floor",
+	"ceil",
+	"abs",
+	"min",
+	"max",
+	"sqrt",
+	"random",
+	"number"
+];
+var typeName = (v) => typeof v === "number" ? "a number" : typeof v === "string" ? "text" : "a yes/no value";
+var fmtVal = (v) => typeof v === "string" ? v : typeof v === "boolean" ? v ? "true" : "false" : fmt(v);
+var queryLiteral = (v) => typeof v === "string" ? `'${v.replace(/'/g, "''")}'` : typeof v === "boolean" ? v ? "TRUE" : "FALSE" : String(v);
 var Compiler = class {
 	opts;
 	sourceText;
 	cues = [];
 	diags = [];
 	seen = /* @__PURE__ */ new Set();
-	env = /* @__PURE__ */ new Map();
+	/** Name frames: [0] is the script's own; each call of a handler or function pushes one (parameters and names it `put`s). */
+	frames = [/* @__PURE__ */ new Map()];
+	defs = /* @__PURE__ */ new Map();
+	called = /* @__PURE__ */ new Set();
+	callStack = [];
 	ctx = null;
 	running = null;
 	steps = 0;
 	warnedParams = false;
 	lim;
+	/** State of the seeded random generator (mulberry32): the hash of the script text until `set the random seed`. */
+	rngState;
+	/** Library handlers: which library each came from. */
+	defLib = /* @__PURE__ */ new Map();
+	/** The library (and the call in the script that entered it) of each call in progress; null for the script's own code. */
+	libStack = [];
+	libsDone = /* @__PURE__ */ new Set();
+	paramInfos = [];
 	constructor(opts, sourceText) {
 		this.opts = opts;
 		this.sourceText = sourceText;
@@ -1885,12 +2986,22 @@ var Compiler = class {
 			...LIMITS,
 			...opts.limits
 		};
+		this.rngState = fnv1a(sourceText);
 	}
 	report(e, severity = "error") {
 		const d = e.toDiagnostic(severity);
+		const lib = this.libStack[this.libStack.length - 1];
+		if (lib) {
+			d.message = `In the library "${lib.name}", line ${d.line}: ${d.message}`;
+			d.line = lib.at.line;
+			d.col = lib.at.col;
+			d.end = Math.max(lib.at.end, lib.at.col + 1);
+		}
 		const key = `${d.severity}|${d.line}|${d.col}|${d.message}`;
 		if (this.seen.has(key)) return;
 		this.seen.add(key);
+		const top = this.callStack[this.callStack.length - 1];
+		if (top) d.message += ` (inside \`${top.name}\`, called on line ${top.line})`;
 		this.diags.push(d);
 	}
 	warn(message, at, hint) {
@@ -1899,17 +3010,43 @@ var Compiler = class {
 	err(message, at, hint) {
 		return new ScriptError(message, at.line, at.col, at.end, hint);
 	}
-	num(n) {
+	lookup(key) {
+		const top = this.frames[this.frames.length - 1];
+		const v = top.get(key);
+		if (v !== void 0 || top === this.frames[0]) return v;
+		return this.frames[0].get(key);
+	}
+	assign(key, v) {
+		this.frames[this.frames.length - 1].set(key, v);
+	}
+	/** Put a name back after a loop: the value it had in this frame, or gone. */
+	restore(key, saved) {
+		const top = this.frames[this.frames.length - 1];
+		if (saved === void 0) top.delete(key);
+		else top.set(key, saved);
+	}
+	own(key) {
+		return this.frames[this.frames.length - 1].get(key);
+	}
+	names() {
+		return [.../* @__PURE__ */ new Set([...this.frames[0].keys(), ...this.frames[this.frames.length - 1].keys()])];
+	}
+	/** The value of an expression, worked out now. */
+	evaluate(n) {
 		switch (n.k) {
-			case "num": return n.v;
+			case "num":
+			case "str":
+			case "bool": return n.v;
 			case "var": {
 				const key = n.name.toLowerCase();
-				if (key === "it") throw this.err("`it` is not a number.", n, this.ctx ? "Use `it` as the elements of a statement, or in text." : "Use `it` only inside `repeat for each`.");
-				const v = this.env.get(key);
+				if (key === "it") {
+					if (!this.ctx) throw this.err("`it` has no meaning here.", n, "Use `it` only inside `repeat for each`.");
+					return this.ctx.kind === "set" ? this.ctx.name : this.ctx.gid;
+				}
+				const v = this.lookup(key) ?? CONSTANTS.get(key);
 				if (v === void 0) {
-					const names = [...this.env.keys()];
-					const dym = didYouMean(n.name, names);
-					throw this.err(`I do not know the name \`${n.name}\`.`, n, dym || "Give a number a name first: put 5 into pause.");
+					const dym = didYouMean(n.name, this.names());
+					throw this.err(`I do not know the name \`${n.name}\`.`, n, dym || "Give a name a value first: put 5 into pause.");
 				}
 				return v;
 			}
@@ -1921,14 +3058,175 @@ var Compiler = class {
 				if (n.op === "+") r = a + b;
 				else if (n.op === "-") r = a - b;
 				else if (n.op === "*") r = a * b;
-				else {
-					if (b === 0) throw this.err("This divides by zero.", n.b);
-					r = a / b;
+				else if (n.op === "^") {
+					r = Math.pow(a, b);
+					if (Number.isNaN(r)) throw this.err(`${fmt(a)} ^ ${fmt(b)} is not a real number.`, n, "A negative number can only be raised to a whole power.");
+					if (a === 0 && b < 0) throw this.err("This divides by zero (0 to a negative power).", n);
+				} else {
+					if (b === 0) throw this.err(n.op === "/" ? "This divides by zero." : `This divides by zero (\`${n.op}\`).`, n.b);
+					r = n.op === "/" ? a / b : n.op === "div" ? Math.floor(a / b) : a - b * Math.floor(a / b);
 				}
 				if (!Number.isFinite(r)) throw this.err("This number is too large.", n);
 				return r;
 			}
+			case "cat": return fmtVal(this.evaluate(n.a)) + (n.space ? " " : "") + fmtVal(this.evaluate(n.b));
+			case "textTest": {
+				const a = fmtVal(this.evaluate(n.a)).toLowerCase();
+				const b = fmtVal(this.evaluate(n.b)).toLowerCase();
+				switch (n.op) {
+					case "contains": return a.includes(b);
+					case "in": return b.includes(a);
+					case "notin": return !b.includes(a);
+					case "begins": return a.startsWith(b);
+					case "ends": return a.endsWith(b);
+				}
+				return false;
+			}
+			case "prop": {
+				const gid = this.elementOf(n.of);
+				const field = n.fieldNode ? fmtVal(this.evaluate(n.fieldNode)) : n.field;
+				if (field.trim() === "") throw this.err("The property name is empty.", n, "Write it like property \"Pset_WallCommon.FireRating\" of it.");
+				return this.fact(gid, field, n);
+			}
+			case "elist": return this.elementList(n);
+			case "chunk": {
+				const text = fmtVal(this.evaluate(n.of));
+				const from = this.whole(n.index, `The ${n.unit} number`);
+				const pieces = chunksOf(text, n.unit);
+				if (n.to) {
+					const to = this.whole(n.to, `The last ${n.unit} number`);
+					return to < from ? "" : pieces.slice(from - 1, to).join(CHUNK_JOIN[n.unit]);
+				}
+				return pieces[from - 1] ?? "";
+			}
+			case "number": return chunksOf(fmtVal(this.evaluate(n.of)), n.unit).length;
+			case "sort": return this.sortChunks(n);
+			case "cmp": return this.compare(n);
+			case "and": return this.bool(n.a) && this.bool(n.b);
+			case "or": return this.bool(n.a) || this.bool(n.b);
+			case "not": return !this.bool(n.a);
+			case "call": return this.callFunction(n);
+			case "count": return this.count(n.target);
+			case "there": return this.count(n.target) > 0 !== n.none;
 		}
+	}
+	num(n) {
+		if (n.k === "var" && n.name.toLowerCase() === "it") throw this.err("`it` is not a number.", n, this.ctx ? "Use `it` as the elements of a statement, or in text." : "Use `it` only inside `repeat for each`.");
+		const v = this.evaluate(n);
+		if (typeof v !== "number") throw this.err(n.k === "var" ? `\`${n.name}\` is ${typeName(v)}, not a number.` : `This is ${typeName(v)}, not a number.`, n, typeof v === "string" ? "Join text with &, like \"Level \" & 2. Arithmetic is for numbers." : void 0);
+		return v;
+	}
+	/** A condition: a yes/no value. */
+	bool(n) {
+		const v = this.evaluate(n);
+		if (typeof v !== "boolean") throw this.err(`This is ${typeName(v)}, not a yes/no condition.`, n, "Compare it: n > 0, or name = \"Level 1\".");
+		return v;
+	}
+	compare(n) {
+		const a = this.evaluate(n.a);
+		const b = this.evaluate(n.b);
+		const eq = n.op === "=" || n.op === "<>";
+		let r;
+		if (typeof a === "boolean" || typeof b === "boolean") {
+			if (typeof a !== typeof b) throw this.err(`A yes/no value cannot be compared with ${typeName(typeof a === "boolean" ? b : a)}.`, n);
+			if (!eq) throw this.err("A yes/no value can only be compared with = and <>.", n);
+			r = a === b ? 0 : 1;
+		} else if (typeof a === "number" && typeof b === "number") r = Math.abs(a - b) < 1e-9 ? 0 : a < b ? -1 : 1;
+		else if (typeof a === "string" && typeof b === "string") r = a.toLowerCase() === b.toLowerCase() ? 0 : a.localeCompare(b, "en", {
+			numeric: true,
+			sensitivity: "base"
+		}) || (eq ? 1 : 0);
+		else {
+			const asNum = (v) => typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+			const x = asNum(a);
+			const y = asNum(b);
+			if (Number.isNaN(x) || Number.isNaN(y)) throw this.err(`${typeName(a)[0].toUpperCase()}${typeName(a).slice(1)} cannot be compared with ${typeName(b)}.`, n, "Compare numbers with numbers and text with text.");
+			r = Math.abs(x - y) < 1e-9 ? 0 : x < y ? -1 : 1;
+		}
+		switch (n.op) {
+			case "=": return r === 0;
+			case "<>": return r !== 0;
+			case "<": return r < 0;
+			case ">": return r > 0;
+			case "<=": return r <= 0;
+			case ">=": return r >= 0;
+		}
+	}
+	/** How many elements match: needs the model, as `repeat for each element` does. */
+	count(target) {
+		return this.idsOf(target, "counted").length;
+	}
+	/** The GlobalIds of elements, in the model as it is now. */
+	idsOf(target, what) {
+		if (target.k === "schedule") throw this.err(`The elements of a running schedule are known only while it plays, so they cannot be ${what} here.`, target, "Use elements of the model: where ..., class ..., set \"...\".");
+		const ids = this.opts.resolve?.(this.ref(target));
+		if (!ids) throw this.err(`${what === "counted" ? "Counting" : "Listing"} elements needs the model, and none is loaded.`, target, "Open a model, then run the script again.");
+		return ids;
+	}
+	/** The GlobalId of the element an expression names: `it`, or text holding a GlobalId. */
+	elementOf(n) {
+		if (n.k === "var" && n.name.toLowerCase() === "it") {
+			if (!this.ctx) throw this.err("`it` has no meaning here.", n, "Use `it` inside `repeat for each element`, or give a GlobalId in text.");
+			if (this.ctx.kind === "set") throw this.err("`it` is a selection set here, not an element.", n, "Loop over elements (`repeat for each element in set \"Name\"`) to read their names and properties.");
+			return this.ctx.gid;
+		}
+		const v = this.evaluate(n);
+		if (typeof v !== "string") throw this.err(`This is ${typeName(v)}, not an element.`, n, "Give `it` or the GlobalId of an element as text.");
+		return v;
+	}
+	/** One fact of an element as a value; empty text when the element or the fact is missing. */
+	fact(gid, field, at) {
+		const f = field.trim();
+		const lower = f.toLowerCase();
+		const builtin = [
+			"name",
+			"class",
+			"storey",
+			"type",
+			"globalid",
+			"material"
+		].includes(lower);
+		if (lower === "globalid") return gid;
+		if (!this.opts.elementField) throw this.err("Reading element properties needs the model, and none is loaded.", at, "Open a model, then run the script again.");
+		return this.opts.elementField(gid, builtin ? lower : f) ?? "";
+	}
+	/** `the names of <elements>`: the values, comma-separated, at most as many as a loop may run. */
+	elementList(n) {
+		const ids = this.idsOf(n.target, "listed");
+		const out = [];
+		for (const gid of ids) {
+			if (out.length >= this.lim.maxIterations) {
+				this.warn(`The list is cut at ${this.lim.maxIterations} values (the loop limit); ${ids.length} elements match.`, n, "Narrow the elements with `where`.");
+				break;
+			}
+			const v = fmtVal(this.fact(gid, n.field, n));
+			if (v !== "") out.push(v);
+		}
+		return out.join(",");
+	}
+	/** A whole number of 1 or more, for a chunk number. */
+	whole(n, what) {
+		const v = this.num(n);
+		if (!Number.isInteger(v) || v < 1) throw this.err(`${what} must be a whole number of 1 or more (it is ${fmt(v)}).`, n, "Counting starts at 1: item 1 of list is the first.");
+		return v;
+	}
+	sortChunks(n) {
+		const pieces = chunksOf(fmtVal(this.evaluate(n.of)), n.unit);
+		let sorted;
+		if (n.numeric) {
+			const keyed = pieces.map((p) => ({
+				p,
+				v: Number(p.trim())
+			}));
+			const bad = keyed.find((x) => x.p.trim() === "" || Number.isNaN(x.v));
+			if (bad) throw this.err(`\`${bad.p}\` is not a number, so the ${n.unit}s cannot be sorted numerically.`, n, `Leave out \`numeric\` to sort as text.`);
+			sorted = keyed.sort((a, b) => a.v - b.v).map((x) => x.p);
+		} else sorted = [...pieces].sort((a, b) => a.localeCompare(b, "en", {
+			numeric: true,
+			sensitivity: "base"
+		}) || (a < b ? -1 : a > b ? 1 : 0));
+		if (n.descending) sorted.reverse();
+		return sorted.join(CHUNK_JOIN[n.unit]);
 	}
 	/** A length of time in seconds: not negative, not longer than the limit. */
 	secs(n, fallback, what) {
@@ -1941,26 +3239,26 @@ var Compiler = class {
 	text(s) {
 		let out = "";
 		for (const p of s.parts) if (p.k === "text") out += p.v;
-		else if (p.k === "num") out += fmt(this.num(p.n));
+		else if (p.k === "num") out += fmtVal(this.evaluate(p.n));
 		else {
 			const key = p.name.toLowerCase();
 			if (key === "it") {
 				if (!this.ctx) throw this.err("`it` has no meaning here.", p.span, "Use `it` inside `repeat for each`.");
 				out += this.ctx.kind === "set" ? this.ctx.name : this.ctx.gid;
 			} else {
-				const v = this.env.get(key);
+				const v = this.lookup(key) ?? CONSTANTS.get(key);
 				if (v === void 0) {
-					const dym = didYouMean(p.name, [...this.env.keys()]);
+					const dym = didYouMean(p.name, this.names());
 					throw this.err(`I do not know the name \`${p.name}\`.`, p.span, dym || "Write text in double quotes, like \"Pumps\".");
 				}
-				out += fmt(v);
+				out += fmtVal(v);
 			}
 		}
 		return out;
 	}
 	ref(e) {
 		switch (e.k) {
-			case "query": return { query: e.query };
+			case "query": return { query: this.queryText(e) };
 			case "set": {
 				const names = this.opts.setNames?.();
 				if (names && !names.includes(e.name)) {
@@ -1977,6 +3275,16 @@ var Compiler = class {
 				return this.ctx.kind === "set" ? { set: this.ctx.name } : { globalIds: [this.ctx.gid] };
 			case "schedule": return { schedule: e.set };
 		}
+	}
+	/** The query of a `where`, with the bare words that name a variable replaced by its value. */
+	queryText(e) {
+		if (!e.subs) return e.query;
+		let q = e.query;
+		for (const sub of [...e.subs].sort((a, b) => b.at - a.at)) {
+			const v = this.lookup(sub.name.toLowerCase());
+			if (v !== void 0) q = q.slice(0, sub.at) + queryLiteral(v) + q.slice(sub.at + sub.len);
+		}
+		return q;
 	}
 	plan(name, at) {
 		const found = (this.opts.plans ?? getPlan)(name);
@@ -2007,10 +3315,10 @@ var Compiler = class {
 			throw new Abort();
 		}
 		if (this.cues.length >= this.lim.maxCues) {
-			this.report(this.err(`The script makes more than ${this.lim.maxCues} cues.`, at, "Use fewer or smaller loops."));
+			this.report(this.err(`The script makes more than ${this.lim.maxCues} steps.`, at, "Use fewer or smaller loops."));
 			throw new Abort();
 		}
-		cue.line = at.line;
+		cue.line = this.libStack[this.libStack.length - 1]?.at.line ?? at.line;
 		this.cues.push(cue);
 	}
 	/** Compile statements one after the other from time `t`; returns the time after the last. */
@@ -2213,7 +3521,7 @@ var Compiler = class {
 			case "put": {
 				const key = s.name.toLowerCase();
 				if (RESERVED.has(key)) throw this.err(`\`${s.name}\` is a word of the language and cannot be a name.`, s.nameSpan, "Choose another name, like pause or gap.");
-				this.env.set(key, this.num(s.value));
+				this.assign(key, this.evaluate(s.value));
 				return t;
 			}
 			case "schedule": {
@@ -2226,6 +3534,7 @@ var Compiler = class {
 					dur,
 					plan
 				};
+				const fadeIn = s.fade ? this.secs(s.fade, 0, "The fade time") : void 0;
 				this.emit({
 					kind: "schedule4d",
 					at: t,
@@ -2233,7 +3542,8 @@ var Compiler = class {
 					plan: { name: s.plan.v },
 					...s.view ? { view: s.view } : {},
 					...s.from ? { from: s.from.v } : {},
-					...s.to ? { to: s.to.v } : {}
+					...s.to ? { to: s.to.v } : {},
+					...fadeIn !== void 0 ? { fadeIn } : {}
 				}, s);
 				return t;
 			}
@@ -2324,7 +3634,13 @@ var Compiler = class {
 			case "together": {
 				if (s.body.length === 0) this.warn("This `together` block is empty.", s);
 				let end = t;
-				for (const b of s.body) end = Math.max(end, this.stmt(b, t));
+				for (const b of s.body) try {
+					end = Math.max(end, this.stmt(b, t));
+				} catch (e) {
+					if (e instanceof LoopSignal) throw new LoopSignal(e.kind, Math.max(end, e.t));
+					if (e instanceof ReturnSignal && e.t !== void 0) throw new ReturnSignal(e.value, Math.max(end, e.t));
+					throw e;
+				}
 				return end;
 			}
 			case "repeat": {
@@ -2332,20 +3648,402 @@ var Compiler = class {
 				if (!Number.isInteger(n) || n < 0) throw this.err(`The repeat count must be a whole number of 0 or more (it is ${fmt(n)}).`, s.times);
 				if (n > this.lim.maxIterations) throw this.err(`A loop can run at most ${this.lim.maxIterations} times (this one asks for ${n}).`, s.times, "Use fewer repeats.");
 				if (s.body.length === 0) this.warn("This `repeat` block is empty.", s);
-				const saved = this.env.get("index");
+				const saved = this.own("index");
 				for (let i = 1; i <= n; i++) {
-					this.env.set("index", i);
-					t = this.seq(s.body, t);
+					this.assign("index", i);
+					const r = this.iterate(s.body, t);
+					t = r.t;
+					if (r.stop) break;
 				}
-				this.restoreIndex(saved);
+				this.restore("index", saved);
 				return t;
 			}
 			case "forEach": return this.forEach(s, t);
+			case "if":
+				for (const br of s.branches) if (this.bool(br.cond)) return this.seq(br.body, t);
+				return s.otherwise ? this.seq(s.otherwise, t) : t;
+			case "while": {
+				const word = s.until ? "until" : "while";
+				for (let n = 0;;) {
+					if (this.bool(s.cond) === s.until) break;
+					if (++n > this.lim.maxIterations) throw this.err(`This \`repeat ${word}\` loop ran ${this.lim.maxIterations} times and was stopped: it does not seem to end.`, s.cond, `Something inside the loop must change what the condition looks at, for example: put n + 1 into n. A loop can run at most ${this.lim.maxIterations} times.`);
+					const r = this.iterate(s.body, t);
+					t = r.t;
+					if (r.stop) break;
+				}
+				return t;
+			}
+			case "repeatWith": return this.repeatWith(s, t);
+			case "def": return t;
+			case "call": return this.call(s.name, s.args, s, "on", t).t;
+			case "return": throw new ReturnSignal(s.value ? this.evaluate(s.value) : void 0);
+			case "forEachChunk": return this.forEachChunk(s, t);
+			case "exitRepeat": throw new LoopSignal("exit", t);
+			case "nextRepeat": throw new LoopSignal("next", t);
+			case "exitHandler": throw new ReturnSignal(void 0, t);
+			case "seed": {
+				const v = this.num(s.value);
+				this.rngState = Math.floor(v) >>> 0;
+				return t;
+			}
+			case "param":
+			case "use": return t;
+			case "overlays":
+				this.emit({
+					kind: "overlays",
+					at: t,
+					dur: 0,
+					...s.issues !== void 0 ? { issues: s.issues } : {},
+					...s.drawings !== void 0 ? { drawings: s.drawings } : {}
+				}, s);
+				return t;
+			case "fadeDefault":
+				this.emit({
+					kind: "fadeDefault",
+					at: t,
+					dur: 0,
+					seconds: this.secs(s.seconds, 0, "The fade time")
+				}, s);
+				return t;
 		}
 	}
-	restoreIndex(saved) {
-		if (saved === void 0) this.env.delete("index");
-		else this.env.set("index", saved);
+	/** One round of a loop body; `exit repeat` stops the loop, `next repeat` goes on with the next round (the time reached is kept). */
+	iterate(body, t) {
+		try {
+			return {
+				t: this.seq(body, t),
+				stop: false
+			};
+		} catch (e) {
+			if (e instanceof LoopSignal) return {
+				t: e.t,
+				stop: e.kind === "exit"
+			};
+			throw e;
+		}
+	}
+	forEachChunk(s, t) {
+		const key = s.name.toLowerCase();
+		if (RESERVED.has(key)) throw this.err(`\`${s.name}\` is a word of the language and cannot be a name.`, s.nameSpan, "Choose another name, like v or floor.");
+		const items = chunksOf(fmtVal(this.evaluate(s.list)), s.unit);
+		if (items.length > this.lim.maxIterations) throw this.err(`The text has ${items.length} ${CHUNK_NAME[s.unit]}s; a loop can run at most ${this.lim.maxIterations} times.`, s.list, "Use a shorter list.");
+		if (items.length === 0) this.warn(`The text has no ${CHUNK_NAME[s.unit]}s, so the loop does not run.`, s.list);
+		const savedName = this.own(key);
+		const savedIndex = this.own("index");
+		try {
+			for (let i = 0; i < items.length; i++) {
+				this.assign(key, items[i]);
+				this.assign("index", i + 1);
+				const r = this.iterate(s.body, t);
+				t = r.t;
+				if (r.stop) break;
+			}
+		} finally {
+			this.restore(key, savedName);
+			this.restore("index", savedIndex);
+		}
+		return t;
+	}
+	repeatWith(s, t) {
+		const key = s.name.toLowerCase();
+		if (RESERVED.has(key)) throw this.err(`\`${s.name}\` is a word of the language and cannot be a name.`, s.nameSpan, "Choose another name, like i or floor.");
+		const a = this.num(s.from);
+		const b = this.num(s.to);
+		const step = s.by ? this.num(s.by) : 1;
+		if (!(step > 0)) throw this.err(`The step after \`by\` must be more than 0 (it is ${fmt(step)}).`, s.by ?? s, s.down ? "Counting down is written `down to`; the step is how much to take off each time." : "To count down, write `down to`.");
+		const count = s.down ? a >= b ? Math.floor((a - b) / step + 1e-9) + 1 : 0 : a <= b ? Math.floor((b - a) / step + 1e-9) + 1 : 0;
+		if (count > this.lim.maxIterations) throw this.err(`A loop can run at most ${this.lim.maxIterations} times (this one would run ${count}).`, s.to, "Count a smaller range, or use a bigger `by`.");
+		if (count === 0) this.warn(`This loop counts ${s.down ? "down" : "up"} from ${fmt(a)} to ${fmt(b)}, so it does not run.`, s.to, s.down ? "Counting down needs the first value to be the larger one." : "To count down, write `down to`.");
+		const saved = this.own(key);
+		try {
+			for (let k = 0; k < count; k++) {
+				this.assign(key, s.down ? a - k * step : a + k * step);
+				const r = this.iterate(s.body, t);
+				t = r.t;
+				if (r.stop) break;
+			}
+		} finally {
+			this.restore(key, saved);
+		}
+		return t;
+	}
+	/** Find the definitions of the script, wherever they stand: a call may come before its definition. */
+	hoist(program) {
+		for (const s of program.body) {
+			if (s.kind !== "def") continue;
+			const key = s.name.toLowerCase();
+			const what = s.form === "on" ? "handler" : "function";
+			if (RESERVED.has(key) || STATEMENT_WORDS.includes(key)) {
+				this.report(this.err(`\`${s.name}\` is a word of the language and cannot name a ${what}.`, s.nameSpan, "Choose another name, like showFloor or double."));
+				continue;
+			}
+			const prev = this.defs.get(key);
+			if (prev) {
+				this.report(this.err(`\`${s.name}\` is already defined on line ${prev.line}.`, s.nameSpan, "Give each handler and function its own name."));
+				continue;
+			}
+			const seen = /* @__PURE__ */ new Set();
+			for (const p of s.params) {
+				const pk = p.name.toLowerCase();
+				if (RESERVED.has(pk)) this.report(this.err(`\`${p.name}\` is a word of the language and cannot be a parameter.`, p.span, "Choose another name."));
+				else if (seen.has(pk)) this.report(this.err(`The parameter \`${p.name}\` is listed twice.`, p.span));
+				seen.add(pk);
+			}
+			this.defs.set(key, s);
+		}
+		for (const s of program.body) if (s.kind === "param") this.declareParam(s);
+		this.checkGivenParams();
+		for (const s of program.body) {
+			if (s.kind !== "use") continue;
+			try {
+				this.useLibrary(s.library, s, this.opts.name ? [this.opts.name.trim().toLowerCase()] : []);
+			} catch (e) {
+				if (!(e instanceof ScriptError)) throw e;
+				this.report(e);
+			}
+		}
+	}
+	given() {
+		return new Map(Object.entries(this.opts.params ?? {}).map(([k, v]) => [k.trim().toLowerCase(), v]));
+	}
+	declared = /* @__PURE__ */ new Set();
+	declareParam(s) {
+		const key = s.name.toLowerCase();
+		if (RESERVED.has(key) || key === "it" || key === "index") {
+			this.report(this.err(`\`${s.name}\` is a word of the language and cannot be a parameter name.`, s.nameSpan, "Choose another name, like floor or pause."));
+			return;
+		}
+		if (this.declared.has(key)) {
+			this.report(this.err(`The parameter \`${s.name}\` is declared twice.`, s.nameSpan, "Give each parameter its own name."));
+			return;
+		}
+		this.declared.add(key);
+		const kind = s.default.k === "str" ? "text" : s.default.k === "num" ? "number" : "yesno";
+		let value = s.default.v;
+		const g = this.given().get(key);
+		if (g !== void 0) try {
+			value = this.coerceParam(s, kind, g);
+		} catch (e) {
+			if (!(e instanceof ScriptError)) throw e;
+			this.report(e);
+		}
+		this.frames[0].set(key, value);
+		this.paramInfos.push({
+			name: s.name,
+			kind,
+			default: s.default.v,
+			value,
+			line: s.line,
+			col: s.col,
+			end: s.end
+		});
+	}
+	coerceParam(s, kind, g) {
+		const shown = typeof g === "string" ? `"${g}"` : String(g);
+		if (kind === "text") return typeof g === "string" ? g : fmtVal(g);
+		if (kind === "number") {
+			const v = typeof g === "number" ? g : typeof g === "string" && g.trim() !== "" ? Number(g) : NaN;
+			if (!Number.isFinite(v)) throw this.err(`The parameter \`${s.name}\` is a number, but the value given is ${shown}.`, s, `Give a number, like ${s.name}=${fmt(s.default.v)}.`);
+			return v;
+		}
+		if (typeof g === "boolean") return g;
+		const l = String(g).trim().toLowerCase();
+		if ([
+			"yes",
+			"true",
+			"on",
+			"1"
+		].includes(l)) return true;
+		if ([
+			"no",
+			"false",
+			"off",
+			"0"
+		].includes(l)) return false;
+		throw this.err(`The parameter \`${s.name}\` is a yes/no value, but the value given is ${shown}.`, s, `Give yes or no, like ${s.name}=yes.`);
+	}
+	checkGivenParams() {
+		for (const [k, v] of this.opts.params ? Object.entries(this.opts.params) : []) {
+			if (this.declared.has(k.trim().toLowerCase())) continue;
+			const names = this.paramInfos.map((p) => p.name);
+			const dym = didYouMean(k, names);
+			this.warn(`The script has no parameter named "${k}", so the value is ignored.`, {
+				line: 1,
+				col: 1,
+				end: 2
+			}, dym || (names.length ? `It declares: ${names.join(", ")}.` : `It declares none; add a line like: param ${k} default "value".`));
+		}
+	}
+	useLibrary(nameText, site, chain) {
+		const name = nameText.v;
+		const key = name.trim().toLowerCase();
+		if (chain.includes(key)) throw this.err(`The scripts use each other in a circle: ${[...chain, key].map((n) => `"${n}"`).join(" -> ")}.`, site, "A library cannot `use` a script that uses it. Move what both need into a third script.");
+		if (this.libsDone.has(key)) return;
+		const get = this.opts.library;
+		if (!get) throw this.err(`\`use "${name}"\` needs the saved scripts, which are not available here.`, site, "Run the script in the viewer (Script tab), or give the compiler a `library` function; the command line takes --use-dir.");
+		const text = get(name);
+		if (text === null || text === void 0) {
+			const names = this.opts.libraryNames?.() ?? [];
+			const near = nearest(name, names);
+			throw this.err(`There is no saved script named "${name}" to use.`, site, near.length ? `Did you mean ${near.map((n) => `"${n}"`).join(" or ")}?` : names.length ? `The saved scripts are ${names.slice(0, 6).map((n) => `"${n}"`).join(", ")}.` : "Save the library script first (Script tab, Save), then run this one.");
+		}
+		this.libsDone.add(key);
+		const parsed = parseScript(text);
+		const bad = parsed.errors.find((e) => e.severity === "error");
+		if (bad) throw this.err(`The library "${name}" has an error on line ${bad.line}: ${bad.message}`, site, "Open that script and fix it first.");
+		const next = [...chain, key];
+		for (const s of parsed.program.body) if (s.kind === "use") this.useLibrary(s.library, site, next);
+		for (const s of parsed.program.body) {
+			if (s.kind !== "def") continue;
+			const dk = s.name.toLowerCase();
+			const what = s.form === "on" ? "handler" : "function";
+			if (RESERVED.has(dk) || STATEMENT_WORDS.includes(dk)) {
+				this.report(this.err(`The library "${name}" defines the ${what} \`${s.name}\`, which is a word of the language.`, site));
+				continue;
+			}
+			const prev = this.defs.get(dk);
+			if (prev) {
+				const from = this.defLib.get(prev);
+				this.warn(from ? `The ${what} \`${s.name}\` is in the library "${from.name}" and in "${name}"; the first is used.` : `The ${what} \`${s.name}\` is defined in this script (line ${prev.line}) and in the library "${name}"; the script's own is used.`, site);
+				continue;
+			}
+			this.defs.set(dk, s);
+			this.defLib.set(s, {
+				name,
+				site
+			});
+		}
+	}
+	/** Warn about handlers and functions nothing calls (their body is checked only where it runs). */
+	finish() {
+		for (const [key, d] of this.defs) if (!this.called.has(key) && !this.defLib.has(d)) this.warn(`The ${d.form === "on" ? "handler" : "function"} \`${d.name}\` is never ${d.form === "on" ? "called" : "used"}, so it does nothing (its lines are not checked either).`, d.nameSpan);
+	}
+	/** Run a handler (its statements from time `t`) or a function (a value). The arguments are worked out in the caller's frame. */
+	call(name, argNodes, at, want, t) {
+		const key = name.toLowerCase();
+		const def = this.defs.get(key);
+		const word = want === "on" ? "handler" : "function";
+		if (!def) {
+			const near = didYouMean(name, [...[...this.defs.values()].filter((d) => d.form === want).map((d) => d.name), ...want === "function" ? BUILTIN_FUNCTIONS : []]);
+			throw this.err(`I do not know the ${word} \`${name}\`.`, at, near || `Define it with \`${want === "on" ? "on" : "function"} ${name} ... end ${name}\`.`);
+		}
+		const plist = def.params.map((p) => p.name).join(", ");
+		if (def.form !== want) throw this.err(want === "function" ? `\`${def.name}\` is a handler, not a function: it cannot be used in an expression.` : `\`${def.name}\` is a function: it gives back a value, so use it in an expression.`, at, want === "function" ? `Call a handler as a statement: ${def.name}${plist ? ` ${plist}` : ""}.` : `For example: put ${def.name}(${plist}) into result.`);
+		if (argNodes.length !== def.params.length) {
+			const n = def.params.length;
+			throw this.err(`\`${def.name}\` takes ${n === 0 ? "no values" : `${n} value${n === 1 ? "" : "s"} (${plist})`}, but this call gives ${argNodes.length}.`, at, want === "on" ? `Write: ${def.name}${plist ? ` ${plist}` : ""}.` : `Write: ${def.name}(${plist}).`);
+		}
+		const args = argNodes.map((a) => this.evaluate(a));
+		if (this.callStack.length >= this.lim.maxCallDepth) throw this.err(`\`${def.name}\` is called ${this.lim.maxCallDepth} levels deep and this is one more: it seems to call itself without end.`, at, "A recursive call needs an `if` that stops it, for example: if n > 0 then ...");
+		const frame = /* @__PURE__ */ new Map();
+		def.params.forEach((p, i) => frame.set(p.name.toLowerCase(), args[i]));
+		this.called.add(key);
+		const errorsBefore = this.diags.length;
+		const lib = this.defLib.get(def);
+		const caller = this.libStack[this.libStack.length - 1];
+		this.frames.push(frame);
+		this.callStack.push({
+			name: def.name,
+			line: at.line
+		});
+		this.libStack.push(lib ? {
+			name: lib.name,
+			at: caller ? caller.at : at
+		} : null);
+		let value;
+		let returned = false;
+		try {
+			t = this.seq(def.body, t);
+		} catch (e) {
+			if (!(e instanceof ReturnSignal)) throw e;
+			value = e.value;
+			returned = true;
+			if (e.t !== void 0) t = e.t;
+		} finally {
+			this.frames.pop();
+			this.callStack.pop();
+			this.libStack.pop();
+		}
+		if (want === "function" && value === void 0) {
+			if (this.diags.length === errorsBefore && !returned) throw this.err(`The function \`${def.name}\` ended without giving a value back.`, at, `Finish every path of it with \`return <value>\` (line ${def.line} is where it starts).`);
+			value = 0;
+		}
+		return {
+			t,
+			value
+		};
+	}
+	callFunction(n) {
+		const key = n.name.toLowerCase();
+		if (!this.defs.has(key) && BUILTIN_FUNCTIONS.includes(key)) return this.builtin(key, n);
+		return this.call(n.name, n.args, n, "function", 0).value;
+	}
+	/** The built-in maths functions: they work on numbers and give a number. */
+	builtin(name, n) {
+		const argc = (min, max, usage) => {
+			if (n.args.length < min || n.args.length > max) throw this.err(`\`${name}\` is written ${usage}, but this call gives ${n.args.length} value${n.args.length === 1 ? "" : "s"}.`, n);
+		};
+		const finite = (v, at) => {
+			if (!Number.isFinite(v)) throw this.err("This number is too large.", at);
+			return v;
+		};
+		const arg = (i) => this.num(n.args[i]);
+		switch (name) {
+			case "round": {
+				argc(1, 2, "round(x) or round(x, digits)");
+				const x = arg(0);
+				const d = n.args.length > 1 ? arg(1) : 0;
+				if (!Number.isInteger(d) || d < 0 || d > 10) throw this.err(`The digits of \`round\` must be a whole number from 0 to 10 (it is ${fmt(d)}).`, n.args[1]);
+				const f = 10 ** d;
+				return finite(Math.sign(x) * (Math.round(Number((Math.abs(x) * f).toPrecision(15))) / f), n);
+			}
+			case "trunc":
+				argc(1, 1, "trunc(x)");
+				return Math.trunc(arg(0));
+			case "floor":
+				argc(1, 1, "floor(x)");
+				return Math.floor(arg(0));
+			case "ceil":
+				argc(1, 1, "ceil(x)");
+				return Math.ceil(arg(0));
+			case "abs":
+				argc(1, 1, "abs(x)");
+				return Math.abs(arg(0));
+			case "sqrt": {
+				argc(1, 1, "sqrt(x)");
+				const x = arg(0);
+				if (x < 0) throw this.err(`The square root of ${fmt(x)} is not a real number.`, n.args[0], "sqrt needs 0 or more.");
+				return Math.sqrt(x);
+			}
+			case "min":
+			case "max": {
+				argc(1, 64, `${name}(a, b, ...)`);
+				const vs = n.args.map((_, i) => arg(i));
+				return name === "min" ? Math.min(...vs) : Math.max(...vs);
+			}
+			case "number": {
+				argc(1, 1, "number(text)");
+				const v = this.evaluate(n.args[0]);
+				const x = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+				if (!Number.isFinite(x)) throw this.err(`${typeof v === "string" ? `"${v}"` : typeName(v)} is not a number.`, n.args[0]);
+				return x;
+			}
+			default: {
+				argc(0, 1, "random() or random(n)");
+				if (n.args.length === 0) return this.nextRandom();
+				const top = arg(0);
+				if (!Number.isInteger(top) || top < 1) throw this.err(`\`random(n)\` needs a whole number of 1 or more (it is ${fmt(top)}).`, n.args[0], "random(6) gives 1 to 6; random() gives a number from 0 up to (not including) 1.");
+				return 1 + Math.floor(this.nextRandom() * top);
+			}
+		}
+	}
+	/** The next number of the seeded generator (mulberry32), 0 up to 1. The same script text gives the same numbers every time. */
+	nextRandom() {
+		this.rngState = this.rngState + 1831565813 >>> 0;
+		let t = this.rngState;
+		t = Math.imul(t ^ t >>> 15, t | 1);
+		t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+		return ((t ^ t >>> 14) >>> 0) / 4294967296;
 	}
 	forEach(s, t) {
 		let items;
@@ -2369,16 +4067,18 @@ var Compiler = class {
 		if (s.each === "set" && items.length > this.lim.maxIterations) throw this.err(`There are ${items.length} selection sets; a loop can run at most ${this.lim.maxIterations} times.`, s.target ?? s, "Delete sets you do not need, or loop over elements with `where` instead.");
 		if (items.length === 0) this.warn(s.each === "set" ? "There are no selection sets, so the loop does not run." : "No element matches, so the loop does not run.", s.target ?? s);
 		const savedCtx = this.ctx;
-		const savedIndex = this.env.get("index");
+		const savedIndex = this.own("index");
 		try {
-			items.forEach((it, i) => {
-				this.ctx = it;
-				this.env.set("index", i + 1);
-				t = this.seq(s.body, t);
-			});
+			for (let i = 0; i < items.length; i++) {
+				this.ctx = items[i];
+				this.assign("index", i + 1);
+				const r = this.iterate(s.body, t);
+				t = r.t;
+				if (r.stop) break;
+			}
 		} finally {
 			this.ctx = savedCtx;
-			this.restoreIndex(savedIndex);
+			this.restore("index", savedIndex);
 		}
 		return t;
 	}
@@ -2387,7 +4087,7 @@ var Compiler = class {
 			case "bool": return v.v;
 			case "str": return v.v;
 			case "word": {
-				const n = this.env.get(v.text.toLowerCase());
+				const n = this.lookup(v.text.toLowerCase());
 				return n !== void 0 ? n : v.text;
 			}
 			case "list": {
@@ -2426,6 +4126,10 @@ function fmt(n) {
 /** Compile a parsed program. Errors come back in the result; the score is null when there is one. */
 function compileProgram(program, parseErrors, text, opts = {}) {
 	if (parseErrors.some((e) => e.severity === "error")) return {
+		params: paramDecls(program).map((p) => ({
+			...p,
+			value: p.default
+		})),
 		score: null,
 		errors: parseErrors,
 		program
@@ -2433,12 +4137,16 @@ function compileProgram(program, parseErrors, text, opts = {}) {
 	const c = new Compiler(opts, text);
 	let end = 0;
 	try {
+		c.hoist(program);
 		end = c.seq(program.body, 0);
+		c.finish();
 	} catch (e) {
-		if (!(e instanceof Abort)) throw e;
+		if (!(e instanceof Abort) && !(e instanceof LoopSignal)) throw e;
 	}
 	const errors = [...parseErrors, ...c.diags].sort((a, b) => a.line - b.line || a.col - b.col);
+	const params = c.paramInfos;
 	if (errors.some((e) => e.severity === "error")) return {
+		params,
 		score: null,
 		errors,
 		program
@@ -2448,6 +4156,7 @@ function compileProgram(program, parseErrors, text, opts = {}) {
 		i
 	})).sort((a, b) => a.q.at - b.q.at || a.i - b.i).map((x) => x.q);
 	return {
+		params,
 		score: {
 			schema: SCORE_SCHEMA,
 			duration: Math.max(end, scoreEnd(cues)),
@@ -2468,8 +4177,11 @@ function compileScript(text, opts = {}) {
 	return compileProgram(program, errors, text, opts);
 }
 // tools/skill-check/entry.ts
-function check(text, plans = {}) {
-	const r = compileScript(text, { plans: (name) => plans[name] ?? null });
+function check(text, plans = {}, extra = {}) {
+	const r = compileScript(text, {
+		plans: (name) => plans[name] ?? null,
+		...extra
+	});
 	return {
 		ok: r.errors.filter((e) => e.severity !== "warning").length === 0,
 		errors: r.errors.map((e) => ({
@@ -2479,6 +4191,12 @@ function check(text, plans = {}) {
 			hint: e.hint,
 			severity: e.severity ?? "error"
 		})),
+		params: r.params.map((p) => ({
+			name: p.name,
+			kind: p.kind,
+			default: p.default,
+			value: p.value
+		})),
 		cues: r.score?.cues.length ?? 0,
 		duration: r.score?.duration ?? 0,
 		kinds: r.score ? [...new Set(r.score.cues.map((c) => c.kind))] : []
@@ -2486,14 +4204,20 @@ function check(text, plans = {}) {
 }
 
 // ---- CLI
-import { readFileSync as __read } from 'node:fs';
+import { readFileSync as __read, readdirSync as __dir } from 'node:fs';
+import { dirname as __dirname, join as __join } from 'node:path';
 const __args = process.argv.slice(2);
 if (!__args.length || __args.includes('--help')) {
-  console.log('usage: node xrayanim_check.mjs film.xrayanim [--plan NAME=plan.4d.json ...]\nCompiles the script with the X-ray viewer\'s compiler; prints JSON {ok, errors, cues, duration, kinds}; exit 1 on errors.');
+  console.log('usage: node xrayanim_check.mjs film.xrayanim [--plan NAME=plan.4d.json ...] [--param name=value ...]\nuse "Name" lines are resolved against NAME.xrayanim files next to the script. Compiles the script with the X-ray viewer\'s compiler; prints JSON {ok, errors, cues, duration, kinds}; exit 1 on errors.');
   process.exit(__args.length ? 0 : 2);
 }
 const __plans = {};
 for (let i = 1; i < __args.length; i++) if (__args[i] === '--plan') { const [n, p] = __args[++i].split('='); __plans[n] = JSON.parse(__read(p, 'utf8')); }
-const __r = check(__read(__args[0], 'utf8'), __plans);
+const __params = {};
+for (let i = 1; i < __args.length; i++) if (__args[i] === '--param') { const v = __args[++i]; const e = v.indexOf('='); __params[v.slice(0, e)] = v.slice(e + 1); }
+const __folder = __dirname(__args[0]);
+const __libs = () => __dir(__folder).filter((f) => /\.xrayanim$/i.test(f)).map((f) => f.replace(/\.xrayanim$/i, ''));
+const __library = (n) => { const hit = __libs().find((f) => f.toLowerCase() === n.trim().toLowerCase()); return hit ? __read(__join(__folder, hit + '.xrayanim'), 'utf8') : null; };
+const __r = check(__read(__args[0], 'utf8'), __plans, { params: __params, library: __library, libraryNames: __libs });
 console.log(JSON.stringify(__r, null, 2));
 process.exit(__r.ok ? 0 : 1);

@@ -79,6 +79,8 @@ function localStore(): Storage | null {
 let store: PresetStore | null = null;
 let appRef: ViewerApp | null = null;
 let activeId: string | null = null;
+/** The preset last applied or marked, kept while the settings drift: when they come back to its state, it is active again. */
+let markedId: string | null = null;
 let lastResult: ApplyResult | null = null;
 let activeHash = '';
 let baselinePending = false;
@@ -142,6 +144,7 @@ function applyOne(app: ViewerApp, p: Preset): ApplyResult {
   snapshotFactory(app);
   const result = applyPreset(paramsApp(app), p, env());
   activeId = p.id;
+  markedId = p.id;
   lastResult = result;
   baselinePending = true;
   guiState.preset = p.name;
@@ -245,6 +248,7 @@ export const presetsPlugin: AppPlugin = {
         if (!p) return false;
         snapshotFactory(app);
         activeId = p.id;
+        markedId = p.id;
         baselinePending = true;
         guiState.preset = p.name;
         guiState.status = `${p.name}: ${note ?? 'restored with a saved view'}`;
@@ -267,6 +271,7 @@ export const presetsPlugin: AppPlugin = {
 
     st.onChange(() => {
       registerKeyed(app);
+      if (markedId && !st.get(markedId)) markedId = null;
       if (activeId && !st.get(activeId)) {
         activeId = null;
         setStatus(null);
@@ -345,17 +350,24 @@ export const presetsPlugin: AppPlugin = {
 
     buildGui(app, st, host);
 
-    // The active mark is cleared when a setting changes afterwards: compare a cheap hash once a second.
+    // The active mark follows the settings: compare a cheap hash once a second. A change clears the mark; changing back (x-ray
+    // off and on again, an undo) brings it back, because the hash of the marked preset's state is kept.
     setInterval(() => {
-      if (!appRef?.controller || !activeId) return;
+      if (!appRef?.controller || !markedId) return;
       try {
         const h = settingsHash(paramsApp(app), env());
         if (baselinePending) {
           activeHash = h;
           baselinePending = false;
-        } else if (h !== activeHash) {
+        } else if (h !== activeHash && activeId) {
           activeId = null;
           setStatus(null);
+          notifyAll();
+        } else if (h === activeHash && !activeId && store?.get(markedId)) {
+          activeId = markedId;
+          const name = store.get(markedId)!.name;
+          if (lastResult && lastResult.name === name) setStatus(lastResult);
+          else guiState.status = `${name}: applied`;
           notifyAll();
         }
       } catch {

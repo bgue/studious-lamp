@@ -12,6 +12,7 @@ The copy is the **original file, byte for byte**, plus one block of new lines in
 | The classification properties | the property set named by the schema (`psetName`, default `XR_Classification`): discipline, sub-discipline, MasterFormat division, title and section, confidence, source, model, needs review. The same values the viewer shows as `<psetName>.<Property>` |
 | Review state | `Xray_Review`: `Status` (unreviewed, manual, confirmed, corrected), `Unsure`, `NeedsReview`, `Confidence` and the three part confidences, `BuildingElementProbability`, `ProposedBy`, `Rationale` (rules only), `ReviewedAt`, `CommitId`, `SchemaHash`; after a revision walk also `RevisionStatus` and `RevisionBaseline` |
 | Cleanup marks | `Xray_Cleanup`: `FlaggedForRemoval` = true, `Rules`, `Reason`. Nothing is removed from the file |
+| Classification facets | `XR_Trade`, `XR_Placement`, `XR_Material`, `XR_Phase`, `XR_Orientation`, `XR_ClassRepair` and any other `XR_<Facet>` set the facet engine produces (concrete sets included): the core fields `Code`, `Label`, `Confidence` (IfcNormalisedRatioMeasure), `Source`, `Model`, `NeedsReview` (IfcBoolean), `SchemeVersion` and each facet's own fields (numbers as IfcReal), with the box `Include classification facets` (on when there are facet results). See [classify.md](classify.md), Facets |
 | 4D mapping | `Xray_4D`: the `IfcLabel` properties `Location`, `Trade` and `Zone` of the accepted 4D assignments, with the box `Include 4D location, trade and zone` ([4d-mapping.md](4d-mapping.md)) |
 
 The set names are `Xray_Review`, `Xray_Cleanup` and `Xray_4D`, not `Pset_...`: that prefix belongs to buildingSMART. If the schema's own `psetName` starts with `Pset_`, the dialog warns you; it is written as given.
@@ -23,6 +24,7 @@ Supported schemas: IFC2X3, IFC4 and IFC4X3. For any other schema (IFC2X2, unknow
 - The list of files with their size, schema and the number of elements that carry data.
 - `Write`: all classified elements, or only the reviewed ones (confirmed, corrected or set by hand).
 - `Include reviewer names and comments`: **off every time you open the dialog**. It is not remembered, not a setting and not in the params document. Off: no reviewer name and no review comment is written. On: `Xray_Review.ReviewedBy` and `Xray_Review.Comment` are added. API keys, access tokens and pictures have no way into the file in either case.
+- `Include classification facets`: on when Classify has facet results; writes the `XR_<Facet>` sets. `XR_ClassRepair` is written as a suggestion: the element's IFC class is not changed.
 - `Mark cleanup matches`: on when cleanup has hidden something. Elements you hid by hand are not marked, only the ones cleanup hid and you did not un-hide.
 - A progress bar and `Cancel save`. Cancel stops the worker and writes nothing.
 

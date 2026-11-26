@@ -16,7 +16,7 @@ The skill does every step with its own tools. Nothing needs to have been run bef
 | Check the IFC | `python verify.py --ifc model.4d.ifc --links links.json` | ifcopenshell |
 | Write the XER | `python xer_write.py --xer schedule.xer --links links.json -o schedule.4d.xer` | nothing |
 | Write an animation | `python anim_write.py --links links.json --ifc model.json [selection] [style] -o build.xrayanim` | nothing |
-| Check an animation | `node xrayanim_check.mjs build.xrayanim` (the viewer's own compiler) | node 18+ |
+| Check an animation | `node xrayanim_check.mjs build.xrayanim [--param name=value]` (the viewer's own compiler; `use "Name"` reads `Name.xrayanim` next to the script) | node 18+ |
 
 The JSON formats are described in [reference/data-formats.md](reference/data-formats.md). Every tool prints a JSON
 summary on stdout and never overwrites its input.
@@ -77,7 +77,19 @@ summary on stdout and never overwrites its input.
    `anim_write.py` is for parts of the build you select.
 
    You may edit the script afterwards, for example to add `explode storeys` at a milestone, `orbit`, or `mode cutaway`
-   for interior work. **Always** run `node xrayanim_check.mjs` on the result and fix every error before handing it
+   for interior work. The language also has `if` / `else if` / `else` / `end if`, `repeat while|until|with i from a to b`,
+   your own commands (`on name params ... end name`, called as `name value`) and functions (`function name params ... return
+   value ... end name`, called as `name(value)`), and `show issues` / `show drawings` (hidden while a script plays),
+   `fade new elements over N seconds` and `schedule ... fade N seconds`. Decisions are made when the script compiles; the
+   language also reads element facts (`the name of it`, `property "Pset_X.Prop" of it`, `the names of class IfcWall`), text
+   (`contains`, `begins with`, `&&`, `item 2 of list`, `sort items of list`, `repeat for each item v in list`), maths (`round`,
+   `min`, `max`, `sqrt`, `mod`, `div`, `^`, `pi`, a seeded `random(n)`), `exit repeat` / `next repeat` / `exit <handler>`,
+   `param name default value` (a value changed from the Script tab's Parameters form, `xray-4d render --param name=value`,
+   `xray-pack --script-param name=value`, or `xrayanim_check.mjs --param name=value`) and `use "Name"` (the handlers and
+   functions of another script; the checker finds `Name.xrayanim` next to the script, `xray-4d render --use-dir folder` too).
+   `anim_write.py --as-param` declares the film title as a `param`. The
+   checker has no model, so a script that asks the model (`the count of ...`, `there are ...`) reports "needs the model" there:
+   check those in the viewer. **Always** run `node xrayanim_check.mjs` on the result and fix every error before handing it
    over. The user plays it in the viewer's Script tab or renders it with `xray-4d render`.
 8. **Report:**
    - counts: links accepted, proposed, rejected and ties, coverage, tasks written;

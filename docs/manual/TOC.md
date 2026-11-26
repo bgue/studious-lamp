@@ -29,7 +29,7 @@ Sources: `wd/topbar.md`, `wd/toolbar.md`, `wd/right-sidebar.md`, `wd/gizmo.md`, 
 - 3.3 Select, hover cards and the Properties tab: read any element's data.
 - 3.4 Undo and redo for view, selection and settings; what is not undoable.
 - 3.5 On a phone: bottom sheets and the folded sidebars.
-- 3.6 What's new: the card on the first start of a new version, Show all changes, the command palette action. (`wd/whats-new.md`)
+- 3.6 What's new: the card on the first start of a new version, Show all changes, the command palette action. (`wd/whats-new.md`) The card reads `CHANGELOG.md`; "Unreleased" is never shown.
 - 3.7 Keyboard, focus and F6, command palette, cheat sheet [?]: do common actions without the mouse. (`wd/keyboard.md`)
 
 ---
@@ -143,11 +143,21 @@ Sources: `wd/classify.md`, `wd/right-sidebar.md`, `docs/SETTINGS.md` (Classify d
 - 18.3 Code lists: use the default schema or import a Throughline `Discipline` list; export results.
 - 18.4 [D] Calibration and truth files (`web/tools/classify-truth.mjs`).
 
+### 18A. Facets, the classification tree and colours
+Sources: `wd/classify.md` (Facets, Classification tree and colours), `wd/classification-tree.md`, `docs/design/classification-facets.md`
+- 18A.1 Facets (Trade, Placement, Material, Phase, Orientation, ClassRepair) and the `XR_` namespace with its core fields; try them on FZK-Haus.
+- 18A.2 The By classification tree: presets Construction, Ownership, Envelope, Standard (UniFormat II); Custom; **+set**.
+- 18A.3 Colour by facet and Confidence shading.
+
+### 18B. Concrete elements
+Sources: `wd/classify.md` (Concrete), `docs/design/concrete-classification.md`
+- 18B.1 Why concrete is special; the five `XR_Concrete*` sets (geometry, role and mark, method, spec, reinforcement intent); how they prepare rebar matching.
+
 ### 19. Parameters, properties and saving
 Sources: `wd/ifc-save.md`, `docs/design/ifc-save-and-revision.md`, `README.md` (Settings and tooltips), `docs/SETTINGS.md`
 - 19.1 Export and import parameters (`xray-params/1`).
 - 19.2 Read every property set and quantity; copy a GlobalId.
-- 19.3 Save IFC and Save cleaned IFC: write classification, review and cleanup marks into a copy of the file.
+- 19.3 Save IFC and Save cleaned IFC: write classification, review and cleanup marks into a copy of the file; **Include classification facets** writes the `XR_` sets.
 - 19.4 What is saved where: one table (IFC copy, browser storage, share link, params, exports, 4D files).
 
 ---
@@ -180,6 +190,11 @@ Sources: `wd/animation-script.md`, `wd/animation-script-guide.md`, `wd/animation
 - 23.2 Fades, captions, loops over sets; read error messages.
 - 23.3 [D] Grammar reference.
 
+### 23A. Scripts that decide: logic, text and reuse
+Sources: `wd/animation-script-guide.md` (13 to 15), `wd/animation-script-grammar.md` (2.1, 2.2, 4.1)
+- 23A.1 `if`/`else`, `repeat while|until|with`, `exit repeat`, `next repeat`. 23A.2 Handlers and functions. 23A.3 `show`/`hide issues` and `drawings`, `fade new elements`.
+- 23A.4 Element properties, text tests, lists and chunks, maths, seeded random. 23A.5 `param` and `use`.
+
 ---
 
 ## Part IX. 4D
@@ -197,7 +212,11 @@ Sources: `wd/4d-schedule.md`, `wd/4d-linking.md`
 ### 27. Playing and recording the 4D film
 Sources: `wd/4d-playback.md`, `wd/4d-director.md`, `wd/4d-schedule.md`
 - 27.1 Style, scrub by date, play; read the HUD (S-curve, milestones, legend).
-- 27.2 Let the director frame it, edit the resulting script, record.
+- 27.2 Let the director frame it, edit the resulting script, record. Style: Each floor apart, Fade in (s), Issues and drawings in the film, Camera per floor, Finale; the colour legend and the schedule strip.
+
+### 27A. Temporary works and the storyboard PDF
+Sources: `wd/4d-temporary-works.md`, `wd/4d-storyboard.md`
+- 27A.1 Scaffold, falsework and formwork from rules. 27A.2 Storyboard PDF from the film bar; `xray-4d storyboard`.
 ### 28. Exchanging 4D data
 Sources: `schema/linkml/README.md`, `.4d.json` in `wd/4d-schedule.md`
 - 28.1 Import and export `.4d.json` and the LinkML dataset.
@@ -224,7 +243,7 @@ Sources: `wd/webxr.md`
 
 ### 32. xray-4d command line  [P][D]
 Sources: `wd/xray-4d.md`, `wd/4d-linking.md`
-- 32.1 `inspect`, `link`, `plan`, `render`, `pack`, `all`; weekly CI run; IFC write-back.
+- 32.1 `inspect`, `link`, `plan`, `script`, `render`, `storyboard`, `pack`, `all`; weekly CI run; IFC write-back.
 ### 33. The agent skill ifc-4d-schedule  [D]
 Sources: `skills/README.md`, `skills/ifc-4d-schedule/SKILL.md`
 - 33.1 Install; link a schedule with an agent; review proposals.
@@ -240,7 +259,7 @@ Sources: `README.md` (Development, Plugin architecture), `SPEC.md` (Extensions, 
 ## Appendices
 - A. Keyboard reference and shortcut editor: `wd/keyboard.md`, `docs/SETTINGS.md` (Keyboard, Shortcut sheet)
 - B. Settings reference (generated): `docs/SETTINGS.md`; `web/tools/gen-settings-doc.mjs`
-- C. File formats: IFC/IFCZIP/glb/sidecar, BCF, PDF, point clouds, XER, `xray-params/1`, `xray-views/1`, `xray-flythroughs/1`, `xray-sets/1`, `xray-markup-set/1`, `.xrayanim`, `.4d.json`, LinkML. Sources: `SPEC.md`, feature docs
+- C. File formats (and the changelog): IFC/IFCZIP/glb/sidecar, storyboard PDF, BCF, PDF, point clouds, XER, `xray-params/1`, `xray-views/1`, `xray-flythroughs/1`, `xray-sets/1`, `xray-markup-set/1`, `.xrayanim`, `.4d.json`, LinkML. Sources: `SPEC.md`, feature docs
 - D. Presets table (14)
 - E. Glossary: `docs/SETTINGS.md` (Glossary)
 - F. Limits and known issues: `README.md` (Known limitations), `wd/*` Limitations

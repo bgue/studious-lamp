@@ -53,10 +53,13 @@ describe('parseChangelog', () => {
 describe('the real CHANGELOG.md', () => {
   const sections = parseChangelog(changelogText);
 
-  it('starts with Unreleased and lists v29 down to v22, newest first, each with lines and a date', () => {
+  it('starts with Unreleased and lists every release from the newest down to v22, newest first, each with lines and a date', () => {
     expect(sections[0]!.title).toBe('Unreleased');
     const rel = sections.filter((x) => x.release !== null);
-    expect(rel.map((x) => x.release)).toEqual([29, 28, 27, 26, 25, 24, 23, 22]);
+    const newest = rel[0]!.release!;
+    expect(newest).toBeGreaterThanOrEqual(29);
+    // No gaps and no duplicates: newest, newest - 1, ..., 22 (a new release adds its section on top).
+    expect(rel.map((x) => x.release)).toEqual(Array.from({ length: newest - 21 }, (_, i) => newest - i));
     for (const r of rel) {
       expect(r.lines.length, `v${r.release}`).toBeGreaterThan(0);
       expect(r.date, `v${r.release}`).toMatch(/^\d{4}-\d{2}-\d{2}$/);

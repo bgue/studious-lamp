@@ -1,6 +1,6 @@
 # 4D schedule workflow in the viewer
 
-The **4D tab** also runs the whole schedule workflow: open a Primavera P6 export (`.xer`), say what its codes mean, link activities to elements, review the links, set the film style, play and record the 4D film, and write the links back into the IFC. Design: [4d-xer-animation.md](../../docs/design/4d-xer-animation.md). The pure pipeline behind it is described in [4d-linking.md](4d-linking.md); playback in [4d-playback.md](4d-playback.md); the location, trade and zone mapping in [4d-mapping.md](4d-mapping.md).
+The **4D tab** also runs the whole schedule workflow: open a Primavera P6 export (`.xer`), say what its codes mean, link activities to elements, review the links, set the film style, play and record the 4D film, and write the links back into the IFC. Design: [4d-xer-animation.md](../../docs/design/4d-xer-animation.md). The pure pipeline behind it is described in [4d-linking.md](4d-linking.md); playback in [4d-playback.md](4d-playback.md); the location, trade and zone mapping in [4d-mapping.md](4d-mapping.md); scaffold, falsework and formwork in the film in [4d-temporary-works.md](4d-temporary-works.md).
 
 The tab has **three steps** under the film bar: **1 Map** (Values, Assign, Suggest, Coverage: give elements a location, trade and zone), **2 Link** (Schedule, Configure, Link: open the `.xer`, set what its codes mean, link, decide, and the activities without elements) and **3 Film** (Style, Save IFC with 4D links, Import / Export). Only the sections of the current step show; the film bar stays above all of them. Each step shows its state under its name: a check when done, a count when it needs you (`3 ties`, `2 to decide`) or `not started`. The tab starts on **Link** without a schedule (Map is optional when the schedule can link by storey and class) and on **Film** once a schedule is linked; clicking a step switches. The choice is a per-viewer convenience kept in the panel only (not in parameters, share links or saved views). The steps are a tablist: the arrow keys move between them, Enter or Space selects; at 390 px they stay in one row. Open the tab with `4D`, or with `window.__xray4dSchedule.open('schedule' | 'configure' | 'link' | 'style' | 'play' | 'values' | 'assign' | 'suggest' | 'coverage' | 'io')` (it switches to the step that holds the section, opens the section and scrolls to it; `play` scrolls to the film bar at the top). `window.__xray4dSchedule.step('map' | 'link' | 'film')` switches a step only and returns the step shown. A phone shows the tab as a bottom sheet; the controls keep a 32 px touch height.
 
@@ -39,7 +39,10 @@ Only **accepted** links drive the plan and are written into the IFC.
 | Film length by | length in seconds, or days per second | one of the two; default 120 s (the sample 90 s) |
 | Pace | warp (busy weeks get more screen time), fixed | |
 | Camera | director, fixed (the current camera), none | see below |
-| Explode, Section box | auto, off | made by the director |
+| Explode | auto, each floor apart, off | made by the director; "each floor apart" (`explode: 'floor'`) explodes the storeys around the floor being built (the sample uses it) |
+| Section box | auto, off | made by the director |
+| Fade in (s) | seconds, or auto | how long a new part takes to appear (a removed one to disappear); auto is 10 % of the activity or 0.6 s, the shorter; 0 is at once (`style.fadeIn`) |
+| Issues and drawings in the film | on, off (default off) | keep the issue pins and the drawings on screen while the film plays; off hides them and puts them back at the end (`style.issuesInFilm`) |
 | X-ray active work | on, off | the active elements are the x-ray focus; works without the director |
 | Labels | 0 to 12 | at most this many activity labels at once |
 | Critical float | hours, or driving path only | |
@@ -47,9 +50,11 @@ Only **accepted** links drive the plan and are written into the IFC.
 | Default split | by trade, all at once, sweep x / y / up, storey by storey, by name | the `*` entry of `split` |
 | Trade colours | colour per trade value | from the file's style, else the mapping tool's trade colours |
 
+The **Temporary works** section of the Film step (below Style) holds the rules for scaffold, falsework and formwork; see [4d-temporary-works.md](4d-temporary-works.md).
+
 ### The camera director
 
-The director is written apart (`src/schedule/director.ts`, `directFourD(plan, model) -> Cue[]`). The workflow does not import it by name: `src/map4d/directorHook.ts` finds it with a glob import (an empty result when the file does not exist, so the build compiles and the bundle holds nothing) and also accepts `registerDirector(fn)` from a plugin or a test. With `Camera: director` and a director present, its cues are added to the score after the `schedule4d` cue. **Without one, the film keeps the current camera** (as `fixed`), and the Style and Play sections say so (`window.__xray4dSchedule.note`). A director that throws gets the same fallback with its error in the note. The plan's style (explode, section box, labels, captions) travels in `plan.style`, where the director reads it.
+The director is written apart (`src/schedule/director.ts`, `directFourD(plan, model) -> Cue[]`). The workflow does not import it by name: `src/map4d/directorHook.ts` finds it with a glob import (an empty result when the file does not exist, so the build compiles and the bundle holds nothing) and also accepts `registerDirector(fn)` from a plugin or a test. With `Camera: director` and a director present, its cues are added to the score after the `schedule4d` cue. **Without one, the film keeps the current camera** (as `fixed`), and the Style and Play sections say so (`window.__xray4dSchedule.note`). A director that throws gets the same fallback with its error in the note. The plan's style (explode, section box, labels, captions, fade in, issues and drawings in the film) travels in `plan.style`, where the director and the player read it.
 
 ## Save IFC with 4D links, and reading them back
 
@@ -63,7 +68,7 @@ IndexedDB database `xray-4d-schedule` (next to `xray-4d-map`), one record per mo
 
 ## The sample: FZK-Haus 4D
 
-The Sample Projects menu has **FZK-Haus 4D** after FZK-Haus. It loads the model, then `fzk-haus.xer` and `fzk-haus.4d.json`, links (every element), builds the plan and leaves the 4D tab open and scrolled to the top, with the film bar in view. `?model=fzk-haus-4d` does the same at start (a workflow value in `?model=` loads the workflow's model and runs the workflow; plain model names, share links and packed pages are unaffected). The two files (26 KB and 2 KB) are imported as strings (`?raw`, `src/map4d/sampleFiles.ts`, loaded by a dynamic import), so the single-file build has them in its one chunk and makes no request. The entry exists wherever FZK-Haus does.
+The Sample Projects menu has **FZK-Haus 4D** after FZK-Haus. It loads the model, then `fzk-haus.xer` and `fzk-haus.4d.json`, links (every element), builds the plan and leaves the 4D tab open and scrolled to the top, with the film bar in view. `?model=fzk-haus-4d` does the same at start (a workflow value in `?model=` loads the workflow's model and runs the workflow; plain model names, share links and packed pages are unaffected). The two files (26 KB and 2 KB) are imported as strings (`?raw`, `src/map4d/sampleFiles.ts`, loaded by a dynamic import), so the single-file build has them in its one chunk and makes no request. The entry exists wherever FZK-Haus does. The sample's style is **Each floor apart** (`explode: 'floor'`, set in `tools/make_fzk_xer.py`): Play shows the ground floor and the roof storey (the first-floor slab, the gable walls and the roof) built with the storeys apart, the active floor in x-ray focus and named in a caption, closed again before the work moves on. The XER file is the same.
 
 ## Script API
 
@@ -88,7 +93,7 @@ The Sample Projects menu has **FZK-Haus 4D** after FZK-Haus. It loads the model,
 
 ## Files
 
-`src/map4d/` (pure: `scheduleConfig.ts`, `linkReview.ts`, `scheduleStore.ts`, `directorHook.ts`, `ifcio.ts` for `ActivityIds`; app: `scheduleController.ts`, `schedulePanel.ts`, `sampleFiles.ts`), `src/plugins/map4d.ts` (the API), `src/plugins/fileLoader.ts` (the drop), `src/samples.ts` (the menu entry), the `ActivityIds` writer in `src/ifcsave/additions.ts`, tests `tests/map4d-schedule-config.test.ts`, `map4d-link-review.test.ts`, `map4d-schedule-store.test.ts`, `ifcsave-4d-links.test.ts`, `samples.test.ts`, smoke `bench/smoke-4d-schedule.mjs`.
+`src/map4d/` (pure: `scheduleConfig.ts`, `tempWorksPanel.ts` (the Temporary works section), `linkReview.ts`, `scheduleStore.ts`, `directorHook.ts`, `ifcio.ts` for `ActivityIds`; app: `scheduleController.ts`, `schedulePanel.ts`, `sampleFiles.ts`), `src/plugins/map4d.ts` (the API), `src/plugins/fileLoader.ts` (the drop), `src/samples.ts` (the menu entry), the `ActivityIds` writer in `src/ifcsave/additions.ts`, tests `tests/map4d-schedule-config.test.ts`, `map4d-link-review.test.ts`, `map4d-schedule-store.test.ts`, `ifcsave-4d-links.test.ts`, `samples.test.ts`, smoke `bench/smoke-4d-schedule.mjs`.
 
 ## Limits
 

@@ -2,6 +2,8 @@
 // Schema that the providers send as structured output.
 
 import { DEFAULT_SCHEMA } from './defaultSchema';
+import { defaultFacetDefs, parseFacets } from './facets/defs';
+import type { FacetDefs } from './facets/defs';
 import type { ClassificationSchema, SchemaDiscipline, SchemaPropertyNames, SchemaSystemMeta } from './types';
 
 export const SCHEMA_ID = 'xray-classification-schema/1';
@@ -17,6 +19,7 @@ export const DEFAULT_PROPERTY_NAMES: SchemaPropertyNames = {
   source: 'Source',
   model: 'Model',
   needsReview: 'NeedsReview',
+  schemeVersion: 'SchemeVersion',
 };
 
 export function defaultSchema(): ClassificationSchema {
@@ -158,6 +161,7 @@ export function parseSchema(input: unknown): SchemaParse {
       if (d || m) systems = { ...(d ? { discipline: d } : {}), ...(m ? { masterformat: m } : {}) };
     }
   }
+  const facets = v['facets'] === undefined ? undefined : parseFacets(v['facets'], errors, minConfidence);
   if (errors.length) return { schema: null, errors };
   const fbCode = str(fb) ? (fb as string) : disciplines[0]!.code;
   const fbDisc = disciplines.find((d) => d.code === fbCode)!;
@@ -178,11 +182,18 @@ export function parseSchema(input: unknown): SchemaParse {
     disciplines,
     masterformat: { ...mfRest, appliesTo, divisions },
     ...(systems ? { systems } : {}),
+    ...(facets ? { facets } : {}),
   };
   return { schema, errors: [] };
 }
 
 // ---------------------------------------------------------------- lookups
+
+/** The facet definitions of a schema: its `facets` section, or the defaults when it has none (an older schema file). */
+export function facetDefs(schema: ClassificationSchema): FacetDefs {
+  return schema.facets?.facets ?? defaultFacetDefs(schema.minConfidence);
+}
+
 
 export function findDiscipline(schema: ClassificationSchema, key: string): SchemaDiscipline | undefined {
   return schema.disciplines.find((d) => d.code === key) ?? schema.disciplines.find((d) => d.rulesKey === key);
@@ -221,4 +232,13 @@ export function schemaHash(schema: ClassificationSchema): string {
   h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
+}
+
+/** A short, stable hash of the facet code lists (they change a facet decision). Not part of `schemaHash`, so the discipline cache stays valid. */
+export function facetsHash(schema: ClassificationSchema): string {
+  const defs = facetDefs(schema);
+  const text = JSON.stringify(Object.values(defs).map((d) => [d.id, d.codes.map((c) => [c.code, c.label, c.description])]));
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(16).padStart(8, '0');
 }

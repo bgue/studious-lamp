@@ -27,6 +27,8 @@ While the Views tab is open with the section expanded, the camera path is drawn 
 
 ## While it plays
 
+**Issues and drawings.** While a fly-through plays (and while it is recorded) the issue pins and the drawings are hidden, so the film shows the model; they come back when it ends or is stopped, exactly as they were. The option **Issues and drawings** (next to *Loop* in the fly-through settings; off by default, saved with the fly-through) keeps them on screen: it adds an `overlays` cue at 0. See [4d-playback.md](4d-playback.md).
+
 Space pauses and resumes, Left and Right go to the previous and next keyframe, Escape stops. A press or a wheel turn on the canvas stops it and leaves the camera where you took it. When it ends or is stopped (not by a press on the canvas), camera, selection, hides, settings, explode and the active preset are put back as they were before Play. Depth of field and motion blur (Cinematic > Fly-through) apply during playback.
 
 ## The score player
@@ -42,6 +44,8 @@ Space pauses and resumes, Left and Right go to the previous and next keyframe, E
 | `view` | a whole state: numbers in `params` blend, the rest (including selection, hidden, isolate, explode, preset) switch; its camera is used only when no `cameraPath` covers the cue |
 | `visibility` | `showAll`, then `isolate`, `show`, `hide`; with `dur > 0` the elements that appear or disappear fade, else they switch at `switchAt` |
 | `select` | the elements (or none); `switchAt` default start |
+| `overlays` | `{ issues?, drawings? }` shows or hides the issue pins and the drawings from this moment (a fly-through with the option below starts with one at 0) |
+| `fadeDefault` | `{ seconds }` the default fade of what appears or disappears from here on: a `visibility` cue without a duration fades over it instead of switching |
 | `caption` | the lower third for the cue's length (drawn by the HUD) |
 | `label` | a tag per element with the fields, pinned to the element (drawn by the HUD) |
 | `hover` | the hover card of the first element with a leader line (drawn by the HUD) |

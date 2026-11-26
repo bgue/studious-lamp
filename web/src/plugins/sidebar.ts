@@ -18,6 +18,8 @@ import type { StorageLike } from '../selectionSets';
 import { unionBounds } from '../selectionSets';
 import { SetsView } from '../ui/setsView';
 import { TreeView } from '../ui/treeView';
+import { createClassTreePanel } from '../ui/classTreePanel';
+import type { ClassSource, ClassTreePanel } from '../ui/classTreePanel';
 import { boxFromTuple, requestFrame } from '../ui/fit';
 import { debounce, el } from '../ui/dom';
 import { registerAction } from '../input/actions';
@@ -59,6 +61,7 @@ interface Ui {
   filter: HTMLInputElement;
   filterInfo: HTMLElement;
   tree: TreeView;
+  classTree: ClassTreePanel;
   sets: SetsView;
   store: StorageLike;
   state: SidebarState;
@@ -260,8 +263,21 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
       app.hoverId = id;
     },
     isGlobalKey: (e) => (window.__keymap?.lookup(e) ?? []).some((a) => !a.enabled || a.enabled(app)),
+    saveSet: (n) => ui?.classTree.save(n),
   });
-  modelPane.append(filterRow, tree.root);
+  const classTree = createClassTreePanel(tree, {
+    source: () => (window as unknown as { __xrayClassSource?: ClassSource }).__xrayClassSource ?? null,
+    model: () => app.loaded?.model ?? null,
+    saveQuery: (query, name) => void openCriteriaSetEditor(query, name),
+    saveIds: (name, ids) => ui!.sets.saveIds(name, ids),
+    modeChanged: () => {
+      if (!ui) return;
+      ui.filter.value = '';
+      ui.filterInfo.textContent = '';
+      ui.filter.setAttribute('aria-label', classTree.active ? 'Filter classification tree' : 'Filter model tree');
+    },
+  });
+  modelPane.append(classTree.root, filterRow, tree.root);
 
   const sets = new SetsView(
     {
@@ -288,6 +304,7 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
     filter,
     filterInfo,
     tree,
+    classTree,
     sets,
     store,
     state: readState(store),
@@ -301,7 +318,8 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
   tabs['model']!.addEventListener('click', () => setTab(u, 'model'));
   tabs['sets']!.addEventListener('click', () => setTab(u, 'sets'));
   const applyFilter = debounce(() => {
-    tree.setFilter(filter.value);
+    if (classTree.active) classTree.setFilter(filter.value);
+    else tree.setFilter(filter.value);
     updateFilterInfo(u);
   }, 150);
   filter.addEventListener('input', applyFilter);
@@ -309,7 +327,8 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
     e.stopPropagation();
     if (e.key === 'Escape' && filter.value) {
       filter.value = '';
-      tree.setFilter('');
+      if (classTree.active) classTree.setFilter('');
+      else tree.setFilter('');
       updateFilterInfo(u);
     } else if (e.key === 'Escape') {
       filter.blur();
@@ -330,6 +349,14 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
     if (e.propertyName === 'width') resizeRenderer(app);
   });
 
+  (window as unknown as { __xrayClassTree?: unknown }).__xrayClassTree = {
+    state: () => classTree.state(),
+    setMode: (m: 'model' | 'class') => classTree.setMode(m),
+    setLevels: (l: string[]) => classTree.setLevels(l),
+    roots: () => classTree.roots(),
+  };
+  // A new classification (or a facet edit) refreshes the By classification tree.
+  window.addEventListener('xray-classification', debounce(() => ui?.classTree.refresh(), 250));
   applyState(u);
   return u;
 }
@@ -353,6 +380,7 @@ export const sidebarPlugin: AppPlugin = {
     u.filter.value = '';
     u.filterInfo.textContent = '';
     u.tree.setModel(app.loaded.model);
+    u.classTree.refresh({ reset: true });
     u.sets.setModel(app.loaded.model, app.modelName);
     u.lastSelection = [];
     refreshAll(u);

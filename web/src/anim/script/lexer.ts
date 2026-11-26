@@ -143,18 +143,18 @@ export function lexLine(text: string, line: number): Tok[] | ScriptError {
       continue;
     }
     const two = text.slice(i, i + 2);
-    if (two === '!=' || two === '<>' || two === '<=' || two === '>=' || two === '==') {
+    if (two === '!=' || two === '<>' || two === '<=' || two === '>=' || two === '==' || two === '&&') {
       toks.push({ type: 'punct', text: two, line, col: start + 1, end: i + 3 });
       i += 2;
       continue;
     }
-    if ('=<>(),+-*/&'.includes(c)) {
+    if ('=<>(),+-*/&^'.includes(c)) {
       toks.push({ type: 'punct', text: c, line, col: start + 1, end: i + 2 });
       i++;
       continue;
     }
     if (c === "'") return new ScriptError("Use double quotes \" for text, not single quotes '.", line, start + 1, start + 2);
-    return new ScriptError(`Unexpected character \`${c}\`.`, line, start + 1, start + 2, 'A script line holds words, numbers, "quoted text" and a few signs: + - * / ( ) , = < >.');
+    return new ScriptError(`Unexpected character \`${c}\`.`, line, start + 1, start + 2, 'A script line holds words, numbers, "quoted text" and a few signs: + - * / ^ & && ( ) , = < >.');
   }
   return toks;
 }

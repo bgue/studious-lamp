@@ -49,6 +49,7 @@ Options:
   --flythroughs <file.json>  fly-throughs (xray-flythroughs/1, from the Views tab > Fly-through > Export) added to the Views tab
   --scripts <a.xrayanim,b.xrayanim>  animation scripts (text files, from the Script tab > Export) added to the Script tab
   --plans <a.4d.json,b.4d.json>  4D plans (xray-4d-plan/1, from xray-4d plan), registered by file name without .4d.json
+  --script-param <name=value>  a value for a "param" line of the scripts (repeatable); used by the autoplay script. A name no script declares is a warning
   --autoplay <flythrough:Name|script:Name|plan:Name>  play this fly-through, script or 4D plan at start (a kiosk film); needs --flythroughs, --scripts or --plans.
                           With plan:, the first --scripts file adds its cues (camera, captions) to the plan's film
   --loop                  with --autoplay: play it again and again
@@ -125,7 +126,7 @@ export function parseArgs(argv) {
   const options = {
     out: undefined, params: undefined, preset: undefined, select: undefined, title: undefined, name: undefined,
     tools: undefined, openTool: undefined, camera: undefined, views: undefined, openView: undefined,
-    flythroughs: undefined, scripts: undefined, plans: undefined, autoplay: undefined, loop: false,
+    flythroughs: undefined, scripts: undefined, scriptParams: undefined, plans: undefined, autoplay: undefined, loop: false,
     kiosk: false, noTopBar: false, ifcReader: false, samples: false, force: false, quiet: false,
   };
   const inputs = [];
@@ -138,7 +139,16 @@ export function parseArgs(argv) {
       flag = a.slice(0, a.indexOf('='));
       inline = a.slice(a.indexOf('=') + 1);
     }
-    if (flag in FLAG_OPTIONS) {
+    if (flag === '--script-param') {
+      let v = inline;
+      if (v === undefined) {
+        v = argv[++i];
+        if (v === undefined) throw new PackError('--script-param needs a value like floor="Level 2"');
+      }
+      const eq = v.indexOf('=');
+      if (eq < 1) throw new PackError(`--script-param needs name=value, got "${v}"`);
+      options.scriptParams = { ...(options.scriptParams ?? {}), [v.slice(0, eq).trim()]: v.slice(eq + 1) };
+    } else if (flag in FLAG_OPTIONS) {
       if (inline !== undefined) throw new PackError(`${flag} does not take a value`);
       if (FLAG_OPTIONS[flag] === 'help') help = true;
       else options[FLAG_OPTIONS[flag]] = true;
@@ -191,6 +201,7 @@ export function parseArgs(argv) {
     options.scripts = parseList(options.scripts);
     if (options.scripts.length === 0) throw new PackError('--scripts needs at least one file');
   }
+  if (options.scriptParams !== undefined && options.scripts === undefined) throw new PackError('--script-param needs --scripts <files>');
   if (options.plans !== undefined) {
     options.plans = parseList(options.plans);
     if (options.plans.length === 0) throw new PackError('--plans needs at least one file');
@@ -273,7 +284,7 @@ export function scriptNameOf(path) {
  * Check --scripts files: `files` is a list of { path, text }. Returns { scripts: [{ name, text }], warnings }; throws PackError(2) for
  * an empty or binary file or an autoplay name that no file has.
  */
-export function checkScripts(files, autoplay) {
+export function checkScripts(files, autoplay, scriptParams) {
   const scripts = [];
   for (const f of files) {
     const text = String(f.text).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
@@ -285,7 +296,15 @@ export function checkScripts(files, autoplay) {
   if (autoplay && autoplay.kind === 'script' && !scripts.some((s) => s.name === autoplay.name || s.name.toLowerCase() === autoplay.name.toLowerCase())) {
     throw new PackError(`--autoplay script:${autoplay.name} is not among the script files (${scripts.map((s) => s.name).slice(0, 8).join(', ')})`, EXIT_INPUT);
   }
-  return { scripts, warnings: [] };
+  const warnings = [];
+  if (scriptParams) {
+    const declared = new Set();
+    for (const s of scripts) for (const m of s.text.matchAll(/^\s*param\s+([A-Za-z_][A-Za-z0-9_]*)\s+default\b/gim)) declared.add(m[1].toLowerCase());
+    for (const k of Object.keys(scriptParams)) {
+      if (!declared.has(k.toLowerCase())) warnings.push(`--script-param ${k}: no script declares a parameter named "${k}" (${declared.size ? `declared: ${[...declared].join(', ')}` : 'the scripts declare none'})`);
+    }
+  }
+  return { scripts, warnings };
 }
 
 /** Tool ids that are neither reserved nor plausible custom ids; used for a warning only. */
@@ -362,6 +381,7 @@ export function buildBoot(model, options = {}, params, views, extras = {}) {
   if (options.openView && views !== undefined) boot.openView = options.openView;
   if (extras.flythroughs !== undefined) boot.flythroughs = extras.flythroughs;
   if (extras.scripts !== undefined) boot.scripts = extras.scripts;
+  if (extras.scripts !== undefined && options.scriptParams && Object.keys(options.scriptParams).length) boot.scriptParams = options.scriptParams;
   if (extras.plans !== undefined) boot.plans = extras.plans;
   if (options.autoplay) {
     boot.autoplay = { [options.autoplay.kind]: options.autoplay.name, ...(options.loop ? { loop: true } : {}) };

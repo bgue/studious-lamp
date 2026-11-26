@@ -5,7 +5,8 @@
 import { readTaskAttr } from '../schedule/attrs';
 import { isBuildType } from '../schedule/planTime';
 import { DEFAULT_STYLE } from '../schedule/types';
-import type { AttributeKind, FourDConfig, FourDStyle, Schedule, ScheduleAttrSource, SplitRule } from '../schedule/types';
+import { emptyTempWorks, parseTempWorks } from '../schedule/tempworks';
+import type { AttributeKind, FourDConfig, FourDStyle, Schedule, ScheduleAttrSource, SplitRule, TempWorksConfig, TempWorksRule } from '../schedule/types';
 
 export const CONFIG_SCHEMA = 'xray-4d-config/1' as const;
 export const ATTRS: readonly AttributeKind[] = ['location', 'trade', 'zone'];
@@ -200,6 +201,16 @@ export function notModelledCodes(config: FourDConfig): string[] {
   return Object.entries(config.activities ?? {}).filter(([, a]) => a.notModelled).map(([k]) => k);
 }
 
+/** Replace the temporary works rules ([] removes the section). */
+export function setTempWorks(config: FourDConfig, rules: readonly TempWorksRule[]): FourDConfig {
+  const c = clone(config);
+  if (rules.length) c.temporaryWorks = { version: 1, rules: clone([...rules]) } as TempWorksConfig;
+  else delete c.temporaryWorks;
+  return c;
+}
+
+export const tempWorksRules = (config: FourDConfig): TempWorksRule[] => config.temporaryWorks?.rules ?? (emptyTempWorks().rules);
+
 export function setStyle(config: FourDConfig, patch: Partial<FourDStyle>): FourDConfig {
   const c = clone(config);
   c.style = { ...c.style, ...clone(patch) };
@@ -275,9 +286,28 @@ export function parseConfig(input: unknown): ParsedConfig {
     for (const [k, x] of Object.entries(v.split)) { if (typeof x === 'string' && (SPLITS as readonly string[]).includes(x)) s[k] = x as SplitRule; else problems.push(`split.${k} is not a split rule`); }
     c.split = s;
   }
+  if (v.temporaryWorks !== undefined) {
+    const t = parseTempWorks(v.temporaryWorks);
+    problems.push(...t.problems);
+    if (t.config && t.config.rules.length) c.temporaryWorks = t.config;
+  }
   if (isObj(v.style)) {
-    const st = v.style as Partial<FourDStyle>;
+    const st = { ...(v.style as Partial<FourDStyle>) };
     if (st.view !== undefined && !VIEWS.includes(st.view)) problems.push(`style.view "${String(st.view)}" is not planned, actual or variance`);
+    const EXPLODES = ['auto', 'off', 'floor'];
+    if (st.explode !== undefined && !EXPLODES.includes(st.explode)) { problems.push(`style.explode "${String(st.explode)}" is not auto, floor or off`); delete st.explode; }
+    if (st.finale !== undefined && !['none', 'dolly', 'orbit'].includes(st.finale)) { problems.push(`style.finale "${String(st.finale)}" is not none, dolly or orbit`); delete st.finale; }
+    if (st.zoneCameras !== undefined) {
+      if (!isObj(st.zoneCameras)) { problems.push('style.zoneCameras is not an object of storey name to saved view name'); delete st.zoneCameras; }
+      else {
+        const z: Record<string, string> = {};
+        for (const [k, x] of Object.entries(st.zoneCameras)) { if (typeof x === 'string' && x) z[k] = x; else problems.push(`style.zoneCameras.${k} is not a saved view name`); }
+        st.zoneCameras = z;
+      }
+    }
+    if (st.fadeIn !== undefined && !(typeof st.fadeIn === 'number' && Number.isFinite(st.fadeIn) && st.fadeIn >= 0)) { problems.push('style.fadeIn is not a number of seconds (0 or more)'); delete st.fadeIn; }
+    if (st.issuesInFilm !== undefined && typeof st.issuesInFilm !== 'boolean') { problems.push('style.issuesInFilm is not true or false'); delete st.issuesInFilm; }
+    for (const k of ['legend', 'strip'] as const) if (st[k] !== undefined && st[k] !== 'on' && st[k] !== 'off') { problems.push(`style.${k} is not on or off`); delete st[k]; }
     const { view, ...rest } = st;
     c.style = { ...c.style, ...clone(rest), ...(view && VIEWS.includes(view) ? { view } : {}) };
   }

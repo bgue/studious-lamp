@@ -62,7 +62,7 @@ The file ships the built-ins as data (it must equal `src/presets/builtin.ts`; `t
 
 ## The active mark
 
-The last applied preset is marked `active` on its card and named in `Preset status`. A hash of the collected parameters (without camera, selection sets, playback progress and the `topBar` section, so showing or hiding the top bar keeps the mark; `imaging.mri.position` is ignored so a running MRI scan does not clear it) is compared once a second; when any setting differs, the mark is cleared. Changes in the first second after applying (settling animations, `section.fitSelection`) are taken into the baseline.
+The last applied preset is marked `active` on its card and named in `Preset status`. A hash of the collected parameters (without camera, selection sets, playback progress and the `topBar` section, so showing or hiding the top bar keeps the mark; `imaging.mri.position` is ignored so a running MRI scan does not clear it) is compared once a second; when any setting differs, the mark is cleared, and when the settings come back to the preset's state (x-ray off and on again, an undo), the mark comes back. Applying or marking another preset forgets the old one. Changes in the first second after applying (settling animations, `section.fitSelection`) are taken into the baseline.
 
 ## Parameter panel, keys, scripting
 

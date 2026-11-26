@@ -85,7 +85,10 @@ The sample configuration is short enough to read whole. Its parts, in order:
 - `activities`: exceptions for one activity: a query, a list of GlobalIds, a `role` of `remove`, or a `split`. The mark
   **Not modelled** (chapter 26) is stored here too, as `notModelled: true`. The sample marks 25 activities this way.
 - `split`: how elements of an activity appear over its days (chapter 26). `*` is the default.
-- `style`: the film options of chapter 27, including the trade colours.
+- `style`: the film options of chapter 27, including the trade colours, the explode choice (each floor apart), the fade-in time, issues and
+  drawings in the film, the finale, `zoneCameras` (a saved-view name for each storey, "Camera per floor") and the switches for the legend and the strip.
+- `temporaryWorks`: the rules for scaffold, falsework and formwork (chapter 27A). A file without it works as before. A file with another version number
+  gives no temporary works and a problem on import.
 
 Because the configuration holds queries, and queries depend on names in the model, a configuration is tied to a family of
 models, not to one file. Keep one per project, next to the schedule export, and edit it when the model changes.

@@ -95,8 +95,23 @@ export class HudOverlay {
       pixelRatio: this.dpr,
       project: this.projector(cam),
       recording: false,
+      reserveRight: this.gizmoReserve(),
     });
     this.drawn = true;
+  }
+
+  /** How much of the bottom edge the gizmo covers, from its right end (CSS pixels), so the 4D strip stops before it. */
+  private gizmoReserve(): number {
+    try {
+      const g = document.getElementById('xray-gizmo');
+      if (!g || g.offsetParent === null) return 0;
+      const gr = g.getBoundingClientRect();
+      const cr = this.canvas.getBoundingClientRect();
+      if (gr.width === 0 || gr.top >= cr.bottom || gr.bottom <= cr.bottom - 120 || gr.left >= cr.right) return 0;
+      return Math.max(0, Math.round(cr.right - gr.left + 8));
+    } catch {
+      return 0;
+    }
   }
 
   /** Project with the full canvas (the camera's aspect), then shift into the drawing area; points outside it give null. */

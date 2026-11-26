@@ -132,6 +132,8 @@ async function open(browser, opts = {}) {
   const err = await page.evaluate('window.__xrayError');
   if (err) errors.push(`[app] ${err}`);
   await page.waitForFunction('window.__xraySearch && window.__xraySearch.indexReady() && window.__xrayClassify', null, { timeout: 60000 });
+  // These checks count the requests and passes of the discipline pipeline exactly: the facets (they ask the model too) are switched off here and have their own smoke in smoke-classify.mjs.
+  await page.evaluate(() => { for (const f of Object.keys(window.__xrayClassify.facets.enabled())) window.__xrayClassify.facets.setEnabled(f, false); });
   await page.waitForTimeout(500);
   return { ctx, page, errors, net, d3 };
 }

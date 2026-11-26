@@ -141,6 +141,22 @@ const page_snapshot = () => {
   };
 };
 
+/** The legend and strip boxes of the last HUD draw: how much of each is painted and a hash of its pixels. */
+const hudBoxes = (page) => page.evaluate(() => {
+  const hs = window.__xrayFlythrough.hudState();
+  const o = document.querySelector('canvas.xray-hud');
+  const f = hs.last?.fourd;
+  if (!o || !f) return null;
+  const grab = (r) => {
+    if (!r) return null;
+    const d = o.getContext('2d').getImageData(Math.floor(r.x * hs.pixelRatio), Math.floor(r.y * hs.pixelRatio), Math.ceil(r.w * hs.pixelRatio), Math.ceil(r.h * hs.pixelRatio)).data;
+    let n = 0, h = 0;
+    for (let i = 0; i < d.length; i += 4) { if (d[i + 3] > 0) n++; h = (h * 31 + d[i] + d[i + 1] * 3 + d[i + 2] * 7 + d[i + 3]) | 0; }
+    return { painted: n / (d.length / 4), hash: h, rect: r };
+  };
+  return { legend: grab(f.legend?.rect), strip: grab(f.strip?.rect), entries: f.legend?.entries ?? [], rows: f.strip?.rows ?? 0 };
+});
+
 async function main(browser) {
   const { ctx, page } = await openPage(browser, 'main');
   await page.evaluate(() => { window.__xraySection?.clear?.(); window.__xray.app.clearSelection(); });
@@ -224,9 +240,16 @@ async function main(browser) {
   await waitClock(page, 12);
   await page.evaluate(() => window.__xrayFlythrough.pause());
   const fwd = await page.evaluate(page_snapshot);
+  await sleep(page, 300);
+  const boxFwd = await hudBoxes(page);
   await page.evaluate(() => window.__xrayFlythrough.seek(5));
   await sleep(page, 300);
   const back = await page.evaluate(page_snapshot);
+  const boxBack = await hudBoxes(page);
+  const ov = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  check('the colour legend is drawn (pixels in its box) with trades and the state key', !!boxFwd?.legend && boxFwd.legend.painted > 0.3 && boxFwd.entries.includes('Active') && boxFwd.entries.length >= 5, JSON.stringify({ legend: boxFwd?.legend?.painted, entries: boxFwd?.entries }));
+  check('the schedule strip is drawn and its pixels change with the date', !!boxFwd?.strip && boxFwd.strip.painted > 0.3 && !!boxBack?.strip && boxFwd.strip.hash !== boxBack.strip.hash, JSON.stringify({ fwd: boxFwd?.strip?.hash, back: boxBack?.strip?.hash, rows: boxFwd?.rows }));
+  check('the legend and the strip do not overlap', !!boxFwd?.legend && !!boxFwd?.strip && !ov(boxFwd.legend.rect, boxFwd.strip.rect), JSON.stringify({ l: boxFwd?.legend?.rect, s: boxFwd?.strip?.rect }));
   await page.evaluate(() => window.__xrayFlythrough.seek(12));
   await sleep(page, 300);
   const again = await page.evaluate(page_snapshot);
@@ -279,9 +302,100 @@ async function main(browser) {
     if (Math.abs(withData.data[i] - clean.data[i]) + Math.abs(withData.data[i + 1] - clean.data[i + 1]) + Math.abs(withData.data[i + 2] - clean.data[i + 2]) > 60) hudPx++;
   }
   check('video export: the date panel and activities are in the video frame (top left pixels differ with the HUD switch)', noHud.res.ok && hudPx > 200, `${hudPx} differing pixels in the top-left`);
+  let barPx = 0;
+  for (let y = Math.floor(withData.h * 0.6); y < withData.h; y++) for (let x = 0; x < Math.floor(withData.w * 0.9); x++) {
+    const k = (y * withData.w + x) * 4;
+    if (Math.abs(withData.data[k] - clean.data[k]) + Math.abs(withData.data[k + 1] - clean.data[k + 1]) + Math.abs(withData.data[k + 2] - clean.data[k + 2]) > 60) barPx++;
+  }
+  check('video export: the colour legend and the schedule strip are in the video frame (bottom pixels differ with the HUD switch)', barPx > 500, `${barPx} differing pixels in the bottom 40 %`);
   check('video export: the HUD layer drew the schedule date on the frames', withHud.frames.filter((f) => f.date).length >= 40, withHud.frames.slice(0, 3).map((f) => f.date).join(','));
   const post = await page.evaluate(page_snapshot);
   check('video export: the viewer is restored (hides, colours, camera, nothing playing)', post.userHides === before.userHides && post.colourDiff === before.colourDiff && post.live.tinted === 0 && Math.hypot(...post.camera.map((v, i) => v - cam0[i])) < 1e-3, JSON.stringify({ hides: post.userHides, colours: post.colourDiff, tinted: post.live.tinted }));
+  // ---- issue pins and drawings during a play: hidden by default, back after Stop; the style, an overlays cue and PlayOptions keep or switch them
+  await page.evaluate(() => {
+    const w = window.__xray.app.controller.model.elements.find((e) => e.globalId && /Wall/.test(e.ifcClass));
+    window.__xrayBcf.createTopic({ title: 'Smoke pin', globalIds: [w.globalId], snapshot: false });
+    window.__xrayIssues.open('issues');
+    window.__xrayMarkup.create('Smoke drawing');
+    window.__xrayMarkup.add({ kind: 'rect', fractions: { points: [[0.3, 0.3], [0.6, 0.55]], depth: 8 } });
+  });
+  await page.waitForFunction(() => document.querySelector('svg.xray-svg-overlay g[data-layer="bcf-markup"]')?.childElementCount > 0 && document.querySelector('svg.xray-svg-overlay g[data-layer="markup"]')?.childElementCount > 0, null, { timeout: 60000 });
+  const ovl = () => page.evaluate(() => {
+    const q = (l) => { const g = document.querySelector(`svg.xray-svg-overlay g[data-layer="${l}"]`); return !!g && g.childElementCount > 0 && getComputedStyle(g).display !== 'none'; };
+    return { pins: q('bcf-markup'), drawings: q('markup'), cls: document.documentElement.className };
+  });
+  const playOv = async (label, play, wait) => {
+    await page.evaluate(play);
+    await waitClock(page, wait);
+    const during = await ovl();
+    return { label, during };
+  };
+  const ov0 = await ovl();
+  check('overlays: pin and drawing are on screen before a play', ov0.pins && ov0.drawings && ov0.cls === '', JSON.stringify(ov0));
+  const dflt = await playOv('default', () => window.__xray4d.play(window.__xray4d.demoPlan(), 12, []), 1.5);
+  check('overlays: a 4D play hides the pins and the drawings by default', !dflt.during.pins && !dflt.during.drawings, JSON.stringify(dflt.during));
+  await page.evaluate(() => window.__xrayFlythrough.stop());
+  await sleep(page, 400);
+  const ov1 = await ovl();
+  check('overlays: after Stop they are back as they were', ov1.pins && ov1.drawings && ov1.cls === ov0.cls, JSON.stringify(ov1));
+  const styled = await playOv('style', () => { const p = window.__xray4d.demoPlan(); window.__xray4d.play({ ...p, style: { ...p.style, issuesInFilm: true } }, 12, []); }, 1.5);
+  check('overlays: with style.issuesInFilm on they stay during the play', styled.during.pins && styled.during.drawings, JSON.stringify(styled.during));
+  await page.evaluate(() => window.__xrayFlythrough.stop());
+  await sleep(page, 300);
+  const opt = await playOv('option', () => window.__xray4d.play(window.__xray4d.demoPlan(), 12, [], { overlays: { issues: true } }), 1.5);
+  check('overlays: PlayOptions.overlays keeps what it names (the pins) and hides the rest', opt.during.pins && !opt.during.drawings, JSON.stringify(opt.during));
+  await page.evaluate(() => window.__xrayFlythrough.stop());
+  await sleep(page, 300);
+  await page.evaluate(() => window.__xray4d.play(window.__xray4d.demoPlan(), 14, [{ kind: 'overlays', at: 2, dur: 0, issues: true }, { kind: 'overlays', at: 5, dur: 0, drawings: true, issues: false }]));
+  await waitClock(page, 0.5);
+  const c0 = await ovl();
+  await waitClock(page, 3);
+  const c1 = await ovl();
+  await waitClock(page, 6);
+  const c2 = await ovl();
+  check('overlays: an overlays cue switches them during the play', !c0.pins && !c0.drawings && c1.pins && !c1.drawings && !c2.pins && c2.drawings, JSON.stringify({ c0, c1, c2 }));
+  await page.evaluate(() => window.__xrayFlythrough.seek(0.5));
+  await sleep(page, 300);
+  const c3 = await ovl();
+  check('overlays: a seek back starts from the default again', !c3.pins && !c3.drawings, JSON.stringify(c3));
+  await page.evaluate(() => window.__xrayFlythrough.stop());
+  await sleep(page, 400);
+  const ov2 = await ovl();
+  check('overlays: stopping in the middle puts them back', ov2.pins && ov2.drawings && ov2.cls === '', JSON.stringify(ov2));
+  // the video export plays the same score: hidden meanwhile, back after
+  const seenInExport = await page.evaluate(async () => {
+    const seen = [];
+    const app = window.__xray.app;
+    const orig = app.stepFrame.bind(app);
+    app.stepFrame = (now) => { orig(now); seen.push(document.documentElement.className); };
+    try { await window.__xrayRecord.run(window.__xray4d.score(window.__xray4d.demoPlan(), 1, []), { size: '320x180', fps: 8, format: 'auto', hud: false }, { download: false }); } finally { app.stepFrame = orig; }
+    return seen;
+  });
+  const ov3 = await ovl();
+  check('overlays: during a video export they are hidden, and back after it', seenInExport.length > 0 && seenInExport.every((c) => /xray-hide-issues/.test(c) && /xray-hide-drawings/.test(c)) && ov3.pins && ov3.drawings, `${seenInExport.length} frames; after ${JSON.stringify(ov3)}`);
+
+  // ---- fade in: how many elements are mid-fade at a few moments follows style.fadeIn, a fadeDefault cue and the default rule
+  const fadeSeries = async (label, plan, extra) => {
+    await page.evaluate(([pl, ex]) => window.__xray4d.play(pl ?? window.__xray4d.demoPlan(), 12, ex), [plan, extra]);
+    await page.evaluate(() => window.__xrayFlythrough.pause());
+    const seen = [];
+    for (const t of [2.2, 3.4, 4.6, 5.8, 7, 8.2]) {
+      await page.evaluate((tt) => window.__xrayFlythrough.seek(tt), t);
+      await sleep(page, 250);
+      seen.push(await page.evaluate(() => window.__xray4d.live().alphaOverrides));
+    }
+    await page.evaluate(() => window.__xrayFlythrough.stop());
+    await sleep(page, 300);
+    console.log(`INFO fade ${label}: elements mid-fade ${seen.join(',')}`);
+    return seen;
+  };
+  const withFade = (fadeIn) => page.evaluate((f) => { const p = window.__xray4d.demoPlan(); return { ...p, style: { ...p.style, fadeIn: f } }; }, fadeIn);
+  const slow = await fadeSeries('fadeIn 4', await withFade(4), []);
+  const instant = await fadeSeries('fadeIn 0', await withFade(0), []);
+  const viaCue = await fadeSeries('fadeDefault 0', null, [{ kind: 'fadeDefault', at: 0, dur: 0, seconds: 0 }]);
+  check('fade in: with style.fadeIn 4 elements are mid-fade at most moments, with 0 never', slow.filter((n) => n > 0).length >= 4 && instant.every((n) => n === 0), `4 s: ${slow.join(',')}; 0 s: ${instant.join(',')}`);
+  check('fade in: a fadeDefault cue of 0 seconds makes the film show new parts at once', viaCue.every((n) => n === 0), viaCue.join(','));
+
   await ctx.close();
 }
 

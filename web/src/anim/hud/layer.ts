@@ -213,6 +213,7 @@ export class ScoreHudLayer implements HudLayer {
     if (fd) {
       const lay = layoutFourD(ctx, {
         view: fd.view,
+        plan: fd.plan,
         settings: st,
         W,
         H,
@@ -224,6 +225,7 @@ export class ScoreHudLayer implements HudLayer {
         bottomLift: barLift + (st.scaleBar ? 26 : 0),
         compass: st.compass,
         progressBar: st.progress,
+        reserveRight: frame.recording ? 0 : frame.reserveRight ?? 0,
       });
       desc.fourd = lay.desc;
       occupied.push(...lay.occupied);

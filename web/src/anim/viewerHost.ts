@@ -25,11 +25,13 @@ import type { ViewCamera } from '../views/model';
 import { CameraPathSampler } from './path';
 import { blendNumbers, diffParams, easeValue, getAt, nest, pathKeys, switchPoint } from './blend';
 import type { Keys } from './blend';
-import type { CameraPose, Cue, ElementRef, Score, V3, ViewState } from './score';
+import type { CameraPose, Cue, ElementRef, PlayOptions, Score, V3, ViewState } from './score';
 import type { CueRunner, PlayerHost } from './player';
 import { getHudLayer } from './hud';
+import { OverlayGate, applyOverlaysToDom, overlayDefault } from './overlays';
 import { collapseRunner, explodeRunner, focusRunner, sectionRunner, tintRunner } from './fourd/cues';
 import { resolvePlan } from './fourd/plans';
+import { getTempWorksLayer } from './fourd/tempWorksLayer';
 import { Schedule4dRunner } from './fourd/runner';
 import { ViewerLookSink } from './fourd/viewerSink';
 import { ViewerExplode, ViewerFocus, ViewerSection } from './fourd/viewerTargets';
@@ -60,6 +62,8 @@ interface FadeGroup {
   /** Hidden set after the cue (applied when the fade ends). */
   commit: Set<ElementId> | null;
   done: boolean;
+  /** A fade that runs on the clock (a show or hide cue with no duration under a `fadeDefault`): from `at`, `dur` seconds. */
+  timed?: { at: number; dur: number; ease: Extract<Cue, { kind: 'visibility' }>['ease'] };
 }
 
 interface PresetsLike {
@@ -105,6 +109,11 @@ export class ViewerScoreHost implements PlayerHost {
   private planIds = new Map<FourDPlan, Int32Array>();
   private fourdSightDirty = false;
   private lastFourdSight = -Infinity;
+  /** Issue pins and drawings while a score plays (src/anim/overlays.ts). */
+  private readonly overlays = new OverlayGate((s) => applyOverlaysToDom(s));
+  /** The `fadeDefault` of the score so far, seconds (null: none given). */
+  private fadeDefault: number | null = null;
+  private scoreCues: readonly Cue[] = [];
 
   constructor(private readonly app: ViewerApp) {
     this.sink = new ViewerLookSink(app, {
@@ -128,7 +137,7 @@ export class ViewerScoreHost implements PlayerHost {
 
   // ---------------------------------------------------------------- begin, finish, restore
 
-  begin(score: Score): void {
+  begin(score: Score, opts?: PlayOptions): void {
     const app = this.app;
     const cin = getCinematic();
     const ov = app.settings.overrides;
@@ -145,6 +154,9 @@ export class ViewerScoreHost implements PlayerHost {
     this.refs.clear();
     this.pending.clear();
     this.groups.clear();
+    this.fadeDefault = null;
+    this.scoreCues = score.cues;
+    this.overlays.begin(overlayDefault(score, opts?.overlays, (c) => resolvePlan(c.plan)));
     this.forceParams = false;
     this.camSetup = false;
     this.pathSpans = [];
@@ -175,6 +187,7 @@ export class ViewerScoreHost implements PlayerHost {
     this.forceParams = true;
     this.flushParams(Infinity);
     getHudLayer()?.setScore?.(null);
+    this.overlays.end();
     const cin = getCinematic();
     if (cin) {
       cin.externalCamera = false;
@@ -196,6 +209,7 @@ export class ViewerScoreHost implements PlayerHost {
     this.explode4d.abandon();
     this.section4d.abandon();
     getHudLayer()?.setScore?.(null);
+    this.overlays.end();
     const cin = getCinematic();
     if (cin) {
       cin.externalCamera = false;
@@ -248,10 +262,12 @@ export class ViewerScoreHost implements PlayerHost {
     app.renderer.markDirty();
   }
 
-  flush(): void {
+  flush(time?: number): void {
     this.flushParams(this.exact ? Infinity : performance.now());
+    if (time !== undefined) this.stepTimedFades(time);
     this.applyFades();
     this.sink.applyFrame();
+    if (this.schedule) getTempWorksLayer(this.app).sync();
     if (this.fourdSightDirty) {
       const now = performance.now();
       if (this.exact || now - this.lastFourdSight >= FOURD_SIGHTLINES_MS) {
@@ -278,6 +294,17 @@ export class ViewerScoreHost implements PlayerHost {
   /** 4D: write the alpha, tint and glow overrides again (the frame loop calls it after the controller step, so the x-ray smoothing does not undo them). */
   applyFrame(): void {
     this.sink.applyFrame();
+  }
+
+  /** Advance the fades that run on the clock (show or hide cues without a duration under a `fadeDefault`). */
+  private stepTimedFades(time: number): void {
+    for (const g of [...this.groups]) {
+      const t = g.timed;
+      if (!t) continue;
+      const raw = t.dur > 0 ? Math.min(1, Math.max(0, (time - t.at) / t.dur)) : 1;
+      g.f = easeValue(t.ease, raw);
+      if (raw >= 1) this.endGroup(g);
+    }
   }
 
   /** Re-write the fade alphas (the frame loop calls it while paused, when no tick runs). */
@@ -671,7 +698,9 @@ export class ViewerScoreHost implements PlayerHost {
     if (cue.show) for (const id of this.resolveRef(cue.show, `${index}:show`)) F.delete(id);
     if (cue.hide) for (const id of this.resolveRef(cue.hide, `${index}:hide`)) F.add(id);
     const sw = switchPoint(cue.switchAt, 'end');
-    if (cue.dur <= 0) {
+    // No duration: switch at once, or fade over the score's `fadeDefault` when it has one.
+    const fadeS = cue.dur <= 0 && this.fadeDefault !== null && this.fadeDefault > 0 ? this.fadeDefault : 0;
+    if (cue.dur <= 0 && fadeS <= 0) {
       let done = false;
       return {
         update: (raw) => {
@@ -711,6 +740,10 @@ export class ViewerScoreHost implements PlayerHost {
     else if (gOut && gIn) {
       gOut.commit = F;
       gIn.commit = null;
+    }
+    if (fadeS > 0) {
+      for (const g of [gIn, gOut]) if (g) g.timed = { at: cue.at, dur: fadeS, ease: cue.ease };
+      return { update: () => undefined };
     }
     return {
       update: (raw) => {
@@ -764,10 +797,41 @@ export class ViewerScoreHost implements PlayerHost {
       this.warnOnce('plan', `Score: no 4D plan named "${'name' in cue.plan ? cue.plan.name : ''}".`);
       return null;
     }
-    const runner = new Schedule4dRunner({ plan, ids: this.idsOfPlan(plan), sink: this.sink, cueDur: cue.dur });
+    // a `fadeDefault` cue at or before the start of this cue counts, whatever its place in the score's order
+    let early: number | null = this.fadeDefault;
+    let earlyAt = -Infinity;
+    for (const c of this.scoreCues) if (c.kind === 'fadeDefault' && c.at <= cue.at + 1e-9 && c.at >= earlyAt) { early = Number.isFinite(c.seconds) ? Math.max(0, c.seconds) : 0; earlyAt = c.at; }
+    const fadeIn = cue.fadeIn ?? early ?? plan.style.fadeIn;
+    const runner = new Schedule4dRunner({ plan, ids: this.idsOfPlan(plan), sink: this.sink, cueDur: cue.dur, ...(fadeIn !== undefined ? { fadeIn } : {}), ...(plan.temporaryWorks ? (() => { const t = getTempWorksLayer(this.app).bind(plan); return t ? { tempWorks: t } : {}; })() : {}) });
     this.schedule = runner;
     setLiveSchedule(runner);
     return runner;
+  }
+
+  /** Show or hide the issue pins and the drawings from this moment of the score. */
+  private overlaysRunner(cue: Extract<Cue, { kind: 'overlays' }>): CueRunner {
+    let done = false;
+    return {
+      update: () => {
+        if (done) return;
+        done = true;
+        this.overlays.cue(cue);
+      },
+    };
+  }
+
+  /** The default fade of what appears or disappears from here on (visibility cues without a duration, schedule activities). */
+  private fadeDefaultRunner(cue: Extract<Cue, { kind: 'fadeDefault' }>): CueRunner {
+    let done = false;
+    return {
+      update: () => {
+        if (done) return;
+        done = true;
+        const s = Number.isFinite(cue.seconds) ? Math.max(0, cue.seconds) : 0;
+        this.fadeDefault = s;
+        this.schedule?.setFadeSeconds(s);
+      },
+    };
   }
 
   // ---------------------------------------------------------------- cue dispatch
@@ -801,9 +865,14 @@ export class ViewerScoreHost implements PlayerHost {
       case 'collapse':
         return collapseRunner(cue, this.explode4d);
       case 'focus':
+        this.sink.holdFocus = cue.elements !== null && !('schedule' in cue.elements);
         return focusRunner(cue, index, this.env4d, this.focus4d);
       case 'sectionBox':
         return sectionRunner(cue, index, this.env4d, this.section4d);
+      case 'overlays':
+        return this.overlaysRunner(cue);
+      case 'fadeDefault':
+        return this.fadeDefaultRunner(cue);
       default:
         return null; // cue kinds from a newer score format
     }

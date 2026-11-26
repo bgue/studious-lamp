@@ -54,6 +54,7 @@ export class ViewerLookSink implements LookSink, TintTarget {
   begin(): void {
     const n = this.app.renderer.state.alpha.length;
     if (this.began) this.reset();
+    this.holdFocus = false;
     this.n = n;
     this.baseHides = new Set(this.ov.userHides);
     this.ours.clear();
@@ -151,8 +152,11 @@ export class ViewerLookSink implements LookSink, TintTarget {
     }
   }
 
+  /** A `focus` cue holds the x-ray focus: the schedule's own follow-the-active-work updates wait until it is given back. */
+  holdFocus = false;
+
   setFocus(ids: readonly number[]): void {
-    if (!this.began) return;
+    if (!this.began || this.holdFocus) return;
     this.hooks.select([...ids]);
   }
 
@@ -203,6 +207,7 @@ export class ViewerLookSink implements LookSink, TintTarget {
   reset(): void {
     if (!this.began) return;
     this.began = false;
+    this.holdFocus = false;
     const r = this.app.renderer;
     const hides = this.ov.userHides;
     for (const id of this.ours) if (!this.baseHides.has(id)) hides.delete(id);
@@ -239,6 +244,7 @@ export class ViewerLookSink implements LookSink, TintTarget {
   /** Drop everything without touching the viewer (the model changed). */
   abandon(): void {
     this.began = false;
+    this.holdFocus = false;
     this.ours.clear();
     this.alphaIds.clear();
     this.tints.clear();

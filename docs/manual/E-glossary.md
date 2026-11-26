@@ -15,13 +15,15 @@ in `docs/SETTINGS.md` and in the console. Use the new names in your own writing.
 | **bucket** | The result of the first x-ray step for an element: focus, host, near or far. |
 | **buffer** | The distance around the focus inside which a context element counts as near. |
 | **cap** | A flat hatched face that closes the cut of a solid, so that the cut looks like a section. |
+| **clash** | Two elements that overlap. The clearance colouring paints it red. |
 | **class** | The IFC type of an element, such as `IfcWall` or `IfcDuctSegment`. |
 | **clearance** | The shortest distance between the surface of an element and the focus. |
-| **clash** | Two elements that overlap. The clearance colouring paints it red. |
 | **context** | Elements that may ghost: slabs, walls, beams, columns on nearby storeys. |
 | **drawing** | A cloud, arrow, text, callout, shape or pen line on a view. Formerly: *markup*, *annotation* (PDF annotations keep that word). |
+| **facet** | One more question the classifier answers about an element, besides its discipline: Trade, Placement, Material, Phase, Orientation or ClassRepair. Each has its own short list of codes (chapter 18A). |
 | **far** | Context that is neither host nor near. By default it is drawn solid. It ghosts, with `far weight`, when it blocks the view of the focus (chapter 4). With `far mode` set to `hidden` it is not drawn. |
 | **federate** | Open several IFC files as one model. |
+| **finale** | The camera move at the end of a 4D film: a dolly-in on the finished building and an orbit, with a caption such as "Complete" (chapter 27). |
 | **fly-through** | A sequence of views with timing, played as a film. Formerly: *tour* (an older feature that the manual mentions only in its limits). |
 | **focus** | The elements you are looking at, such as the selected duct run. They are drawn solid and in front. |
 | **ghost** | To draw an element see-through, so that the focus shows through it. |
@@ -30,6 +32,7 @@ in `docs/SETTINGS.md` and in the console. Use the new names in your own writing.
 | **imaging** | The two medical looks: radiograph and MRI slice. |
 | **issue** | A problem someone must act on: status, priority, assignee, due date, comments. It points at one or more views. Formerly: *topic*, *BCF topic*. |
 | **kiosk** | A packed page with the panels folded, often playing a film by itself. |
+| **legend** | The panel of a 4D film that names the trade colours and what active, built, removed, critical, behind and ahead look like (chapter 27). Also the list under **Colour by** (18A.3). |
 | **link (4D)** | An activity together with the elements it builds or removes. |
 | **mode** | One of the five top-bar looks: Solid, Ghost, Radiograph, Glow, Cutaway. Not to be confused with the view modes (behind-only, peelback). |
 | **near** | Context inside the buffer of the focus that is not host. |
@@ -49,10 +52,14 @@ in `docs/SETTINGS.md` and in the console. Use the new names in your own writing.
 | **sheet** | A page of a PDF drawing set, shown as a view you can draw on. Formerly: *sheet sketch*. |
 | **sightline** | A straight line from a point on the focus to the camera. The viewer counts what each one hits. |
 | **storey** | A level of the building. An element belongs to at most one. |
+| **storyboard** | A PDF of still frames of the 4D film at chosen dates, each with its date, week and the work going on (chapter 27A). |
+| **strip** | The thin schedule band along the bottom of a 4D film: a bar for each activity, a row for each trade, and a marker for the date (chapter 27). |
+| **temporary works** | Scaffold, falsework (props) and formwork that a 4D film builds around the permanent work, from rules. They are not part of the IFC model (chapter 27A). |
 | **tie** | A link between an activity and elements that the viewer could not decide and left for a person. |
 | **tier** | The rank of a class. A higher tier ghosts a lower tier. |
 | **view** | A captured moment: camera, what is shown, hidden, cut and selected. It may carry drawings. Formerly: *sketch*, *markup set*, *saved view* (the Views tab keeps the word), *viewpoint* (kept only for BCF files). |
 | **viewpoint** | The BCF word for a camera with selection, hides, colours and clip planes. Used only when talking about BCF files. |
+| **XR_ namespace** | The prefix of the property sets the viewer writes for classification: `XR_Trade`, `XR_Placement`, `XR_ConcreteGeometry` and so on. Each has `Code`, `Label`, `Confidence`, `Source`, `Model`, `NeedsReview` and `SchemeVersion` (chapter 18A). |
 
 ## Old names, and what replaced them
 

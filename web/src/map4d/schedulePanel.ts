@@ -13,6 +13,8 @@ import type { Map4dController } from './controller';
 import { linksWithStatus, proposedLinks } from './linkReview';
 import { setExisting, setSource, setSplit, setStyle, setTradeQuery, setValueMap, sourceChoices, sourceKey, sourcesOf, tradeKeys, valueRows } from './scheduleConfig';
 import type { ScheduleController } from './scheduleController';
+import { buildTempWorksSection } from './tempWorksPanel';
+import { getTempWorksLayer } from '../anim/fourd/tempWorksLayer';
 
 const STYLE_ID = 'xray-4d-schedule-style';
 const CSS = `
@@ -443,7 +445,8 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   const paceVal = num('pace value', 'Seconds or days per second', '0.1', '3600', '0.5', (v) => { if (st().daysPerSecond !== undefined && st().length === undefined) sc.setStyle({ daysPerSecond: Math.max(0.1, v) }); else sc.setStyle({ length: Math.max(3, v) }); });
   const pace = select('pace', 'Pace', [['warp', 'Warp: busy weeks get more time'], ['fixed', 'Fixed']], (v) => sc.setStyle({ pace: v as FourDStyle['pace'] }));
   const camera = select('camera', 'Camera', [['director', 'Director'], ['fixed', 'Fixed: the current camera'], ['none', 'None']], (v) => sc.setStyle({ camera: v as FourDStyle['camera'] }));
-  const explode = select('explode', 'Explode', [['auto', 'Auto'], ['off', 'Off']], (v) => sc.setStyle({ explode: v as FourDStyle['explode'] }));
+  const explode = select('explode', 'Explode', [['auto', 'Auto'], ['floor', 'Each floor apart'], ['off', 'Off']], (v) => sc.setStyle({ explode: v as FourDStyle['explode'] }));
+  const finale = select('finale', 'Finale', [['none', 'None'], ['dolly', 'Dolly in, then orbit'], ['orbit', 'Orbit only']], (v) => sc.setStyle({ finale: v as NonNullable<FourDStyle['finale']> }));
   const xray = check('xray', 'X-ray the active work', (v) => sc.setStyle({ xrayFocus: v }));
   const secBox = select('section box', 'Section box', [['auto', 'Auto'], ['off', 'Off']], (v) => sc.setStyle({ sectionBox: v as FourDStyle['sectionBox'] }));
   const labels = num('labels', 'Labels', '0', '12', '1', (v) => sc.setStyle({ labels: Math.max(0, Math.min(12, Math.round(v))) }));
@@ -453,15 +456,31 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   critRow.append(critical, el('span', 'x4-dim', undefined, 'or driving path only'), critOnly.wrap);
   const captions = check('captions', 'Captions', (v) => sc.setStyle({ captions: v }));
   const hold = num('hold', 'Milestone hold in seconds', '0', '10', '0.5', (v) => sc.setStyle({ milestoneHold: Math.max(0, v) }));
+  const fadeIn = num('fade in', 'Fade in (s)', '0', '30', '0.1', (v) => sc.setStyle({ fadeIn: Math.max(0, v) }));
+  const fadeAuto = help(el('input', '', { type: 'checkbox', 'data-style': 'fade auto', 'aria-label': 'Fade in: auto' }), 'Style fade auto');
+  fadeAuto.addEventListener('change', () => {
+    if (fadeAuto.checked) { const { fadeIn: _f, ...rest } = st(); sc.setConfig({ ...sc.config, style: rest }); }
+    else sc.setStyle({ fadeIn: 0.6 });
+  });
+  const fadeRow = el('div', 'x4-row');
+  const autoLbl = el('label', 'x4-check');
+  autoLbl.append(fadeAuto, el('span', '', undefined, 'Auto'));
+  fadeRow.append(fadeIn, autoLbl);
+  const issuesFilm = check('issues in film', 'Issues and drawings in the film', (v) => sc.setStyle({ issuesInFilm: v }));
+  const legendChk = check('legend', 'Colour legend', (v) => sc.setStyle({ legend: v ? 'on' : 'off' }));
+  const stripChk = check('strip', 'Schedule strip', (v) => sc.setStyle({ strip: v ? 'on' : 'off' }));
   const splitSel = select('split', 'Split', [['', 'By trade'], ['none', 'All at once'], ['sweep_x', 'Sweep along x'], ['sweep_y', 'Sweep along y'], ['sweep_z', 'Sweep up'], ['by_storey', 'Storey by storey'], ['by_name', 'By name']], (v) => sc.setConfig(setSplit(sc.config, '*', v as SplitRule | '')));
   field('View', view); field('Unbuilt parts', unbuilt); field('Window', win); field('', winRow);
-  field('Film length by', paceMode); field('Value', paceVal); field('Pace', pace); field('Camera', camera); field('Explode', explode);
+  field('Film length by', paceMode); field('Value', paceVal); field('Pace', pace); field('Camera', camera); field('Explode', explode); field('Finale', finale);
   field('X-ray active work', xray.wrap); field('Section box', secBox); field('Labels', labels); field('Critical float', critRow);
+  field('Fade in (s)', fadeRow); field('Issues and drawings in the film', issuesFilm.wrap);
+  field('Colour legend', legendChk.wrap); field('Schedule strip', stripChk.wrap);
   field('Captions', captions.wrap); field('Milestone hold', hold); field('Default split', splitSel);
   const colourBox = el('div', 'x4-list', { 'data-x4': 'trade-colours' });
   colourBox.style.maxHeight = '220px';
+  const zoneBox = el('div', 'x4-list', { 'data-x4': 'zone-cameras' });
   const cameraNote = el('div', 'x4-warn', { 'data-x4': 'camera-note' });
-  ySec.append(el('div', 'x4-dim', undefined, 'The film options. They are part of the configuration.'), yGrid, el('div', 'x4-dim', undefined, 'Trade colours'), colourBox, cameraNote);
+  ySec.append(el('div', 'x4-dim', undefined, 'The film options. They are part of the configuration.'), yGrid, el('div', 'x4-dim', undefined, 'Trade colours'), colourBox, el('div', 'x4-dim', undefined, 'Camera per floor'), zoneBox, cameraNote);
 
   function renderStyle(): void {
     const s = st();
@@ -473,10 +492,13 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     const byDays = s.daysPerSecond !== undefined && s.length === undefined;
     paceMode.value = byDays ? 'days' : 'length';
     paceVal.value = String(byDays ? s.daysPerSecond : s.length ?? 90);
-    pace.value = s.pace; camera.value = s.camera; explode.value = s.explode; xray.input.checked = s.xrayFocus; secBox.value = s.sectionBox;
+    pace.value = s.pace; camera.value = s.camera; explode.value = s.explode; finale.value = s.finale ?? 'none'; xray.input.checked = s.xrayFocus; secBox.value = s.sectionBox;
     labels.value = String(s.labels);
     critical.value = String(s.criticalFloatHours ?? 0); critical.disabled = s.criticalFloatHours === null; critOnly.input.checked = s.criticalFloatHours === null;
     captions.input.checked = s.captions; hold.value = String(s.milestoneHold);
+    fadeAuto.checked = s.fadeIn === undefined; fadeIn.disabled = s.fadeIn === undefined; fadeIn.value = s.fadeIn === undefined ? '' : String(s.fadeIn); fadeIn.placeholder = 'auto';
+    issuesFilm.input.checked = s.issuesInFilm === true;
+    legendChk.input.checked = s.legend !== 'off'; stripChk.input.checked = s.strip !== 'off';
     splitSel.value = sc.config.split?.['*'] ?? '';
     colourBox.replaceChildren();
     const colours = sc.tradeColours();
@@ -488,8 +510,31 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
       colourBox.append(line);
     }
     if (!Object.keys(colours).length) colourBox.append(el('div', 'x4-dim', undefined, 'Trade values appear here once the schedule has a trade source. Colours come from the Values section.'));
+    zoneBox.replaceChildren();
+    const storeys = [...(sc.fourDModel()?.storeys ?? [])].sort((a, b) => b.elevation - a.elevation);
+    const saved = (window as unknown as { __xrayViews?: { list(): Array<{ name: string }> } }).__xrayViews?.list().map((v) => v.name) ?? [];
+    for (const g of storeys) {
+      const line = el('div', 'x4-item', { 'data-storey': g.name });
+      const cur = s.zoneCameras?.[g.name] ?? '';
+      const sel = help(el('select', '', { 'aria-label': `Camera for ${g.name}` }), 'Style zone camera');
+      sel.append(el('option', '', { value: '' }, 'Automatic'));
+      for (const n of cur && !saved.includes(cur) ? [...saved, cur] : saved) sel.append(el('option', '', { value: n }, n));
+      sel.value = cur;
+      sel.addEventListener('change', () => {
+        const z = { ...(sc.config.style.zoneCameras ?? {}) };
+        if (sel.value) z[g.name] = sel.value; else delete z[g.name];
+        if (Object.keys(z).length) sc.setStyle({ zoneCameras: z });
+        else { const { zoneCameras: _z, ...rest } = sc.config.style; sc.setConfig({ ...sc.config, style: rest }); }
+      });
+      line.append(el('span', '', undefined, g.name), sel);
+      zoneBox.append(line);
+    }
+    if (!storeys.length) zoneBox.append(el('div', 'x4-dim', undefined, 'The floors appear here once a model is open. Saved views come from the Views tab.'));
     cameraNote.textContent = s.camera === 'director' && sc.note ? sc.note : '';
   }
+
+  // ---------------------------------------------------------------- Temporary works
+  const tw = buildTempWorksSection(section('Temporary works', 'tempworks', false, 'Temporary works'), sc, getTempWorksLayer(app));
 
   // ---------------------------------------------------------------- Play: the film bar (top of the tab, sticky) and the Play section
   const pMsg = msgBox();
@@ -499,10 +544,12 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
   const pauseBtn = btn('Pause', 'Pause film', () => sc.pause());
   const stopBtn = btn('Stop', 'Stop film', () => sc.stopPlay());
   const recBtn = btn('Record', 'Record film', () => { void sc.record().then((r) => pMsg.say(r.message, !r.ok)); });
+  const boardBtn = btn('Storyboard PDF', 'Storyboard PDF', () => { boardBtn.disabled = true; pMsg.say('Rendering the storyboard frames ...', false); void sc.storyboard().then((r) => pMsg.say(r.message, !r.ok)).finally(() => { boardBtn.disabled = false; }); });
+  boardBtn.setAttribute('data-x4', 'film-storyboard');
   const scriptBtn = btn('Open as script', 'Open film as script', () => { void sc.openAsScript().then((r) => pMsg.say(r.message, !r.ok)); });
   scriptBtn.setAttribute('data-x4', 'film-script');
   const pRow = el('div', 'x4-row', { 'data-x4': 'film-controls' });
-  pRow.append(playBtn, pauseBtn, stopBtn, recBtn, scriptBtn);
+  pRow.append(playBtn, pauseBtn, stopBtn, recBtn, boardBtn, scriptBtn);
   const slider = help(el('input', '', { type: 'range', min: '0', max: '1000', step: '1', value: '0', 'aria-label': 'Schedule date', 'data-x4': 'scrub' }), 'Scrub date');
   const dateOut = el('span', 'x4-date', { 'data-x4': 'scrub-date' }, '');
   const sRow = el('div', 'x4-row');
@@ -563,6 +610,7 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     playBtn.disabled = !ready;
     recBtn.disabled = !ready;
     scriptBtn.disabled = !ready;
+    if (!boardBtn.textContent?.startsWith('Rend')) boardBtn.disabled = !ready;
     pauseBtn.disabled = !sc.playing;
     pauseBtn.textContent = sc.paused ? 'Resume' : 'Pause';
     stopBtn.disabled = !sc.playing;
@@ -589,6 +637,7 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     renderConfigure();
     renderLink();
     renderStyle();
+    tw.render();
     renderPlay();
     if (keep?.in && keep.label && (!document.activeElement || document.activeElement === document.body)) {
       const again = Array.from(root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')).find((e) => e.getAttribute('aria-label') === keep.label && e.type === keep.type);

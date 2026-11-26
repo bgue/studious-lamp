@@ -15,6 +15,11 @@
 //  * Explode when the interest set is on 3 or more storeys at once (a 2-storey model: both storeys have work and the upper storey roofs
 //    over the lower work), when that holds for 6 s or more; collapse when work concentrates again. A run of 6 s or more gets an explode
 //    (2 s), a hold and a collapse (2 s). At up to 3 phase milestones (style.explode `auto`), an explode-and-orbit beat of 11.6 s.
+//  * Each floor apart (style.explode `floor`): the milestone beats and the work-spread explode are off. When the active work moves onto a
+//    storey (the storey with most of the elements going up now, for 6 s or more; gaps of up to 6 s with no work keep the run), the storeys
+//    ease apart (2 s), that storey's elements are the x-ray focus (the rest is context), a caption names the floor, the building stays
+//    apart while that floor's work runs and collapses (2 s) before the work moves to the next floor (1 s of rest between a collapse and
+//    the next explode). The camera takes a wide shot of the apart building after the explode and waits during explode and collapse.
 //  * Section box (style.sectionBox `auto`): when all active work, for 6 s or more, sits on one storey and inside the envelope (inside that
 //    storey's footprint, not on its edge): a box around the storey; off (or the next storey) when work leaves.
 //  * Focus: the schedule4d runner follows the active elements itself (style.xrayFocus). `focus` cues only mark a beat on the whole building.
@@ -59,6 +64,8 @@ export interface DirectorResult {
   notes: string[];
   /** Video second (in the film, absolute) of each note, for placing the lines in a script. */
   noteTimes: number[];
+  /** Film length in seconds from `start`, with the finale (absent: no finale, the film ends where the plan does). */
+  duration?: number;
 }
 
 interface Profile {
@@ -83,6 +90,18 @@ const LABEL_MIN_S = 3;
 const LABEL_MAX_S = 8;
 const LABEL_FIELDS = ['activity', 'percent', 'finish'];
 const PHASE_WORDS = /complete|closed|weathertight|topping|top-out|enclosed|finish|handover|shell|frame|envelope|roof|structure/i;
+const FLOOR_HOLD_MIN_S = 4;
+const FLOOR_GAP_S = 6;
+const FLOOR_REST_S = 1;
+const FLOOR_CAPTION_S = 4;
+const DOLLY_S = 6;
+const FINALE_ORBIT_S = 8;
+const FINALE_ORBIT_DEG = 90;
+const DOLLY_MARGIN = 1.08;
+/** Seconds the finale adds after the last work (the collapse of a building still apart not counted). */
+export function finaleSeconds(finale: 'none' | 'dolly' | 'orbit' | undefined): number {
+  return finale === 'dolly' ? DOLLY_S + FINALE_ORBIT_S : finale === 'orbit' ? FINALE_ORBIT_S : 0;
+}
 const BEAT = { explode: 0, wide: 2, orbit: 5, orbitS: 4.5, collapse: 9.6, end: 11.6 };
 
 const r3 = (n: number): number => Math.round(n * 1000) / 1000;
@@ -429,6 +448,113 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
   }
   const explodedAt = (tau: number): boolean => exploded.some(([a, b]) => tau >= a && tau < b + COLLAPSE_S) || beats.some((bt) => tau >= bt.t + BEAT.explode + EXPLODE_S && tau < bt.t + BEAT.collapse + COLLAPSE_S);
 
+  // ---- each floor apart: explode by storey around the floor whose elements are going up
+  const floorCaps: Array<{ t: number; title: string; text: string }> = [];
+  if (style.explode === 'floor') {
+    note(0, 'style explode is "floor": no milestone beats and no work-spread explode; the storeys go apart around the floor being built');
+    if (storeyNames.length < 2) note(0, `the model has ${storeyNames.length} storey${storeyNames.length === 1 ? '' : 's'}: nothing to explode apart`);
+    else {
+      const open = directorCamera ? r3(2.5 * prof.moveScale) + 0.5 : 0;
+      const latest = dur - COLLAPSE_S - 0.5;
+      // the storey with most of the elements going up at each sample (at least half of those with a storey), -1 when none
+      const dom: number[] = samples.map((sm) => {
+        const per = new Array<number>(storeyNames.length).fill(0);
+        let tot = 0;
+        for (const k of sm.now) if (gs[k]!.storey >= 0) { per[gs[k]!.storey]!++; tot++; }
+        if (tot === 0) return -1;
+        let best = 0;
+        for (let i = 1; i < per.length; i++) if (per[i]! > per[best]!) best = i;
+        return per[best]! * 2 >= tot ? best : -1;
+      });
+      // a gap with no work between two samples of one storey belongs to that storey (curing, drying)
+      for (let i = 0; i < dom.length; ) {
+        if (dom[i] !== -1) { i++; continue; }
+        let j = i;
+        while (j < dom.length && dom[j] === -1) j++;
+        if (i > 0 && j < dom.length && dom[i - 1] === dom[j] && (j - i) * dt <= FLOOR_GAP_S) for (let k = i; k < j; k++) dom[k] = dom[i - 1]!;
+        i = j;
+      }
+      let runs: Array<{ s: number; a: number; b: number }> = [];
+      for (let i = 0; i < dom.length; ) {
+        if (dom[i]! < 0) { i++; continue; }
+        let j = i;
+        while (j < dom.length && dom[j] === dom[i]) j++;
+        runs.push({ s: dom[i]!, a: samples[i]!.t, b: samples[j - 1]!.t + dt });
+        i = j;
+      }
+      // short blips of another storey inside a run of one storey do not split it
+      for (let again = true; again; ) {
+        again = false;
+        for (let i = 1; i + 1 < runs.length; i++) {
+          const p = runs[i - 1]!, m = runs[i]!, n = runs[i + 1]!;
+          if (p.s === n.s && p.s !== m.s && m.b - m.a < 2 && n.a - p.b <= FLOOR_GAP_S) {
+            runs.splice(i, 2, { s: p.s, a: p.a, b: n.b });
+            runs.splice(i - 1, 1);
+            again = true;
+            break;
+          }
+        }
+      }
+      // same storey again soon: the floor stays apart
+      const joined: typeof runs = [];
+      for (const r of runs) {
+        const last = joined[joined.length - 1];
+        if (last && last.s === r.s && r.a - last.b <= FLOOR_GAP_S) last.b = r.b;
+        else joined.push({ ...r });
+      }
+      runs = joined;
+      const need = EXPLODE_S + FLOOR_HOLD_MIN_S;
+      const name = (r: { s: number }): string => storeyNames[r.s]!;
+      for (const r of runs) { r.a = Math.max(r.a, open); r.b = Math.min(r.b, latest); }
+      // collapse before the work moves on: the next floor starts COLLAPSE_S + FLOOR_REST_S after the last one let go
+      const kept: typeof runs = [];
+      for (const r of runs) {
+        if (r.b - r.a < need) {
+          note(r.a, `floor "${name(r)}" has the work for only ${r3(Math.max(0, r.b - r.a))} s: too short for an explode (it needs ${need} s), left as it is`);
+          continue;
+        }
+        const prev = kept[kept.length - 1];
+        const gap = COLLAPSE_S + FLOOR_REST_S;
+        if (prev && r.a - prev.b < gap) {
+          if (prev.b - gap >= prev.a + need && r.a - (prev.b - gap) >= gap) {
+            note(prev.b - gap, `floor "${name(prev)}": ends ${r3(gap)} s early so the building can close before the work moves to "${name(r)}"`);
+            prev.b = r.a - gap;
+          } else if (r.b - (prev.b + gap) >= need) {
+            note(r.a, `floor "${name(r)}": explode waits ${r3(prev.b + gap - r.a)} s for the collapse of "${name(prev)}"`);
+            r.a = prev.b + gap;
+          } else {
+            note(r.a, `floor "${name(r)}" left as it is: no room to close "${name(prev)}" first`);
+            continue;
+          }
+        }
+        kept.push(r);
+      }
+      const focusOn = style.xrayFocus;
+      kept.forEach((r, i) => {
+        const nm = name(r);
+        const n = kept[i + 1];
+        const going = new Set<number>();
+        for (const sm of samples) if (sm.t >= r.a - 1e-9 && sm.t < r.b) for (const k of sm.now) if (gs[k]!.storey === r.s) going.add(k);
+        const nIds = going.size;
+        add({ kind: 'explode', at: 0, dur: 0, mode: 'storeys', factor: EXPLODE_FACTOR, ease: 'inOut' }, r.a, EXPLODE_S);
+        note(r.a, `floor "${nm}": the work moves onto it (${nIds} element${nIds === 1 ? '' : 's'} going up while it is apart): explode the storeys apart (${EXPLODE_S} s), ${focusOn ? 'that floor in x-ray focus, ' : ''}caption with its name, hold ${r3(r.b - r.a - EXPLODE_S)} s`);
+        if (focusOn) {
+          const ids = model.elements.filter((e) => e.storey === nm).map((e) => e.globalId);
+          const ref = !nm.includes('"') && !nm.includes("'") ? { query: `storey = '${nm}'` } : { globalIds: ids };
+          add({ kind: 'focus', at: 0, dur: 0, elements: ref }, r.a, 0);
+          add({ kind: 'focus', at: 0, dur: 0, elements: { schedule: 'active' } }, r.b + COLLAPSE_S, 0);
+        }
+        add({ kind: 'collapse', at: 0, dur: 0, ease: 'inOut' }, r.b, COLLAPSE_S);
+        note(r.b, n && name(n) === nm ? `collapse (${COLLAPSE_S} s): the work on "${nm}" pauses for ${r3(n.a - r.b)} s (apart for ${r3(r.b - r.a)} s)` : n ? `collapse (${COLLAPSE_S} s) before the work moves on to "${name(n)}" (the floor "${nm}" was apart for ${r3(r.b - r.a)} s)` : `collapse (${COLLAPSE_S} s): the work leaves "${nm}" for good (apart for ${r3(r.b - r.a)} s)`);
+        floorCaps.push({ t: r.a + EXPLODE_S * 0.5, title: nm, text: 'Building this floor, the floors held apart' });
+        blocked.push([r.a, r.a + EXPLODE_S], [r.b, r.b + COLLAPSE_S]);
+        exploded.push([r.a + EXPLODE_S, r.b]);
+        kicks.push({ t: r.a + EXPLODE_S, reframe: true }, { t: r.b + COLLAPSE_S, reframe: true });
+      });
+      if (kept.length === 0) note(0, 'no floor has work for long enough to explode');
+    }
+  }
+
   // ---- section box: all work on one storey, inside the envelope
   if (style.sectionBox === 'auto' && storeyNames.length >= 2) {
     const cand: Array<number> = [];
@@ -497,12 +623,15 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
     note(0, `opening wide shot of the whole model (${r3(openDur)} s)`);
     const appliedBeats = new Set<number>();
     let shots = 0;
+    const zoneCams = style.zoneCameras ?? {};
+    let curView: string | undefined;
     for (let i = 1; i < samples.length; i++) {
       const tau = samples[i]!.t;
       beats.forEach((b, bi) => {
         if (!appliedBeats.has(bi) && tau >= b.t + BEAT.end) {
           appliedBeats.add(bi);
           cur = { start: b.t + BEAT.orbit, type: 'wide', c: wide.c, size: modelDiag };
+          curView = undefined;
           camCues.push([b.t + BEAT.wide, b.t + BEAT.orbit + BEAT.orbitS]);
         }
       });
@@ -528,15 +657,27 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
       if (!(kick || type !== cur.type || moved || rescaled)) continue;
       const d = r3(Math.min(3.2 * prof.moveScale, Math.max(2 * prof.moveScale, (1.8 + 0.7 * Math.log2(1 + dist3(want.c, cur.c) / Math.max(want.size, 4))) * prof.moveScale)));
       if (blocked.some(([b0, b1]) => overlaps(tau, tau + d, b0, b1))) continue;
+      // a saved view for the storey when all the work in view lies on one storey that has a camera
+      let zone: { storey: string; view: string } | undefined;
+      if (type !== 'wide') {
+        const on = new Set(samples[i]!.win.map((k) => gs[k]!.storey));
+        const si = on.size === 1 ? [...on][0]! : -1;
+        const view = si >= 0 ? zoneCams[storeyNames[si]!] : undefined;
+        if (view) zone = { storey: storeyNames[si]!, view };
+      }
+      if (zone && curView === zone.view && !kick) continue;
       const frame = type === 'wide' ? { all: true as const } : { globalIds: reg.ids };
-      add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { frame, margin: MARGIN[type] } }, tau, d);
+      if (zone) add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { view: zone.view } }, tau, d);
+      else add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { frame, margin: MARGIN[type] } }, tau, d);
+      curView = zone?.view;
       camCues.push([tau, tau + d]);
       shots++;
       const names = new Map<string, number>();
       for (const k of samples[i]!.win) for (const s of gs[k]!.segs) if (s.from <= pt(tau + prof.window) && s.to > pt(tau)) names.set(s.task, (names.get(s.task) ?? 0) + 1);
       const top = [...names.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 2).map(([c]) => taskByCode.get(c)?.name ?? c);
       const why = isExploded ? 'the building is exploded' : kick && type === cur.type ? 'new framing after the box or explode change' : type !== cur.type ? `the shot changes from ${cur.type} to ${type}` : 'the work moved by more than the region size';
-      note(tau, `${type} shot on ${reg.n} element${reg.n === 1 ? '' : 's'} (${top.join(', ') || 'work'}): ${why}; move ${d} s`);
+      if (zone) note(tau, `camera for ${zone.storey}: saved view '${zone.view}' (all the work in view is on that floor, ${type} shot replaced); move ${d} s`);
+      else note(tau, `${type} shot on ${reg.n} element${reg.n === 1 ? '' : 's'} (${top.join(', ') || 'work'}): ${why}; move ${d} s`);
       cur = want;
     }
     if (shots === 0) note(0, 'no further camera move: the interest region stays the same');
@@ -578,6 +719,24 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
     }
     const skipped = plan.milestones.filter((m) => m.at <= first).map((m) => m.name);
     for (const [at, names] of [...groups.entries()].sort((a, b) => a[0] - b[0])) caps.push({ t: tauOfPlan(at), title: names.join(' / '), text: isoDate(at), d: 3 });
+    // a floor caption only where it does not cut a milestone caption short
+    for (const f of floorCaps) {
+      if (caps.some((c) => Math.abs(c.t - f.t) < 1.5)) {
+        note(f.t, `caption "${f.title}" left out: a milestone caption is too close`);
+        continue;
+      }
+      caps.push({ t: f.t, title: f.title, text: f.text, d: FLOOR_CAPTION_S });
+    }
+    // temporary works are context, never framed: a scaffold that goes up is named in one line, merged into a caption that is near anyway
+    for (const g of plan.temporaryWorks?.groups ?? []) {
+      if (g.kind !== 'scaffold' || g.erect.to < plan.window.from || g.erect.to > plan.window.to) continue;
+      const t = tauOfPlan(g.erect.to);
+      const line = `Scaffold up${g.storey !== undefined ? ` on ${g.storey}` : ''}`;
+      const near = caps.find((c) => Math.abs(c.t - t) < 2.5);
+      if (near) {
+        if (near.text.length + line.length < 70) { near.text = `${near.text} · ${line}`; note(near.t, `caption "${near.title}" also says "${line}" (scaffold erected)`); }
+      } else if (!caps.some((c) => Math.abs(c.t - t) < 4)) caps.push({ t, title: line, text: isoDate(g.erect.to), d: 2.5 });
+    }
     caps.sort((a, b) => a.t - b.t);
     caps.forEach((c, i) => {
       const nextT = caps[i + 1]?.t ?? Infinity;
@@ -587,7 +746,7 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
         return;
       }
       add({ kind: 'caption', at: 0, dur: 0, title: c.title, text: c.text }, c.t, r3(d));
-      note(c.t, i === 0 ? `title caption "${c.title}"${skipped.length ? ` (the start milestones ${skipped.map((s) => `"${s}"`).join(', ')} are folded into it)` : ''}` : `milestone caption "${c.title}"`);
+      note(c.t, floorCaps.some((f) => f.t === c.t && f.title === c.title) ? `floor caption "${c.title}"` : i === 0 ? `title caption "${c.title}"${skipped.length ? ` (the start milestones ${skipped.map((s) => `"${s}"`).join(', ')} are folded into it)` : ''}` : `milestone caption "${c.title}"`);
     });
   }
 
@@ -630,8 +789,42 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
     for (const [code, from] of open) finish(code, from, dur);
   }
 
+  // ---- finale: a closing dolly and/or orbit after the last work
+  let filmEnd: number | undefined;
+  const finale = style.finale ?? 'none';
+  if (finale !== 'none') {
+    if (!directorCamera) note(dur, `finale "${finale}" left out: the style's camera is "${style.camera}", the director moves no camera`);
+    else {
+      let f0 = dur;
+      const apart = exploded.filter(([, b]) => b >= dur - 0.01).length > 0 || beats.some((b) => b.t + BEAT.collapse + COLLAPSE_S > dur);
+      if (apart) {
+        add({ kind: 'collapse', at: 0, dur: 0, ease: 'inOut' }, f0, COLLAPSE_S);
+        note(f0, `finale: the building is still apart, collapse (${COLLAPSE_S} s) first`);
+        f0 += COLLAPSE_S;
+      }
+      // the film's own x-ray focus follows the active work and ends with it; a focus cue is needed only where the director set one
+      const focusSet = exploded.length > 0 || beats.length > 0;
+      if (focusSet) add({ kind: 'focus', at: 0, dur: 0, elements: null }, f0, 0);
+      let lastCam = 0;
+      for (const o of out) if (o.cue.kind === 'camera') lastCam = Math.max(lastCam, o.cue.at - t0 + o.cue.dur);
+      let t = Math.max(f0, lastCam);
+      const last = [...plan.milestones].sort((a, b) => a.at - b.at)[plan.milestones.length - 1];
+      const title = last?.name ?? 'Complete';
+      note(f0, `finale "${finale}": the work is complete, ${focusSet ? "focus cleared" : "no focus left to clear"}${t > f0 ? `, the camera is free after ${r3(t - f0)} s` : ''}`);
+      if (finale === 'dolly') {
+        add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { frame: { all: true }, margin: DOLLY_MARGIN } }, t, DOLLY_S);
+        note(t, `finale: slow dolly-in toward the finished building (${DOLLY_S} s, eased in and out)`);
+        t += DOLLY_S;
+      }
+      add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { orbitDeg: FINALE_ORBIT_DEG } }, t, FINALE_ORBIT_S);
+      if (style.captions) add({ kind: 'caption', at: 0, dur: 0, title, text: isoDate(plan.window.to) }, t, FINALE_ORBIT_S);
+      note(t, `finale: gentle ${FINALE_ORBIT_DEG} degree orbit over ${FINALE_ORBIT_S} s, eased in and out${style.captions ? `, caption "${title}"` : ''}`);
+      filmEnd = t0 + t + FINALE_ORBIT_S;
+    }
+  }
+
   // ---- result: cues by time (the order of making breaks ties), notes by time
   out.sort((a, b) => a.cue.at - b.cue.at || a.order - b.order);
   notes.sort((a, b) => a.t - b.t || a.order - b.order);
-  return { cues: out.map((o) => o.cue), notes: notes.map((n) => n.text), noteTimes: notes.map((n) => r3(t0 + n.t)) };
+  return { cues: out.map((o) => o.cue), notes: notes.map((n) => n.text), noteTimes: notes.map((n) => r3(t0 + n.t)), ...(filmEnd !== undefined ? { duration: r3(filmEnd) } : {}) };
 }

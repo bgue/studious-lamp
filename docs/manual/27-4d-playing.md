@@ -36,7 +36,7 @@ being fitted inside a closed wall stay visible without hiding the building.
 5. Drag the date slider. While a film plays it seeks. From a stop, it starts the film paused at that date.
 6. Press `Space` to pause. The player's keys, transport and HUD are the ones from chapter 21.
 
-> Picture (4d-style-section): the Style section with View, Unbuilt parts, Window and Film length visible.
+> Picture (4d-style): the Style section with View, Unbuilt parts, Window and Film length visible.
 
 ### Reading the screen
 
@@ -51,11 +51,18 @@ While the film runs, the HUD draws:
 - **S-curve** (top right): planned progress over the whole window, actual progress up to the last actual sample, and a
   marker for now.
 - **Milestone caption** (top centre), held for the milestone hold you set.
-- **Legend** (bottom left): trade colours of the work in progress, "Critical", and "Behind" and "Ahead" if the plan has
-  actuals.
+- **Colour legend** (bottom left, above the strip): the trades that appear in the film, each with its colour (at most 8, then "+N
+  more"), and a key to the states: Planned (a faint ghost), Active (trade colour with a bright edge), Built, Existing, Removed (red),
+  Critical (red outline), and Behind and Ahead when the plan has actuals or you use the variance view. Temporary works add their own
+  colours. The panel is light on dark, so a video looks the same in any viewer theme.
+- **Schedule strip** (along the bottom, above the progress bar): a thin Gantt band over the film's dates. One row per trade (the 12 that start
+  first, the rest folded into "Other"), one bar per activity, critical ones edged in red, running ones bright, milestones as amber
+  diamonds, and a white marker for today's date. It shows where in the whole job the film is.
 - **Data-date tick** on the progress bar: an amber mark where the data date sits in the film.
 
-The display options are the ones of 21.1 (the **On-screen display** block of the Views tab).
+The display options are the ones of 21.1 (the **On-screen display** block of the Views tab). The legend and the strip also have a
+switch each in **Style** (**Legend**, **Strip**, both on) that travels with the 4D file, and they appear in the video and in a packed page.
+They are drawn only while a 4D film runs, never in a plain fly-through.
 
 ## 27.2 Style choices that matter
 
@@ -67,7 +74,13 @@ The display options are the ones of 21.1 (the **On-screen display** block of the
 | Film length by | seconds, or days per second | one of the two; default 120 s (sample 90 s) |
 | Pace | warp, fixed | warp gives busy weeks more screen time |
 | Camera | director, fixed, none | see 27.3 |
-| Explode, Section box | auto, off | made by the director |
+| Explode | auto, each floor apart, off | made by the director; see 27.3 |
+| Section box | auto, off | made by the director |
+| Fade in (s) | seconds, or auto | how long a new part takes to appear, and a removed one to disappear. Auto is 10 % of the activity or 0.6 s, the shorter. 0 is at once, with no fade |
+| Issues and drawings in the film | on, off | off (default) hides the pins and drawings while the film plays and puts them back after; on keeps them |
+| Camera per floor | a saved view for each storey | see 27.3 |
+| Finale | none, dolly, orbit | what the camera does after the last work; see 27.3 |
+| Legend, Strip | on, off | the colour legend and the schedule strip |
 | Labels | 0 to 12 | most activity labels at once |
 | Critical float | hours, or driving path only | what counts as critical |
 
@@ -101,6 +114,20 @@ when a section box clips to one storey, which captions appear and which activiti
 - When work spreads over 3 or more storeys for 6 s, it explodes the storeys, then collapses them when work concentrates.
 - When all active work is inside one storey for 6 s or more, it clips a section box to that storey.
 - At up to 3 big milestones such as "Building weathertight" it does a short beat: the whole building, an orbit, back to the work.
+
+**Each floor apart.** In **Style**, **Explode: each floor apart** moves the storeys away from each other around the floor being built. That floor
+is the x-ray focus and its name is on a caption; the other storeys are context. The storeys close again before the work moves on. It is for a film
+where you want to see inside a multi-storey building as it rises. It does not use the work-spread explode or the milestone beats, and it never
+opens a section box while the floors are apart. A model with fewer than two storeys gets no explode, and the notes say so. The FZK-Haus 4D sample
+builds its ground floor and its roof storey apart.
+
+**Camera per floor.** A floor can have its own camera. In **Camera per floor**, one row per storey, pick a **saved view** (chapter 13) for that
+floor. When all the work in a shot is on that floor, the camera glides to the view instead of framing the elements. Leave a row empty
+for Automatic. From a command line: `xray-4d plan --zone-camera "Erdgeschoss=EG south"` (32.2). The choice is kept in the 4D file.
+
+**Finale.** **Finale: dolly** gives the end a slow dolly-in on the finished building, then a 90 degree orbit with a caption (the last milestone's
+name, or "Complete"). **Orbit** is the orbit and caption alone. The film becomes 14 s (8 s for orbit) longer. It works with the director camera only.
+The FZK-Haus 4D sample uses the dolly.
 
 If the director is missing from the build, or it fails, the film keeps the current camera, and a note in the Film step
 says so. Nothing breaks.
@@ -139,11 +166,15 @@ section box go back as they were.
 - One pair of glow colours: amber for active, red for critical. Other cinematic glows are off while the film plays.
 - An element that is both an x-ray occluder and fading in shows the schedule's value.
 - A baseline `.xer` is not loaded in the viewer yet. Variance in the viewer compares with the target dates.
-- Temporary works such as formwork and scaffolding are not modelled. Only demolition has a `removed` state.
+- Temporary works are drawn only in the film and are not part of the IFC model (27A.1). Only demolition has a `removed` state for the building itself.
 - A software renderer needs minutes for a short film; plan a long render for a machine with a GPU.
+
+## 27.7 More in the next chapter
+
+Temporary works (scaffold, falsework, formwork) and the storyboard PDF are in chapter 27A.
 
 ## See also
 
-- Chapter 21: the player, keys and the HUD. Chapter 13: saved views (not the same as the film's View option).
+- Chapter 27A: temporary works and the storyboard PDF. Chapter 21: the player, keys and the HUD. Chapter 13: saved views (not the same as the film's View option).
 - Chapter 23: animation scripts. Chapter 22: video export.
 - Chapter 32: rendering the film from a command line.

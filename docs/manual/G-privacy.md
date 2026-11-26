@@ -38,6 +38,7 @@ renamed copy of the same model finds its fly-throughs and views again, and a dif
 | Fly-throughs | `xray.flythroughs.<model identity>`, `xray.flythrough.ui` |
 | Animation scripts and the text you were editing | `xray.anim.<model>` |
 | Shortcuts you changed, keyboard speeds, navigation style, eye height, Walk collision | `xray.keymap`, `xray.keynav` |
+| The mode and grouping of the By classification tree (this viewer only) | `xray.classtree.v1` |
 | The last viewer version whose "What's new" card you saw (a number, kept in this browser only) | `xray.whatsnew` |
 | Recent searches and palette commands | `xray.search.recent`, `xray.palette.recent` |
 | Layout: sidebars, dock, tool strip, top bar, view cube, pointer mode, hover list | `xray.sidebar`, `xray.dock`, `xray.toolbar`, `xray.topbar`, `xray.gizmo`, `xray.pointerMode`, `xray.propsListOpen` |

@@ -97,7 +97,7 @@ The style comes from the config; the flags override it. `--length` (`120s`, `2m`
 ### render
 
 ```
-xray-4d render model.ifc build.4d.json [--script film.xrayanim] [--size 1920x1080] [--fps 30] [--format mp4|webm|png] [--hud on|off] -o build.mp4
+xray-4d render model.ifc build.4d.json [--script film.xrayanim] [--size 1920x1080] [--fps 30] [--format mp4|webm|png] [--hud on|off] [--legend on|off] [--strip on|off] -o build.mp4
 ```
 
 Needs Playwright (package `playwright` with a Chromium; set `PLAYWRIGHT_MODULE` to its path if it is not found). How it works: the
@@ -108,6 +108,16 @@ it; `window.__xray4dFilm`) and the frame-by-frame exporter of the Script tab (`w
 speed of the machine does not change the video. `--fps` is any whole rate 1 to 120. `png` writes a zip of frames. The last line on
 stdout is a JSON summary (file, frames, size, bytes, milliseconds). Without a GPU the software renderer is slow: measured on the FZK-Haus sample: 2 s at 320x180 / 12 fps in 12 s
 in all (page assembly and start-up included), 10 s at 640x360 / 24 fps in 54 s (about 0.2 s per frame); larger sizes cost more; the weekly CI example below uses a short lookahead film for that reason.
+
+`--legend on|off` and `--strip on|off` switch the colour legend and the schedule strip of the film for this render (the plan's `style.legend` and `style.strip`, on by default; `plan` takes the same flags and writes them into the plan). See [4d-playback.md](4d-playback.md).
+
+### storyboard
+
+```
+xray-4d storyboard build.4d.json --model model.ifc [--every week|month|milestone|N] [--page A3|A4] [--cols 3] [--script film.xrayanim] [--size 960x540] -o board.pdf
+```
+
+A PDF of still frames of the film at weekly (or monthly, per-milestone, or N spread) dates, captioned, with the legend once per page. Needs Playwright with Chromium like `render`. Details and the page layout: [4d-storyboard.md](4d-storyboard.md).
 
 ### pack
 

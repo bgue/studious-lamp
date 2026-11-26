@@ -24,7 +24,7 @@ beforeAll(() => {
   const schedule = parseXer(readFileSync(resolve(web, 'public/samples/fzk-haus.xer')));
   const config = JSON.parse(readFileSync(resolve(web, 'public/samples/fzk-haus.4d.json'), 'utf8')) as FourDConfig;
   const model = fromSidecar(JSON.parse(readFileSync(sidecar, 'utf8')), { identityKey: 'fzk-sample' });
-  plan = buildPlan(schedule, linkSchedule(schedule, model, config, []), model, config.style);
+  plan = buildPlan(schedule, linkSchedule(schedule, model, config, []), model, { ...config.style, explode: 'auto' });
   dir = mkdtempSync(join(tmpdir(), 'xray4d-script-'));
   planFile = join(dir, 'fzk.4d.json');
   writeFileSync(planFile, JSON.stringify(plan));
@@ -61,6 +61,17 @@ describe('xray-4d script', () => {
     expect(r.stdout).toMatch(/style calm, camera director, explode off, section box off, labels 0/);
     const c = compiles(r.stdout, 'film');
     expect(c.errors.filter((e) => e.severity === 'error')).toEqual([]);
+  });
+
+  it('--explode floor puts each floor apart, with the notes and a focus on the floor; a bad value is a usage error', () => {
+    const r = run('script', planFile, '--model', sidecar, '--explode', 'floor');
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toMatch(/explode floor/);
+    expect(r.stdout).toMatch(/^-- .*floor "Erdgeschoss": the work moves onto it/m);
+    expect(r.stdout).toMatch(/^\s*focus where storey = "Erdgeschoss"$/m);
+    expect((r.stdout.match(/^\s*explode storeys/gm) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect(compiles(r.stdout).errors.filter((e) => e.severity === 'error')).toEqual([]);
+    expect(run('script', planFile, '--model', sidecar, '--explode', 'sideways').status).toBe(2);
   });
 
   it('reads the model from the IFC file too', () => {

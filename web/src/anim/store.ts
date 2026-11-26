@@ -155,7 +155,7 @@ export class FlyStore {
     this.commit();
   }
 
-  setOptions(id: string, o: Partial<Pick<FlyThrough, 'timing' | 'speed' | 'segmentS' | 'lookAtSelection' | 'loop'>>): void {
+  setOptions(id: string, o: Partial<Pick<FlyThrough, 'timing' | 'speed' | 'segmentS' | 'lookAtSelection' | 'loop' | 'overlays'>>): void {
     const f = this.find(id);
     if (!f) return;
     if (o.timing) f.timing = o.timing;
@@ -165,6 +165,10 @@ export class FlyStore {
     if (o.loop !== undefined) {
       if (o.loop) f.loop = true;
       else delete f.loop;
+    }
+    if (o.overlays !== undefined) {
+      if (o.overlays) f.overlays = true;
+      else delete f.overlays;
     }
     this.commit();
   }

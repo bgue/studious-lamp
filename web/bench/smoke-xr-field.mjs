@@ -210,7 +210,9 @@ try {
   await page.evaluate(() => { window.__xray.app.hoverId = null; window.__xray.app.clearSelection(); });
   await page.evaluate(async () => { const app = window.__xray.app; for (let i = 0; i < 600 && !app.controller.converged; i++) await new Promise((r) => setTimeout(r, 50)); });
   await settle(1500);
-  const before = await page.screenshot({ clip: { x: 300, y: 0, width: 800, height: 760 } });
+  // The bars are part of the picture: the mode tab follows the active preset and the undo button the undo stack.
+  const barsBefore = await page.evaluate(() => ({ preset: window.__xrayPresets?.active() ?? null, undo: window.__xrayUndo?.list().undo.length ?? 0 }));
+  const before = await page.screenshot({ clip: { x: 300, y: 0, width: 800, height: 760 }, path: resolve(here, 'xr-field-before.png') });
   const pre = await page.evaluate(() => ({
     styles: window.__xray.app.controller.settings.classStyles,
     section: JSON.stringify(window.__xraySection.config),
@@ -342,6 +344,12 @@ try {
   check('exit: renderer, camera, class styles and section settings restored; the panel removed', !out.enabled && out.parent && out.styles && out.section === pre.section && !out.panel, JSON.stringify({ ...out, section: out.section === pre.section }));
   await page.evaluate(() => window.__xray.app.clearSelection());
   await page.evaluate(async () => { const app = window.__xray.app; for (let i = 0; i < 600 && !app.controller.converged; i++) await new Promise((r) => setTimeout(r, 50)); });
+  // What the session's own actions did to the bars (an undo entry per selection or camera move, a preset mark cleared
+  // by a setting that changed and changed back), not what exit leaves behind.
+  await page.evaluate((b) => {
+    if (b.undo === 0) window.__xrayUndo?.clear();
+    if (b.preset) window.__xrayPresets?.markActive(b.preset);
+  }, barsBefore);
   await settle(1500);
   const after = await page.screenshot({ clip: { x: 300, y: 0, width: 800, height: 760 }, path: resolve(here, 'xr-field-after.png') });
   const diff = await page.evaluate(async ([a, b]) => {
