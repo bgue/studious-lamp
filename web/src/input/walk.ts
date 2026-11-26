@@ -273,7 +273,8 @@ function limitByWall(
   const dir = flat.clone().divideScalar(len);
   let best: { allowed: number; normal: Vector3 } | null = null;
   for (const off of collisionRayOffsets(eyeHeight)) {
-    const hit = cast(new Vector3(eye.x, eye.y + off, eye.z), dir, len + clearance);
+    // Reach far enough for a slanting approach too (the clearance along the ray is clearance / cos, capped like below).
+    const hit = cast(new Vector3(eye.x, eye.y + off, eye.z), dir, len + clearance / 0.2);
     if (!hit) continue;
     const n = new Vector3(hit.normal.x, hit.normal.y, hit.normal.z);
     if (Math.abs(n.y) > FLOOR_NORMAL_Y) continue;

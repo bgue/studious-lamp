@@ -731,7 +731,7 @@ try {
       const h = r.raycastVisible(o, d, 40, (id) => els[id].ifcClass !== 'IfcDoor');
       const any = r.raycastVisible(o, d, 40);
       const square = h && -(h.normal.x * d.x + h.normal.z * d.z) > 0.9;
-      if (h && any && any.id === h.id && square && h.distance > 0.6 && (!best || h.distance < best.distance)) best = { distance: h.distance, dx: d.x, dz: d.z, px: h.point.x, pz: h.point.z };
+      if (h && any && any.id === h.id && square && h.distance > 0.6 && (!best || h.distance < best.distance)) best = { distance: h.distance, dx: d.x, dz: d.z, px: h.point.x, pz: h.point.z, nx: h.normal.x, nz: h.normal.z };
     }
     return best;
   });
@@ -747,9 +747,11 @@ try {
     await page.keyboard.up('Shift');
     await page.waitForTimeout(200);
     const collEnd = await pose();
-    const toFzkWall = (fzkWall.px - collEnd.p[0]) * fzkWall.dx + (fzkWall.pz - collEnd.p[2]) * fzkWall.dz; // distance still ahead of the eye
-    const moved = (collEnd.p[0] - fzk.cx) * fzkWall.dx + (collEnd.p[2] - fzk.cz) * fzkWall.dz;
-    check('with Walk collision on, holding w toward a wall stops short of it', moved > 0.05 && toFzkWall > 0.15 && toFzkWall < 0.7, `wall ${fzkWall.distance.toFixed(2)} m away, stopped ${toFzkWall.toFixed(2)} m short`);
+    // Distance from the eye to the wall's plane, square to it (the walker slides along the wall once it is close, so the
+    // distance along the slanted line of travel would count the slide as progress).
+    const toFzkWall = (collEnd.p[0] - fzkWall.px) * fzkWall.nx + (collEnd.p[2] - fzkWall.pz) * fzkWall.nz;
+    const startGap = (fzk.cx - fzkWall.px) * fzkWall.nx + (fzk.cz - fzkWall.pz) * fzkWall.nz;
+    check('with Walk collision on, holding w toward a wall stops short of it', startGap - toFzkWall > 0.05 && toFzkWall > 0.15 && toFzkWall < 0.45, `wall ${startGap.toFixed(2)} m away square to it, stopped ${toFzkWall.toFixed(2)} m from it`);
     await collisionOn(false);
     await page.keyboard.press('Escape');
   }
