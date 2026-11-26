@@ -195,6 +195,12 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     if (args.window) style.window = parseWindow(args.window);
     if (args.length) { style.length = parseSeconds(args.length, '--length'); delete style.daysPerSecond; }
     if (args.pace) { style.daysPerSecond = parsePace(args.pace); delete style.length; }
+    if (args.explode) { if (!['auto', 'floor', 'off'].includes(args.explode)) throw usage(`--explode is auto, floor or off, got "${args.explode}"`); style.explode = args.explode; }
+    if (args.fade !== undefined) {
+      if (String(args.fade).toLowerCase() === 'auto') delete style.fadeIn;
+      else { const v = Number(String(args.fade).replace(/s$/i, '')); if (!Number.isFinite(v) || v < 0) throw usage(`--fade needs seconds (0 = at once) or auto, got "${args.fade}"`); style.fadeIn = v; }
+    }
+    if (args.issues) style.issuesInFilm = true;
     const schedule = loadSchedule(xerPath, parser, args.project ?? config.schedule.project);
     const baseline = args.baseline ? loadSchedule(args.baseline, parser, args.project ?? config.schedule.project) : undefined;
     const links = readJson(linksPath, 'links');
@@ -381,11 +387,13 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     },
     plan: {
       summary: 'build the 4D plan (build.4d.json): per-element states over time, time map, milestones',
-      usage: 'xray-4d plan <model.ifc> <schedule.xer> <links.json> --config map.4d.json [--view planned|actual|variance] [--baseline b.xer] [--window all|lookahead:6w|range:A..B] [--length 120s | --pace 1w=2s] [--write-ifc out.ifc] -o build.4d.json',
-      options: { ...COMMON, '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--write-ifc': 'string', '--out': 'string' },
+      usage: 'xray-4d plan <model.ifc> <schedule.xer> <links.json> --config map.4d.json [--view planned|actual|variance] [--baseline b.xer] [--window all|lookahead:6w|range:A..B] [--length 120s | --pace 1w=2s] [--explode auto|floor|off] [--fade 0.6s|auto] [--issues] [--write-ifc out.ifc] -o build.4d.json',
+      options: { ...COMMON, '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--explode': 'string', '--fade': 'string', '--issues': 'bool', '--write-ifc': 'string', '--out': 'string' },
       optionHelp: [cfgHelp, '  --project NAME   the schedule project', '  --view V         planned (default from the config), actual or variance',
         '  --baseline FILE  a baseline .xer, matched by activity ID', '  --window W       all, lookahead:6w (from the data date) or range:2027-05-01..2027-07-01',
         '  --length T       film length, 120s or 2m          --pace P   schedule time per video second, 1w=2s or 3d=1s',
+        '  --explode E      auto, floor (each floor apart while it is built) or off          --fade S   seconds a new part takes to appear (0 = at once, auto)',
+        '  --issues         keep the issue pins and drawings on screen while the film plays',
         '  --write-ifc FILE also write the model copy with the work schedule (the plan\'s view dates are the task dates)', '  -o, --out FILE  build.4d.json (default: standard output)'],
       run: doPlan,
     },

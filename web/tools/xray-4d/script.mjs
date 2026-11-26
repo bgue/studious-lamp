@@ -55,6 +55,13 @@ export function makeScriptCommand({ loadParser, CliError, EXIT_OK, EXIT_USAGE, E
     if (found < plan.elements.length) io.err(`xray-4d: ${plan.elements.length - found} of ${plan.elements.length} planned elements are not in the model (left out of the framing)`);
 
     const style = { ...plan.style };
+    if (args.explode && !['auto', 'floor', 'off'].includes(args.explode)) throw usage(`--explode is auto, floor or off, got "${args.explode}"`);
+    if (args.explode) style.explode = args.explode;
+    if (args.fade !== undefined) {
+      const v = Number(String(args.fade).replace(/s$/i, ''));
+      if (!Number.isFinite(v) || v < 0) throw usage(`--fade needs seconds (0 = at once), got "${args.fade}"`);
+      style.fadeIn = v;
+    }
     if (args['no-explode']) style.explode = 'off';
     if (args['no-section']) style.sectionBox = 'off';
     if (args.labels !== undefined) style.labels = args.labels;
@@ -81,12 +88,14 @@ export function makeScriptCommand({ loadParser, CliError, EXIT_OK, EXIT_USAGE, E
 
   return {
     summary: 'the 4D director: a camera, explode, section box, caption and label script (.xrayanim) from a plan and its model',
-    usage: 'xray-4d script <build.4d.json> --model <model.ifc|sidecar.json> [--style calm|dynamic] [--labels N] [--no-explode] [--no-section] [--name NAME] -o film.xrayanim [--notes notes.txt]',
-    options: { '--model': 'string', '--style': 'string', '--labels': 'int', '--no-explode': 'bool', '--no-section': 'bool', '--name': 'string', '--out': 'string', '--notes': 'string' },
+    usage: 'xray-4d script <build.4d.json> --model <model.ifc|sidecar.json> [--style calm|dynamic] [--labels N] [--explode auto|floor|off] [--fade S] [--no-explode] [--no-section] [--name NAME] -o film.xrayanim [--notes notes.txt]',
+    options: { '--model': 'string', '--style': 'string', '--labels': 'int', '--explode': 'string', '--fade': 'string', '--no-explode': 'bool', '--no-section': 'bool', '--name': 'string', '--out': 'string', '--notes': 'string' },
     optionHelp: [
       '  --model FILE     the model the plan was made for: an IFC file, or the sidecar .json of the IFC reader (element boxes and storeys)',
       '  --style S        calm (6 s shots, slower moves) or dynamic (4 s shots; default)',
       '  --labels N       at most N activity labels at once (0 = none; default: the plan\'s style)',
+      '  --explode E      auto (default), floor (each floor apart while it is built) or off',
+      '  --fade S         seconds a new part takes to fade in (the schedule line gets `fade S seconds`)',
       '  --no-explode     no explode, collapse or milestone beats',
       '  --no-section     no section boxes',
       '  --name NAME      the plan name written in the script\'s schedule statement (default: the plan file name); register the plan under it',

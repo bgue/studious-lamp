@@ -40,7 +40,7 @@ export interface FlyHost {
   goTo(index: number): void;
   removeKeyframe(index: number): void;
   move(from: number, to: number): void;
-  setOptions(o: Partial<Pick<FlyThrough, 'timing' | 'speed' | 'segmentS' | 'lookAtSelection' | 'loop'>>): void;
+  setOptions(o: Partial<Pick<FlyThrough, 'timing' | 'speed' | 'segmentS' | 'lookAtSelection' | 'loop' | 'overlays'>>): void;
   hud(): HudSettings;
   setHud(patch: Partial<HudSettings>): void;
   play(fromIndex?: number): void;
@@ -145,6 +145,7 @@ export class FlythroughPanel {
   private readonly speedLbl: HTMLLabelElement;
   private readonly lookChk: HTMLInputElement;
   private readonly loopChk: HTMLInputElement;
+  private readonly overlaysChk: HTMLInputElement;
   private readonly hudEls: { progress: HTMLInputElement; compass: HTMLInputElement; scaleBar: HTMLInputElement; labelSize: HTMLInputElement; captionPosition: HTMLSelectElement; scheduleDate: HTMLInputElement; sCurve: HTMLInputElement; activities: HTMLInputElement; milestones: HTMLInputElement; legend: HTMLInputElement };
   private readonly savedSel: HTMLSelectElement;
   private readonly fileInput: HTMLInputElement;
@@ -218,8 +219,12 @@ export class FlythroughPanel {
     const loopLbl = el('label', '', { ...hk('Fly-through loop') });
     loopLbl.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:11px;color:var(--sb-dim)';
     loopLbl.append(this.loopChk, 'Loop');
+    this.overlaysChk = el('input', '', { type: 'checkbox', ...hk('Fly-through issues and drawings') });
+    const overlaysLbl = el('label', '', { ...hk('Fly-through issues and drawings') });
+    overlaysLbl.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:11px;color:var(--sb-dim)';
+    overlaysLbl.append(this.overlaysChk, 'Issues and drawings');
     const row4 = el('div', 'fl-row');
-    row4.append(this.timingSel, this.speedLbl, lookLbl, loopLbl);
+    row4.append(this.timingSel, this.speedLbl, lookLbl, loopLbl, overlaysLbl);
 
     // Row 5: the on-screen display (HUD).
     const chk = (label: string, help: string): { input: HTMLInputElement; label: HTMLLabelElement } => {
@@ -323,6 +328,7 @@ export class FlythroughPanel {
     });
     this.lookChk.addEventListener('change', () => h.setOptions({ lookAtSelection: this.lookChk.checked }));
     this.loopChk.addEventListener('change', () => h.setOptions({ loop: this.loopChk.checked }));
+    this.overlaysChk.addEventListener('change', () => h.setOptions({ overlays: this.overlaysChk.checked }));
     const he = this.hudEls;
     he.progress.addEventListener('change', () => h.setHud({ progress: he.progress.checked }));
     he.compass.addEventListener('change', () => h.setHud({ compass: he.compass.checked }));
@@ -534,6 +540,7 @@ export class FlythroughPanel {
     (this.speedLbl.querySelector('.fl-unit') as HTMLElement).textContent = secs ? 's' : 'm/s';
     this.lookChk.checked = f?.lookAtSelection === true;
     this.loopChk.checked = f?.loop === true;
+    this.overlaysChk.checked = f?.overlays === true;
     const hud = h.hud();
     this.hudEls.progress.checked = hud.progress;
     this.hudEls.compass.checked = hud.compass;

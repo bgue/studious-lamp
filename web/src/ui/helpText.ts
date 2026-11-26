@@ -1927,6 +1927,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Tick the box for a show that runs on a screen. Press Escape to stop.',
     'Report: Onboarding checklist',
   ),
+  'Sidebar/Fly-through issues and drawings': h(
+    'The box keeps issue pins and drawings on screen while the fly-through plays.',
+    'Off, the view stays clean of markers and sketches. On, they stay in view.',
+    'Tick the box when the pins and sketches belong in the show.',
+    'Report: Onboarding checklist',
+  ),
   'Sidebar/Fly-through keyframe card': h(
     'The card shows 1 keyframe with its picture, name, travel time and hold. Click it to select it and move the camera there.',
     'Click a picture and the camera jumps to that stop. The editor below shows its settings.',
@@ -5470,9 +5476,27 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Limitations and extensions, 4D schedule',
   ),
   '4D tab/Style explode': h(
-    'The list lets the film spread storeys apart when work sits on several levels.',
-    'Levels slide apart when work sits on many levels, then close again.',
-    'Pick Auto to allow the moves. Pick Off for a still building.',
+    'The list lets the film spread storeys apart.',
+    'Auto spreads levels when work sits on many levels. The other choice spreads levels around the level that is going up. Off keeps a still building.',
+    'Pick Each floor apart to see every floor on its own. Pick Off for a still building.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
+  '4D tab/Style fade in': h(
+    'The box sets how many seconds a new part takes to appear.',
+    'A longer time lets new parts melt into view. Zero makes them show at once.',
+    'Type a number of seconds. Tick Auto to let the film choose.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
+  '4D tab/Style fade auto': h(
+    'The box lets the film choose how long a new part takes to appear.',
+    'New parts come in quickly, in about a tenth of their work time.',
+    'Tick the box for the usual time. Clear it to type your own time.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
+  '4D tab/Style issues in film': h(
+    'The box keeps issue pins and drawings on screen while the film plays.',
+    'Off, the picture stays clean of markers and sketches. On, they stay in view.',
+    'Tick the box when the pins and sketches belong in the show.',
     'Report: Limitations and extensions, 4D schedule',
   ),
   '4D tab/Style xray': h(

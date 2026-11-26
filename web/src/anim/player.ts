@@ -19,7 +19,7 @@ export interface CueRunner {
 
 export interface PlayerHost {
   /** Playback begins: keep what `restore` needs and resolve the element references of the score. */
-  begin(score: Score): void;
+  begin(score: Score, opts?: PlayOptions): void;
   /** A runner for a cue that starts, or null to skip it. */
   start(cue: Cue, index: number): CueRunner | null;
   /** Put the state back as it was at begin(). `keepCamera`: leave the camera where it is (the user took over). */
@@ -76,7 +76,7 @@ export class ScorePlayer implements ScorePlayerApi {
     if (this.isPlaying) this.finishRun(opts.restore === false ? false : true, false);
     this.score = score;
     this.opts = opts;
-    this.host.begin(score);
+    this.host.begin(score, opts);
     this.isPlaying = true;
     this.isPaused = false;
     this.lastNow = null;
@@ -148,7 +148,7 @@ export class ScorePlayer implements ScorePlayerApi {
         this.host.restore(false);
         this.reset();
         this.t = 0;
-        this.host.begin(this.score);
+        this.host.begin(this.score, this.opts);
         this.process();
         return;
       }
@@ -201,7 +201,7 @@ export class ScorePlayer implements ScorePlayerApi {
   private replayTo(t: number): void {
     this.host.finish();
     this.host.restore(false);
-    this.host.begin(this.score!);
+    this.host.begin(this.score!, this.opts);
     this.reset();
     this.t = t;
     this.lastNow = null;

@@ -141,7 +141,7 @@
     "length": 90,
     "pace": "warp",
     "camera": "director",
-    "explode": "auto",
+    "explode": "floor",
     "xrayFocus": true,
     "sectionBox": "auto",
     "labels": 3,

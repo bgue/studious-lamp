@@ -53,6 +53,22 @@ const barBox = (page) => page.evaluate(() => {
 });
 const inView = (b) => !!b && b.h > 0 && b.top >= b.paneTop - 1 && b.bottom <= b.paneBottom + 1 && b.top >= 0 && b.bottom <= b.vh && b.left >= 0 && b.right <= b.vw + 1;
 
+
+/** Issue pins and drawings: one of each on the model (the issues drawer is open, so the pins show), and what the overlay layers show now. */
+const addIssueAndDrawing = (page) => page.evaluate(() => {
+  const w = window.__xray.app.controller.model.elements.find((e) => e.globalId && /Wall/.test(e.ifcClass));
+  window.__xrayBcf.createTopic({ title: 'Smoke pin', globalIds: [w.globalId], snapshot: false });
+  window.__xrayIssues.open('issues');
+  window.__xrayMarkup.create('Smoke drawing');
+  window.__xrayMarkup.add({ kind: 'rect', fractions: { points: [[0.3, 0.3], [0.6, 0.55]], depth: 8 } });
+});
+const overlayState = (page) => page.evaluate(() => {
+  const q = (l) => { const g = document.querySelector(`svg.xray-svg-overlay g[data-layer="${l}"]`); return g ? { n: g.childElementCount, shown: getComputedStyle(g).display !== 'none' } : { n: 0, shown: false }; };
+  const pins = q('bcf-markup');
+  const drawings = q('markup');
+  return { pins: pins.n > 0 && pins.shown, pinsDrawn: pins.n, drawings: drawings.n > 0 && drawings.shown, drawingsDrawn: drawings.n, cls: document.documentElement.className };
+});
+
 try {
   let up = false;
   for (let i = 0; i < 100 && !up; i++) {
@@ -102,11 +118,56 @@ try {
   await page.waitForFunction(() => window.__xray4dSchedule.playing === false);
   check('Stop in the bar stops it', true);
 
+  // issue pins and drawings: hidden while the film plays, back after Stop; the style setting keeps them
+  await addIssueAndDrawing(page);
+  await page.waitForFunction(() => document.querySelector('svg.xray-svg-overlay g[data-layer="bcf-markup"]')?.childElementCount > 0 && document.querySelector('svg.xray-svg-overlay g[data-layer="markup"]')?.childElementCount > 0, null, { timeout: 60000 });
+  const ov0 = await overlayState(page);
+  check('before the film: the issue pin and the drawing are on screen', ov0.pins && ov0.drawings && !/xray-hide/.test(ov0.cls), JSON.stringify(ov0));
+  await page.evaluate(() => window.__xray4dSchedule.step('film'));
+  await page.locator('#dk-pane-4d [data-x4=film-bar] button', { hasText: /^Play$/ }).click();
+  await page.waitForFunction(() => window.__xray4dSchedule.playing === true && window.__xrayFlythrough.state().time > 0.5, null, { timeout: 240000 });
+  const ov1 = await overlayState(page);
+  check('during the film the pins and the drawings are hidden', !ov1.pins && !ov1.drawings && ov1.pinsDrawn > 0, JSON.stringify(ov1));
+  await page.locator('#dk-pane-4d [data-x4=film-bar] button', { hasText: /^Stop$/ }).click();
+  await page.waitForFunction(() => window.__xray4dSchedule.playing === false);
+  await page.waitForTimeout(400);
+  const ov2 = await overlayState(page);
+  check('after Stop they are back, exactly as before', ov2.pins && ov2.drawings && ov2.cls === ov0.cls && ov2.pinsDrawn === ov0.pinsDrawn && ov2.drawingsDrawn === ov0.drawingsDrawn, JSON.stringify(ov2));
+
+  // the Style section: each floor apart, fade in, issues and drawings
+  await page.evaluate(() => window.__xray4dSchedule.open('style'));
+  await page.waitForTimeout(300);
+  const ui = await page.evaluate(() => {
+    const q = (k) => document.querySelector(`#dk-pane-4d [data-style="${k}"]`);
+    return { explode: q('explode')?.value, options: [...(q('explode')?.options ?? [])].map((o) => o.textContent), fadeAuto: q('fade auto')?.checked, fadeDisabled: q('fade in')?.disabled, issues: q('issues in film')?.checked, labels: [...document.querySelectorAll('#dk-pane-4d .x4-grid > label')].map((l) => l.textContent) };
+  });
+  check('Style: the sample asks for "Each floor apart"', ui.explode === 'floor' && ui.options.includes('Each floor apart'), JSON.stringify(ui));
+  check('Style: "Fade in (s)" is on auto and "Issues and drawings in the film" is off', ui.fadeAuto === true && ui.fadeDisabled === true && ui.issues === false && ui.labels.includes('Fade in (s)') && ui.labels.includes('Issues and drawings in the film'), JSON.stringify(ui));
+  await page.locator('#dk-pane-4d [data-style="fade auto"]').uncheck();
+  await page.locator('#dk-pane-4d [data-style="fade in"]').fill('1.5');
+  await page.locator('#dk-pane-4d [data-style="fade in"]').dispatchEvent('change');
+  await page.locator('#dk-pane-4d [data-style="issues in film"]').check();
+  const cfg = await page.evaluate(() => { const c = window.__xray4dSchedule.config(); return c?.style ? { fadeIn: c.style.fadeIn, issuesInFilm: c.style.issuesInFilm, explode: c.style.explode } : null; });
+  check('Style: the fade time and the issues setting go into the configuration (the .4d.json)', cfg && cfg.fadeIn === 1.5 && cfg.issuesInFilm === true && cfg.explode === 'floor', JSON.stringify(cfg));
+  await page.evaluate(() => window.__xray4dSchedule.open('play'));
+  await page.locator('#dk-pane-4d [data-x4=film-bar] button', { hasText: /^Play$/ }).click();
+  await page.waitForFunction(() => window.__xray4dSchedule.playing === true && window.__xrayFlythrough.state().time > 0.5, null, { timeout: 240000 });
+  const ov3 = await overlayState(page);
+  check('with "Issues and drawings in the film" on, the pins and the drawings stay during the film', ov3.pins && ov3.drawings, JSON.stringify(ov3));
+  await page.locator('#dk-pane-4d [data-x4=film-bar] button', { hasText: /^Stop$/ }).click();
+  await page.waitForFunction(() => window.__xray4dSchedule.playing === false);
+  await page.evaluate(() => window.__xray4dSchedule.open('style'));
+  await page.locator('#dk-pane-4d [data-style="issues in film"]').uncheck();
+  await page.locator('#dk-pane-4d [data-style="fade auto"]').check();
+  await page.evaluate(() => window.__xray4dSchedule.open('play'));
+
   // Open as script
   await page.locator('#dk-pane-4d [data-x4=film-script]').click();
   await page.waitForFunction(() => window.__xrayRightSidebar.state().tab === 'script' && /Script made from the 4D film/.test(window.__xrayScript.state()?.status ?? ''), null, { timeout: 120000 });
   const sc = await page.evaluate(() => { const s = window.__xrayScript; const t = s.text(); const c = s.compile(t); return { state: s.state(), len: t.length, lines: t.split('\n').length, schedule: /schedule "[^"]+"/.exec(t)?.[0], errors: c.errors.filter((e) => e.severity === 'error').length, fly: (t.match(/^\s*(fly to|orbit)/gm) ?? []).length, still: /camera stays put/.test(t), plans: window.__xray4d.plans(), saved: s.list().length }; });
   check('the Script tab opens with the film as a script that compiles', sc.errors === 0 && sc.state.errors === 0 && sc.schedule && sc.fly > 3 && !sc.still && sc.len > 500, JSON.stringify({ ...sc, state: undefined }));
+  const floors = await page.evaluate(() => { const t = window.__xrayScript.text(); return { explode: (t.match(/^\s*explode storeys/gm) ?? []).length, collapse: (t.match(/^\s*collapse over/gm) ?? []).length, floorNotes: (t.match(/^-- .*floor "[^"]+": the work moves onto it/gm) ?? []).map((l) => /floor "([^"]+)"/.exec(l)[1]), caps: (t.match(/caption "(Erdgeschoss|Dachgeschoss)"/g) ?? []).length }; });
+  check('the film script has an explode and a collapse per floor (ground floor and roof storey), with the notes and a caption naming the floor', floors.explode >= 2 && floors.collapse === floors.explode && floors.floorNotes.includes('Erdgeschoss') && floors.floorNotes.includes('Dachgeschoss') && floors.caps >= 2, JSON.stringify(floors));
   check('the status says how many lines were made', new RegExp(`Script made from the 4D film: ${sc.lines} lines\\. Press Run\\.`).test(sc.state.status) || /Script made from the 4D film: \d+ lines\. Press Run\./.test(sc.state.status), sc.state.status);
   check('the script is named after the schedule, registered as a plan, and not saved yet', sc.state.name !== '' && sc.plans.some((n) => sc.schedule.includes(`"${n}"`)) && sc.state.dirty !== undefined && sc.saved === 0, `${sc.state.name} ${sc.plans.join()}`);
   await page.locator('#dk-pane-script button', { hasText: /^Run$/ }).click();

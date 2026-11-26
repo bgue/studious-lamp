@@ -216,6 +216,25 @@ try {
   await page.locator('#dk-pane-4d input[data-style=labels]').press('Enter');
   const sty = await page.evaluate(() => window.__xray4dSchedule.config().style);
   check('the style controls change the configuration', sty.unbuilt === 'ghost' && sty.window.kind === 'lookahead' && sty.window.weeks === 8 && sty.pace === 'fixed' && sty.explode === 'off' && sty.labels === 2, JSON.stringify(sty).slice(0, 200));
+  // each floor apart, fade in and issues and drawings: the controls, the configuration and the file round trip
+  await page.locator('#dk-pane-4d select[data-style=explode]').selectOption('floor');
+  await page.locator('#dk-pane-4d input[data-style="fade auto"]').uncheck();
+  await page.locator('#dk-pane-4d input[data-style="fade in"]').fill('1.5');
+  await page.locator('#dk-pane-4d input[data-style="fade in"]').press('Enter');
+  await page.locator('#dk-pane-4d input[data-style="issues in film"]').check();
+  const styFloor = await page.evaluate(() => window.__xray4dSchedule.config().style);
+  check('Style: Each floor apart, Fade in (s) and Issues and drawings in the film change the configuration', styFloor.explode === 'floor' && styFloor.fadeIn === 1.5 && styFloor.issuesInFilm === true, JSON.stringify({ e: styFloor.explode, f: styFloor.fadeIn, i: styFloor.issuesInFilm }));
+  const file2 = await page.evaluate(() => window.__xray4dSchedule.exportConfig());
+  const fileStyle = JSON.parse(file2).style;
+  check('the .4d.json holds explode floor, fadeIn and issuesInFilm', fileStyle.explode === 'floor' && fileStyle.fadeIn === 1.5 && fileStyle.issuesInFilm === true, JSON.stringify({ e: fileStyle.explode, f: fileStyle.fadeIn, i: fileStyle.issuesInFilm }));
+  await page.locator('#dk-pane-4d input[data-style="fade auto"]').check();
+  await page.locator('#dk-pane-4d input[data-style="issues in film"]').uncheck();
+  const auto = await page.evaluate(() => window.__xray4dSchedule.config().style);
+  check('Fade in "Auto" removes the fade time again (the default rule)', auto.fadeIn === undefined && !auto.issuesInFilm, JSON.stringify({ f: auto.fadeIn }));
+  const back2 = await page.evaluate((t) => { const r = window.__xray4dSchedule.loadConfig(t); const c = window.__xray4dSchedule.config().style; return { ok: !!r.config, problems: r.problems.length, e: c.explode, f: c.fadeIn, i: c.issuesInFilm }; }, file2);
+  check('importing that file brings the three settings back', back2.ok && back2.problems === 0 && back2.e === 'floor' && back2.f === 1.5 && back2.i === true, JSON.stringify(back2));
+  await page.locator('#dk-pane-4d input[data-style="fade auto"]').check();
+  await page.locator('#dk-pane-4d input[data-style="issues in film"]').uncheck();
   await page.locator('#dk-pane-4d select[data-style=unbuilt]').selectOption('hidden');
   await page.locator('#dk-pane-4d select[data-style=window]').selectOption('all');
   await page.locator('#dk-pane-4d select[data-style=pace]').selectOption('warp');
@@ -226,8 +245,8 @@ try {
   await page.locator('#dk-pane-4d select[data-style="pace mode"]').selectOption('length');
   await page.locator('#dk-pane-4d input[data-style="pace value"]').fill('24');
   await page.locator('#dk-pane-4d input[data-style="pace value"]').press('Enter');
-  const sty2 = await page.evaluate(() => window.__xray4dSchedule.config().style);
-  check('the style goes back to the defaults with a film of 24 seconds', sty2.unbuilt === 'hidden' && sty2.window.kind === 'all' && sty2.view === 'planned' && sty2.length === 24 && sty2.daysPerSecond === undefined && sty2.camera === 'director', JSON.stringify(sty2).slice(0, 200));
+  const styB = await page.evaluate(() => window.__xray4dSchedule.config().style);
+  check('the style goes back to the defaults with a film of 24 seconds', styB.unbuilt === 'hidden' && styB.window.kind === 'all' && styB.view === 'planned' && styB.length === 24 && styB.daysPerSecond === undefined && styB.camera === 'director', JSON.stringify(styB).slice(0, 200));
   const tradeColours = await page.locator('#dk-pane-4d [data-x4=trade-colours] input[type=color]').count();
   check('trade colours are listed (from the mapping tool or the configuration)', tradeColours >= 5, `${tradeColours}`);
 

@@ -5,7 +5,15 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 ## Unreleased
 
-- Changes for the next release are collected here.
+- Issue pins and drawings are hidden while a fly-through, script or 4D film plays or is recorded, and come back exactly as they were
+  when it stops.
+- The 4D tab has "Issues and drawings in the film" (Style) and fly-throughs have "Issues and drawings": tick them to keep the pins
+  and drawings on screen during playback.
+- The 4D film has a "Fade in (s)" setting: how long a new part takes to appear (auto, 0 for at once), also in the director script
+  and on the xray-4d command line.
+- The 4D director has "Each floor apart": the storeys move apart around the floor being built, that floor is in x-ray focus and
+  named, and they close again before the work moves on.
+- The FZK-Haus 4D sample shows its ground floor and roof storey built apart.
 
 ## v31 - 2026-11-26
 

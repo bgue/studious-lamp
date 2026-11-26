@@ -81,6 +81,8 @@ export interface FlyThrough {
   /** Keep the camera looking at the selection of each keyframe. */
   lookAtSelection: boolean;
   loop?: boolean;
+  /** Keep the issue pins and the drawings on screen while it plays (default: hidden during playback). */
+  overlays?: boolean;
 }
 
 export interface FlyDoc {
@@ -340,6 +342,7 @@ export function compileFlyThrough(ft: FlyThrough, ctx: CompileContext = {}): Sco
     }
   });
 
+  if (ft.overlays) cues.unshift({ kind: 'overlays', at: 0, dur: 0, issues: true, drawings: true, label: 'Issues and drawings stay' });
   score.cues = cues;
   score.duration = Math.max(tm.total, scoreEnd(cues));
   return score;
@@ -491,6 +494,7 @@ export function parseFlyThrough(raw: unknown): FlyThrough | null {
   ft.segmentS = num(o['segmentS'], DEFAULT_SEGMENT_S, 0, 3600);
   ft.lookAtSelection = o['lookAtSelection'] === true;
   if (o['loop'] === true) ft.loop = true;
+  if (o['overlays'] === true) ft.overlays = true;
   if (Array.isArray(o['keyframes'])) {
     for (const r of o['keyframes'].slice(0, MAX_KEYFRAMES)) {
       const k = parseKeyframe(r);
