@@ -63,7 +63,7 @@ its date, week number and the work going on, and the colour legend is repeated o
    about 20 weekly frames on 4 A4 landscape pages, 3 across.
 
 
-> Picture (storyboard-page): one A4 page of the FZK-Haus storyboard with three frames, their captions and the legend at the foot.
+> Picture (storyboard-page): one A4 page of the FZK-Haus storyboard with six frames (two rows of three), their captions and the legend at the foot.
 
 ### How it works
 

@@ -44,7 +44,7 @@ await tour.step('22.1 Try it steps 1-3: Views tab, Fly-through section, New, Fro
   const addSel = await page.getByLabel('Add a saved view as a keyframe').locator('option').count();
   tour.check('"The list next to Add keyframe adds one view"', addSel >= 3, `${addSel} options`);
   await ui.setCam(page, [6, 4, 6], [0, 1, 0]);
-  await page.getByRole('button', { name: 'Add keyframe' }).dispatchEvent('click');
+  await page.locator('[data-help-key="Sidebar/Fly-through add keyframe"]').click({ timeout: 60000 });
   await page.waitForTimeout(800);
   tour.check('"To add one at a time, orbit to a place and click Add keyframe"', (await cards(page).count()) === 4);
   const txt = (await cards(page).first().innerText()).replace(/\s+/g, ' ');
@@ -90,7 +90,7 @@ await tour.step('22.1 Try it steps 5-7: Hold, Fade, caption, Timing, Play; the p
   const dflt = await page.getByLabel('How the travel time is set').evaluate((s) => s.selectedOptions[0].textContent);
   tour.check('"Constant speed (default; metres per second along the path)"', /Constant speed/i.test(dflt), dflt);
   tour.check('"While the section is open, the camera path is drawn in 3D as a dashed line"', await page.evaluate(() => window.__xrayFlythrough.pathVisible === true));
-  await page.getByRole('button', { name: /Play$/ }).first().click();
+  await page.locator('[data-help-key="Sidebar/Fly-through play"]').click();
   await page.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 150000 });
   tour.check('step 7: "Click Play": it plays', (await state(page)).playing === true);
   tour.check('"It is hidden while the fly-through plays or records": the path is hidden', await page.evaluate(() => window.__xrayFlythrough.pathVisible === false));
@@ -118,7 +118,7 @@ await tour.step('22.2 Try it steps 1-5: Play, Space, the timeline, Left/Right, S
   const pre = await page.evaluate(() => ({ cam: window.__xrayViews.camera(), sel: window.__xray.app.selection.slice() }));
   await ui.setCam(page, [20, 12, 20], [0, 0, 0]);
   const camBefore = await ui.cam(page);
-  await page.getByRole('button', { name: /Play$/ }).first().click();
+  await page.locator('[data-help-key="Sidebar/Fly-through play"]').click();
   await page.waitForFunction(() => window.__xrayFlythrough.state().time > 0.4, null, { timeout: 150000 });
   tour.check('step 1: "Click Play. It starts from the beginning"', (await state(page)).time < 4);
   await page.locator('#c').hover();
@@ -148,13 +148,13 @@ await tour.step('22.2 Try it steps 1-5: Play, Space, the timeline, Left/Right, S
   await page.waitForTimeout(600);
   const kL = await state(page);
   tour.check('"Left goes back"', kL.time < kR.time, `${kR.time.toFixed(1)} -> ${kL.time.toFixed(1)}`);
-  await page.getByRole('button', { name: '■' }).first().click().catch(() => page.keyboard.press('Escape'));
+  await page.locator('[data-help-key="Sidebar/Fly-through stop"]').click().catch(() => page.keyboard.press('Escape'));
   await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 150000 });
   await ui.settle(page, 500);
   const camAfter = await ui.cam(page);
   tour.check('step 4: "Click Stop or press Esc. Camera ... go back as they were"', camMoved(camBefore, camAfter) < 0.05, `moved ${camMoved(camBefore, camAfter).toFixed(3)} m`);
   // step 5: a click on the 3D view during play stops and keeps the camera
-  await page.getByRole('button', { name: /Play$/ }).first().click();
+  await page.locator('[data-help-key="Sidebar/Fly-through play"]').click();
   await page.waitForFunction(() => window.__xrayFlythrough.state().time > 1.5, null, { timeout: 150000 });
   const c = await page.locator('#c').boundingBox();
   await page.mouse.click(c.x + c.width * 0.5, c.y + c.height * 0.35);
@@ -172,7 +172,7 @@ await tour.step('22.3 Try it steps 1-7: the Record a video dialog', async () => 
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByRole('button', { name: 'From views' }).click();
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /Rec$/ }).click();
+  await page.locator('[data-help-key="Sidebar/Fly-through record"]').click();
   const dlg = page.getByRole('dialog', { name: 'Record a video' });
   await dlg.waitFor();
   tour.check('step 1: "Click Rec ... The Record a video dialog opens"', await dlg.isVisible());

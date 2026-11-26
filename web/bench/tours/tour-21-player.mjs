@@ -76,7 +76,7 @@ await tour.step('21.1 Keys: Shift+w does nothing while something plays; typing i
   await page.locator('#c').hover();
   await page.keyboard.press('Shift+w');
   await page.waitForTimeout(400);
-  tour.check('"Shift+w: Nothing. Walk mode cannot start while something plays"', await page.evaluate(() => !document.body.classList.contains('walk-mode') && !window.__xrayWalk?.active), '');
+  tour.check('"Shift+w: Nothing. Walk mode cannot start while something plays"', await page.evaluate(() => !document.querySelector('#c').dataset.walk), '');
   const ta = page.getByLabel('Animation script');
   await ta.click();
   await page.keyboard.press('End');
@@ -89,7 +89,7 @@ await tour.step('21.1 Keys: Shift+w does nothing while something plays; typing i
   await ui.settle(page, 400);
   await page.keyboard.press('Shift+w');
   await page.waitForTimeout(400);
-  tour.check('"After it ends, press Shift+w to walk again"', await page.evaluate(() => !!window.__xrayWalk?.active || document.body.classList.contains('walk-mode') || /walk/i.test(document.getElementById('xray-overlay')?.innerText ?? '')), (await ui.statusText(page)).slice(0, 80));
+  tour.check('"After it ends, press Shift+w to walk again"', await page.evaluate(() => !!document.querySelector('#c').dataset.walk), (await ui.statusText(page)).slice(0, 80));
 });
 
 await tour.step('21.1 Where you set the display: On-screen display block of the fly-through section', async () => {

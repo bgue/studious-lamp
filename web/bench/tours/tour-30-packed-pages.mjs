@@ -104,12 +104,12 @@ await tour.step('30.2 Try it steps 1-2: build a fly-through "Overview" in the vi
   await page.evaluate(() => { window.__xrayFlythrough.setOptions({ timing: 'seconds', segmentS: 2 }); });
   page.once('dialog', (d) => d.accept('Overview'));
   await page.getByRole('button', { name: 'More fly-through actions' }).click();
-  await page.getByRole('menuitem', { name: 'Rename' }).click();
+  await page.getByRole('menuitem', { name: 'Rename' }).dispatchEvent('click');
   await page.waitForTimeout(400);
   tour.check('step 1: "Build a fly-through in the Views tab. Name it Overview"', (await page.evaluate(() => window.__xrayFlythrough.list().map((f) => f.name))).includes('Overview'));
   const dl = page.waitForEvent('download');
   await page.getByRole('button', { name: 'More fly-through actions' }).click();
-  await page.getByRole('menuitem', { name: 'Export file' }).click();
+  await page.getByRole('menuitem', { name: 'Export file' }).dispatchEvent('click');
   const d = await dl;
   flyFile = at('overview.json'); await d.saveAs(flyFile);
   const doc = JSON.parse(readFileSync(flyFile, 'utf8'));

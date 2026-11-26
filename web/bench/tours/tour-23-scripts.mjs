@@ -171,30 +171,30 @@ await tour.step('23.2 Try it 4 and the messages table: mistakes on purpose, the 
   const page = await open('model=process-plant');
   await setScript(page, 'flyto everything');
   const p = await problems(page);
-  tour.check('step 4: "Write flyto everything and look at the Problems list"', p.length >= 1 && /do not know the statement "flyto"/.test(p.join(' ')), p.join(' | '));
+  tour.check('step 4: "Write flyto everything and look at the Problems list"', p.length >= 1 && /do not know the statement `flyto`/.test(p.join(' ')), p.join(' | '));
   const tab = (await page.getByRole('tab', { name: /^Script/ }).innerText()).replace(/\s+/g, ' ');
   tour.check('"The tab button shows the number of errors"', /1/.test(tab) || (await page.locator('#dk-tab-script, [data-tab=script]').first().innerText().catch(() => '')).includes('1'), tab);
   await page.getByLabel('Animation script').fill('line one is a comment\nflyto everything');
   await page.locator('[data-script-errors] button').first().click();
   await page.waitForTimeout(300);
   const msgs = [
-    ['flyto everything', /do not know the statement "flyto"/, 'I do not know the statement "flyto"'],
+    ['flyto everything', /do not know the statement `flyto`/, 'I do not know the statement `flyto`'],
     ['storey = Level 2', null, null],
-    ['together\n  wait 1', /"together" on line 1 has no "end together"/, 'The "together" on line 2 has no "end together"'],
-    ['wait 1\nend repeat', /"end repeat" has no block to close/, '"end repeat" has no block to close'],
-    ['wait pause', /do not know the name "pause"/, 'I do not know the name "pause"'],
-    ['caption it for 1 seconds', /"it" has no meaning here/, '"it" has no meaning here'],
+    ['together\n  wait 1', /`together` on line 1 has no `end together`/, 'The `together` on line 2 has no `end together`'],
+    ['wait 1\nend repeat', /`end repeat` has no block to close/, '`end repeat` has no block to close'],
+    ['wait pause', /do not know the name `pause`/, 'I do not know the name `pause`'],
+    ['caption it for 1 seconds', /`it` has no meaning here/, '`it` has no meaning here'],
     ['select set "Pmps"', /no selection set named "Pmps"/, 'There is no selection set named "Pmps"'],
     ['set no.such.setting to 3', /do not know the setting/, 'I do not know the setting'],
     ['fly to everything margin 7', /margin 7 is outside 1 to 6/, 'The margin 7 is outside 1 to 6'],
-    ['hide where class = IfcSlab and storey = Level 2', /double quotes/, 'A value with a space needs double quotes'],
+    ['hide where class = IfcSlab and storey = Level 2', /Unexpected "2"/, 'In the criteria: Unexpected "2": expected AND, OR or the end of the query.'],
   ];
   for (const [text, re, said] of msgs) {
     if (!re) continue;
     const r = await page.evaluate((t) => window.__xrayScript.compile(t).errors.map((e) => `${e.severity}: ${e.message}`), text);
     tour.check(`the messages table: "${said}"`, r.some((m) => re.test(m)), r.join(' | ').slice(0, 200));
   }
-  const many = await page.evaluate(() => window.__xrayScript.compile('repeat 500 times\n  repeat 20 times\n    wait 1\n  end repeat\nend repeat').errors.map((e) => e.message));
+  const many = await page.evaluate(() => window.__xrayScript.compile('repeat 500 times\n  repeat 11 times\n    caption "x" for 1 seconds\n  end repeat\nend repeat').errors.map((e) => e.message));
   tour.check('"The script makes more than 5000 steps. Use fewer or smaller loops"', many.some((m) => /more than 5000 steps/.test(m)), many.join(' | ').slice(0, 160));
   const w = await page.evaluate(() => window.__xrayScript.compile('set no.such.setting to 3').errors);
   tour.check('"Warnings do not stop the script. Errors do": an unknown setting is a warning', w.length > 0 && w.every((e) => e.severity === 'warning'), JSON.stringify(w.map((e) => e.severity)));
@@ -204,7 +204,7 @@ await tour.step('23.3 The statement reference: each documented statement compile
   const page = await open('model=process-plant');
   const good = [
     'fly to class IfcPump over 2 seconds ease linear margin 2', 'orbit 90 degrees about class IfcPump over 3 seconds', 'orbit -45 degrees', 'set cinematic.glowStrength to 1.2 over 2 seconds',
-    'mode cutaway', 'apply preset "Overview"', 'show everything', 'hide class IfcPump fading over 1 seconds', 'isolate class IfcPump fading over 1 seconds', 'select class IfcPump', 'select nothing',
+    'mode cutaway', 'apply preset "coordination"', 'show everything', 'hide class IfcPump fading over 1 seconds', 'isolate class IfcPump fading over 1 seconds', 'select class IfcPump', 'select nothing',
     'caption "Title" "More text" for 3 seconds', 'label class IfcPump with name, class, storey, material, globalid, type for 2 seconds', 'hover class IfcPump for 2 seconds', 'wait 2',
     'repeat 3 times\n wait 1\nend repeat', 'put 2 into x\nwait x * 2 + 1', 'tint class IfcPump red fading over 1 seconds', 'tint class IfcPump off', 'explode storeys by 1.5 over 2 seconds', 'explode radial', 'collapse over 1 seconds',
     'focus class IfcPump', 'focus nothing', 'section box around class IfcPump over 1 seconds', 'section box off', 'show issues', 'hide drawings', 'fade new elements over 1.5 seconds',

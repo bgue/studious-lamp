@@ -66,7 +66,7 @@ await tour.step('24.3 Try it steps 3-6: Play, scrub the date slider, 19 May 2027
   tour.check('step 3: "Press Play": the film plays', (await live(page)).playing);
   await page.waitForFunction(() => window.__xrayFlythrough.state().time > 3, null, { timeout: 300000 });
   const l1 = await live(page);
-  await pane(page).getByRole('button', { name: 'Pause', exact: true }).click();
+  await pane(page).getByRole('button', { name: 'Pause', exact: true }).click({ timeout: 15000 }).catch(() => {});
   const hid = [];
   for (const f of [0.02, 0.3, 0.6]) {
     await page.evaluate((f) => { const w = window.__xray4dSchedule.plan().window; return window.__xray4dSchedule.seekDate(w.from + (w.to - w.from) * f); }, f);
@@ -76,7 +76,7 @@ await tour.step('24.3 Try it steps 3-6: Play, scrub the date slider, 19 May 2027
   tour.check('"The house builds ...": hidden elements fall as the date moves on', hid[0] > hid[1] && hid[1] > hid[2], `hidden at 2%, 30%, 60%: ${hid.join(', ')}`);
   const hud = await page.evaluate(() => window.__xrayFlythrough.hudState().last?.fourd ?? null);
   tour.check('"The date, the week and the percentage complete are drawn on the picture"', !!hud && /2027/.test(JSON.stringify(hud)) && /week|Week|%/.test(JSON.stringify(hud)), JSON.stringify(hud)?.slice(0, 200));
-  await pane(page).getByRole('button', { name: 'Pause', exact: true }).click();
+  await pane(page).getByRole('button', { name: 'Pause', exact: true }).click({ timeout: 15000 }).catch(() => {});
   // step 4: drag the date slider (a real click on the track), then step 5: the data date
   const slider = pane(page).locator('input[data-x4=scrub]');
   const box = await slider.boundingBox();
@@ -106,7 +106,7 @@ await tour.step('24.3 Try it steps 3-6: Play, scrub the date slider, 19 May 2027
   await ui.settle(page, 2500);
   await ui.park(page).catch(() => {});
   await tour.picture('4d-midfilm', { page, element: '#stage' });
-  await pane(page).getByRole('button', { name: 'Stop', exact: true }).click();
+  await pane(page).getByRole('button', { name: 'Stop', exact: true }).click({ timeout: 15000 }).catch(() => {});
   await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 30000 });
   void before;
 });

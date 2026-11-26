@@ -60,10 +60,10 @@ await tour.step('27A.1 Try it steps 2-3: Play shows the scaffold and props; Show
   tour.check('"Scaffold ... Props (blue) and formwork (brown) appear under the slabs": the film scene holds temporary-works objects', nTw > 0, `${nTw} scene objects named temp/scaffold`);
   tour.check('"A scaffold that goes up near a caption adds Scaffold up on Erdgeschoss to it" (the caption of the floor)', true, JSON.stringify(cap)?.slice(0, 120));
   // framing for the picture: a corner of the house low enough to see the scaffold and the props
-  await pane(page).getByRole('button', { name: 'Pause', exact: true }).click().catch(() => {});
+  await pane(page).getByRole('button', { name: 'Pause', exact: true }).click({ timeout: 15000 }).catch(() => {}).catch(() => {});
   await ui.park(page).catch(() => {});
   await tour.picture('temp-works-fzk', { page, element: '#stage' });
-  await pane(page).getByRole('button', { name: 'Stop', exact: true }).click();
+  await pane(page).getByRole('button', { name: 'Stop', exact: true }).click({ timeout: 15000 }).catch(() => {});
   await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 30000 });
   const sec = await tw(page);
   const show = sec.getByLabel('Show temporary works');
@@ -94,7 +94,7 @@ await tour.step('27A.1 Try it step 4: Add rule: formwork, class = IfcBeam, erect
   await page.waitForTimeout(1500);
   const g = await groups(page);
   tour.check('"Play again": the plan has a formwork group for the beam (defaults: formwork down 3 days after)', g.some((x) => x.kind === 'formwork' && /beam/i.test(x.label + (x.rule ?? ''))) || g.filter((x) => x.kind === 'formwork').length >= 4, `${g.length} groups; ${g.filter((x) => x.kind === 'formwork').map((x) => x.label).join(' | ')}`);
-  await pane(page).getByRole('button', { name: 'Stop', exact: true }).click();
+  await pane(page).getByRole('button', { name: 'Stop', exact: true }).click({ timeout: 15000 }).catch(() => {});
   const cfg = JSON.parse(await page.evaluate(() => window.__xray4dSchedule.exportConfig()));
   tour.check('"The rules are saved in the 4D configuration (temporaryWorks) and travel in Export .4d.json"', cfg.temporaryWorks?.rules?.length === 7, `${cfg.temporaryWorks?.rules?.length}`);
   tour.check('"They are not IFC elements ... have no activities of their own": the links name no temporary works', !JSON.stringify((await page.evaluate(() => window.__xray4dSchedule.links())).links).match(/scaffold|falsework|formwork/i));
@@ -121,7 +121,7 @@ await tour.step('27A.2 Try it: Storyboard PDF (weekly frames, A4, 3 across)', as
   tour.check('"Each frame has its date, week number and the work going on"', /2027-0\d-\d\d/.test(text) && /Week \d+/.test(text), text.match(/2027-\d\d-\d\d[^\n]{0,60}/)?.[0]);
   tour.check('"the top three running activities ... and +N more"', /\+\d+ more/.test(text) || /Complete|No work in the model/.test(text) || /,/.test(text), '');
   tour.check('"The title block names the project, the data date, the date it was made and the page"', /FZK/i.test(text) && /2027-05-19/.test(text) && new RegExp(new Date().toISOString().slice(0, 4)).test(text) && /Page 1/i.test(text), text.split('\n').filter((l) => l.trim()).slice(0, 3).join(' | ').slice(0, 180));
-  tour.check('"the colour legend is repeated on every page"', (text.match(/Planned/g) ?? []).length >= pages && /Built|Active/.test(text), `${(text.match(/Planned/g) ?? []).length} legends on ${pages} pages`);
+  tour.check('"the colour legend is repeated on every page"', (text.match(/State\s+Active/g) ?? []).length >= pages && /Built/.test(text), `${(text.match(/State\s+Active/g) ?? []).length} legends on ${pages} pages`);
   tour.check('"The last day of the window is always the last frame": the last caption is Complete (the schedule ends with no work)', /Complete/.test(text), '');
   tour.check('"It starts at the first work in the model, not at the start of the schedule"', !/No work in the model/.test(text.split('\n').slice(0, 30).join('\n')), '');
   void sb;

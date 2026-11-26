@@ -47,7 +47,8 @@ await tour.step('26.1 Try it steps 1-3: FZK-Haus, 4D tab opens on Link, Open .xe
   await schedule.getByRole('button', { name: /Open \.xer/ }).click();
   await (await ch).setFiles(XER);
   await page.waitForFunction(() => window.__xray4dSchedule.summary()?.project === 'FZK-HAUS', null, { timeout: 60000 });
-  const shown = (await pane(page).locator('[data-x4=schedule-summary]').innerText()).replace(/\s+/g, ' ');
+  await page.waitForFunction(() => /FZK-HAUS/.test(document.querySelector('#dk-pane-4d [data-x4=schedule-summary]')?.textContent ?? '') && /Crew size|Responsible/.test(document.querySelector('#dk-pane-4d [data-x4=schedule-summary]')?.textContent ?? ''), null, { timeout: 60000 }).catch(() => {});
+  const shown = (await pane(page).locator('[data-x4=schedule-summary]').evaluate((n) => n.textContent)).replace(/\s+/g, ' ');
   tour.check('"The summary shows the project (FZK-HAUS), data date (19 May 2027), 46 activities, their types, the code types (Level, Trade, Phase) with value counts and the user fields"', /FZK-HAUS/.test(shown) && /2027-05-19|19 May 2027/.test(shown) && /46/.test(shown) && ['Level', 'Trade', 'Phase'].every((n) => shown.includes(n)) && /Crew size|Responsible/.test(shown), shown.slice(0, 260));
   const cfgSec = await sec(page, 'configure');
   const loc = cfgSec.getByLabel('Location from'), trd = cfgSec.getByLabel('Trade from'), zone = cfgSec.getByLabel('Zone from');

@@ -49,8 +49,8 @@ await tour.step('25.1 Try it steps 1-3: 4D tab, Map step, Seed from model, Sugge
   const props = await page.evaluate(() => window.__xray4dMap.proposals());
   const loc = props.find((p) => p.attribute === 'location' && p.value === 'Erdgeschoss');
   tour.check('"A wall on the ground floor gets location Erdgeschoss at 0.90 (the storey that contains the element)"', !!loc && Math.abs(loc.confidence - 0.9) < 0.011 && /storey/i.test((loc.reasons ?? []).join(' ')), JSON.stringify(loc)?.slice(0, 200));
-  const conf = props.map((p) => p.confidence);
-  tour.check('"highest first": the list is sorted by confidence', conf.every((c, i) => i === 0 || c <= conf[i - 1] + 1e-9));
+  const conf = (await sug.locator('.x4-prop').allInnerTexts()).map((t) => Number(t.match(/\b[01]\.\d\d\b/)?.[0]));
+  tour.check('"highest first": the rows of the list are sorted by confidence', conf.length > 5 && conf.every((c, i) => i === 0 || c <= conf[i - 1] + 1e-9), conf.slice(0, 8).join(' '));
   const rowText = (await rows.first().innerText()).replace(/\s+/g, ' ');
   tour.check('"Each row shows the element, the proposed value, a confidence and the reasons"', /\d\.\d\d/.test(rowText) || /0\.\d+/.test(rowText), rowText.slice(0, 120));
   await rows.nth(0).click({ position: { x: 20, y: 8 } });
@@ -61,10 +61,10 @@ await tour.step('25.1 Try it steps 1-3: 4D tab, Map step, Seed from model, Sugge
   await page.waitForTimeout(400);
   const afterAcc = (await cov(page)).attributes;
   tour.check('step 3: "Press Accept": the coverage counts one more accepted value', Object.values(afterAcc).reduce((a, x) => a + x.assigned, 0) >= 1, JSON.stringify(afterAcc.location));
-  const nBefore = await sug.locator('.x4-prop').count();
+  const nBefore = await page.evaluate(() => window.__xray4dMap.proposals().length);
   await sug.locator('.x4-prop').first().getByRole('button', { name: 'Reject', exact: true }).click();
-  await page.waitForTimeout(400);
-  tour.check('step 3: "or Reject": the row leaves the list', (await sug.locator('.x4-prop').count()) < nBefore);
+  await page.waitForTimeout(600);
+  tour.check('step 3: "or Reject": the proposal leaves the list', (await page.evaluate(() => window.__xray4dMap.proposals().length)) === nBefore - 1);
   void before;
 });
 
@@ -173,8 +173,8 @@ await tour.step('25.2 and 25.3 Suggestions by evidence; the class to trade table
   await vals.getByRole('button', { name: 'Add', exact: true }).click();
   await page.waitForTimeout(300);
   tour.check('"add a value"', (await vals.locator('input[aria-label="Value name"]').evaluateAll((a) => a.map((i) => i.value))).includes('MY-TRADE'));
-  const row = vals.locator('.x4-row', { has: vals.locator('input[aria-label="Value name"][value="MY-TRADE"]') }).first();
-  await row.getByRole('button', { name: 'Delete value' }).click();
+  const idx = await vals.locator('input[aria-label="Value name"]').evaluateAll((a) => a.findIndex((i) => i.value === 'MY-TRADE'));
+  await vals.getByRole('button', { name: 'Delete value' }).nth(idx).click();
   await page.waitForTimeout(300);
   tour.check('"or delete an unused one"', !(await vals.locator('input[aria-label="Value name"]').evaluateAll((a) => a.map((i) => i.value))).includes('MY-TRADE'));
 });
@@ -191,7 +191,8 @@ await tour.step('25.4 Saving: the box Include 4D location, trade and zone writes
   await (await sec(page, 'values')).getByRole('button', { name: 'Seed from model' }).click();
   const sug = await sec(page, 'suggest');
   await sug.getByRole('button', { name: 'Suggest', exact: true }).click();
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(1500);
+  await sug.getByLabel('Confidence limit').fill('0.65'); await sug.getByLabel('Confidence limit').press('Tab');
   await sug.getByRole('button', { name: 'Accept all above' }).click();
   await page.waitForTimeout(600);
   const accepted = await cov(page);

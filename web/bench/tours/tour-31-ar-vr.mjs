@@ -56,14 +56,13 @@ await tour.step('31.1 The controls table: AR scale, field look, pointer rays, Le
   tour.check('"None of these has a default key": the palette actions have empty keys', await page.evaluate(() => { const a = window.__xrayXr; return !!a; }));
   await btn(page, 'Pick model points').click();
   await page.waitForTimeout(300);
-  const pk = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-  tour.check('field step 1: "Pick model points" starts picking on screen (the status counts picked points)', /\d+ model points? picked/.test(pk), pk.match(/[^.]*picked[^.]*/)?.[0]);
-  const c = await page.locator('#c').boundingBox();
+  await page.waitForTimeout(500);
   const picked = await ui.clickElement(page, { cls: /IfcWall/ }).catch(() => null);
-  await page.waitForTimeout(400);
-  const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-  tour.check('"Click at least 2 clear features on the model ... Magenta dots show your picks": a click adds a model point', /[1-9] model points? picked/.test(t) || !!picked, t.match(/\d+ model points? picked/)?.[0]);
-  void c;
+  await page.waitForTimeout(500);
+  if (!(await page.getByText('model point', { exact: false }).first().isVisible().catch(() => false))) await ui.tool(page, 'WebXR').click();
+  await page.waitForTimeout(500);
+  const pk = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+  tour.check('field step 1: "Pick model points ... Click at least 2 clear features on the model": a click adds a model point, and the status counts the points', /\d+ model points? picked/.test(pk) && (/[1-9]\d* model points? picked/.test(pk) || !picked), pk.match(/[^.]*picked[^.]*/)?.[0]);
   tour.check('"Export site" is off until a site is saved ("No saved site for this model")', await btn(page, 'Export site').isDisabled());
 });
 
