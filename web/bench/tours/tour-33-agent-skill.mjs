@@ -62,13 +62,16 @@ await tour.step('33.3 Try it step 6; 33.4 steps 5-9: write the IFC, verify, writ
   tour.check('"the work schedule, tasks with dates, task-to-element assignments, the logic between tasks, and Xray_4D"', /IFCWORKSCHEDULE/.test(t) && /IFCTASKTIME/.test(t) && /IFCRELASSIGNSTOPRODUCT/.test(t) && /IFCRELSEQUENCE/.test(t) && /Xray_4D/.test(t));
   tour.check('"Only accepted links are written": the proposed link\'s id never reaches the IFC', !/tour: the name says so|ln-A\d+-build-proposed/.test(t));
   tour.check('"Never write reviewed_by"', !/reviewed_by|ReviewedBy/.test(t));
-  const a2 = py('apply_links.py', '--ifc', FZK, '--links', at('links-p.json'), '--xer', XER, '-o', at('model2.4d.ifc'));
-  tour.check('"Running again gives the same file"', a2.code === 0 && sha(at('model.4d.ifc')) === sha(at('model2.4d.ifc')));
+  const a2 = py('apply_links.py', '--ifc', at('model.4d.ifc'), '--links', at('links-p.json'), '--xer', XER, '-o', at('model2.4d.ifc'));
+  const count = (f, e) => (readFileSync(f).toString('latin1').match(new RegExp(`=${e}\\(`, 'g')) ?? []).length;
+  tour.check('"Running again replaces the Xray 4D schedule ... not duplicated": a second run on the written file has the same number of work schedules, tasks and sequences', a2.code === 0 && count(at('model.4d.ifc'), 'IFCWORKSCHEDULE') === 1 && ['IFCWORKSCHEDULE', 'IFCTASK', 'IFCRELSEQUENCE'].every((e) => count(at('model.4d.ifc'), e) === count(at('model2.4d.ifc'), e)), `${count(at('model.4d.ifc'), 'IFCTASK')} tasks`);
   const x = py('xer_write.py', '--xer', XER, '--links', at('links-p.json'), '-o', at('schedule.4d.xer'));
   const xt = readFileSync(at('schedule.4d.xer'), 'latin1');
   tour.check('step 6: "Three activity user fields are added to a copy": 4D Elements, 4D Status, 4D Model', x.code === 0 && ['4D Elements', '4D Status', '4D Model'].every((f) => xt.includes(f)), x.err.slice(-100));
   tour.check('"4D Status: linked, proposed, tie, no elements or no geometry"', /\blinked\b/.test(xt) && /\bproposed\b/.test(xt) && /no elements/.test(xt) && /no geometry/.test(xt));
-  const an = py('anim_write.py', '--links', at('links.json'), '--ifc', at('model.json'), '--trade', 'ROOF', '--length', '30', '-o', at('build.xrayanim'));
+  const x2 = py('xer_write.py', '--xer', at('schedule.4d.xer'), '--links', at('links-p.json'), '-o', at('schedule2.4d.xer'));
+  tour.check('"The 4D fields are replaced, not duplicated": writing the XER again gives the same bytes and one 4D Status field', x2.code === 0 && sha(at('schedule.4d.xer')) === sha(at('schedule2.4d.xer')) && (readFileSync(at('schedule2.4d.xer'), 'latin1').match(/4D Status/g) ?? []).length === 1);
+  const an = py('anim_write.py', '--links', at('links.json'), '--ifc', at('model.json'), '--trade', 'MASON-EXT', '--length', '30', '-o', at('build.xrayanim'));
   tour.check('step 7: "Write an animation ... select by trade" writes a .xrayanim', an.code === 0 && existsSync(at('build.xrayanim')), (an.err + an.out).slice(-160));
   const an2 = py('anim_write.py', '--links', at('links.json'), '--ifc', at('model.json'), '--length', '30', '-o', at('all.xrayanim'));
   const at1 = readFileSync(at('all.xrayanim'), 'utf8');
@@ -81,7 +84,8 @@ await tour.step('33.3 Try it step 6; 33.4 steps 5-9: write the IFC, verify, writ
 });
 
 await tour.step('33.3 step 7: the written IFC links again natively (xray-4d reads it back)', async () => {
-  const r = run('node', [resolve(webRoot, 'tools/xray-4d.mjs'), 'link', at('model.4d.ifc'), XER, '-o', at('back.json')]);
+  writeFileSync(at('empty.4d.json'), '{"schema":"xray-4d-config/1","schedule":{},"model":{}}\n');
+  const r = run('node', [resolve(webRoot, 'tools/xray-4d.mjs'), 'link', at('model.4d.ifc'), XER, '--config', at('empty.4d.json'), '-o', at('back.json')]);
   const back = json(readFileSync(at('back.json'), 'utf8'));
   tour.check('"Open model.4d.ifc ... The 4D tab links come back as accepted": native accepted links with no configuration', r.code === 0 && back.links.filter((l) => l.source === 'native' && l.status === 'accepted').length > 10, r.err.split('\n').find((l) => /coverage/.test(l)));
 });

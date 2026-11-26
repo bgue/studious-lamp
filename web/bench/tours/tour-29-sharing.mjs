@@ -5,12 +5,15 @@ import { resolve } from 'node:path';
 import { repoRoot, startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-29-sharing');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const clipInit = () => { window.__clip = []; try { navigator.clipboard.writeText = async (t) => { window.__clip.push(String(t)); }; } catch { /* no clipboard */ } };
 const b64 = (s) => JSON.parse(Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
 
 let viewLink = '';
 await tour.step('29.1 Try it: send a view as a link (steps 1-4)', async () => {
-  const page = await tour.open('model=fzk-haus', { init: clipInit });
+  const page = await open('model=fzk-haus', { init: clipInit });
   const roof = await ui.clickElement(page, { name: /Dach|Roof/i }) ?? await ui.clickElement(page, { cls: 'IfcSlab' });
   tour.check('step 2: "Click the roof"', !!roof, JSON.stringify(roof));
   await page.keyboard.press('f');
@@ -42,7 +45,7 @@ await tour.step('29.1 Try it: send a view as a link (steps 1-4)', async () => {
 
 await tour.step('29.1 Try it steps 5-6: paste the address in a new tab', async () => {
   if (!viewLink) throw new Error('no view link from the previous step');
-  const page = await tour.open('', { url: viewLink, init: () => { const rec = () => { const m = (document.body?.innerText ?? '').match(/Shared view[^\n]*/); if (m && !window.__sharedNote) window.__sharedNote = m[0]; }; new MutationObserver(rec).observe(document, { subtree: true, childList: true, characterData: true }); } });
+  const page = await open('', { url: viewLink, init: () => { const rec = () => { const m = (document.body?.innerText ?? '').match(/Shared view[^\n]*/); if (m && !window.__sharedNote) window.__sharedNote = m[0]; }; new MutationObserver(rec).observe(document, { subtree: true, childList: true, characterData: true }); } });
   const st = (await page.evaluate(() => window.__sharedNote ?? '')) || (await ui.statusText(page)).replace(/\s+/g, ' ');
   tour.check('step 5: "The status bar says Shared view "Roof" applied. Press Save view to keep it."', /Shared view "Roof" applied\. Press Save view to keep it\./.test(st), st.slice(0, 200));
   tour.check('step 5: "The viewer loads FZK-Haus"', /fzk/i.test(st) || (await ui.model(page)).name.toLowerCase().includes('fzk'), (await ui.model(page)).name);
@@ -52,7 +55,7 @@ await tour.step('29.1 Try it steps 5-6: paste the address in a new tab', async (
 });
 
 await tour.step('29.1 The settings link (#p=) from Copy share URL, and what it carries', async () => {
-  const page = await tour.open('model=fzk-haus', { init: clipInit });
+  const page = await open('model=fzk-haus', { init: clipInit });
   await page.keyboard.press('Control+Shift+S'); // a view exists but a settings link must not carry it
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.folder(page, 'Export / import');
@@ -69,14 +72,13 @@ await tour.step('29.1 The settings link (#p=) from Copy share URL, and what it c
   tour.check('"What no link ever carries": no key, token or reviewer name', !/apikey|token|reviewer/i.test(JSON.stringify(doc)));
   tour.check('"The map is off at every start, and it is in no link"', !keys.includes('map'));
   tour.check('"Copy share URL, Export JSON, Import JSON and Reset to defaults" are in the Export / import folder', await (async () => { const t = await page.locator('#dock').innerText(); return ['Copy share URL', 'Export JSON', 'Import JSON', 'Reset to defaults'].every((n) => t.includes(n)); })());
-  const p2 = await tour.open('', { url });
-  await ui.settle(page, 100);
+  const p2 = await open('', { url });
   const st = (await ui.statusText(p2)).replace(/\s+/g, ' ');
   tour.check('"When a link opens, the viewer ... applies the settings once, then removes the # part"', !(await p2.evaluate(() => location.hash)).includes('p='), st.slice(0, 100));
 });
 
 await tour.step('29.1 The QR code (WebXR drawer) and 29.2 What you can export', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await ui.tool(page, 'WebXR').click();
   await page.getByRole('button', { name: 'Share link as QR' }).click();
   await page.waitForTimeout(400);
@@ -99,7 +101,7 @@ await tour.step('29.1 The QR code (WebXR drawer) and 29.2 What you can export', 
 
 await tour.step('29.2 The viewer alone: xray-viewer.html makes no network requests', async () => {
   const reqs = [];
-  const page = await tour.open('', { url: `file://${resolve(repoRoot, 'xray-viewer.html')}`, waitUntil: 'commit', onRequest: (r) => { if (!/^(file|data|blob|about):/.test(r.url())) reqs.push(r.url()); } });
+  const page = await open('', { url: `file://${resolve(repoRoot, 'xray-viewer.html')}`, waitUntil: 'commit', onRequest: (r) => { if (!/^(file|data|blob|about):/.test(r.url())) reqs.push(r.url()); } });
   const m = await ui.model(page);
   tour.check('"xray-viewer.html is one file that holds the application, the sample models and the IFC reader": it opens with a model', m.n > 0, `${m.name} ${m.n}`);
   tour.check('"It makes no network requests"', reqs.length === 0, reqs.slice(0, 3).join(' '));

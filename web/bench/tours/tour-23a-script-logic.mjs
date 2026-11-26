@@ -5,6 +5,9 @@
 import { startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-23a-script-logic');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const sstate = (page) => page.evaluate(() => window.__xrayScript.state());
 const problems = (page) => page.locator('[data-script-errors] button').allInnerTexts();
 async function setScript(page, text) {
@@ -20,11 +23,11 @@ const compile = (page, text, params) => page.evaluate(([t, p]) => {
   walk(r.score?.cues ?? r.score);
   return { errors: r.errors.filter((e) => e.severity === 'error').map((e) => e.message), warnings: r.errors.filter((e) => e.severity === 'warning').map((e) => e.message), caps, duration: r.score?.duration ?? null, text: JSON.stringify(r.score ?? {}) };
 }, [text, params]);
-const waitRunning = (page) => page.waitForFunction(() => window.__xrayScript.state().running, null, { timeout: 30000 });
+const waitRunning = (page) => page.waitForFunction(() => window.__xrayScript.state().running, null, { timeout: 150000 });
 const waitDone = (page, t = 90000) => page.waitForFunction(() => !window.__xrayScript.state().running, null, { timeout: t });
 
 await tour.step('23A.1 Try it: if there are class IfcPump; change to IfcDoor: the else line plays', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   const nPumps = await page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => e.ifcClass === 'IfcPump').length);
   const T = (cls) => `if there are class ${cls} then
   fly to class ${cls} over 3 seconds
@@ -37,9 +40,11 @@ end if
   tour.check('the if script has no problems in the Problems list', (await sstate(page)).errors === 0, JSON.stringify(await problems(page)));
   const a = await compile(page, T('IfcPump'));
   tour.check('"The caption names the number of pumps"', a.errors.length === 0 && a.text.includes(`There are ${nPumps}`), `pumps ${nPumps}; ${a.text.match(/There are \d+/)?.[0]}`);
-  tour.check('"The script looks at the model while you press Run ... the lines that do not apply are never written": 3 s', Math.abs(a.duration - 3) < 0.2, `${a.duration}`);
+  tour.check('"The script looks at the model while you press Run ... the lines that do not apply are never written": fly 3 s, then the caption 3 s', Math.abs(a.duration - 6) < 0.2, `${a.duration}`);
   const b = await compile(page, T('IfcDoor'));
-  tour.check('"Change IfcPump to IfcDoor and Run again: the else line plays"', b.text.includes('No pumps') && !b.text.includes('There are') && Math.abs(b.duration - 2) < 0.2, `duration ${b.duration}`);
+  tour.check('"Change IfcPump to IfcDoor and Run again: the else line plays" (the Process plant has 3 doors, so the then-lines play: the manual now says IfcDuctSegment)', b.text.includes('There are 3'), `duration ${b.duration}`);
+  const b2 = await compile(page, T('IfcDuctSegment'));
+  tour.check('Change IfcPump to IfcDuctSegment (the plant has none) and Run again: the else line plays, 2 s', b2.text.includes('No pumps') && !b2.text.includes('There are') && Math.abs(b2.duration - 2) < 0.2, `duration ${b2.duration}`);
   await setScript(page, T('IfcPump'));
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await waitRunning(page);
@@ -71,7 +76,7 @@ end repeat
 });
 
 await tour.step('23A.2 Try it: handler showFloor and function plural', async () => {
-  const page = await tour.open('model=synth5k');
+  const page = await open('model=synth5k');
   const HANDLER = `on showFloor name
   if there are (where class = IfcWall and storey = name) then
     show where storey = name fading over 0.5 seconds
@@ -86,7 +91,7 @@ repeat with i from 1 to 5
 end repeat
 show everything fading over 1 seconds
 `;
-  const storeysWithWalls = await page.evaluate(() => { const s = new Set(); for (const e of window.__xray.app.controller.model.elements) if (e.ifcClass === 'IfcWall' || e.ifcClass === 'IfcWallStandardCase') s.add(e.storey); return [...s].filter((x) => /^Level [1-5]$/.test(x ?? '')).length; });
+  const storeysWithWalls = await page.evaluate(() => { const m = window.__xray.app.controller.model; const s = new Set(); for (const e of m.elements) if (e.ifcClass === 'IfcWall' || e.ifcClass === 'IfcWallStandardCase') s.add(m.storeys.find((x) => x.id === e.storey)?.name ?? e.storey); return [...s].filter((x) => /^Level [1-5]$/.test(x ?? '')).length; });
   const h = await compile(page, HANDLER);
   tour.check('step "Run it on Synth 5k": the handler script compiles', h.errors.length === 0, h.errors.join(' | ').slice(0, 200));
   const expected = storeysWithWalls * 2 + 1;
@@ -104,12 +109,12 @@ caption "The plant" "It has " & plural(the count of class IfcPump) for 3 seconds
   tour.check('"Their names cannot be words of the language" (a handler named like a statement is refused)', own.errors.length > 0 || own.warnings.length > 0, own.errors.join(' | ').slice(0, 120));
   const late = await compile(page, 'sayHi\non sayHi\n  caption "hi" for 1 seconds\nend sayHi');
   tour.check('"A handler may stand below the lines that call it"', late.errors.length === 0 && late.duration > 0.9, late.errors.join());
-  const wrong = await compile(page, 'on two a b\n  wait 1\nend two\ntwo 1');
+  const wrong = await compile(page, 'on two a, b\n  wait 1\nend two\ntwo 1');
   tour.check('"A call with the wrong number of values names its line in the Problems list"', wrong.errors.length > 0 && /line|two/i.test(wrong.errors.join()), wrong.errors.join(' | ').slice(0, 140));
 });
 
 await tour.step('23A.3 Issues, drawings and fades', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   for (const s of ['show issues', 'hide issues', 'show drawings', 'hide drawings']) {
     const r = await compile(page, s);
     tour.check(`"Say ${s}"`, r.errors.length === 0, r.errors.join());
@@ -121,7 +126,7 @@ await tour.step('23A.3 Issues, drawings and fades', async () => {
 });
 
 await tour.step('23A.4 Try it: facts, text, lists and maths', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   const walls = await page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => /IfcWall/.test(e.ifcClass)).length);
   const FACTS = `repeat for each element in class IfcWall
   put property "Pset_WallCommon.FireRating" of it into rating
@@ -161,7 +166,7 @@ end repeat
 });
 
 await tour.step('23A.5 Try it: param and use; the Parameters form', async () => {
-  const page = await tour.open('model=synth5k');
+  const page = await open('model=synth5k');
   const P = `param floor default "Level 1"
 param pause default 3
 fly to where storey = floor over 3 seconds
@@ -172,9 +177,9 @@ caption "Now showing" && floor for pause seconds
   tour.check('"A Parameters form appears above Run in the Script tab with floor and pause"', st.params.length === 2 && st.params.map((p) => p.name).sort().join() === 'floor,pause', JSON.stringify(st.params));
   tour.check('"Parameters" is a visible heading of the form', /Parameters/i.test(await page.locator('#dock').innerText()));
   tour.check('defaults: floor "Level 1" and pause 3 give 3 + 3 = 6 s', Math.abs(st.duration - 6) < 0.3, `${st.duration}`);
-  const input = page.getByLabel('floor', { exact: true }).first();
-  if (await input.count()) { await input.fill('Level 2'); await input.press('Tab'); }
-  else await page.evaluate(() => window.__xrayScript.setParams({ floor: 'Level 2' }));
+  const input = page.locator('[data-script-params] input[data-param=floor]');
+  tour.check('"Change floor": the Parameters form has a box for floor and for pause', (await input.count()) === 1 && (await page.locator('[data-script-params] input[data-param=pause]').count()) === 1);
+  await input.fill('Level 2'); await input.press('Tab');
   await page.waitForTimeout(400);
   const c = await compile(page, P, { floor: 'Level 2' });
   tour.check('"Change floor and run again": the caption follows the value', c.text.includes('Now showing') && c.text.includes('Level 2'), c.text.match(/Level \d/)?.[0]);

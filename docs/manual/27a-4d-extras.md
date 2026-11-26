@@ -13,14 +13,14 @@ build **temporary works** from rules you write once: **scaffold** along walls, *
 
 ### Try it
 
-1. Open **FZK-Haus 4D**. In the **Film** step, open **Temporary works**. The sample has rules for scaffold on the external walls, props under the
-   first-floor slab and formwork on the ground slab, the downstand beam and the first-floor slab.
-2. Press **Play**. Watch the external walls: yellow scaffold stands two days before the masonry and comes down during the facade work.
+1. Open **FZK-Haus 4D**. In the **Film** step, open **Temporary works**. The sample has six rules: scaffold on the external walls, props under the
+   first-floor slab, and formwork on the ground slab, the downstand beam, the first-floor slab, and the footings and columns.
+2. Press **Play**. Watch the external walls: orange scaffold goes up one day before the masonry (taking two days) and comes down during the facade work.
    Props (blue) and formwork (brown) appear under the slabs.
 3. Switch **Show in the film** off. The film plays without them. The rules stay.
-4. Click **Add rule**. Choose kind `formwork`, a query such as `class = 'IfcBeam'`, erect `1` day before, strike `3` days after. Play again.
+4. Choose the kind `formwork` in the list beside **Add rule** and click **Add rule**. In the new rule set the query to `class = 'IfcBeam'`, erect `1` day before and strike `3` days after. Play again.
 
-> Picture (temp-works-fzk): the FZK-Haus mid-film with yellow scaffold along an outer wall and blue props under a slab.
+> Picture (temp-works-fzk): the FZK-Haus mid-film with orange scaffold along an outer wall and blue props under a slab.
 
 ### How it works
 

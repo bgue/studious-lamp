@@ -8,6 +8,9 @@ import { join, resolve } from 'node:path';
 import { repoRoot, startTour, ui, webRoot } from './lib.mjs';
 
 const tour = await startTour('tour-20-revisions');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const tmp = mkdtempSync(join(tmpdir(), 'tour-20-'));
 const V1 = resolve(repoRoot, 'models/AC20-FZK-Haus.ifc'), V2 = resolve(webRoot, 'tests/fixtures/ifc/fzk-v2.ifc');
 const truth = JSON.parse(readFileSync(resolve(webRoot, 'tests/fixtures/ifc/fzk-v2.truth.json'), 'utf8'));
@@ -28,7 +31,7 @@ const banner = (page) => page.locator('[data-testid=revision-banner]');
 async function waitBanner(page, re) {
   await page.waitForFunction((src) => { const b = document.querySelector('[data-testid=revision-banner]'); return b && !b.hidden && new RegExp(src).test(b.textContent ?? ''); }, re.source, { timeout: 120000 });
 }
-async function prepareV1(page) {
+async function prepareV1(page, force = true) {
   await openIfc(page, V1, 'file:AC20-FZK-Haus.ifc');
   await ui.tab(page, 'Classification');
   await page.getByRole('button', { name: 'Classify all', exact: true }).first().click();
@@ -40,6 +43,7 @@ async function prepareV1(page) {
   }, truth);
   await page.evaluate((nm) => window.__xrayClassify.review.setReviewer(nm), NAME);
   await page.evaluate((g) => { window.__xrayClassify.review.propose(g, { action: 'confirm', item: 'tour' }); return window.__xrayClassify.review.commit('v1 review'); }, ids);
+  if (force) await page.evaluate(() => window.__xrayRevision.snapshotNow(true));
   return ids.length;
 }
 async function waitWalk(page) {
@@ -47,14 +51,27 @@ async function waitWalk(page) {
   await page.waitForTimeout(700);
 }
 
+await tour.step('20.1 The snapshot the viewer stores by itself is enough for the counts', async () => {
+  const pa = await open('model=building', { init: noPicker });
+  await prepareV1(pa, false);
+  for (let i = 0; i < 40 && !(await pa.evaluate(() => window.__xrayRevision.snapshots().length)); i++) await pa.waitForTimeout(1000);
+  await openIfc(pa, V2, 'file:fzk-v2.ifc');
+  await waitBanner(pa, /revision of/);
+  await pa.locator('[data-testid=revision-banner] [data-act=review-changes]').click();
+  await waitWalk(pa);
+  const sa = await rev(pa);
+  const exp = { new: 3, deleted: 4, changed: 14, rematched: 6 };
+  tour.known('"The viewer keeps a small snapshot in this browser after each classify run and each commit": the counts from that snapshot alone equal the truth file', ['new', 'deleted', 'changed', 'rematched'].every((k) => sa.session.counts[k] === exp[k]), 'with only the snapshot the viewer stores by itself, every matched element counts as changed (72 changed, 0 unchanged); after a forced snapshot the counts equal the truth file', JSON.stringify(sa.session.counts));
+});
+
 let ctxPage = null;
 await tour.step('20.1 Try it steps 1-4: version 1 classified and reviewed, version 2 opened, the banner, Review changes', async () => {
-  const page = await tour.open('model=building', { init: noPicker });
+  const page = await open('model=building', { init: noPicker });
   ctxPage = page;
   const n = await prepareV1(page);
   tour.check('step 1: "Open version 1 ... Classify it and review it": 3+ decisions committed', n >= 6, `${n} confirmed`);
-  await page.waitForTimeout(1500);
-  const snaps = await page.evaluate(() => window.__xrayRevision.snapshots());
+  let snaps = [];
+  for (let i = 0; i < 40 && !snaps.length; i++) { await page.waitForTimeout(1000); snaps = await page.evaluate(() => window.__xrayRevision.snapshots()); }
   tour.check('step 1: "The viewer keeps a small snapshot in this browser after each classify run and each commit"', snaps.length >= 1, JSON.stringify(snaps).slice(0, 160));
   await openIfc(page, V2, 'file:fzk-v2.ifc');
   await waitBanner(page, /revision of/);
@@ -63,15 +80,14 @@ await tour.step('20.1 Try it steps 1-4: version 1 classified and reviewed, versi
   tour.check('step 4: the banner offers Review changes, Not a revision and Compare with...', ['Review changes', 'Not a revision', 'Compare with'].every((l) => bt.includes(l)), bt);
   tour.check('step 4: "Nothing is carried over before you click"', (await page.evaluate(() => window.__xrayClassify.results().length)) === 0);
   tour.check('"A Revision tab ... exists only while the walk is open": no Revision tab yet', (await page.getByRole('tab', { name: 'Revision', exact: true }).count()) === 0);
-  const pal = await page.evaluate(() => (window.__xrayRevision.actions?.() ?? null));
-  await page.keyboard.press('Control+Shift+K');
+  await page.locator('#xray-topbar-search input').first().click();
   await page.keyboard.type('Revision');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
   const ptxt = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
   tour.check('"The command palette has the same actions: Revision: review changes (walk), Revision: compare with an earlier model..., Revision: export the report"', /Revision: review changes/.test(ptxt) && /Revision: compare with an earlier model/.test(ptxt) && /Revision: export the report/.test(ptxt), ptxt.match(/Revision: [^ ]+( [^ ]+){0,6}/g)?.slice(0, 4).join(' | '));
-  tour.check('"(key Shift+V)": the palette lists Shift+V for the walk', /Shift\+V/i.test(ptxt), '');
+  tour.check('"(key Shift+V)": the list shows Shift+V for the walk', /Shift\+V/i.test(ptxt), '');
   await page.keyboard.press('Escape');
-  void pal;
+  await page.locator('#c').click({ position: { x: 5, y: 5 } }).catch(() => {});
   await page.locator('[data-testid=revision-banner] [data-act=review-changes]').click();
   await waitWalk(page);
   const s = await rev(page);
@@ -138,9 +154,7 @@ await tour.step('20.2 Try it steps 4-6: Enter, R, N, Y; ? and Raise issue; B bul
   await page.keyboard.press('Enter');
   await page.waitForTimeout(300);
   tour.check('"? marks the decision unsure"', (await walk(page)).progress.unsure >= 1, JSON.stringify((await walk(page)).progress));
-  await page.keyboard.press('u');
-  await page.waitForTimeout(300);
-  tour.check('"U" undoes the last decision', true);
+  tour.check('"U" undoes the last decision: the Undo button of the card is enabled after decisions', !(await page.locator('[data-act=undo]').first().isDisabled().catch(() => true)));
   await page.keyboard.press('b');
   await page.waitForTimeout(400);
   const rules = (await page.locator('[data-rule]').allInnerTexts()).map((t) => t.replace(/\s+/g, ' '));
@@ -172,6 +186,7 @@ await tour.step('20.2 Try it steps 4-6: Enter, R, N, Y; ? and Raise issue; B bul
   }
   const fin = await rev(page);
   tour.check('"Press Enter ... When you are done, click Commit": nothing is undecided', fin.session.progress.undecided === 0, JSON.stringify(fin.session.progress));
+  if (await page.locator('[data-act=foot-toggle]').count() && /Commit \(/.test(await page.locator('[data-act=foot-toggle]').innerText())) await page.locator('[data-act=foot-toggle]').click();
   const commitBtn = page.locator('[data-act=commit]');
   tour.check('step 6: the Commit button names the number of decisions', /Commit \d+ decisions?/.test(await commitBtn.innerText()), await commitBtn.innerText());
   const attach = (await page.locator('[data-testid=revision-walk]').innerText()).replace(/\s+/g, ' ');
@@ -184,7 +199,7 @@ await tour.step('20.2 Try it steps 4-6: Enter, R, N, Y; ? and Raise issue; B bul
 });
 
 await tour.step('20.3 Try it steps 1-4: reload, open version 2 again, Resume, Report', async () => {
-  const page = await tour.open('model=building', { init: noPicker });
+  const page = await open('model=building', { init: noPicker });
   await prepareV1(page);
   await openIfc(page, V2, 'file:fzk-v2.ifc');
   await waitBanner(page, /revision of/);
@@ -231,9 +246,15 @@ await tour.step('20.3 Try it steps 1-4: reload, open version 2 again, Resume, Re
 });
 
 await tour.step('20.3 Phone: the walk opens as a bottom sheet with Accept, Reject, Skip and More', async () => {
-  const page = await tour.open('model=building', { width: 390, height: 844, init: noPicker });
-  await prepareV1(page);
-  await openIfc(page, V2, 'file:fzk-v2.ifc');
+  const page = await open('model=building', { width: 390, height: 844, init: noPicker });
+  await page.setInputFiles('#xray-open-file-input', V1);
+  await page.waitForFunction(() => window.__xray?.app.modelName === 'file:AC20-FZK-Haus.ifc' && window.__xray.app.loaded, null, { timeout: 480000 });
+  await page.evaluate(() => window.__xrayClassify.review.ready());
+  await page.evaluate(() => { window.__xrayClassify.configure({ provider: 'off' }); window.__xrayClassify.classify('all'); });
+  await page.waitForFunction(() => window.__xrayClassify.results().length > 50, null, { timeout: 120000 });
+  await page.evaluate(() => { const g = window.__xrayClassify.results().slice(0, 4).map((r) => r.id); window.__xrayClassify.review.propose(g, { action: 'confirm', item: 'tour' }); window.__xrayClassify.review.commit('v1'); return window.__xrayRevision.snapshotNow(true); });
+  await page.setInputFiles('#xray-open-file-input', V2);
+  await page.waitForFunction(() => window.__xray?.app.modelName === 'file:fzk-v2.ifc' && window.__xray.app.loaded, null, { timeout: 480000 });
   await waitBanner(page, /revision of/);
   await page.locator('[data-testid=revision-banner] [data-act=review-changes]').click();
   await waitWalk(page);

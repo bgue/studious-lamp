@@ -4,6 +4,9 @@
 import { startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-22-fly-throughs');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const FLY = (page, fn, arg) => page.evaluate(fn, arg);
 const state = (page) => page.evaluate(() => window.__xrayFlythrough.state());
 const cards = (page) => page.locator('.fl-card');
@@ -26,7 +29,7 @@ async function openSection(page) {
 }
 
 await tour.step('22.1 Try it steps 1-3: Views tab, Fly-through section, New, From views', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await makeViews(page);
   const nViews = await page.evaluate(() => window.__xrayViews.list().length);
   tour.check('"If you have no saved views yet, make three first": three views saved', nViews === 3, `${nViews}`);
@@ -41,7 +44,7 @@ await tour.step('22.1 Try it steps 1-3: Views tab, Fly-through section, New, Fro
   const addSel = await page.getByLabel('Add a saved view as a keyframe').locator('option').count();
   tour.check('"The list next to Add keyframe adds one view"', addSel >= 3, `${addSel} options`);
   await ui.setCam(page, [6, 4, 6], [0, 1, 0]);
-  await page.getByRole('button', { name: 'Add keyframe' }).click();
+  await page.getByRole('button', { name: 'Add keyframe' }).dispatchEvent('click');
   await page.waitForTimeout(800);
   tour.check('"To add one at a time, orbit to a place and click Add keyframe"', (await cards(page).count()) === 4);
   const txt = (await cards(page).first().innerText()).replace(/\s+/g, ' ');
@@ -67,7 +70,7 @@ await tour.step('22.1 Try it steps 1-3: Views tab, Fly-through section, New, Fro
 });
 
 await tour.step('22.1 Try it steps 5-7: Hold, Fade, caption, Timing, Play; the path in 3D', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await makeViews(page);
   await openSection(page);
   await page.getByRole('button', { name: 'New', exact: true }).click();
@@ -88,11 +91,11 @@ await tour.step('22.1 Try it steps 5-7: Hold, Fade, caption, Timing, Play; the p
   tour.check('"Constant speed (default; metres per second along the path)"', /Constant speed/i.test(dflt), dflt);
   tour.check('"While the section is open, the camera path is drawn in 3D as a dashed line"', await page.evaluate(() => window.__xrayFlythrough.pathVisible === true));
   await page.getByRole('button', { name: /Play$/ }).first().click();
-  await page.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 150000 });
   tour.check('step 7: "Click Play": it plays', (await state(page)).playing === true);
   tour.check('"It is hidden while the fly-through plays or records": the path is hidden', await page.evaluate(() => window.__xrayFlythrough.pathVisible === false));
   await page.keyboard.press('Escape');
-  await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 30000 });
+  await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 150000 });
   await page.waitForTimeout(300);
   tour.check('"the path is back after playback"', await page.evaluate(() => window.__xrayFlythrough.pathVisible === true));
   const kf = await page.evaluate(() => window.__xrayFlythrough.keyframes().length);
@@ -105,7 +108,7 @@ await tour.step('22.1 Try it steps 5-7: Hold, Fade, caption, Timing, Play; the p
 });
 
 await tour.step('22.2 Try it steps 1-5: Play, Space, the timeline, Left/Right, Stop, click on the 3D view', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await makeViews(page);
   await openSection(page);
   await page.getByRole('button', { name: 'New', exact: true }).click();
@@ -116,7 +119,7 @@ await tour.step('22.2 Try it steps 1-5: Play, Space, the timeline, Left/Right, S
   await ui.setCam(page, [20, 12, 20], [0, 0, 0]);
   const camBefore = await ui.cam(page);
   await page.getByRole('button', { name: /Play$/ }).first().click();
-  await page.waitForFunction(() => window.__xrayFlythrough.state().time > 0.4, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__xrayFlythrough.state().time > 0.4, null, { timeout: 150000 });
   tour.check('step 1: "Click Play. It starts from the beginning"', (await state(page)).time < 4);
   await page.locator('#c').hover();
   await page.keyboard.press('Space');
@@ -146,16 +149,16 @@ await tour.step('22.2 Try it steps 1-5: Play, Space, the timeline, Left/Right, S
   const kL = await state(page);
   tour.check('"Left goes back"', kL.time < kR.time, `${kR.time.toFixed(1)} -> ${kL.time.toFixed(1)}`);
   await page.getByRole('button', { name: '■' }).first().click().catch(() => page.keyboard.press('Escape'));
-  await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 30000 });
+  await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 150000 });
   await ui.settle(page, 500);
   const camAfter = await ui.cam(page);
   tour.check('step 4: "Click Stop or press Esc. Camera ... go back as they were"', camMoved(camBefore, camAfter) < 0.05, `moved ${camMoved(camBefore, camAfter).toFixed(3)} m`);
   // step 5: a click on the 3D view during play stops and keeps the camera
   await page.getByRole('button', { name: /Play$/ }).first().click();
-  await page.waitForFunction(() => window.__xrayFlythrough.state().time > 1.5, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__xrayFlythrough.state().time > 1.5, null, { timeout: 150000 });
   const c = await page.locator('#c').boundingBox();
   await page.mouse.click(c.x + c.width * 0.5, c.y + c.height * 0.35);
-  await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 30000 });
+  await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 150000 });
   await ui.settle(page, 500);
   const camTaken = await ui.cam(page);
   tour.check('step 5: "Click on the 3D view during play: it stops, and keeps the camera where you took it"', camMoved(camBefore, camTaken) > 0.5, `moved ${camMoved(camBefore, camTaken).toFixed(2)} m from the start pose`);
@@ -163,7 +166,7 @@ await tour.step('22.2 Try it steps 1-5: Play, Space, the timeline, Left/Right, S
 });
 
 await tour.step('22.3 Try it steps 1-7: the Record a video dialog', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await makeViews(page);
   await openSection(page);
   await page.getByRole('button', { name: 'New', exact: true }).click();

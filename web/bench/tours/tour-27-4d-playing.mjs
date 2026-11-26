@@ -4,6 +4,9 @@
 import { startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-27-4d-playing');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const pane = (page) => page.locator('#dk-pane-4d');
 const stepBtn = (page, n) => pane(page).locator('.x4-steps button', { hasText: n }).first();
 const cfgStyle = (page) => page.evaluate(() => window.__xray4dSchedule.config().style);
@@ -17,9 +20,9 @@ const live = (page) => page.evaluate(() => ({ ...window.__xray4d.live(), t: wind
 const seekFraction = (page, f) => page.evaluate((f) => { const w = window.__xray4dSchedule.plan().window; return window.__xray4dSchedule.seekDate(w.from + (w.to - w.from) * f); }, f);
 
 await tour.step('27.1 The plan states: future, existing, active, complete (the table)', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
-  const states = await page.evaluate(() => { const w = window.__xray4dSchedule.plan().window; return [0, 0.3, 0.6, 1].map((f) => window.__xray4d.state(w.from + (w.to - w.from) * f).counts); });
+  const states = await page.evaluate(() => { const w = window.__xray4dSchedule.plan().window; return [0, 0.3, 0.6, 1].map((f) => window.__xray4d.state(w.from + (w.to - w.from) * f, window.__xray4dSchedule.plan()).counts); });
   tour.check('the plan holds states per element and date: future at the start, complete at the end', (states[0].future ?? 0) > 40 && (states[3].complete ?? 0) > 40, JSON.stringify([states[0], states[3]]));
   tour.check('"active" elements exist mid-film', states.slice(1, 3).some((s) => (s.active ?? 0) > 0), JSON.stringify(states[1]));
   tour.check('"existing" and "complete" are different states (the model has parts that exist from the start)', Object.keys(states[3]).some((k) => ['complete', 'existing'].includes(k)), Object.keys(states[3]).join());
@@ -28,7 +31,7 @@ await tour.step('27.1 The plan states: future, existing, active, complete (the t
 });
 
 await tour.step('27.1 Try it steps 1-3: Film step, Style, Unbuilt parts faint ghost, Play, X-ray active work off and on', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   tour.check('step 1: "FZK-Haus 4D ... The 4D tab opens on the Film step, with the film bar at the top"', (await stepBtn(page, 'Film').getAttribute('aria-selected')) === 'true');
   const st = await style(page);
@@ -61,17 +64,17 @@ await tour.step('27.1 Try it steps 1-3: Film step, Style, Unbuilt parts faint gh
 });
 
 await tour.step('27.1 Try it steps 4-6: Window look ahead 6 weeks, the date slider from a stop, Space; picture 4d-style', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   const st = await style(page);
   const w0 = await planWin(page);
-  await st.getByLabel('Window').selectOption({ label: 'Look ahead' });
+  await st.getByLabel('Window', { exact: true }).selectOption({ label: 'Look ahead' });
   await st.getByLabel('Weeks to look ahead').fill('6'); await st.getByLabel('Weeks to look ahead').press('Enter');
   await page.waitForTimeout(800);
   const w1 = await planWin(page);
   const dd = Date.parse('2027-05-19T08:00:00Z');
   tour.check('step 4: "Window to look ahead N weeks with 6. The film starts at the data date"', Math.abs(w1.from - dd) < 2 * 86400000 && Math.abs((w1.to - w1.from) / (7 * 86400000) - 6) < 0.3, `${new Date(w1.from).toISOString().slice(0, 10)} to ${new Date(w1.to).toISOString().slice(0, 10)} (whole job ${new Date(w0.from).toISOString().slice(0, 10)})`);
-  const at = await page.evaluate(() => { const w = window.__xray4dSchedule.plan().window; return window.__xray4d.state(w.from).counts; });
+  const at = await page.evaluate(() => { const w = window.__xray4dSchedule.plan().window; return window.__xray4d.state(w.from, window.__xray4dSchedule.plan()).counts; });
   tour.check('"what was built before the data date is already standing"', (at.complete ?? 0) + (at.existing ?? 0) > 5, JSON.stringify(at));
   // step 5: from a stop, the slider starts the film paused at that date
   const slider = pane(page).locator('input[data-x4=scrub]');
@@ -90,7 +93,7 @@ await tour.step('27.1 Try it steps 4-6: Window look ahead 6 weeks, the date slid
   tour.check('step 6: "Press Space to pause ... the player\'s keys, transport and HUD are the ones from chapter 21"', (await live(page)).paused === false || (await live(page)).paused === true);
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 30000 });
-  await st.getByLabel('Window').selectOption({ label: 'The whole job' });
+  await st.getByLabel('Window', { exact: true }).selectOption({ label: 'The whole job' });
   await page.waitForTimeout(500);
   // the picture: Style with View, Unbuilt parts, Window and Film length visible
   await st.scrollIntoViewIfNeeded();
@@ -100,7 +103,7 @@ await tour.step('27.1 Try it steps 4-6: Window look ahead 6 weeks, the date slid
 });
 
 await tour.step('27.1 Reading the screen: the HUD while the film runs', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   await seekFraction(page, 0.45);
   await page.waitForTimeout(2500);
@@ -122,7 +125,7 @@ await tour.step('27.1 Reading the screen: the HUD while the film runs', async ()
 });
 
 await tour.step('27.2 Style choices that matter: the table of options and values', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   const st = await style(page);
   const opts = async (label) => (await st.getByLabel(label, { exact: true }).locator('option').allInnerTexts()).join('|');
@@ -149,7 +152,7 @@ await tour.step('27.2 Style choices that matter: the table of options and values
 });
 
 await tour.step('27.3 The director: each floor apart, camera per floor, finale, Open as script', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   const st = await style(page);
   const cfg = await cfgStyle(page);
@@ -161,14 +164,14 @@ await tour.step('27.3 The director: each floor apart, camera per floor, finale, 
   await page.waitForFunction(() => window.__xrayScript?.text?.().includes('schedule "'), null, { timeout: 120000 }).catch(() => {});
   await ui.tab(page, 'Script');
   const txt = await page.getByLabel('Animation script').inputValue();
-  tour.check('"Open as script ... opens the result in the Script tab under the project\'s name, not yet saved": a header, the schedule statement, at date blocks with comments', /^-- generated/m.test(txt) && /^schedule "/m.test(txt) && /^at date "/m.test(txt) && /^-- \d\d:\d\d/m.test(txt), txt.split('\n').slice(0, 3).join(' | ').slice(0, 160));
+  tour.check('"Open as script ... opens the result in the Script tab under the project\'s name, not yet saved": a header, the schedule statement, at date blocks with comments', /^-- made from the 4D film/m.test(txt) && /^schedule "/m.test(txt) && /^at date "/m.test(txt) && /^-- \d\d:\d\d/m.test(txt), txt.split('\n').slice(0, 3).join(' | ').slice(0, 160));
   const s = await page.evaluate(() => window.__xrayScript.state());
   tour.check('"Press Run there and the same film plays": the generated script compiles without errors', s.errors === 0, JSON.stringify({ name: s.name, errors: s.errors, dirty: s.dirty }));
   tour.check('the script is not yet saved (unsaved name)', !(await page.evaluate(() => window.__xrayScript.list().some((x) => x.name === window.__xrayScript.state().name))));
 });
 
 await tour.step('27.4 Record opens the video export dialog for the film', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   await pane(page).getByRole('button', { name: 'Record', exact: true }).click();
   const dlg = page.getByRole('dialog', { name: 'Record a video' });

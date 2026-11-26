@@ -6,6 +6,9 @@
 import { startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-31-ar-vr');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const drawer = (page) => page.locator('#xray-drawer, .xray-drawer, [data-tool-drawer]').first();
 async function openXr(page) {
   await ui.tool(page, 'WebXR').click();
@@ -14,7 +17,7 @@ async function openXr(page) {
 const btn = (page, name) => page.getByRole('button', { name, exact: true }).first();
 
 await tour.step('31 What you need: a desktop browser with no headset', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   tour.check('"The tool is WebXR (headset icon, tooltip AR / VR) in the action panel"', (await ui.tool(page, 'WebXR').count()) === 1 && /AR \/ VR/.test((await ui.tool(page, 'WebXR').getAttribute('title')) ?? ''), (await ui.tool(page, 'WebXR').getAttribute('title')) ?? '');
   tour.check('this browser cannot run a session (a desktop browser with no headset: isSessionSupported is false)', await page.evaluate(async () => !navigator.xr || !(await navigator.xr.isSessionSupported('immersive-vr').catch(() => false))));
   await openXr(page);
@@ -41,7 +44,7 @@ await tour.step('31 What you need: a desktop browser with no headset', async () 
 });
 
 await tour.step('31.1 The controls table: AR scale, field look, pointer rays, Leave XR session, the field AR buttons', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await openXr(page);
   const names = ['AR scale', 'field look', 'pointer rays', 'Leave XR session', 'Pick model points', 'Export site', 'Import site', 'Download notes'];
   const text = (await page.locator('body').innerText());
@@ -65,7 +68,7 @@ await tour.step('31.1 The controls table: AR scale, field look, pointer rays, Le
 });
 
 await tour.step('31.1 With a WebXR runtime that answers isSessionSupported (a fake: no session is started)', async () => {
-  const page = await tour.open('model=fzk-haus', { init: () => { Object.defineProperty(navigator, 'xr', { value: { isSessionSupported: async () => true, addEventListener() {}, removeEventListener() {}, requestSession: async () => { throw new Error('no headset'); } }, configurable: true }); } });
+  const page = await open('model=fzk-haus', { init: () => { Object.defineProperty(navigator, 'xr', { value: { isSessionSupported: async () => true, addEventListener() {}, removeEventListener() {}, requestSession: async () => { throw new Error('no headset'); } }, configurable: true }); } });
   await openXr(page);
   await page.waitForTimeout(800);
   for (const n of ['Enter VR', 'Enter AR', 'Enter field AR']) tour.check(`"${n}" is enabled when the browser reports support`, !(await btn(page, n).isDisabled()));
@@ -77,7 +80,7 @@ await tour.step('31.1 With a WebXR runtime that answers isSessionSupported (a fa
 });
 
 await tour.step('31 Choices and settings: the params section xr is not in a share link', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   const doc = await page.evaluate(() => window.__xrayParams.collect?.() ?? null);
   const xr = doc?.xr;
   tour.check('"The params section xr has scale, pointerRays, fieldView, cutRadius and storeyCut"', !!xr && ['scale', 'pointerRays', 'fieldView', 'cutRadius', 'storeyCut'].every((k) => k in xr), JSON.stringify(xr));

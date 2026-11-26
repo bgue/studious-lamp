@@ -7,6 +7,9 @@ import { join, resolve } from 'node:path';
 import { repoRoot, startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-25-4d-mapping');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const tmp = mkdtempSync(join(tmpdir(), 'tour-25-'));
 const pane = (page) => page.locator('#dk-pane-4d');
 const cov = (page) => page.evaluate(() => window.__xray4dMap.coverage());
@@ -21,10 +24,11 @@ async function openMap(page) {
 const sec = async (page, id) => { const d = pane(page).locator(`details[data-sec=${id}]`); if (!(await d.evaluate((n) => n.open))) await d.locator(':scope > summary').click(); return d; };
 
 await tour.step('25.1 Try it steps 1-3: 4D tab, Map step, Seed from model, Suggest, click a row, Accept / Reject', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await ui.tab(page, '4D');
   const stepTxt = (await pane(page).locator('.x4-steps').innerText()).replace(/\s+/g, ' ');
-  tour.check('"The tab has three steps under its film bar ... Mapping is the first one, Map": the tab opens on Link (no schedule yet)', /Map/.test(stepTxt) && /Link/.test(stepTxt) && (await pane(page).locator('.x4-steps button[aria-selected=true]').innerText()).startsWith('Link'), stepTxt);
+  const sel = await pane(page).locator('.x4-steps button[aria-selected=true]').allInnerTexts();
+  tour.check('"The tab has three steps under its film bar ... Mapping is the first one, Map": the tab opens on Link (no schedule yet)', /Map/.test(stepTxt) && /Link/.test(stepTxt) && sel.length === 1 && /2 Link/.test(sel[0]), `${stepTxt} | selected: ${sel.join(' / ')}`);
   await pane(page).locator('.x4-steps button', { hasText: 'Map' }).first().click();
   const secs = await page.evaluate(() => [...document.querySelectorAll('#dk-pane-4d details[data-sec]')].filter((d) => d.getBoundingClientRect().height > 0).map((d) => d.querySelector(':scope > summary').textContent.trim()));
   tour.check('"Click Map to see its sections, top to bottom: Values, Assign, Suggest and Coverage"', secs.join('|').startsWith('Values') && ['Values', 'Assign', 'Suggest', 'Coverage'].every((s, i) => secs[i]?.startsWith(s)), secs.join(' | '));
@@ -38,7 +42,7 @@ await tour.step('25.1 Try it steps 1-3: 4D tab, Map step, Seed from model, Sugge
   tour.check('step 1: "Seed from model": storey names become locations, disciplines become trades', JSON.stringify(v).includes('Erdgeschoss'), JSON.stringify(v).slice(0, 200));
   const sug = await sec(page, 'suggest');
   await sug.getByRole('button', { name: 'Suggest', exact: true }).click();
-  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => document.querySelectorAll('#dk-pane-4d .x4-prop').length > 0, null, { timeout: 120000 }).catch(() => {});
   const rows = sug.locator('.x4-prop');
   const n = await rows.count();
   tour.check('step 2: "press Suggest. The review list fills"', n > 10, `${n} rows`);
@@ -65,7 +69,7 @@ await tour.step('25.1 Try it steps 1-3: 4D tab, Map step, Seed from model, Sugge
 });
 
 await tour.step('25.1 Try it steps 4-6: Accept all above, Coverage, Select without, Colour; picture 4d-coverage', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await openMap(page);
   await (await sec(page, 'values')).getByRole('button', { name: 'Seed from model' }).click();
   const sug = await sec(page, 'suggest');
@@ -87,11 +91,16 @@ await tour.step('25.1 Try it steps 4-6: Accept all above, Coverage, Select witho
   if (zoneBefore > 0) { await zoneBtn.click(); await page.waitForTimeout(400); }
   tour.check('step 5: "Select without ... to select the elements that still have no accepted value"', zoneBefore === 0 || (await ui.selection(page)).length === zoneBefore, `${(await ui.selection(page)).length} selected, ${zoneBefore} without`);
   await ui.clearSelection(page);
+  await sug.getByRole('button', { name: 'Suggest', exact: true }).click();
+  await page.waitForTimeout(1500);
+  await lim.fill('0.65'); await lim.press('Tab');
+  await sug.getByRole('button', { name: 'Accept all above' }).click();
+  await page.waitForTimeout(800);
   await cv.getByLabel('Colour the model by').selectOption({ label: 'By trade' });
   await ui.settle(page, 2000);
   const leg = (await cv.innerText()).replace(/\s+/g, ' ');
   tour.check('step 6: "Press Colour and pick ... trade": the legend lists the trade values and Without', /Without \d+/.test(leg) && /\d/.test(leg), leg.slice(-160));
-  await ui.setCam(page, [10, 7, 12], [0, 1.5, 0]);
+  await ui.setCam(page, [30, 15, 37], [0, -0.4, 0]);
   await ui.settle(page, 1500);
   await ui.park(page).catch(() => {});
   // "temporary: it goes away when you leave the tab and comes back when you return"
@@ -108,11 +117,11 @@ await tour.step('25.1 Try it steps 4-6: Accept all above, Coverage, Select witho
 });
 
 await tour.step('25.1 Assign by hand: the selection, a criteria query, a storey, Every storey, Clear', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await openMap(page);
   const asg = await sec(page, 'assign');
   await asg.getByLabel('Value to assign').fill('Zone A');
-  await asg.locator('.x4-seg button[data-attr=zone]').click();
+  await pane(page).locator('.x4-seg button[data-attr=zone]').click();
   await asg.getByLabel('Criteria query').fill("class = 'IfcWindow'");
   await page.waitForTimeout(500);
   const live = (await asg.innerText()).replace(/\s+/g, ' ');
@@ -123,13 +132,13 @@ await tour.step('25.1 Assign by hand: the selection, a criteria query, a storey,
   const rec = await page.evaluate(() => JSON.parse(window.__xray4dMap.exportJson().json ?? window.__xray4dMap.exportJson()).assignments?.find((a) => a.value === 'Zone A'));
   tour.check('the exported record has source manual and status accepted', rec?.source === 'manual' && rec?.status === 'accepted', JSON.stringify(rec)?.slice(0, 200));
   tour.check('"reviewed_by ... is never written by the tool"', !/reviewed_by/.test(JSON.stringify(rec ?? {})));
-  await asg.locator('.x4-seg button[data-attr=location]').click();
+  await pane(page).locator('.x4-seg button[data-attr=location]').click();
   await asg.getByRole('button', { name: 'Every storey' }).click();
   await page.waitForTimeout(500);
   const c = (await cov(page)).attributes;
   tour.check('"Every storey sets the location of every element from its storey in one click"', c.location.unassigned === 0, JSON.stringify(c.location));
   await ui.clickElement(page, { cls: 'IfcWindow' });
-  await asg.locator('.x4-seg button[data-attr=zone]').click();
+  await pane(page).locator('.x4-seg button[data-attr=zone]').click();
   await asg.getByRole('button', { name: 'Clear', exact: true }).click();
   await page.waitForTimeout(400);
   tour.check('"Clear removes the accepted value of the chosen attribute from the selected elements"', (await cov(page)).attributes.zone.assigned === 10, JSON.stringify((await cov(page)).attributes.zone));
@@ -138,7 +147,7 @@ await tour.step('25.1 Assign by hand: the selection, a criteria query, a storey,
 });
 
 await tour.step('25.2 and 25.3 Suggestions by evidence; the class to trade table; Values (rename, colour, add, delete)', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await openMap(page);
   await (await sec(page, 'values')).getByRole('button', { name: 'Seed from model' }).click();
   const sug = await sec(page, 'suggest');
@@ -157,7 +166,7 @@ await tour.step('25.2 and 25.3 Suggestions by evidence; the class to trade table
   await tbl.click();
   tour.check('the table has a row for IfcWallStandardCase with a trade list', (await sug.locator('input[aria-label=Class]').evaluateAll((a) => a.map((i) => i.value))).some((v) => /IfcWall/.test(v)));
   const vals = await sec(page, 'values');
-  await vals.locator('.x4-seg button[data-attr=trade]').click().catch(() => {});
+  await pane(page).locator('.x4-seg button[data-attr=trade]').click();
   const names = await vals.locator('input[aria-label="Value name"]').count();
   tour.check('25.3: the Values section lists known values with name and colour inputs and Use / Delete buttons', names > 0 && (await vals.locator('input[type=color]').count()) > 0, `${names} values`);
   await vals.getByLabel('New value').fill('MY-TRADE');
@@ -171,7 +180,7 @@ await tour.step('25.2 and 25.3 Suggestions by evidence; the class to trade table
 });
 
 await tour.step('25.4 Saving: the box Include 4D location, trade and zone writes Xray_4D; the saved file reopens mapped', async () => {
-  const page = await tour.open('model=building', { init: noPicker });
+  const page = await open('model=building', { init: noPicker });
   const chooser = page.waitForEvent('filechooser');
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.press(page, 'Open IFC or glb file');
@@ -216,7 +225,7 @@ await tour.step('25.4 Saving: the box Include 4D location, trade and zone writes
 });
 
 await tour.step('25.4 As a file: Export JSON / Import JSON (Film step, Import / Export)', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await openMap(page);
   await (await sec(page, 'values')).getByRole('button', { name: 'Seed from model' }).click();
   const sug = await sec(page, 'suggest');

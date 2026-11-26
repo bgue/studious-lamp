@@ -7,6 +7,9 @@ import { join, resolve } from 'node:path';
 import { repoRoot, startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-19-data-and-saving');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const tmp = mkdtempSync(join(tmpdir(), 'tour-19-'));
 // A headless browser has no native save dialog: Save IFC then downloads, as the manual says "Otherwise it downloads".
 const noPicker = () => { delete window.showSaveFilePicker; delete window.showDirectoryPicker; };
@@ -24,7 +27,7 @@ async function openIfc(page, file) {
 const FZK = resolve(repoRoot, 'models', 'AC20-FZK-Haus.ifc');
 
 await tour.step('19.1 Try it steps 1-6: change a setting, Export JSON, change back, Import JSON, Copy share URL', async () => {
-  const page = await tour.open('model=fzk-haus', { init: clipInit });
+  const page = await open('model=fzk-haus', { init: clipInit });
   await ui.tab(page, 'Parameters');
   await ui.topOfPanel(page);
   await ui.folder(page, 'Sightlines (Alg 2)');
@@ -69,7 +72,7 @@ await tour.step('19.1 Try it steps 1-6: change a setting, Export JSON, change ba
 });
 
 await tour.step('19.2 Try it steps 1-5: click a wall, Properties tab, Copy GlobalId, property sets, five elements', async () => {
-  const page = await tour.open('model=fzk-haus', { init: clipInit });
+  const page = await open('model=fzk-haus', { init: clipInit });
   const wall = await ui.clickElement(page, { cls: /IfcWall/ });
   tour.check('step 1: a wall is selected', !!wall, JSON.stringify(wall));
   await ui.tab(page, 'Properties');
@@ -80,7 +83,16 @@ await tour.step('19.2 Try it steps 1-5: click a wall, Properties tab, Copy Globa
   await page.waitForTimeout(300);
   const clip = await page.evaluate(() => window.__clip);
   tour.check('"Click Copy GlobalId to put the id on the clipboard"', clip.length > 0 && /^[0-9A-Za-z_$]{22}$/.test(clip[clip.length - 1]), clip.join('|').slice(0, 60));
-  tour.check('step 4: property sets and quantities are listed, with a "⋯" menu on a row', /Pset|Qto|BaseQuantities/i.test(txt) && (await dock.getByRole('button', { name: '⋯' }).count()) > 0, txt.slice(220, 420));
+  const mm = txt.match(/Properties \((\d+) of (\d+)\)/);
+  tour.check('step 4: "below ... the list of properties and quantities": a list "Properties (n of m)" with a "⋯" menu on a row', !!mm && (await dock.getByRole('button', { name: '⋯' }).count()) > 0, txt.slice(220, 420));
+  await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
+  await ui.folder(page, 'Hover info');
+  await ui.set(page, 'all properties in sidebar', true);
+  await ui.tab(page, 'Properties');
+  await page.waitForTimeout(700);
+  const mm2 = (await dock.innerText()).match(/Properties \((\d+) of (\d+)\)/);
+  tour.check('"Two settings of the Hover info folder decide what shows: whether all properties appear in the sidebar": ticking it shows every property', !!mm2 && mm2[1] === mm2[2] && Number(mm2[1]) > Number(mm?.[1] ?? 0), `${mm?.[0]} -> ${mm2?.[0]}`);
+  tour.check('"Properties are read-only": the rows have no input boxes', (await dock.locator('#dk-pane-properties input[type=text], .pv input[type=text]').count()) === 0);
   // five elements
   const ids = await page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => /IfcWindow/.test(e.ifcClass)).slice(0, 5).map((e) => e.id));
   for (const id of ids) {
@@ -97,7 +109,7 @@ await tour.step('19.2 Try it steps 1-5: click a wall, Properties tab, Copy Globa
 
 let savedPath = '';
 await tour.step('19.3 Try it steps 1-6: open the IFC, classify, Save IFC, dialog, Write, the .xray.ifc', async () => {
-  const page = await tour.open('model=building', { init: noPicker });
+  const page = await open('model=building', { init: noPicker });
   await openIfc(page, FZK);
   tour.check('step 1: the IFC opens with Open IFC or glb file', /^Loaded \d+ elements/.test(await status(page)), await status(page));
   await ui.tab(page, 'Classification');
@@ -149,7 +161,7 @@ await tour.step('19.3 Try it steps 1-6: open the IFC, classify, Save IFC, dialog
 });
 
 await tour.step('19.3 Try it, cleaned copy; Limits: a sample has no source', async () => {
-  const page = await tour.open('model=building', { init: noPicker });
+  const page = await open('model=building', { init: noPicker });
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.folder(page, 'Open model');
   await ui.press(page, 'Save IFC');
@@ -158,28 +170,46 @@ await tour.step('19.3 Try it, cleaned copy; Limits: a sample has no source', asy
   const t = (await dlg.innerText()).replace(/\s+/g, ' ');
   tour.check('Limits: a sample has no source: the dialog offers "Attach the source IFC..."', /Attach the source IFC/.test(t), t.slice(0, 200));
   await dlg.getByRole('button', { name: 'Close' }).click().catch(() => {});
-  await openIfc(page, resolve(repoRoot, 'models', 'Building-Architecture.ifc'));
+  await openIfc(page, FZK);
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.folder(page, 'Model cleanup');
-  await ui.press(page, 'Preview matches');
-  await page.waitForTimeout(1500);
-  await ui.press(page, 'Hide matches');
-  await page.waitForTimeout(800);
+  // widen the Tiny rule until cleanup hides some elements but not most of them (the default rules find nothing in this house)
+  await ui.folder(page, 'Tiny');
+  await ui.set(page, 'enabled', true);
+  let hidden = 0;
+  for (const size of [0.2, 0.4, 0.7, 1]) {
+    await ui.set(page, 'max size', size, { exact: false });
+    await ui.topOfPanel(page); await ui.folder(page, 'Model cleanup');
+    await ui.press(page, 'Preview matches');
+    await page.waitForTimeout(800);
+    await ui.press(page, 'Hide matches');
+    await page.waitForTimeout(600);
+    hidden = await page.evaluate(() => window.__xrayCleanup.hiddenByCleanup().length);
+    if (hidden > 0) break;
+    await ui.press(page, 'Restore cleanup');
+    await ui.folder(page, 'Tiny');
+  }
+  tour.check('"run cleanup, click Hide matches": cleanup hid some elements', hidden > 0, `${hidden} hidden`);
+  await ui.topOfPanel(page); await ui.folder(page, 'Model cleanup');
   await ui.press(page, 'Save cleaned copy...');
   const dlg2 = page.locator('.xis-box[aria-labelledby="xis-clean-title"]');
   await dlg2.waitFor({ timeout: 60000 });
-  await page.waitForTimeout(2500);
+  await page.waitForFunction(() => { const b = [...document.querySelectorAll('.xis-box button.primary')].pop(); return b && !b.disabled; }, null, { timeout: 120000 });
   const t2 = (await dlg2.innerText()).replace(/\s+/g, ' ');
-  tour.check('"The dialog first plans the removal and shows a report. Nothing is written until you press Save cleaned copy"', /remov/i.test(t2) && (await dlg2.getByRole('button', { name: /Save cleaned copy/ }).count()) > 0, t2.slice(0, 260));
+  tour.check('"The dialog first plans the removal and shows a report. Nothing is written until you press Save cleaned copy"', /Removed: \d+/.test(t2) && (await dlg2.getByRole('button', { name: /Save cleaned copy/ }).count()) > 0, t2.slice(0, 260));
   tour.check('options "Also write the classification" and "Remove walls even if a door or window stays"', /Also write the classification/.test(t2) && /Remove walls even if a door or window stays/.test(t2), t2.slice(0, 300));
-  const dl = page.waitForEvent('download', { timeout: 120000 });
-  await dlg2.getByRole('button', { name: /Save cleaned copy/ }).last().click();
+  tour.check('"the dialog ... Kept and marked instead" (a wall that still hosts a door or window is kept and marked KeptBecause)', /Kept and marked instead|kept/i.test(t2), '');
+  const dl = page.waitForEvent('download', { timeout: 180000 });
+  await dlg2.locator('button.primary').click();
   const d = await dl;
-  tour.check('"Save cleaned copy writes <stem>.cleaned.ifc"', d.suggestedFilename() === 'Building-Architecture.cleaned.ifc', d.suggestedFilename());
+  tour.check('"Save cleaned copy writes <stem>.cleaned.ifc"', d.suggestedFilename() === 'AC20-FZK-Haus.cleaned.ifc', d.suggestedFilename());
+  const cf = join(tmp, d.suggestedFilename()); await d.saveAs(cf);
+  const cb = readFileSync(cf);
+  tour.check('"your file without the elements cleanup hid": the copy is smaller than the source', cb.length < readFileSync(FZK).length, `${cb.length} < ${readFileSync(FZK).length}`);
 });
 
 await tour.step('19.4 Try it: close the tab, open again: what comes back (browser storage per model)', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await page.keyboard.press('Control+Shift+S');
   await page.waitForTimeout(600);
   await page.evaluate(() => window.__xrayScript.save('Tour script', 'wait 1'));

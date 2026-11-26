@@ -50,7 +50,8 @@ An element in an IFC file carries more than a name. It carries property sets (fi
 2. Open the **Properties** tab of the right sidebar.
 3. At the top you see the GlobalId, class, name, storey, material and x-ray bucket (focus, host, near or far). Click **Copy GlobalId** to put the id on the
    clipboard. Paste it in a mail or a ticket: it names this element in every version of the model.
-4. Below, expand the list of property sets and quantities. The `⋯` menu on a row and the right-click menu let you select all
+4. Below, the list **Properties (4 of 9)** shows the properties and quantities that pass the filter. To see all of them, tick **all properties in
+   sidebar** in the **Hover info** folder of the **Parameters** tab. The `⋯` menu on a row and the right-click menu let you select all
    elements with this value, copy it, or save it as a criteria set.
 5. Select five elements. The tab shows the first and says "+ 4 more selected".
 

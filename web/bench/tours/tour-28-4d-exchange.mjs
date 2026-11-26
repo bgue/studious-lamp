@@ -7,6 +7,9 @@ import { join, resolve } from 'node:path';
 import { startTour, ui, webRoot } from './lib.mjs';
 
 const tour = await startTour('tour-28-4d-exchange');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const tmp = mkdtempSync(join(tmpdir(), 'tour-28-'));
 const XER = resolve(webRoot, 'public/samples/fzk-haus.xer');
 const pane = (page) => page.locator('#dk-pane-4d');
@@ -15,7 +18,7 @@ const sec = async (page, id) => { const d = pane(page).locator(`details[data-sec
 let cfgFile = '', linksFile = '';
 
 await tour.step('28.1 Try it steps 1-3: Export .4d.json, Export links, open the dataset', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await page.waitForFunction(() => window.__xray4dSchedule?.links().links.length > 0, null, { timeout: 240000 });
   await step(page, 'Link');
   const cfg = await sec(page, 'configure');
@@ -52,7 +55,7 @@ await tour.step('28.1 Try it steps 1-3: Export .4d.json, Export links, open the 
 });
 
 await tour.step('28.1 Try it step 4: reload on FZK-Haus, open the .xer, Import .4d.json and Import links', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await ui.tab(page, '4D');
   await page.waitForSelector('#dk-pane-4d .x4');
   await step(page, 'Link');
@@ -82,7 +85,7 @@ await tour.step('28.1 Try it step 4: reload on FZK-Haus, open the .xer, Import .
 });
 
 await tour.step('28.1 Rules for importing: a bad file is refused; the same file twice changes nothing; a different model is merged with a warning', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await ui.tab(page, '4D');
   await page.waitForSelector('#dk-pane-4d .x4');
   await step(page, 'Film');
@@ -100,9 +103,9 @@ await tour.step('28.1 Rules for importing: a bad file is refused; the same file 
   const c2 = page.waitForEvent('filechooser');
   await io.getByRole('button', { name: 'Import JSON' }).click();
   await (await c2).setFiles(of);
-  await page.waitForTimeout(800);
-  const msg2 = (await pane(page).innerText()).replace(/\s+/g, ' ');
-  tour.check('"A file that names a different model is merged with a warning"', /different model|other model|belongs to|warning|names a/i.test(msg2), msg2.match(/[^.]*model[^.]*\./i)?.[0]);
+  await page.waitForFunction(() => /Read \d+ assignment/.test(document.querySelector('#dk-pane-4d')?.textContent ?? ''), null, { timeout: 60000 }).catch(() => {});
+  const msg2 = (await pane(page).evaluate((n) => n.textContent)).replace(/\s+/g, ' ');
+  tour.check('"A file that names a different model is merged with a warning" (The file names another model.)', /names another model/i.test(msg2), msg2.match(/Read \d+ assignment[^.]*\.[^.]*\./)?.[0]);
   const n1 = await page.evaluate(() => window.__xray4dMap.coverage().attributes.zone.assigned);
   const c3 = page.waitForEvent('filechooser');
   await io.getByRole('button', { name: 'Import JSON' }).click();
@@ -124,7 +127,7 @@ await tour.step('28.1 Keys keep the work: links point at GlobalIds and Activity 
   tour.check('"Records point at elements by their GlobalId and at activities by their P6 Activity ID"', ds.links.every((l) => /^A\d+/.test(l.activity) && l.elements.every((g) => /^[0-9A-Za-z_$]{22}$/.test(g))));
   const c = JSON.parse(readFileSync(cfgFile, 'utf8'));
   tour.check('"The 4D plan (xray-4d-plan/1)": the 4D tab cannot open a plan file (no plan import control in the 4D tab)', true);
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await page.waitForFunction(() => window.__xray4dSchedule?.links().links.length > 0, null, { timeout: 240000 });
   await step(page, 'Film');
   const t = (await pane(page).innerText()).replace(/\s+/g, ' ');

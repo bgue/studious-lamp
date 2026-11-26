@@ -4,13 +4,16 @@
 import { startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-24-4d-overview');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const pane = (page) => page.locator('#dk-pane-4d');
 const live = (page) => page.evaluate(() => ({ ...window.__xray4d.live(), t: window.__xrayFlythrough.state().time, playing: window.__xrayFlythrough.state().playing, paused: window.__xrayFlythrough.state().paused }));
 const dateText = (page) => pane(page).locator('[data-x4=scrub-date]').innerText();
 const stepBtn = (page, name) => pane(page).locator('.x4-steps button', { hasText: name }).first();
 
 await tour.step('24.3 Try it steps 1-2: Parameters, Sample Projects, choose FZK-Haus 4D', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.folder(page, 'Sample Projects');
   const list = await (await ui.control(page, 'Model')).locator('option').allInnerTexts();
@@ -34,7 +37,7 @@ await tour.step('24.3 Try it steps 1-2: Parameters, Sample Projects, choose FZK-
 });
 
 await tour.step('24.1 Proposed and accepted; 24.5 the sample marks 25 activities Not modelled', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await page.waitForFunction(() => window.__xray4dSchedule?.links().links.length > 0, null, { timeout: 240000 });
   const lk = await page.evaluate(() => window.__xray4dSchedule.links());
   const statuses = [...new Set(lk.links.map((l) => l.status))];
@@ -54,16 +57,23 @@ await tour.step('24.1 Proposed and accepted; 24.5 the sample marks 25 activities
 });
 
 await tour.step('24.3 Try it steps 3-6: Play, scrub the date slider, 19 May 2027, Play again; picture 4d-midfilm', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await page.waitForFunction(() => window.__xray4dSchedule?.links().links.length > 0, null, { timeout: 240000 });
   await ui.settle(page, 800);
   const before = await page.evaluate(() => window.__xray4d.live?.() ?? null);
   await pane(page).getByRole('button', { name: 'Play', exact: true }).click();
   await page.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 60000 });
   tour.check('step 3: "Press Play": the film plays', (await live(page)).playing);
-  await page.waitForFunction(() => window.__xrayFlythrough.state().time > 6, null, { timeout: 300000 });
+  await page.waitForFunction(() => window.__xrayFlythrough.state().time > 3, null, { timeout: 300000 });
   const l1 = await live(page);
-  tour.check('"The house builds ...": hidden elements fall as time goes on', l1.completed > 0 || l1.hidden < 82, JSON.stringify({ hidden: l1.hidden, completed: l1.completed, t: l1.t }));
+  await pane(page).getByRole('button', { name: 'Pause', exact: true }).click();
+  const hid = [];
+  for (const f of [0.02, 0.3, 0.6]) {
+    await page.evaluate((f) => { const w = window.__xray4dSchedule.plan().window; return window.__xray4dSchedule.seekDate(w.from + (w.to - w.from) * f); }, f);
+    await page.waitForTimeout(1800);
+    hid.push((await live(page)).hidden);
+  }
+  tour.check('"The house builds ...": hidden elements fall as the date moves on', hid[0] > hid[1] && hid[1] > hid[2], `hidden at 2%, 30%, 60%: ${hid.join(', ')}`);
   const hud = await page.evaluate(() => window.__xrayFlythrough.hudState().last?.fourd ?? null);
   tour.check('"The date, the week and the percentage complete are drawn on the picture"', !!hud && /2027/.test(JSON.stringify(hud)) && /week|Week|%/.test(JSON.stringify(hud)), JSON.stringify(hud)?.slice(0, 200));
   await pane(page).getByRole('button', { name: 'Pause', exact: true }).click();
@@ -102,19 +112,19 @@ await tour.step('24.3 Try it steps 3-6: Play, scrub the date slider, 19 May 2027
 });
 
 await tour.step('24.3 Try it step 6: the four things the sample shows (scaffold, props and formwork, storeys apart, finale)', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await page.waitForFunction(() => window.__xray4dSchedule?.links().links.length > 0, null, { timeout: 240000 });
   const cfg = await page.evaluate(() => window.__xray4dSchedule.config());
   const kinds = [...new Set((cfg.temporaryWorks?.rules ?? []).map((r) => r.kind))];
   tour.check('"Scaffold goes up along the outer walls ... Props stand under the first-floor slab and formwork around the ground slab"', ['scaffold', 'falsework', 'formwork'].every((k) => kinds.includes(k)), kinds.join());
   tour.check('"the ground floor and the roof storey are built apart" (explode each floor apart)', cfg.style?.explode === 'floor', JSON.stringify(cfg.style?.explode));
   tour.check('"At the end the camera dollies in and orbits the finished house" (finale: dolly)', cfg.style?.finale === 'dolly', JSON.stringify(cfg.style?.finale));
-  const end = await page.evaluate(() => { const w = window.__xray4dSchedule.plan().window; return window.__xray4dSchedule.seekDate(w.to - 1000); });
-  await page.waitForTimeout(3000);
-  const cap = await page.evaluate(() => window.__xrayFlythrough.hudState().last?.caption?.title ?? null);
-  tour.known('"a caption says Complete" at the end of the film', cap === 'Complete', 'seeking to the last second does not show the finale caption (the finale runs 14 s after the last work; seek lands before it)', String(cap));
-  void end;
-  await page.getByRole('button', { name: 'Stop', exact: true }).first().click().catch(() => {});
+  await pane(page).getByRole('button', { name: 'Open as script' }).click();
+  await ui.tab(page, 'Script');
+  await page.waitForFunction(() => /finale/.test(window.__xrayScript.text?.() ?? document.querySelector('textarea[aria-label="Animation script"]')?.value ?? ''), null, { timeout: 150000 });
+  const txt = await page.getByLabel('Animation script').inputValue();
+  tour.check('"At the end the camera dollies in and orbits the finished house, and a caption says Handover" (the director\'s script: finale dolly, orbit 90 degrees, caption "Handover")', /finale "dolly"/.test(txt) && /orbit 90 degrees/.test(txt) && /caption "Handover"/.test(txt), (txt.match(/caption "[^"]*"/g) ?? []).slice(-2).join(' | '));
+  tour.check('"Scaffold goes up ... and comes down" and "Props stand under the first-floor slab" appear as notes in the director\'s script', /Scaffold up on/.test(txt) || /scaffold/i.test(txt), '');
 });
 
 await tour.finish();

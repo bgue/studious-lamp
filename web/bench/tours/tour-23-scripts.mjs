@@ -8,6 +8,9 @@ import { join } from 'node:path';
 import { startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-23-scripts');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const tmp = mkdtempSync(join(tmpdir(), 'tour-23-'));
 const dist = (a, b) => Math.hypot(...a.p.map((v, i) => v - b.p[i]));
 const sstate = (page) => page.evaluate(() => window.__xrayScript.state());
@@ -19,7 +22,8 @@ async function setScript(page, text) {
 }
 const run = (page) => page.getByRole('button', { name: 'Run', exact: true }).click();
 const problems = (page) => page.locator('[data-script-errors] button').allInnerTexts();
-const waitRunning = (page) => page.waitForFunction(() => window.__xrayScript.state().running, null, { timeout: 30000 });
+const waitRunning = (page) => page.waitForFunction(() => window.__xrayScript.state().running, null, { timeout: 150000 });
+const moved = async (page, from, min = 0.5, ms = 120000) => { for (let t = 0; t < ms && dist(from, await ui.cam(page)) < min; t += 400) await page.waitForTimeout(400); };
 const waitDone = (page, t = 90000) => page.waitForFunction(() => !window.__xrayScript.state().running, null, { timeout: t });
 
 const FIRST = `-- A walk around the pumps
@@ -29,7 +33,7 @@ caption "The pumps" "Seen through the rest of the plant" for 3 seconds
 `;
 
 await tour.step('23.1 Try it steps 1-4: open Script, type the first script, Run, Pause, Stop', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   await ui.tab(page, 'Script');
   tour.check('step 1: "Open the Script tab of the right sidebar"', await page.getByLabel('Animation script').isVisible());
   await setScript(page, FIRST);
@@ -38,9 +42,9 @@ await tour.step('23.1 Try it steps 1-4: open Script, type the first script, Run,
   const cam0 = await ui.cam(page);
   await run(page);
   await waitRunning(page);
-  await page.waitForTimeout(1500);
+  await moved(page, cam0, 1);
   tour.check('step 3: "The look changes to Ghost"', (await ui.litMode(page)) === 'Ghost', `${lit0} -> ${await ui.litMode(page)}`);
-  await page.waitForFunction(() => window.__xrayFlythrough.hudState().last?.caption?.title === 'The pumps', null, { timeout: 30000 }).catch(() => {});
+  await page.waitForFunction(() => window.__xrayFlythrough.hudState().last?.caption?.title === 'The pumps', null, { timeout: 150000 }).catch(() => {});
   const h = await hud(page);
   tour.check('step 3: "the camera flies to the pumps in 3 seconds, and the caption shows for 3"', dist(cam0, await ui.cam(page)) > 1 && h?.caption?.title === 'The pumps', `moved ${dist(cam0, await ui.cam(page)).toFixed(1)} m; caption ${h?.caption?.title}`);
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
@@ -55,14 +59,14 @@ await tour.step('23.1 Try it steps 1-4: open Script, type the first script, Run,
   // step 5: IfcTank
   await setScript(page, FIRST.replace('IfcPump', 'IfcTank'));
   const cam1 = await ui.cam(page);
-  await run(page); await waitRunning(page); await page.waitForTimeout(2500);
+  await run(page); await waitRunning(page); await moved(page, cam1, 1);
   const tankCam = await ui.cam(page);
   await page.getByRole('button', { name: 'Stop', exact: true }).click(); await waitDone(page, 20000);
   tour.check('step 5: "Change IfcPump to IfcTank, press Run again": the camera goes elsewhere', dist(cam1, tankCam) > 1, `moved ${dist(cam1, tankCam).toFixed(1)} m`);
 });
 
 await tour.step('23.1 Try it step 6: together, orbit and caption at once; select nothing', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   const text = `-- A walk around the pumps
 mode ghost
 fly to class IfcPump over 3 seconds
@@ -78,13 +82,13 @@ select nothing
   tour.check('"each line starts when the line before it has ended ... together ... lasts as long as the longest": 3 s + 6 s = 9 s', Math.abs(dur - 9) < 0.6, `duration ${dur}`);
   await run(page); await waitRunning(page);
   await page.waitForFunction(() => window.__xrayFlythrough.hudState().last?.caption?.title === 'Four pumps', null, { timeout: 40000 }).catch(() => {});
-  const cA = await ui.cam(page); await page.waitForTimeout(1500); const cB = await ui.cam(page);
+  const cA = await ui.cam(page); await moved(page, cA, 0.05); const cB = await ui.cam(page);
   tour.check('the camera orbits while the caption shows', (await hud(page))?.caption?.title === 'Four pumps' && dist(cA, cB) > 0.05, `caption ${(await hud(page))?.caption?.title}, moved ${dist(cA, cB).toFixed(2)}`);
   await page.getByRole('button', { name: 'Stop', exact: true }).click(); await waitDone(page, 20000);
 });
 
 await tour.step('23.1 Try it steps 7-8: Examples, name and Save, Export, Import', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   await ui.tab(page, 'Script');
   await page.getByRole('button', { name: 'Examples', exact: true }).click();
   const items = await page.getByRole('menuitem').allInnerTexts();
@@ -117,8 +121,8 @@ await tour.step('23.1 Try it steps 7-8: Examples, name and Save, Export, Import'
 });
 
 await tour.step('23.2 Try it 1: peel slabs with fades (Synth 5k)', async () => {
-  const page = await tour.open('model=synth5k');
-  const storeys = await page.evaluate(() => [...new Set(window.__xray.app.controller.model.elements.filter((e) => e.ifcClass === 'IfcSlab').map((e) => e.storey))].filter(Boolean));
+  const page = await open('model=synth5k');
+  const storeys = await page.evaluate(() => window.__xray.app.controller.model.storeys.map((s) => s.name));
   tour.check('"The storey names must be those of your model": Synth 5k has Level 4 and Level 5', ['Level 4', 'Level 5'].every((s) => storeys.includes(s)), storeys.join());
   await setScript(page, `put 1.5 into fade
 mode solid
@@ -134,7 +138,7 @@ show everything fading over 2 seconds
 });
 
 await tour.step('23.2 Try it 2-3: visit each pump (repeat for each element); each set; text join', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   const nPumps = await page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => e.ifcClass === 'IfcPump').length);
   await setScript(page, `repeat for each element in class IfcPump
   together
@@ -164,7 +168,7 @@ end repeat
 });
 
 await tour.step('23.2 Try it 4 and the messages table: mistakes on purpose, the Problems list', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   await setScript(page, 'flyto everything');
   const p = await problems(page);
   tour.check('step 4: "Write flyto everything and look at the Problems list"', p.length >= 1 && /do not know the statement "flyto"/.test(p.join(' ')), p.join(' | '));
@@ -197,7 +201,7 @@ await tour.step('23.2 Try it 4 and the messages table: mistakes on purpose, the 
 });
 
 await tour.step('23.3 The statement reference: each documented statement compiles', async () => {
-  const page = await tour.open('model=process-plant');
+  const page = await open('model=process-plant');
   const good = [
     'fly to class IfcPump over 2 seconds ease linear margin 2', 'orbit 90 degrees about class IfcPump over 3 seconds', 'orbit -45 degrees', 'set cinematic.glowStrength to 1.2 over 2 seconds',
     'mode cutaway', 'apply preset "Overview"', 'show everything', 'hide class IfcPump fading over 1 seconds', 'isolate class IfcPump fading over 1 seconds', 'select class IfcPump', 'select nothing',

@@ -9,6 +9,9 @@ import { join, resolve } from 'node:path';
 import { repoRoot, startTour, ui, webRoot } from './lib.mjs';
 
 const tour = await startTour('tour-30-packed-pages');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const out = mkdtempSync(join(tmpdir(), 'tour-30-'));
 const FZK = resolve(repoRoot, 'models', 'AC20-FZK-Haus.ifc');
 const pack = (args) => { const t0 = Date.now(); const r = spawnSync('node', [resolve(webRoot, 'tools/xray-pack.mjs'), ...args], { cwd: webRoot, encoding: 'utf8', timeout: 300000 }); return { code: r.status, out: r.stdout ?? '', err: r.stderr ?? '', s: (Date.now() - t0) / 1000 }; };
@@ -90,7 +93,7 @@ await tour.step('30.1 Set the starting look: --params, --select, --camera, --tit
 
 let flyFile = '';
 await tour.step('30.2 Try it steps 1-2: build a fly-through "Overview" in the viewer and Export file', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   for (const [p, t] of [[[14, 8, 16], [0, 2, 0]], [[-12, 6, 10], [0, 2, 0]]]) { await ui.setCam(page, p, t); await page.keyboard.press('Control+Shift+S'); await page.waitForTimeout(400); }
   await ui.tab(page, 'Views');
   const head = page.locator('.fl-head');

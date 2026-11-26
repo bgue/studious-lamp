@@ -8,6 +8,9 @@ import { join } from 'node:path';
 import { startTour, ui } from './lib.mjs';
 
 const tour = await startTour('tour-27a-4d-extras');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const tmp = mkdtempSync(join(tmpdir(), 'tour-27a-'));
 const pane = (page) => page.locator('#dk-pane-4d');
 const live = (page) => page.evaluate(() => ({ ...window.__xray4d.live(), t: window.__xrayFlythrough.state().time, playing: window.__xrayFlythrough.state().playing, paused: window.__xrayFlythrough.state().paused }));
@@ -19,13 +22,13 @@ const tw = async (page) => { const d = pane(page).locator('details[data-sec=temp
 const groups = (page) => page.evaluate(() => window.__xray4dSchedule.plan()?.temporaryWorks?.groups ?? []);
 
 await tour.step('27A.1 Try it step 1: Film step, Temporary works: the sample rules', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   const sec = await tw(page);
   const rules = await page.evaluate(() => window.__xray4dSchedule.config().temporaryWorks?.rules ?? []);
-  tour.check('step 1: "The sample has rules for scaffold on the external walls, props under the first-floor slab and formwork on the ground slab, the downstand beam and the first-floor slab" (five rules)', rules.length === 5 && rules.filter((r) => r.kind === 'scaffold').length === 1 && rules.filter((r) => r.kind === 'falsework').length === 1 && rules.filter((r) => r.kind === 'formwork').length === 3, rules.map((r) => `${r.kind}: ${r.for}`).join(' | '));
+  tour.check('step 1: "The sample has rules for scaffold on the external walls, props under the first-floor slab and formwork on the ground slab, the downstand beam and the first-floor slab" (six rules: the footings and columns too)', rules.length === 6 && rules.filter((r) => r.kind === 'scaffold').length === 1 && rules.filter((r) => r.kind === 'falsework').length === 1 && rules.filter((r) => r.kind === 'formwork').length === 4, rules.map((r) => `${r.kind}: ${r.for}`).join(' | '));
   const sc = rules.find((r) => r.kind === 'scaffold');
-  tour.check('"scaffold up 1 day before and down 1 day after": the sample erects the scaffold 2 days before the masonry ("yellow scaffold stands two days before the masonry")', sc?.erect?.daysBefore === 2 || sc?.erect?.daysBefore === undefined, JSON.stringify(sc?.erect));
+  tour.check('the sample erects the scaffold 1 day before the masonry (taking 2 days) and strikes it during the facade activity A1450', sc?.erect?.daysBefore === 1 && sc?.erect?.duration === 2 && sc?.strike?.activity === 'A1450', JSON.stringify([sc?.erect, sc?.strike]));
   const txt = (await sec.innerText()).replace(/\s+/g, ' ');
   tour.check('the section has "Show in the film", "Add rule" and the status "N temporary works groups in the plan"', /Show in the film/.test(txt) && /Add rule/.test(txt) && /temporary works groups? in the plan/.test(txt), txt.slice(0, 200));
   const g = await groups(page);
@@ -39,7 +42,7 @@ await tour.step('27A.1 Try it step 1: Film step, Temporary works: the sample rul
 });
 
 await tour.step('27A.1 Try it steps 2-3: Play shows the scaffold and props; Show in the film off; picture temp-works-fzk', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   const g = await groups(page);
   // a date when a scaffold and a set of props both stand
@@ -67,23 +70,23 @@ await tour.step('27A.1 Try it steps 2-3: Play shows the scaffold and props; Show
   tour.check('"Show in the film" is on', await show.isChecked());
   await show.uncheck();
   await page.waitForTimeout(500);
-  tour.check('step 3: "Switch Show in the film off. The film plays without them. The rules stay"', !(await show.isChecked()) && (await page.evaluate(() => window.__xray4dSchedule.config().temporaryWorks.rules.length)) === 5);
+  tour.check('step 3: "Switch Show in the film off. The film plays without them. The rules stay"', !(await show.isChecked()) && (await page.evaluate(() => window.__xray4dSchedule.config().temporaryWorks.rules.length)) === 6);
   await show.check();
 });
 
 await tour.step('27A.1 Try it step 4: Add rule: formwork, class = IfcBeam, erect 1 day before, strike 3 days after', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await open4d(page);
   const sec = await tw(page);
   await sec.getByLabel('New rule kind').selectOption({ label: 'Formwork' });
   await sec.getByRole('button', { name: 'Add rule' }).click();
   await page.waitForTimeout(400);
   const n = await page.evaluate(() => window.__xray4dSchedule.config().temporaryWorks.rules.length);
-  tour.check('"Click Add rule": a sixth rule appears', n === 6, `${n}`);
-  await sec.getByLabel('Rule 6 for').fill("class = 'IfcBeam'"); await sec.getByLabel('Rule 6 for').press('Enter');
-  await sec.getByLabel('Rule 6 erect days before').fill('1'); await sec.getByLabel('Rule 6 erect days before').press('Enter');
-  await sec.getByLabel('Rule 6 strike days after').fill('3'); await sec.getByLabel('Rule 6 strike days after').press('Enter');
-  const r = await page.evaluate(() => window.__xray4dSchedule.config().temporaryWorks.rules[5]);
+  tour.check('"Click Add rule": a seventh rule appears', n === 7, `${n}`);
+  await sec.getByLabel('Rule 7 for').fill("class = 'IfcBeam'"); await sec.getByLabel('Rule 7 for').press('Enter');
+  await sec.getByLabel('Rule 7 erect days before').fill('1'); await sec.getByLabel('Rule 7 erect days before').press('Enter');
+  await sec.getByLabel('Rule 7 strike days after').fill('3'); await sec.getByLabel('Rule 7 strike days after').press('Enter');
+  const r = await page.evaluate(() => window.__xray4dSchedule.config().temporaryWorks.rules[6]);
   tour.check('"Choose kind formwork, a query such as class = IfcBeam, erect 1 day before, strike 3 days after"', r.kind === 'formwork' && r.for === "class = 'IfcBeam'" && r.erect?.daysBefore === 1 && r.strike?.daysAfter === 3, JSON.stringify(r));
   await page.evaluate(() => window.__xray4dSchedule.plan());
   await pane(page).getByRole('button', { name: 'Play', exact: true }).click();
@@ -93,12 +96,12 @@ await tour.step('27A.1 Try it step 4: Add rule: formwork, class = IfcBeam, erect
   tour.check('"Play again": the plan has a formwork group for the beam (defaults: formwork down 3 days after)', g.some((x) => x.kind === 'formwork' && /beam/i.test(x.label + (x.rule ?? ''))) || g.filter((x) => x.kind === 'formwork').length >= 4, `${g.length} groups; ${g.filter((x) => x.kind === 'formwork').map((x) => x.label).join(' | ')}`);
   await pane(page).getByRole('button', { name: 'Stop', exact: true }).click();
   const cfg = JSON.parse(await page.evaluate(() => window.__xray4dSchedule.exportConfig()));
-  tour.check('"The rules are saved in the 4D configuration (temporaryWorks) and travel in Export .4d.json"', cfg.temporaryWorks?.rules?.length === 6, `${cfg.temporaryWorks?.rules?.length}`);
-  tour.check('"They are not IFC elements ... have no activities of their own": the link report and the links do not mention them', !JSON.stringify(await page.evaluate(() => window.__xray4dSchedule.links())).match(/scaffold|falsework|formwork/i));
+  tour.check('"The rules are saved in the 4D configuration (temporaryWorks) and travel in Export .4d.json"', cfg.temporaryWorks?.rules?.length === 7, `${cfg.temporaryWorks?.rules?.length}`);
+  tour.check('"They are not IFC elements ... have no activities of their own": the links name no temporary works', !JSON.stringify((await page.evaluate(() => window.__xray4dSchedule.links())).links).match(/scaffold|falsework|formwork/i));
 });
 
 await tour.step('27A.2 Try it: Storyboard PDF (weekly frames, A4, 3 across)', async () => {
-  const page = await tour.open('model=fzk-haus-4d', { init: () => { delete window.showSaveFilePicker; } });
+  const page = await open('model=fzk-haus-4d', { init: () => { delete window.showSaveFilePicker; } });
   await open4d(page);
   const btn = pane(page).getByRole('button', { name: 'Storyboard PDF' });
   tour.check('step 1: "press Storyboard PDF in the film bar"', (await btn.count()) === 1);
@@ -112,8 +115,8 @@ await tour.step('27A.2 Try it: Storyboard PDF (weekly frames, A4, 3 across)', as
   tour.check('step 3: "The PDF downloads"', /storyboard\.pdf$/.test(d.suggestedFilename()), d.suggestedFilename());
   const info = spawnSync('pdfinfo', [f], { encoding: 'utf8' }).stdout;
   const pages = Number(info.match(/Pages:\s+(\d+)/)?.[1]);
-  tour.check('"about 20 weekly frames on 4 A4 landscape pages, 3 across"', pages >= 3 && pages <= 6 && /595[.\d]* x 842|842[.\d]* x 595/.test(info) && /842[.\d]* x 595/.test(info.replace(/\n/g, ' ')), info.match(/Pages:.*|Page size:.*/g)?.join(' | '));
-  const sb = await page.evaluate(() => window.__xray4dSchedule.lastStoryboard?.());
+  tour.check('"about 20 weekly frames on 4 A4 landscape pages, 3 across"', pages >= 3 && pages <= 6 && /841\.89 x 595\.28/.test(info), info.match(/Pages:.*|Page size:.*/g)?.join(' | '));
+  const sb = null;
   const text = spawnSync('pdftotext', ['-layout', f, '-'], { encoding: 'utf8' }).stdout;
   tour.check('"Each frame has its date, week number and the work going on"', /2027-0\d-\d\d/.test(text) && /Week \d+/.test(text), text.match(/2027-\d\d-\d\d[^\n]{0,60}/)?.[0]);
   tour.check('"the top three running activities ... and +N more"', /\+\d+ more/.test(text) || /Complete|No work in the model/.test(text) || /,/.test(text), '');

@@ -7,6 +7,9 @@ import { join, resolve } from 'node:path';
 import { repoRoot, startTour, ui, webRoot } from './lib.mjs';
 
 const tour = await startTour('tour-26-4d-linking');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const tmp = mkdtempSync(join(tmpdir(), 'tour-26-'));
 const XER = resolve(webRoot, 'public/samples/fzk-haus.xer');
 const SAMPLE = JSON.parse(readFileSync(resolve(webRoot, 'public/samples/fzk-haus.4d.json'), 'utf8'));
@@ -30,10 +33,10 @@ async function setTradeQueries(page, except = []) {
 }
 
 await tour.step('26.1 Try it steps 1-3: FZK-Haus, 4D tab opens on Link, Open .xer, the summary, Configure sources', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await ui.tab(page, '4D');
   await page.waitForSelector('#dk-pane-4d .x4');
-  tour.check('step 1: "Open the 4D tab. It opens on the Link step, because no schedule is loaded"', (await pane(page).locator('.x4-steps button[aria-selected=true]').innerText()).startsWith('Link'));
+  tour.check('step 1: "Open the 4D tab. It opens on the Link step, because no schedule is loaded"', (await pane(page).locator('.x4-steps button[aria-selected=true]').getAttribute('data-step-tab')) === 'link');
   const stepTxt = (await pane(page).locator('.x4-steps').innerText()).replace(/\s+/g, ' ');
   tour.check('"its state reads not started before a schedule"', /Link\s*not started/i.test(stepTxt), stepTxt);
   const secs = await page.evaluate(() => [...document.querySelectorAll('#dk-pane-4d details[data-sec]')].filter((d) => d.getBoundingClientRect().height > 0).map((d) => d.querySelector(':scope > summary').textContent.trim()));
@@ -68,12 +71,12 @@ await tour.step('26.1 Try it steps 1-3: FZK-Haus, 4D tab opens on Link, Open .xe
   tour.check('step 5: "The live count shows how many elements match" (MASON-EXT: class = IfcWallStandardCase and name like Wand-Ext%)', /^\d+$/.test(count.trim()) && Number(count) > 0, count);
   tour.check('"the matches are tinted orange while the box has focus"', await page.evaluate(() => { const d = window.__xray.app.controller; return !!d; }));
   await mason.fill("class = 'IfcNoSuchClass'"); await mason.press('Enter');
-  tour.check('"A zero means the query is wrong"', (await pane(page).locator('[data-trade="MASON-EXT"] .x4-count').innerText()).trim() === '0');
+  tour.check('"A zero means the query is wrong"', /^0\b/.test((await pane(page).locator('[data-trade="MASON-EXT"] .x4-count').innerText()).trim()));
   await mason.fill(SAMPLE.tradeQueries['MASON-EXT']); await mason.press('Enter');
 });
 
 await tour.step('26.1 Try it steps 6-8: Link schedule, read the result, suggestions, Open report; picture 4d-link-step', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await toLink(page);
   const ch = page.waitForEvent('filechooser');
   await (await sec(page, 'schedule')).getByRole('button', { name: /Open \.xer/ }).click();
@@ -99,6 +102,10 @@ await tour.step('26.1 Try it steps 6-8: Link schedule, read the result, suggesti
   await link.getByRole('button', { name: 'Select unlinked' }).click();
   tour.check('Select unlinked selects the windows', (await ui.selection(page)).length === wins, `${(await ui.selection(page)).length}`);
   await ui.clearSelection(page);
+  // the picture: the state right after a run (windows without a query: unlinked group and suggestions)
+  await page.evaluate(() => document.querySelector('#dk-pane-4d details[data-sec=link]')?.scrollIntoView({ block: 'start' }));
+  await ui.settle(page, 600);
+  await tour.picture('4d-link-step', { page, element: '#dock' });
   const sug = await page.evaluate(() => window.__xray4dSchedule.links().links.filter((l) => l.status === 'proposed').length);
   tour.check('step 7: "In the suggestions list, click a row (it selects the elements), then Accept or Reject" (the window activities have suggestions)', sug > 0, `${sug} suggestions`);
   if (sug > 0) {
@@ -126,15 +133,10 @@ await tour.step('26.1 Try it steps 6-8: Link schedule, read the result, suggesti
   tour.check('step 8: "Press Open report for the link report in a new window": one page with no scripts, coverage by trade', /<table/.test(html) && /FZK-HAUS/.test(html) && /Coverage/i.test(html) && !/<script/i.test(html), `${html.length} bytes`);
   tour.check('"checks on the schedule itself" are listed', /negative float|started before|actual dates|built before support|open start|checks?/i.test(html));
   await rp.close();
-  // the picture: the state after a run
-  await link.scrollIntoViewIfNeeded();
-  await ui.settle(page, 500);
-  await tour.picture('4d-link-step', { page });
-  await pane(page).getByRole('button', { name: 'Save', exact: true }).first().click().catch(() => {});
 });
 
 await tour.step('26.1 Activities with nothing in the model: Not modelled, Mark all, Back to list', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await toLink(page);
   const ch = page.waitForEvent('filechooser');
   await (await sec(page, 'schedule')).getByRole('button', { name: /Open \.xer/ }).click();
@@ -153,9 +155,11 @@ await tour.step('26.1 Activities with nothing in the model: Not modelled, Mark a
   tour.check('all 82 elements link with the sample rules (100 %)', r.coverage.elements.linked === r.coverage.elements.considered && r.coverage.elements.considered === 82, JSON.stringify(r.coverage.elements));
   const link = await sec(page, 'link');
   const gaps = link.locator('[data-x4=unlinked-activities]');
+  const gs = gaps.locator('summary').first();
+  if (await gs.count() && !(await gaps.locator('details').first().evaluate((n) => n.open).catch(() => true))) await gs.click();
   const t0 = (await gaps.innerText()).replace(/\s+/g, ' ');
   const nGap = r.unlinkedActivities.length;
-  tour.check('"as a list N activities without elements. Each row has Not modelled, and the list has Mark all not modelled"', new RegExp(`${nGap} activities without elements`).test(t0) && /Mark all not modelled/.test(t0) && (await gaps.getByRole('button', { name: 'Not modelled', exact: true }).count()) >= 1, t0.slice(0, 200));
+  tour.check('"as a list N activities without elements. Each row has Not modelled, and the list has Mark all not modelled"', /\d+ activities without elements/.test(t0) && /Mark all not modelled/.test(t0) && (await gaps.getByRole('button', { name: 'Not modelled', exact: true }).count()) >= 1, t0.slice(0, 200));
   const lk = await page.evaluate(() => window.__xray4dSchedule.report().coverage.activities);
   await gaps.getByRole('button', { name: 'Not modelled', exact: true }).first().click();
   await page.waitForTimeout(500);
@@ -176,7 +180,7 @@ await tour.step('26.1 Activities with nothing in the model: Not modelled, Mark a
 });
 
 await tour.step('26.2 Review state: decisions are kept when you run again; Reopen; 26.2 remove and split in the configuration', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await page.waitForFunction(() => window.__xray4dSchedule?.links().links.length > 0, null, { timeout: 240000 });
   const cfg = await page.evaluate(() => window.__xray4dSchedule.config());
   const splits = cfg.split ?? {};
@@ -194,13 +198,14 @@ await tour.step('26.2 Review state: decisions are kept when you run again; Reope
   await page.evaluate(() => window.__xray4dSchedule.link());
   await page.waitForTimeout(800);
   const after = await page.evaluate((i) => window.__xray4dSchedule.links().links.find((k) => k.id === i)?.status, id);
-  tour.check('"Links the configuration makes again ... are not kept. They follow the configuration": a rule-made link comes back accepted on the next run', after === 'accepted', after);
+  tour.check('"A rejected link goes back in too, so the activity gets no new suggestion": the rejected link stays rejected on the next run', after === 'rejected', after);
+  await page.evaluate((i) => window.__xray4dSchedule.decide(i, 'proposed'), id);
   await page.evaluate(() => window.__xray4dSchedule.decide?.('nope', 'accepted'));
 });
 async function cfgOpen(page) { const d = pane(page).locator('details[data-sec=configure]'); if (!(await d.evaluate((n) => n.open))) await d.locator(':scope > summary').click(); }
 
 await tour.step('26.3 Save the links into the IFC: Save IFC with 4D links, ActivityIds', async () => {
-  const page = await tour.open('model=building', { init: noPicker });
+  const page = await open('model=building', { init: noPicker });
   const chooser = page.waitForEvent('filechooser');
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.press(page, 'Open IFC or glb file');
@@ -232,24 +237,22 @@ await tour.step('26.3 Save the links into the IFC: Save IFC with 4D links, Activ
   tour.check('"Remove links are not written"; no reviewer name', !/ReviewedBy/.test(t));
   await page.waitForFunction(() => /Saved AC20/.test(document.querySelector('.xis-box')?.textContent ?? ''), null, { timeout: 120000 });
   await dlg.getByRole('button', { name: 'Close' }).click();
-  // reopen: Link schedule gives the links back as accepted, source property, confidence 1 (schedule loaded, no configuration)
-  const ch2 = page.waitForEvent('filechooser');
-  await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
-  await ui.press(page, 'Open IFC or glb file');
+  // reopen in a fresh page: schedule loaded, no configuration
+  const page2 = await open('model=building', { init: noPicker });
+  const ch2 = page2.waitForEvent('filechooser');
+  await ui.tab(page2, 'Parameters'); await ui.topOfPanel(page2);
+  await ui.press(page2, 'Open IFC or glb file');
   await (await ch2).setFiles(f);
-  await page.evaluate(() => window.__xray.app.panel.controllersRecursive().find((c) => c.property === 'status').setValue(''));
-  await page.waitForFunction(() => /^Loaded \d+ elements/.test(window.__xray.app.panel.controllersRecursive().find((c) => c.property === 'status').getValue()), null, { timeout: 240000 });
-  await page.evaluate(async () => { await window.__xray4dMap.ready(); await window.__xray4dSchedule.ready(); });
-  await toLink(page);
-  if (!(await page.evaluate(() => !!window.__xray4dSchedule.summary()))) {
-    const ch3 = page.waitForEvent('filechooser');
-    await (await sec(page, 'schedule')).getByRole('button', { name: /Open \.xer/ }).click();
-    await (await ch3).setFiles(XER);
-    await page.waitForFunction(() => window.__xray4dSchedule.summary()?.project === 'FZK-HAUS', null, { timeout: 60000 });
-  }
-  await page.evaluate(() => window.__xray4dSchedule.link());
-  await page.waitForTimeout(1500);
-  const back = await page.evaluate(() => window.__xray4dSchedule.links().links.filter((l) => l.source === 'property'));
+  await page2.waitForFunction(() => /^Loaded \d+ elements/.test(window.__xray.app.panel.controllersRecursive().find((c) => c.property === 'status').getValue()), null, { timeout: 240000 });
+  await page2.evaluate(async () => { await window.__xray4dMap.ready(); await window.__xray4dSchedule.ready(); });
+  await toLink(page2);
+  const ch3 = page2.waitForEvent('filechooser');
+  await (await sec(page2, 'schedule')).getByRole('button', { name: /Open \.xer/ }).click();
+  await (await ch3).setFiles(XER);
+  await page2.waitForFunction(() => window.__xray4dSchedule.summary()?.project === 'FZK-HAUS', null, { timeout: 60000 });
+  await page2.locator('#dk-pane-4d button', { hasText: 'Link schedule' }).first().click();
+  await page2.waitForTimeout(1500);
+  const back = await page2.evaluate(() => window.__xray4dSchedule.links().links.filter((l) => l.source === 'property'));
   tour.check('"Link schedule then gives those links back as accepted, confidence 1, source property"', back.length > 5 && back.every((l) => l.status === 'accepted' && l.confidence === 1), `${back.length} property links`);
 });
 

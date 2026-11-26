@@ -7,10 +7,13 @@ import { resolve } from 'node:path';
 import { startTour, ui, webRoot } from './lib.mjs';
 
 const tour = await startTour('tour-35-scripting-hooks');
+// One page at a time: a page left over from the step before (a film still playing in it) would slow down every later page of a software renderer.
+const _pages = [];
+const open = async (...a) => { while (_pages.length) await _pages.pop().context().close().catch(() => {}); const p = await tour.open(...a); _pages.push(p); return p; };
 const src = (p) => readFileSync(resolve(webRoot, 'src', p), 'utf8');
 
 await tour.step('35.2 Try it: open FZK-Haus 4D, then the console steps 1-5', async () => {
-  const page = await tour.open('model=fzk-haus-4d');
+  const page = await open('model=fzk-haus-4d');
   await page.waitForFunction(() => !!window.__xray4dSchedule, null, { timeout: 120000 });
   await page.evaluate(() => window.__xray4dSchedule.ready());
   await page.waitForFunction(() => window.__xray4dSchedule.summary()?.activities > 0 || window.__xray4dSchedule.summary()?.activityCount > 0 || Object.keys(window.__xray4dSchedule.summary() ?? {}).length > 3, null, { timeout: 120000 }).catch(() => {});
@@ -35,7 +38,7 @@ await tour.step('35.2 Try it: open FZK-Haus 4D, then the console steps 1-5', asy
 });
 
 await tour.step('35.3 The scripting objects: each name of the table is a window object', async () => {
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   await page.waitForFunction(() => !!window.__xrayClassify && !!window.__xray4dMap, null, { timeout: 120000 }).catch(() => {});
   const names = ['__xray', '__xrayViewModes', '__xrayImaging', '__xraySection', '__xrayCleanup', '__xrayPresets', '__xrayPenetrations', '__xrayMeasure', '__xrayClearance', '__xrayViews', '__xrayFlythrough', '__xrayScript', '__xrayRecord', '__xrayIssues', '__xrayMarkup', '__xraySheets', '__xrayBcf', '__xrayWork', '__xrayIssueReport', '__xrayClash', '__xrayClassify', '__xrayRevision', '__xrayIfcSave', '__xraySearch', '__xrayUndo', '__xrayPointer', '__xrayTopBar', '__xrayRightSidebar', '__xrayGizmo', '__xrayMap', '__xrayPointCloud', '__xrayXr', '__xrayToolbar', '__xrayParams', '__xrayHelp', '__xray4dMap', '__xray4dSchedule', '__xray4d', '__xray4dFilm', '__xrayBoot', '__xrayReady', '__xrayError'];
   await page.waitForTimeout(3000);
@@ -77,7 +80,7 @@ await tour.step('35.4 Add an action and a tool: the points the manual names exis
   tour.check('"getOverlay(app)" is the shared overlay', /export function getOverlay/.test(src('ui/overlay.ts')));
   const app = src('app.ts');
   tour.check('hooks "install(app)", "onModel(app)", "onStatic(app)", "beforeFrame, onFrame, afterFrame"', ['install', 'onModel', 'onStatic', 'beforeFrame', 'onFrame', 'afterFrame'].every((h) => new RegExp(`\\b${h}\\??\\(`).test(app)), '');
-  const page = await tour.open('model=fzk-haus');
+  const page = await open('model=fzk-haus');
   const tools = await page.evaluate(() => window.__xrayToolbar.tools());
   const order = ['open', 'xray', 'viewModes', 'measure', 'clearance', 'penetrations', 'cleanup'].map((t) => tools.indexOf(t));
   tour.check('"The order number sorts the strip: Open model is 10, X-ray 30, View modes 40, Measure 70, Clearance 80, Penetrations 90, Cleanup 110": the strip is in that order', order.every((v) => v >= 0) && order.every((v, i) => i === 0 || v > order[i - 1]), tools.join());
