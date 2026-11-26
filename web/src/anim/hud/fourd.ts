@@ -58,6 +58,8 @@ export interface FourDLayoutInput {
   bottomLift: number;
   /** The compass sits top right: keep the S-curve below it. */
   compass: boolean;
+  /** CSS pixels at the right of the bottom edge to keep free (on-screen controls such as the gizmo); 0 in a video. */
+  reserveRight?: number;
   progressBar: boolean;
 }
 
@@ -327,7 +329,8 @@ export function layoutFourD(ctx: Ctx, inp: FourDLayoutInput): FourDLayout {
     const rowH = compact ? 4 : 7;
     const gs = stripGroups(plan);
     const h = stripHeight(gs.length, plan.milestones.some((m) => m.at >= stripRange(plan)[0] && m.at <= stripRange(plan)[1]), rowH);
-    const rect: Rect = { x: margin, y: bottomEdge - h, w: Math.max(40, W - 2 * margin), h };
+    const reserve = Math.min(Math.max(0, inp.reserveRight ?? 0), W * 0.5);
+    const rect: Rect = { x: margin, y: bottomEdge - h, w: Math.max(40, W - 2 * margin - reserve), h };
     if (gs.length > 0 && rect.y >= topLeftBottom) {
       const lay = stripLayout(plan, rect, v.planMs, { rowH });
       desc.strip = { rect, rows: lay.rows.length, bars: lay.rows.reduce((n, r) => n + r.bars.length, 0), marker: lay.marker.x };

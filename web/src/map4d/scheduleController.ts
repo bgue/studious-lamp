@@ -455,7 +455,7 @@ export class ScheduleController {
     if (!player) return { ok: false, message: 'The score player is not available.' };
     const ok = player.play(score, { ...(from !== undefined ? { from } : {}), onEnd: () => this.emit() });
     this.emit();
-    return ok ? { ok: true, message: this.note || `Playing ${Math.round(this.playDur)} seconds.` } : { ok: false, message: 'The player could not start.' };
+    return ok ? { ok: true, message: `Playing ${Math.round(this.playDur)} seconds.` } : { ok: false, message: 'The player could not start.' };
   }
 
   /**

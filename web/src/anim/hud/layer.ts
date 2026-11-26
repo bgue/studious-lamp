@@ -225,6 +225,7 @@ export class ScoreHudLayer implements HudLayer {
         bottomLift: barLift + (st.scaleBar ? 26 : 0),
         compass: st.compass,
         progressBar: st.progress,
+        reserveRight: frame.recording ? 0 : frame.reserveRight ?? 0,
       });
       desc.fourd = lay.desc;
       occupied.push(...lay.occupied);

@@ -4,7 +4,7 @@ import { buildDemoPlan } from '../src/anim/fourd/demoPlan';
 import type { DemoModel } from '../src/anim/fourd/demoPlan';
 import { legendContent, legendOn, stripOn } from '../src/anim/fourd/legend';
 import { stripGroups, stripLayout, stripHeight, MAX_STRIP_ROWS } from '../src/anim/hud/strip';
-import { captionAt, buildStoryboardPdf, pageLayout, parseEvery, planStoryboard, storyboardDates, winAnsi, PAGE_POINTS } from '../src/schedule/storyboard';
+import { captionAt, buildStoryboardPdf, firstWorkAt, pageLayout, parseEvery, planStoryboard, storyboardDates, winAnsi, PAGE_POINTS } from '../src/schedule/storyboard';
 import type { FourDPlan } from '../src/schedule/types';
 
 const classes = ['IfcSlab', 'IfcWall', 'IfcColumn', 'IfcDuctSegment', 'IfcCovering', 'IfcWindow'];
@@ -97,7 +97,16 @@ describe('schedule strip layout', () => {
 });
 
 describe('storyboard frame dates', () => {
-  const { from, to } = plan.window;
+  // Frames start where the work in the model starts (empty site frames before it are left out), at the latest the window start.
+  const to = plan.window.to;
+  const fw = firstWorkAt(plan);
+  const from = fw !== null && fw > plan.window.from ? fw : plan.window.from;
+  it('starts at the first activity that builds something, not at an empty site', () => {
+    expect(storyboardDates(plan, { kind: 'week' })[0]).toBeGreaterThanOrEqual(plan.window.from);
+    expect(storyboardDates(plan, { kind: 'week' })[0]).toBe(from);
+    const caption = captionAt(plan, plan.window.from - 1);
+    expect(caption.lines[0]).toMatch(/Before the work|Nothing under way|Complete/);
+  });
   it('week: every seven days from the start, ending on the last day', () => {
     const d = storyboardDates(plan, { kind: 'week' });
     expect(d[0]).toBe(from);

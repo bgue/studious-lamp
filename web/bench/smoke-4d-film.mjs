@@ -231,7 +231,13 @@ try {
   const { readFileSync, rmSync } = await import('node:fs');
   const bytes = readFileSync(pdfPath);
   const doc = await pdfLib.PDFDocument.load(bytes);
-  const sb = await page.evaluate(() => { const p = window.__xray4dSchedule.plan(); return { last: window.__xray4dSchedule.lastStoryboard, from: p.window.from, to: p.window.to }; });
+  // Frames start at the first activity that builds something in the model (no empty-site frames), at the latest the window start.
+  const sb = await page.evaluate(() => {
+    const p = window.__xray4dSchedule.plan();
+    const starts = p.tasks.filter((k) => !k.milestone && k.elements > 0).map((k) => k.start);
+    const first = starts.length ? Math.min(...starts) : p.window.from;
+    return { last: window.__xray4dSchedule.lastStoryboard, from: first > p.window.from && first < p.window.to ? first : p.window.from, to: p.window.to };
+  });
   const weeks = Math.floor((sb.to - sb.from) / (7 * 86400000)) + 1 + ((sb.to - sb.from) % (7 * 86400000) > 0 ? 1 : 0);
   console.log(`INFO storyboard ${JSON.stringify(sb.last)} expected weekly frames ${weeks}`);
   check('Storyboard PDF downloads a PDF of one weekly frame per page slot (A4, 3 columns, 6 per page)', String.fromCharCode(...bytes.slice(0, 4)) === '%PDF' && sb.last?.frames === weeks && doc.getPageCount() === Math.ceil(weeks / 6) && sb.last.pages === doc.getPageCount(), JSON.stringify({ pages: doc.getPageCount(), weeks, last: sb.last }));

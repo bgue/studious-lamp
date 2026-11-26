@@ -21,9 +21,19 @@ export function parseEvery(text: string | undefined): Every | null {
   return null;
 }
 
-/** The plan times (ms, increasing, inside the window) of the frames. The first frame is the start of the window, the last its end. */
+/** When the first activity that builds something in the model starts (ms), or null. Earlier frames would show an empty site. */
+export function firstWorkAt(plan: FourDPlan): number | null {
+  let t: number | null = null;
+  for (const k of plan.tasks) if (!k.milestone && k.elements > 0 && (t === null || k.start < t)) t = k.start;
+  return t;
+}
+
+/** The plan times (ms, increasing, inside the window) of the frames. The first frame is the start of the work in the model (the
+ *  start of the window when that is later), the last the end of the window. */
 export function storyboardDates(plan: FourDPlan, every: Every): number[] {
-  const { from, to } = plan.window;
+  const first = firstWorkAt(plan);
+  const to = plan.window.to;
+  const from = first !== null && first > plan.window.from && first < to ? first : plan.window.from;
   const out: number[] = [];
   const clip = (a: number[]): number[] => [...new Set(a.filter((x) => x >= from && x <= to))].sort((a, b) => a - b);
   switch (every.kind) {
@@ -79,7 +89,12 @@ export function captionAt(plan: FourDPlan, ms: number): FrameCaption {
   const running = plan.tasks.filter((k) => !k.milestone && k.start <= ms && ms < k.end && k.elements > 0).sort((a, b) => b.elements - a.elements || a.code.localeCompare(b.code));
   const lines = running.slice(0, CAPTION_ACTIVITIES).map((k) => k.name);
   if (running.length > CAPTION_ACTIVITIES) lines.push(`+${running.length - CAPTION_ACTIVITIES} more`);
-  if (lines.length === 0) lines.push(ms >= plan.window.to ? 'Complete' : 'No work in the model');
+  if (lines.length === 0) {
+    const done = plan.tasks.filter((k) => !k.milestone && k.elements > 0 && k.end <= ms).sort((a, b) => b.end - a.end);
+    if (ms >= plan.window.to) lines.push('Complete');
+    else if (done.length) lines.push(`Nothing under way. Last finished: ${done[0]!.name}`);
+    else lines.push('Before the work in the model');
+  }
   return { date, week: wk.week, weekYear: wk.year, title: `${date}  Week ${wk.week}`, lines };
 }
 

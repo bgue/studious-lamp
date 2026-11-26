@@ -21,6 +21,9 @@ export interface HudFrame {
   project(p: V3): { x: number; y: number } | null;
   /** True while exporting a video (the layer may hide on-screen-only bits such as hints). */
   recording: boolean;
+  /** Additive: CSS pixels at the right of the bottom edge covered by on-screen controls (the gizmo); bottom-anchored HUD bands
+   *  such as the 4D schedule strip stop before it. 0 or absent in a video. */
+  reserveRight?: number;
 }
 
 export interface HudLayer {
