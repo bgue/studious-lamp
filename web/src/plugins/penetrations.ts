@@ -243,7 +243,11 @@ class PenetrationsTool {
       this.selected.clear();
       this.selected.add(r.id);
     }
-    this.app.selectIds([r.mep]);
+    // Every selected row's MEP element is selected in the viewer (a Ctrl+click adds one, not replaces).
+    const meps = new Set<number>();
+    for (const row of this.rows) if (this.selected.has(row.id)) meps.add(row.mep);
+    if (meps.size === 0) meps.add(r.mep);
+    this.app.selectIds([...meps]);
     this.flyTo(r);
     this.pulse = { loc: r.location, until: performance.now() + 1400 };
     this.overlay?.invalidate();

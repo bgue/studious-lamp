@@ -14,6 +14,8 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 - Fixes found by the manual tours: Esc leaves Walk mode when the keyboard focus is on a checkbox, button or slider (only a text
   field keeps the first Esc); a slow slider drag is one undo step for as long as the mouse button is held; the focus run now
   includes the IFC4 terminals at the ends of duct and pipe runs (air, sanitary, waste and fire-suppression terminals).
+- Hiding the selection (`h`) also clears it, as the manual says; Ctrl or Shift+click in the penetrations table now adds the row's
+  element to the viewer selection instead of replacing it.
 
 ## v32 - 2026-11-26
 

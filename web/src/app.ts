@@ -333,8 +333,10 @@ export class ViewerApp {
     this.runSightlinesNow();
   }
 
+  /** Hide the selected elements; hidden elements leave the selection (they cannot be seen or picked). */
   hideSelected(): void {
     this.controller.hideSelected();
+    this.clearSelection();
     this.runSightlinesNow();
   }
 
