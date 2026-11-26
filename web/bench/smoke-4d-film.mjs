@@ -119,6 +119,42 @@ try {
   await page.waitForFunction(() => window.__xray4dSchedule.playing === false);
   check('Stop in the bar stops it', true);
 
+  // temporary works: the sample's scaffold appears before the external walls of each storey, is gone after the facade, and the layer toggles
+  const tw = await page.evaluate(() => { const t = window.__xray4dSchedule.tempWorks(); const plan = window.__xray4dSchedule.plan(); return { visible: t.visible, groups: t.groups.map((g) => ({ id: g.id, kind: g.kind, storey: g.storey, task: g.task, erect: g.erect, strike: g.strike, elements: g.elements })), tl: Object.fromEntries(plan.elements.map((e) => [e.globalId, e.intervals.find((i) => i.state === 'active')?.from ?? null])) }; });
+  const scaf = tw.groups.filter((g) => g.kind === 'scaffold');
+  check('the sample plan has scaffold groups for both storeys, falsework and formwork', scaf.length === 2 && tw.groups.some((g) => g.kind === 'falsework') && tw.groups.some((g) => g.kind === 'formwork'), tw.groups.map((g) => `${g.id}:${g.storey}`).join());
+  const shown = async (at) => { await page.evaluate((t) => window.__xray4dSchedule.seekDate(t), at); await page.waitForTimeout(700); return page.evaluate(() => window.__xray4dSchedule.tempWorks().state); };
+  for (const g of scaf) {
+    const firstWall = Math.min(...g.elements.map((e) => tw.tl[e]));
+    const mid = (g.erect.from + g.erect.to) / 2;
+    const before = (await shown(g.erect.from - 86400000)).find((x) => x.id === g.id);
+    const during = (await shown(mid)).find((x) => x.id === g.id);
+    const up = (await shown(g.erect.to + 3600000)).find((x) => x.id === g.id);
+    check(`${g.id}: no scaffold before it is erected`, before.visible === 0, JSON.stringify(before));
+    check(`${g.id}: scaffold rises while the walls are still to come (${g.storey})`, during.visible > 0 && during.visible < during.pieces && mid < firstWall, JSON.stringify(during));
+    check(`${g.id}: all of it stands before the external walls start`, up.visible === up.pieces && g.erect.to <= firstWall, JSON.stringify(up));
+    const gone = (await shown(g.strike.to + 3600000)).find((x) => x.id === g.id);
+    check(`${g.id}: gone after the facade activity is struck`, gone.visible === 0 && gone.phase === 'gone', JSON.stringify(gone));
+  }
+  const lastFacade = await page.evaluate(() => window.__xray4dSchedule.plan().tasks.find((t) => t.code === 'A1440').end);
+  check('the scaffold stays until the facade (A1440) is done', scaf.every((g) => g.strike.from >= lastFacade), String(lastFacade));
+  await shown(scaf[0].erect.to + 3600000);
+  await page.evaluate(() => window.__xray4dSchedule.tempWorks({ visible: false }));
+  const hidden = await page.evaluate(() => { const o = window.__xray.app.renderer.scene.getObjectByName('temporary-works'); return { found: !!o, visible: o?.visible, layer: window.__xray4dSchedule.tempWorks().visible }; });
+  check('toggling the layer hides the temporary works', hidden.found && hidden.visible === false && hidden.layer === false, JSON.stringify(hidden));
+  await page.evaluate(() => window.__xray4dSchedule.tempWorks({ visible: true }));
+  const back = await page.evaluate(() => window.__xray.app.renderer.scene.getObjectByName('temporary-works')?.visible);
+  check('and the toggle brings them back', back === true);
+  if (process.env.TEMPWORKS_SHOT) {
+    await page.evaluate((t) => window.__xray4dSchedule.seekDate(t), scaf[1].erect.to + 86400000);
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: process.env.TEMPWORKS_SHOT });
+  }
+  await page.evaluate(() => window.__xray4dSchedule.stop());
+  await page.waitForFunction(() => window.__xray4dSchedule.playing === false);
+  const afterStop = await page.evaluate(() => !!window.__xray.app.renderer.scene.getObjectByName('temporary-works')?.parent);
+  check('after Stop the layer is out of the scene', afterStop === false);
+
   // issue pins and drawings: hidden while the film plays, back after Stop; the style setting keeps them
   await addIssueAndDrawing(page);
   await page.waitForFunction(() => document.querySelector('svg.xray-svg-overlay g[data-layer="bcf-markup"]')?.childElementCount > 0 && document.querySelector('svg.xray-svg-overlay g[data-layer="markup"]')?.childElementCount > 0, null, { timeout: 60000 });

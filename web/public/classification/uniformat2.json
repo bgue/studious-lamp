@@ -1,0 +1,932 @@
+{
+ "schema": "xray-uniformat2/1",
+ "title": "UniFormat II (ASTM E1557) levels 1-3",
+ "note": "Edit the rules to suit your standards. The first rule whose conditions all hold gives the element's code. A condition lists the values that match: class by prefix (IfcWall matches IfcWallStandardCase), the others by code. When no rule matches, the phase fallback gives a level 1 or 2 code.",
+ "levels": [
+  {
+   "code": "A",
+   "title": "Substructure",
+   "children": [
+    {
+     "code": "A10",
+     "title": "Foundations",
+     "children": [
+      {
+       "code": "A1010",
+       "title": "Standard Foundations"
+      },
+      {
+       "code": "A1020",
+       "title": "Special Foundations"
+      },
+      {
+       "code": "A1030",
+       "title": "Slab on Grade"
+      }
+     ]
+    },
+    {
+     "code": "A20",
+     "title": "Basement Construction",
+     "children": [
+      {
+       "code": "A2010",
+       "title": "Basement Excavation"
+      },
+      {
+       "code": "A2020",
+       "title": "Basement Walls"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "B",
+   "title": "Shell",
+   "children": [
+    {
+     "code": "B10",
+     "title": "Superstructure",
+     "children": [
+      {
+       "code": "B1010",
+       "title": "Floor Construction"
+      },
+      {
+       "code": "B1020",
+       "title": "Roof Construction"
+      }
+     ]
+    },
+    {
+     "code": "B20",
+     "title": "Exterior Enclosure",
+     "children": [
+      {
+       "code": "B2010",
+       "title": "Exterior Walls"
+      },
+      {
+       "code": "B2020",
+       "title": "Exterior Windows"
+      },
+      {
+       "code": "B2030",
+       "title": "Exterior Doors"
+      },
+      {
+       "code": "B2040",
+       "title": "Exterior Louvers, Screens, and Fencing"
+      }
+     ]
+    },
+    {
+     "code": "B30",
+     "title": "Roofing",
+     "children": [
+      {
+       "code": "B3010",
+       "title": "Roof Coverings"
+      },
+      {
+       "code": "B3020",
+       "title": "Roof Openings"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "C",
+   "title": "Interiors",
+   "children": [
+    {
+     "code": "C10",
+     "title": "Interior Construction",
+     "children": [
+      {
+       "code": "C1010",
+       "title": "Partitions"
+      },
+      {
+       "code": "C1020",
+       "title": "Interior Doors"
+      },
+      {
+       "code": "C1030",
+       "title": "Fittings"
+      }
+     ]
+    },
+    {
+     "code": "C20",
+     "title": "Stairs",
+     "children": [
+      {
+       "code": "C2010",
+       "title": "Stair Construction"
+      },
+      {
+       "code": "C2020",
+       "title": "Stair Finishes"
+      }
+     ]
+    },
+    {
+     "code": "C30",
+     "title": "Interior Finishes",
+     "children": [
+      {
+       "code": "C3010",
+       "title": "Wall Finishes"
+      },
+      {
+       "code": "C3020",
+       "title": "Floor Finishes"
+      },
+      {
+       "code": "C3030",
+       "title": "Ceiling Finishes"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "D",
+   "title": "Services",
+   "children": [
+    {
+     "code": "D10",
+     "title": "Conveying",
+     "children": [
+      {
+       "code": "D1010",
+       "title": "Elevators and Lifts"
+      },
+      {
+       "code": "D1020",
+       "title": "Escalators and Moving Walks"
+      },
+      {
+       "code": "D1090",
+       "title": "Other Conveying Systems"
+      }
+     ]
+    },
+    {
+     "code": "D20",
+     "title": "Plumbing",
+     "children": [
+      {
+       "code": "D2010",
+       "title": "Plumbing Fixtures"
+      },
+      {
+       "code": "D2020",
+       "title": "Domestic Water Distribution"
+      },
+      {
+       "code": "D2030",
+       "title": "Sanitary Waste"
+      },
+      {
+       "code": "D2040",
+       "title": "Rain Water Drainage"
+      },
+      {
+       "code": "D2090",
+       "title": "Other Plumbing Systems"
+      }
+     ]
+    },
+    {
+     "code": "D30",
+     "title": "HVAC",
+     "children": [
+      {
+       "code": "D3010",
+       "title": "Energy Supply"
+      },
+      {
+       "code": "D3020",
+       "title": "Heat Generating Systems"
+      },
+      {
+       "code": "D3030",
+       "title": "Cooling Generating Systems"
+      },
+      {
+       "code": "D3040",
+       "title": "Distribution Systems"
+      },
+      {
+       "code": "D3050",
+       "title": "Terminal and Package Units"
+      },
+      {
+       "code": "D3060",
+       "title": "Controls and Instrumentation"
+      },
+      {
+       "code": "D3070",
+       "title": "Systems Testing and Balancing"
+      },
+      {
+       "code": "D3090",
+       "title": "Other HVAC Systems and Equipment"
+      }
+     ]
+    },
+    {
+     "code": "D40",
+     "title": "Fire Protection",
+     "children": [
+      {
+       "code": "D4010",
+       "title": "Sprinklers"
+      },
+      {
+       "code": "D4020",
+       "title": "Standpipes"
+      },
+      {
+       "code": "D4030",
+       "title": "Fire Protection Specialties"
+      },
+      {
+       "code": "D4090",
+       "title": "Other Fire Protection Systems"
+      }
+     ]
+    },
+    {
+     "code": "D50",
+     "title": "Electrical",
+     "children": [
+      {
+       "code": "D5010",
+       "title": "Electrical Service and Distribution"
+      },
+      {
+       "code": "D5020",
+       "title": "Lighting and Branch Wiring"
+      },
+      {
+       "code": "D5030",
+       "title": "Communications and Security"
+      },
+      {
+       "code": "D5090",
+       "title": "Other Electrical Systems"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "E",
+   "title": "Equipment & Furnishings",
+   "children": [
+    {
+     "code": "E10",
+     "title": "Equipment",
+     "children": [
+      {
+       "code": "E1010",
+       "title": "Commercial Equipment"
+      },
+      {
+       "code": "E1020",
+       "title": "Institutional Equipment"
+      },
+      {
+       "code": "E1030",
+       "title": "Vehicular Equipment"
+      },
+      {
+       "code": "E1090",
+       "title": "Other Equipment"
+      }
+     ]
+    },
+    {
+     "code": "E20",
+     "title": "Furnishings",
+     "children": [
+      {
+       "code": "E2010",
+       "title": "Fixed Furnishings"
+      },
+      {
+       "code": "E2020",
+       "title": "Moveable Furnishings"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "F",
+   "title": "Special Construction & Demolition",
+   "children": [
+    {
+     "code": "F10",
+     "title": "Special Construction",
+     "children": [
+      {
+       "code": "F1010",
+       "title": "Special Structures"
+      },
+      {
+       "code": "F1020",
+       "title": "Integrated Construction"
+      },
+      {
+       "code": "F1030",
+       "title": "Special Construction Systems"
+      },
+      {
+       "code": "F1040",
+       "title": "Special Facilities"
+      },
+      {
+       "code": "F1050",
+       "title": "Special Controls and Instrumentation"
+      }
+     ]
+    },
+    {
+     "code": "F20",
+     "title": "Selective Demolition",
+     "children": [
+      {
+       "code": "F2010",
+       "title": "Building Elements Demolition"
+      },
+      {
+       "code": "F2020",
+       "title": "Hazardous Components Abatement"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "G",
+   "title": "Building Sitework",
+   "children": [
+    {
+     "code": "G10",
+     "title": "Site Preparation",
+     "children": [
+      {
+       "code": "G1010",
+       "title": "Site Clearing"
+      },
+      {
+       "code": "G1020",
+       "title": "Site Demolition and Relocations"
+      },
+      {
+       "code": "G1030",
+       "title": "Site Earthwork"
+      },
+      {
+       "code": "G1040",
+       "title": "Hazardous Waste Remediation"
+      }
+     ]
+    },
+    {
+     "code": "G20",
+     "title": "Site Improvements",
+     "children": [
+      {
+       "code": "G2010",
+       "title": "Roadways"
+      },
+      {
+       "code": "G2020",
+       "title": "Parking Lots"
+      },
+      {
+       "code": "G2030",
+       "title": "Pedestrian Paving"
+      },
+      {
+       "code": "G2040",
+       "title": "Site Development"
+      },
+      {
+       "code": "G2050",
+       "title": "Landscaping"
+      }
+     ]
+    },
+    {
+     "code": "G30",
+     "title": "Site Civil/Mechanical Utilities",
+     "children": [
+      {
+       "code": "G3010",
+       "title": "Water Utilities"
+      },
+      {
+       "code": "G3020",
+       "title": "Sanitary Sewer Utilities"
+      },
+      {
+       "code": "G3030",
+       "title": "Storm Sewer Utilities"
+      },
+      {
+       "code": "G3040",
+       "title": "Heating Distribution"
+      },
+      {
+       "code": "G3050",
+       "title": "Cooling Distribution"
+      },
+      {
+       "code": "G3060",
+       "title": "Fuel Distribution"
+      },
+      {
+       "code": "G3090",
+       "title": "Other Site Mechanical Utilities"
+      }
+     ]
+    },
+    {
+     "code": "G40",
+     "title": "Site Electrical Utilities",
+     "children": [
+      {
+       "code": "G4010",
+       "title": "Electrical Distribution"
+      },
+      {
+       "code": "G4020",
+       "title": "Site Lighting"
+      },
+      {
+       "code": "G4030",
+       "title": "Site Communications and Security"
+      },
+      {
+       "code": "G4090",
+       "title": "Other Site Electrical Utilities"
+      }
+     ]
+    },
+    {
+     "code": "G90",
+     "title": "Other Site Construction",
+     "children": [
+      {
+       "code": "G9010",
+       "title": "Service and Pedestrian Tunnels"
+      },
+      {
+       "code": "G9090",
+       "title": "Other Site Systems and Equipment"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "rules": [
+  {
+   "when": {
+    "class": [
+     "IfcFooting"
+    ]
+   },
+   "code": "A1010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcPile"
+    ]
+   },
+   "code": "A1020"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcSlab"
+    ],
+    "phase": [
+     "SUBSTR"
+    ]
+   },
+   "code": "A1030"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcWall"
+    ],
+    "phase": [
+     "SUBSTR"
+    ]
+   },
+   "code": "A2020"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcBeam",
+     "IfcColumn",
+     "IfcMember"
+    ],
+    "phase": [
+     "SUBSTR"
+    ]
+   },
+   "code": "A1010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcRoof"
+    ]
+   },
+   "code": "B3010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcSlab",
+     "IfcCovering",
+     "IfcPlate"
+    ],
+    "trade": [
+     "ROOF"
+    ]
+   },
+   "code": "B3010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcSlab"
+    ]
+   },
+   "code": "B1010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcCurtainWall"
+    ]
+   },
+   "code": "B2010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcWall"
+    ],
+    "placement": [
+     "EXT",
+     "BOUNDARY"
+    ]
+   },
+   "code": "B2010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcWall"
+    ],
+    "trade": [
+     "FACADE"
+    ]
+   },
+   "code": "B2010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcWall"
+    ]
+   },
+   "code": "C1010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcWindow"
+    ],
+    "placement": [
+     "INT"
+    ]
+   },
+   "code": "C1010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcWindow"
+    ]
+   },
+   "code": "B2020"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcDoor"
+    ],
+    "placement": [
+     "EXT",
+     "BOUNDARY"
+    ]
+   },
+   "code": "B2030"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcDoor"
+    ]
+   },
+   "code": "C1020"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcBeam",
+     "IfcColumn"
+    ]
+   },
+   "code": "B1010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcMember"
+    ],
+    "placement": [
+     "EXT",
+     "BOUNDARY"
+    ]
+   },
+   "code": "B1020"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcMember"
+    ],
+    "phase": [
+     "FRAME"
+    ]
+   },
+   "code": "B1010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcRailing"
+    ],
+    "placement": [
+     "EXT",
+     "BOUNDARY"
+    ]
+   },
+   "code": "B2040"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcStair",
+     "IfcRamp",
+     "IfcRailing"
+    ]
+   },
+   "code": "C2010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcCovering"
+    ]
+   },
+   "code": "C30"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcFurnishingElement",
+     "IfcFurniture"
+    ]
+   },
+   "code": "E2010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcTransportElement"
+    ]
+   },
+   "code": "D1010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcBoiler"
+    ]
+   },
+   "code": "D3020"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcChiller"
+    ]
+   },
+   "code": "D3030"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcAirTerminal",
+     "IfcUnitaryEquipment"
+    ]
+   },
+   "code": "D3050"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcFireSuppressionTerminal"
+    ]
+   },
+   "code": "D4010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcSanitaryTerminal"
+    ]
+   },
+   "code": "D2010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcPipeSegment",
+     "IfcPipeFitting",
+     "IfcValve",
+     "IfcTank"
+    ],
+    "discipline": [
+     "FPR"
+    ]
+   },
+   "code": "D4010"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcPipeSegment",
+     "IfcPipeFitting",
+     "IfcValve",
+     "IfcTank",
+     "IfcPump"
+    ],
+    "discipline": [
+     "PLB"
+    ]
+   },
+   "code": "D2020"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcDuctSegment",
+     "IfcDuctFitting",
+     "IfcPipeSegment",
+     "IfcPipeFitting",
+     "IfcValve",
+     "IfcFan",
+     "IfcPump",
+     "IfcDamper"
+    ]
+   },
+   "code": "D3040"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcLightFixture",
+     "IfcOutlet",
+     "IfcSwitchingDevice"
+    ]
+   },
+   "code": "D5020"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcCommunicationsAppliance",
+     "IfcAlarm",
+     "IfcSensor"
+    ]
+   },
+   "code": "D5030"
+  },
+  {
+   "when": {
+    "class": [
+     "IfcCableCarrierSegment",
+     "IfcCableCarrierFitting",
+     "IfcCableSegment",
+     "IfcCableFitting",
+     "IfcElectricDistributionBoard",
+     "IfcTransformer",
+     "IfcElectricAppliance",
+     "IfcElectricGenerator"
+    ]
+   },
+   "code": "D5010"
+  },
+  {
+   "when": {
+    "trade": [
+     "EARTH"
+    ]
+   },
+   "code": "G1030"
+  },
+  {
+   "when": {
+    "trade": [
+     "SITE"
+    ]
+   },
+   "code": "G20"
+  },
+  {
+   "when": {
+    "discipline": [
+     "MEC"
+    ]
+   },
+   "code": "D30"
+  },
+  {
+   "when": {
+    "discipline": [
+     "PLB"
+    ]
+   },
+   "code": "D20"
+  },
+  {
+   "when": {
+    "discipline": [
+     "FPR"
+    ]
+   },
+   "code": "D40"
+  },
+  {
+   "when": {
+    "discipline": [
+     "TEL"
+    ]
+   },
+   "code": "D5030"
+  },
+  {
+   "when": {
+    "discipline": [
+     "ELE"
+    ]
+   },
+   "code": "D50"
+  },
+  {
+   "when": {
+    "discipline": [
+     "CIV"
+    ]
+   },
+   "code": "G"
+  }
+ ],
+ "fallbacks": {
+  "SUBSTR": "A10",
+  "FRAME": "B10",
+  "ENVELOPE": "B20",
+  "SERVICES": "D",
+  "FITOUT": "C",
+  "EXTERNAL": "G"
+ }
+}

@@ -73,7 +73,7 @@ describe('the three steps', () => {
     expect(stepStates({ ...base, hasSchedule: true, hasLinks: true, acceptedLinks: 3 })[1]!.kind).toBe('done');
   });
   it('puts every section in a step', () => {
-    expect(Object.keys(STEP_OF_SECTION).sort()).toEqual(['assign', 'configure', 'coverage', 'io', 'link', 'play', 'schedule', 'style', 'suggest', 'values']);
+    expect(Object.keys(STEP_OF_SECTION).sort()).toEqual(['assign', 'configure', 'coverage', 'io', 'link', 'play', 'schedule', 'style', 'suggest', 'tempworks', 'values']);
     expect(STEP_OF_SECTION.play).toBe('film');
   });
 });

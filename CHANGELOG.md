@@ -10,6 +10,25 @@ What changed in the X-ray viewer, newest first. One section per release; the num
   the video and the packed page, and each has a switch in the Film step and an `xray-4d --legend` / `--strip` option.
 - The Film step has "Storyboard PDF": still frames of the film at weekly dates on landscape pages, each with its date, week and the
   work going on, and the legend on every page. `xray-4d storyboard` makes the same PDF from the command line.
+
+## v32 - 2026-11-26
+
+- Animation script: decisions and loops (`if ... then ... else`, `repeat while`, `repeat until`, `repeat with i from 1 to 10`),
+  your own commands and functions (`on name ... end name`, `function name ... return ... end name`), conditions such as
+  `there are class IfcDoor` and `the count of ...`, and the statements `show issues`, `hide drawings`,
+  `fade new elements over 0.8 seconds`.
+- Save IFC can write the classification facets: tick "Include classification facets" and every classified element gets its XR_Trade, XR_Placement, XR_Material, XR_Phase, XR_Orientation and XR_ClassRepair property sets in the saved file.
+- The Model tab has a switch **Model tree** | **By classification**: the elements grouped by 1 to 4 levels of Phase, Discipline, Trade, Placement, Material, Orientation, Storey or IFC class, with counts, an amber needs-review share, eye toggles and **+set** on each row. Presets: Construction, Ownership, Envelope and Standard (UniFormat II, A > A10 > A1010, mapping in `classification/uniformat2.json`).
+- Classify has **Colour by** (Discipline or any facet) with a legend whose rows isolate or hide a value, and **Confidence shading** that washes out the elements that need review.
+- Every row of the classification tree and of the legend can be saved as a criteria set, for example `XR_Trade.Code = 'CONC' and XR_Phase.Code = 'FRAME'`.
+
+- Concrete classification, steps 1 and 2: concrete elements get `XR_ConcreteGeometry` (measured volume, formwork, top and soffit area, local frame,
+  length, width, thickness, section shape, named faces with contacts, supports), `XR_ConcreteElement` (structural role and a stable mark, pour
+  group), `XR_ConcreteMethod`, `XR_ConcreteSpec` (strength class EN and ACI, exposure suggested for review, cover from `concrete-cover.json`) and
+  `XR_ConcreteReinforcement` (type, scheme, ratio estimate). See classify.md, "Concrete".
+- Queries: `contains` (`where XR_ConcreteSpec.ExposureClass contains 'XD'`) and the bare names `ConcreteElement`, `ConcreteMethod`.
+- The 4D director has "Camera per floor" (Style): pick a saved view for a floor and the camera flies to it while the work lies on that floor (CLI: `xray-4d plan --zone-camera "Erdgeschoss=EG south"`).
+- The 4D film has a "Finale" (Style): a slow dolly-in and a 90 degree orbit after the last work, with a "Complete" caption; the FZK-Haus sample uses it.
 - Issue pins and drawings are hidden while a fly-through, script or 4D film plays or is recorded, and come back exactly as they were
   when it stops.
 - The 4D tab has "Issues and drawings in the film" (Style) and fly-throughs have "Issues and drawings": tick them to keep the pins
@@ -19,6 +38,19 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 - The 4D director has "Each floor apart": the storeys move apart around the floor being built, that floor is in x-ray focus and
   named, and they close again before the work moves on.
 - The FZK-Haus 4D sample shows its ground floor and roof storey built apart.
+- Animation script: element properties in expressions (`the name of it`, `the storey of it`, `property "Pset_WallCommon.FireRating" of it`, `the names of class IfcWall`); text tests (`contains`, `is in`, `begins with`, `ends with`) and `&&`; lists and chunks (`item 2 of x`, `the number of words in x`, `sort items of x`, `repeat for each item v in x`); `exit repeat`, `next repeat`, `exit <handler>`; maths (`round`, `trunc`, `abs`, `min`, `max`, `sqrt`, `mod`, `div`, `^`, `pi`) and a seeded `random(n)` so the same script gives the same film.
+- Animation script: `param name default value` declares a value shown in a Parameters form above Run in the Script tab (also `xray-4d render --param`, `xray-pack --script-param`, `window.__xrayScript.compile(text, { params })`), and `use "Name"` pulls in the handlers and functions of another saved script (`--use-dir` on the command line). Two new examples: "Label the fire-rated walls" and "One script, any floor". The ifc-4d-schedule skill checker takes `--param` and resolves `use` next to the script; `anim_write.py --as-param`.
+- The 4D film builds temporary works: scaffold along the outer walls, falsework under slabs and formwork on concrete, from rules in
+  the 4D configuration (`temporaryWorks`, edited in the Film step under "Temporary works"). They go up before the work they serve and
+  come down after it, have their own layer and toggle, and are not part of the IFC model. `xray-4d plan` reads the rules
+  (`--no-temporary-works` leaves them out). The FZK-Haus 4D sample has scaffold, props and formwork.
+- Classification facets: besides the discipline, each element can now get a Trade (who builds it), a Placement (outside, inside or
+  on the envelope, and load-bearing or not), a Material, a Phase (when it is built), an Orientation (measured from its shape: wall
+  lying flat, door upside down, column on its side are flagged) and, for generic elements, a suggested better IFC class.
+- The Classification tab has a Facets folder with a switch for each facet and the facet values of the selected element, which you can
+  set by hand.
+- The facets are written as properties named XR_Trade, XR_Placement and so on, so searches such as `count where Trade = 'CONC'` work;
+  the CSV and JSON exports include them.
 
 ## v31 - 2026-11-26
 

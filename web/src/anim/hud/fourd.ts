@@ -9,7 +9,7 @@ import { legendContent, legendOn, stripOn } from '../fourd/legend';
 import type { LegendContent } from '../fourd/legend';
 import type { FourDPlan } from '../../schedule/types';
 import { layoutLegend } from './legend';
-import { paintStrip, stripGroups, stripHeight, stripLayout } from './strip';
+import { paintStrip, stripGroups, stripHeight, stripLayout, stripRange } from './strip';
 import { isoDate } from '../fourd/live';
 import type { Rect } from './place';
 import type { HudSettings } from './settings';
@@ -326,13 +326,13 @@ export function layoutFourD(ctx: Ctx, inp: FourDLayoutInput): FourDLayout {
   if (plan && stripOn(plan)) {
     const rowH = compact ? 4 : 7;
     const gs = stripGroups(plan);
-    const h = stripHeight(gs.length, plan.milestones.some((m) => m.at >= plan.window.from && m.at <= plan.window.to), rowH);
+    const h = stripHeight(gs.length, plan.milestones.some((m) => m.at >= stripRange(plan)[0] && m.at <= stripRange(plan)[1]), rowH);
     const rect: Rect = { x: margin, y: bottomEdge - h, w: Math.max(40, W - 2 * margin), h };
     if (gs.length > 0 && rect.y >= topLeftBottom) {
       const lay = stripLayout(plan, rect, v.planMs, { rowH });
       desc.strip = { rect, rows: lay.rows.length, bars: lay.rows.reduce((n, r) => n + r.bars.length, 0), marker: lay.marker.x };
       occupied.push({ x: rect.x - 4, y: rect.y - 2, w: rect.w + 8, h: rect.h + 4 });
-      paint.push(() => paintStrip(ctx, lay, { from: isoDate(plan.window.from), to: isoDate(plan.window.to), now: v.date }));
+      paint.push(() => paintStrip(ctx, lay, { from: isoDate(lay.from), to: isoDate(lay.to), now: v.date }));
       legendBottom = rect.y - 8;
     }
   }

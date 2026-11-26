@@ -30,12 +30,12 @@ describe('legend content', () => {
     expect(labels).not.toContain('Removed');
   });
 
-  it('adds Planned for a ghost view, Removed and Existing when the plan has them, temporary works when it carries colours', () => {
+  it('adds Planned for a ghost view, Removed and Existing when the plan has them, and the kinds of temporary works', () => {
     const p: FourDPlan = JSON.parse(JSON.stringify(plan));
     p.style.unbuilt = 'ghost';
     p.elements[0]!.intervals.push({ from: 0, to: 1, state: 'removed', task: 'x' });
     p.elements[1]!.intervals.unshift({ from: 0, to: 1, state: 'existing', task: 'x' });
-    (p as unknown as { temporary: unknown }).temporary = [{ colour: '#aa5500', label: 'Scaffold' }];
+    p.temporaryWorks = { version: 1, groups: [{ id: 'g', rule: 'tw1', kind: 'scaffold', label: 'Scaffold', elements: [], erect: { from: 0, to: 1 }, strike: { from: 2, to: 3 }, size: { offset: 0, width: 0, lift: 0, bay: 0, above: 0, spacing: 0, thickness: 0 } }] };
     const labels = legendContent(p).states.map((s) => s.label);
     expect(labels).toEqual(expect.arrayContaining(['Planned', 'Removed', 'Existing', 'Scaffold']));
   });
@@ -71,11 +71,13 @@ describe('schedule strip layout', () => {
   });
 
   it('puts the marker at the date and highlights the running bars', () => {
-    const { from, to } = plan.window;
+    const from = plan.window.from;
+    const to = Math.min(plan.window.to, Math.max(...plan.tasks.map((k) => k.end), ...plan.milestones.map((m) => m.at)));
     expect(stripLayout(plan, rect, from).marker.x).toBeCloseTo(rect.x, 6);
     expect(stripLayout(plan, rect, to).marker.x).toBeCloseTo(rect.x + rect.w, 6);
     const mid = from + (to - from) / 2;
     expect(stripLayout(plan, rect, mid).marker.x).toBeCloseTo(rect.x + rect.w / 2, 6);
+    expect(stripLayout(plan, rect, to + 99 * DAY).marker.x).toBeCloseTo(rect.x + rect.w, 6);
     const l = stripLayout(plan, rect, mid);
     const running = plan.tasks.filter((k) => !k.milestone && k.start <= mid && mid < k.end).length;
     expect(l.rows.flatMap((r) => r.bars).filter((b) => b.active)).toHaveLength(running);

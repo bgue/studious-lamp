@@ -7,6 +7,8 @@ export interface ScriptExample {
   /** One line for the menu. */
   about: string;
   text: string;
+  /** A saved script the example `use`s: loading the example saves it under this name when there is none yet. */
+  library?: { name: string; text: string };
 }
 
 export const EXAMPLES: readonly ScriptExample[] = [
@@ -156,5 +158,59 @@ at date "2027-03-01"
   section box off over 1 seconds
   tint critical red fading over 1 seconds
 `,
+  },
+  {
+    id: 'firewalls',
+    title: 'Label the fire-rated walls',
+    about: 'Read a property of each wall, keep the ones whose rating contains a text, label them one by one.',
+    text: `-- Label the fire-rated walls. Try it on a model whose walls have Pset_WallCommon.FireRating (for example "EI 60").
+mode ghost
+put 0 into found
+repeat for each element in class IfcWall
+  put property "Pset_WallCommon.FireRating" of it into rating
+  if rating contains "60" or rating contains "90" then
+    put found + 1 into found
+    together
+      fly to it over 1.5 seconds margin 3
+      label it with name, "Pset_WallCommon.FireRating" for 2 seconds
+      caption the name of it && "is rated" && rating for 2 seconds
+    end together
+  end if
+  if found = 8 then exit repeat
+end repeat
+if found = 0 then
+  caption "No wall has a 60 or 90 minute rating" for 3 seconds
+else
+  caption found & " fire-rated walls shown" for 3 seconds
+end if
+`,
+  },
+  {
+    id: 'anyfloor',
+    title: 'One script, any floor',
+    about: 'A parameter picks the floor (change it in the Parameters form); the handlers come from the saved script "Floor helpers".',
+    text: `-- One script, any floor. Change the floor in the Parameters form above Run.
+-- The handlers live in the saved script "Floor helpers" (this example saves it for you).
+use "Floor helpers"
+param floor default "Level 1"
+param pause default 3
+mode ghost
+fly to where storey = floor over 3 seconds
+showFloor floor
+caption floorLabel(floor) for pause seconds
+`,
+    library: {
+      name: 'Floor helpers',
+      text: `-- Floor helpers: handlers and functions that other scripts pull in with: use "Floor helpers"
+on showFloor name
+  show where storey = name fading over 1 seconds
+  select where storey = name
+end showFloor
+
+function floorLabel name
+  return name & " (" & the count of (where storey = name) & " elements)"
+end floorLabel
+`,
+    },
   },
 ];

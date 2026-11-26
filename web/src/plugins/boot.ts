@@ -38,18 +38,29 @@ interface ScriptApiLike {
   list(): Array<{ name: string }>;
   save(name: string, text: string): boolean;
   load(name: string): string | null;
-  compile(text: string): { score: import('../anim/score').Score | null };
+  compile(text: string, opts?: { params?: Record<string, string>; libraries?: Record<string, string> }): { score: import('../anim/score').Score | null; errors?: Array<{ severity: string; line: number; message: string }> };
 }
 /** The film score of a registered 4D plan, with the cues of a script text when it compiles; null when the plan is unknown. */
-export function filmScore(name: string, scriptText?: string | null, loop = false): { score: Score | null; warning?: string } {
+export function filmScore(
+  name: string,
+  scriptText?: string | null,
+  loop = false,
+  /** Values for the script's `param` lines and extra libraries for its `use` lines (name -> text). */
+  opts?: { params?: Record<string, string>; libraries?: Record<string, string> },
+): { score: Score | null; warning?: string } {
   const plan = getPlan(name);
   if (!plan) return { score: null, warning: `4D plan "${name}" is not registered` };
   let script: Score | null = null;
   let warning: string | undefined;
   if (scriptText) {
-    const c = animWin().__xrayScript?.compile(scriptText);
+    const c = animWin().__xrayScript?.compile(scriptText, opts);
     if (c?.score) script = c.score;
-    else warning = 'the script has errors or the script runtime is not available: the plan plays without it';
+    else {
+      const first = c?.errors?.find((e) => e.severity === 'error');
+      warning = `the script has errors or the script runtime is not available: the plan plays without it${first ? ` (line ${first.line}: ${first.message})` : ''}`;
+    }
+    const odd = (c?.errors ?? []).filter((e) => e.severity === 'warning' && /parameter/i.test(e.message));
+    if (odd.length) warning = [warning, ...odd.map((e) => e.message)].filter(Boolean).join('; ');
   }
   return { score: planFilm(plan, name, script, loop), ...(warning ? { warning } : {}) };
 }
@@ -99,7 +110,7 @@ export function applyBootAnimation(boot: XrayBoot): (() => boolean) | null {
     const name = ap.plan;
     const scriptText = typeof ap.script === 'string' ? boot.scripts?.find((x) => x.name.toLowerCase() === ap.script!.toLowerCase())?.text ?? null : null;
     return () => {
-      const f = filmScore(name, scriptText, loop);
+      const f = filmScore(name, scriptText, loop, boot.scriptParams ? { params: boot.scriptParams } : undefined);
       if (f.warning) warn(`autoplay: ${f.warning}`);
       const ok = !!f.score && getScorePlayer()?.play(f.score) === true;
       if (!ok) warn(`autoplay: 4D plan "${name}" could not start`);
@@ -118,7 +129,9 @@ export function applyBootAnimation(boot: XrayBoot): (() => boolean) | null {
     const name = ap.script;
     return () => {
       const text = animWin().__xrayScript?.load(name) ?? boot.scripts?.find((x) => x.name.toLowerCase() === name.toLowerCase())?.text ?? null;
-      const score = text ? animWin().__xrayScript?.compile(text).score : null;
+      const c = text ? animWin().__xrayScript?.compile(text, boot.scriptParams ? { params: boot.scriptParams } : undefined) : null;
+      for (const e of c?.errors ?? []) if (e.severity === 'warning' && /parameter/i.test(e.message)) warn(`autoplay: ${e.message}`);
+      const score = c?.score ?? null;
       const ok = !!score && getScorePlayer()?.play({ ...score, loop: loop || score.loop === true }) === true;
       if (!ok) warn(`autoplay: script "${name}" not found or it has errors`);
       return ok;

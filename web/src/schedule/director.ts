@@ -64,6 +64,8 @@ export interface DirectorResult {
   notes: string[];
   /** Video second (in the film, absolute) of each note, for placing the lines in a script. */
   noteTimes: number[];
+  /** Film length in seconds from `start`, with the finale (absent: no finale, the film ends where the plan does). */
+  duration?: number;
 }
 
 interface Profile {
@@ -92,6 +94,14 @@ const FLOOR_HOLD_MIN_S = 4;
 const FLOOR_GAP_S = 6;
 const FLOOR_REST_S = 1;
 const FLOOR_CAPTION_S = 4;
+const DOLLY_S = 6;
+const FINALE_ORBIT_S = 8;
+const FINALE_ORBIT_DEG = 90;
+const DOLLY_MARGIN = 1.08;
+/** Seconds the finale adds after the last work (the collapse of a building still apart not counted). */
+export function finaleSeconds(finale: 'none' | 'dolly' | 'orbit' | undefined): number {
+  return finale === 'dolly' ? DOLLY_S + FINALE_ORBIT_S : finale === 'orbit' ? FINALE_ORBIT_S : 0;
+}
 const BEAT = { explode: 0, wide: 2, orbit: 5, orbitS: 4.5, collapse: 9.6, end: 11.6 };
 
 const r3 = (n: number): number => Math.round(n * 1000) / 1000;
@@ -613,12 +623,15 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
     note(0, `opening wide shot of the whole model (${r3(openDur)} s)`);
     const appliedBeats = new Set<number>();
     let shots = 0;
+    const zoneCams = style.zoneCameras ?? {};
+    let curView: string | undefined;
     for (let i = 1; i < samples.length; i++) {
       const tau = samples[i]!.t;
       beats.forEach((b, bi) => {
         if (!appliedBeats.has(bi) && tau >= b.t + BEAT.end) {
           appliedBeats.add(bi);
           cur = { start: b.t + BEAT.orbit, type: 'wide', c: wide.c, size: modelDiag };
+          curView = undefined;
           camCues.push([b.t + BEAT.wide, b.t + BEAT.orbit + BEAT.orbitS]);
         }
       });
@@ -644,15 +657,27 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
       if (!(kick || type !== cur.type || moved || rescaled)) continue;
       const d = r3(Math.min(3.2 * prof.moveScale, Math.max(2 * prof.moveScale, (1.8 + 0.7 * Math.log2(1 + dist3(want.c, cur.c) / Math.max(want.size, 4))) * prof.moveScale)));
       if (blocked.some(([b0, b1]) => overlaps(tau, tau + d, b0, b1))) continue;
+      // a saved view for the storey when all the work in view lies on one storey that has a camera
+      let zone: { storey: string; view: string } | undefined;
+      if (type !== 'wide') {
+        const on = new Set(samples[i]!.win.map((k) => gs[k]!.storey));
+        const si = on.size === 1 ? [...on][0]! : -1;
+        const view = si >= 0 ? zoneCams[storeyNames[si]!] : undefined;
+        if (view) zone = { storey: storeyNames[si]!, view };
+      }
+      if (zone && curView === zone.view && !kick) continue;
       const frame = type === 'wide' ? { all: true as const } : { globalIds: reg.ids };
-      add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { frame, margin: MARGIN[type] } }, tau, d);
+      if (zone) add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { view: zone.view } }, tau, d);
+      else add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { frame, margin: MARGIN[type] } }, tau, d);
+      curView = zone?.view;
       camCues.push([tau, tau + d]);
       shots++;
       const names = new Map<string, number>();
       for (const k of samples[i]!.win) for (const s of gs[k]!.segs) if (s.from <= pt(tau + prof.window) && s.to > pt(tau)) names.set(s.task, (names.get(s.task) ?? 0) + 1);
       const top = [...names.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 2).map(([c]) => taskByCode.get(c)?.name ?? c);
       const why = isExploded ? 'the building is exploded' : kick && type === cur.type ? 'new framing after the box or explode change' : type !== cur.type ? `the shot changes from ${cur.type} to ${type}` : 'the work moved by more than the region size';
-      note(tau, `${type} shot on ${reg.n} element${reg.n === 1 ? '' : 's'} (${top.join(', ') || 'work'}): ${why}; move ${d} s`);
+      if (zone) note(tau, `camera for ${zone.storey}: saved view '${zone.view}' (all the work in view is on that floor, ${type} shot replaced); move ${d} s`);
+      else note(tau, `${type} shot on ${reg.n} element${reg.n === 1 ? '' : 's'} (${top.join(', ') || 'work'}): ${why}; move ${d} s`);
       cur = want;
     }
     if (shots === 0) note(0, 'no further camera move: the interest region stays the same');
@@ -701,6 +726,16 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
         continue;
       }
       caps.push({ t: f.t, title: f.title, text: f.text, d: FLOOR_CAPTION_S });
+    }
+    // temporary works are context, never framed: a scaffold that goes up is named in one line, merged into a caption that is near anyway
+    for (const g of plan.temporaryWorks?.groups ?? []) {
+      if (g.kind !== 'scaffold' || g.erect.to < plan.window.from || g.erect.to > plan.window.to) continue;
+      const t = tauOfPlan(g.erect.to);
+      const line = `Scaffold up${g.storey !== undefined ? ` on ${g.storey}` : ''}`;
+      const near = caps.find((c) => Math.abs(c.t - t) < 2.5);
+      if (near) {
+        if (near.text.length + line.length < 70) { near.text = `${near.text} · ${line}`; note(near.t, `caption "${near.title}" also says "${line}" (scaffold erected)`); }
+      } else if (!caps.some((c) => Math.abs(c.t - t) < 4)) caps.push({ t, title: line, text: isoDate(g.erect.to), d: 2.5 });
     }
     caps.sort((a, b) => a.t - b.t);
     caps.forEach((c, i) => {
@@ -754,8 +789,42 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
     for (const [code, from] of open) finish(code, from, dur);
   }
 
+  // ---- finale: a closing dolly and/or orbit after the last work
+  let filmEnd: number | undefined;
+  const finale = style.finale ?? 'none';
+  if (finale !== 'none') {
+    if (!directorCamera) note(dur, `finale "${finale}" left out: the style's camera is "${style.camera}", the director moves no camera`);
+    else {
+      let f0 = dur;
+      const apart = exploded.filter(([, b]) => b >= dur - 0.01).length > 0 || beats.some((b) => b.t + BEAT.collapse + COLLAPSE_S > dur);
+      if (apart) {
+        add({ kind: 'collapse', at: 0, dur: 0, ease: 'inOut' }, f0, COLLAPSE_S);
+        note(f0, `finale: the building is still apart, collapse (${COLLAPSE_S} s) first`);
+        f0 += COLLAPSE_S;
+      }
+      // the film's own x-ray focus follows the active work and ends with it; a focus cue is needed only where the director set one
+      const focusSet = exploded.length > 0 || beats.length > 0;
+      if (focusSet) add({ kind: 'focus', at: 0, dur: 0, elements: null }, f0, 0);
+      let lastCam = 0;
+      for (const o of out) if (o.cue.kind === 'camera') lastCam = Math.max(lastCam, o.cue.at - t0 + o.cue.dur);
+      let t = Math.max(f0, lastCam);
+      const last = [...plan.milestones].sort((a, b) => a.at - b.at)[plan.milestones.length - 1];
+      const title = last?.name ?? 'Complete';
+      note(f0, `finale "${finale}": the work is complete, ${focusSet ? "focus cleared" : "no focus left to clear"}${t > f0 ? `, the camera is free after ${r3(t - f0)} s` : ''}`);
+      if (finale === 'dolly') {
+        add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { frame: { all: true }, margin: DOLLY_MARGIN } }, t, DOLLY_S);
+        note(t, `finale: slow dolly-in toward the finished building (${DOLLY_S} s, eased in and out)`);
+        t += DOLLY_S;
+      }
+      add({ kind: 'camera', at: 0, dur: 0, ease: 'inOut', to: { orbitDeg: FINALE_ORBIT_DEG } }, t, FINALE_ORBIT_S);
+      if (style.captions) add({ kind: 'caption', at: 0, dur: 0, title, text: isoDate(plan.window.to) }, t, FINALE_ORBIT_S);
+      note(t, `finale: gentle ${FINALE_ORBIT_DEG} degree orbit over ${FINALE_ORBIT_S} s, eased in and out${style.captions ? `, caption "${title}"` : ''}`);
+      filmEnd = t0 + t + FINALE_ORBIT_S;
+    }
+  }
+
   // ---- result: cues by time (the order of making breaks ties), notes by time
   out.sort((a, b) => a.cue.at - b.cue.at || a.order - b.order);
   notes.sort((a, b) => a.t - b.t || a.order - b.order);
-  return { cues: out.map((o) => o.cue), notes: notes.map((n) => n.text), noteTimes: notes.map((n) => r3(t0 + n.t)) };
+  return { cues: out.map((o) => o.cue), notes: notes.map((n) => n.text), noteTimes: notes.map((n) => r3(t0 + n.t)), ...(filmEnd !== undefined ? { duration: r3(filmEnd) } : {}) };
 }

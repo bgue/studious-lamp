@@ -41,7 +41,7 @@ Hex           ::= [0-9a-fA-F]
 
 (* Punctuation. Two-character operators are read before one-character ones. *)
 Punct         ::= "==" | "!=" | "<>" | "<=" | ">=" | "=" | "<" | ">"                /* "≠", "≤" and "≥" are read as words and accepted as the comparisons */
-                | "(" | ")" | "," | "+" | "-" | "*" | "/" | "&"
+                | "(" | ")" | "," | "+" | "-" | "*" | "/" | "&" | "&&" | "^"
 
 (* A comment runs from its first mark to the end of the line. Outside strings only. *)
 Comment       ::= ( "--" | "#" ) [^#xA#xD]*
@@ -58,7 +58,8 @@ Lexical notes:
 ## 2. Statements and lines
 
 ```ebnf
-Statement     ::= Simple | Together | Repeat | ForEach | While | RepeatWith | If | Def      /* Def only at the top level, section 2.1 */
+Statement     ::= Simple | Together | Repeat | ForEach | ForEachChunk | While | RepeatWith | If | Def      /* Def only at the top level, section 2.1 */
+                | Param | Use                                                                          /* only at the top level, section 2.2 */
 
 (* Block statements. The header is one line; the body is the statements up to the closing line. *)
 Together      ::= "together" EOL Script "end" "together"
@@ -69,6 +70,7 @@ ForEach       ::= "repeat" "for" "each" ( "element" | "elements" ) "in" Elements
 (* One-line statements. *)
 Simple        ::= Fly | FlyView | Orbit | SetStmt | ModeStmt | ApplyStmt
                 | Visibility | Overlays | SelectStmt | Caption | Label | Hover | Wait | Put | FadeNew | Call | Return
+                | ExitRepeat | NextRepeat | ExitHandler | Seed                      /* section 2.2 */
                 | Schedule | At | Tint | Explode | Collapse | Focus | Section          /* the 4D statements, section 3.1 */
 
 (* A closing line holds nothing after its block word. Any other "end" line is an error. *)
@@ -149,6 +151,36 @@ repeat with i from 1 to 3
 end repeat
 show issues
 ```
+
+### 2.2 Loop exits, text loops, parameters and libraries
+
+```ebnf
+ExitRepeat    ::= "exit" "repeat"                                  /* leave the innermost loop; an error outside a loop */
+NextRepeat    ::= "next" "repeat"                                  /* skip to the next pass of the innermost loop */
+ExitHandler   ::= "exit" Word                                      /* Word is the name of the handler it stands in; an error elsewhere */
+ForEachChunk  ::= "repeat" "for" "each" ChunkUnit Word "in" Full EOL Script "end" "repeat"
+Seed          ::= "set" "the" "random" "seed" "to" Expr
+Param         ::= "param" Word "default" ( String | "-"? Number | BoolWord )
+Use           ::= "use" String                                     /* the name of a saved script */
+```
+
+- `exit repeat` and `next repeat` work in every loop (`repeat N times`, `while`, `until`, `with`, `for each`), also from inside an
+  `if` or a `together` of the loop. The time the loop body had reached is kept. `exit <handler>` is like `return` in a handler;
+  in a function write `return <value>`. Outside a loop, or outside a handler of that name, they are errors with the line.
+- `repeat for each item v in x` runs once for each piece of the text `x` (also `word`, `line`, `char`); `v` holds the piece
+  and is the loop's own name. Up to 500 pieces.
+- `param floor default "Level 1"` declares a **parameter**: a name that has the default unless a value is given from outside
+  (the Parameters form of the Script tab, `xray-4d render --param floor="Level 2"`, `xray-pack --script-param`, or the `params`
+  option of `window.__xrayScript.compile`). The value is read as the type of the default (text, number or yes/no); a value of
+  the wrong kind is an error on the `param` line. A value for a name the script does not declare is a warning. Parameters
+  stand at the top level, are not words of the language (section 6) and have unique names.
+- `use "Floor helpers"` pulls in the handlers and functions (only those) of the saved script of that name (the Script tab; on the
+  command line the file `Floor helpers.xrayanim` in the `--use-dir` folder, or next to the script for the skill checker). The
+  statements, parameters and `use` lines of the library are not run, except that its own `use` lines are followed. A missing
+  library is an error that names it; libraries that use each other in a circle are an error; a handler of the script itself
+  wins over a library handler of the same name (a warning). A line that starts with an unknown word in a script that has a `use`
+  line is read as a call of a library handler, and checked when the script compiles. An error inside a library handler is
+  reported on the line of the script that called it, with the library line in the message.
 
 ## 3. Simple statements
 
@@ -272,9 +304,20 @@ at date "2027-09-01"
 ```ebnf
 (* Numbers. Precedence from the lowest: + and - (left to right), * and / (left to right), unary - and +, then the primary. *)
 Expr          ::= Term ( ( "+" | "-" ) Term )*
-Term          ::= Unary ( ( "*" | "/" ) Unary )*
-Unary         ::= "-" Unary | "+" Unary | Primary
-Primary       ::= Number | Word | Call | Count | "(" Expr ")"       /* a Word is a name set by put, or index inside a loop */
+Term          ::= Unary ( ( "*" | "/" | "mod" | "div" ) Unary )*     /* mod and div round down: -7 div 2 is -4, -7 mod 3 is 2 */
+Unary         ::= "-" Unary | "+" Unary | Power
+Power         ::= Primary ( "^" Unary )?                           /* right to left, tighter than a minus in front: -2 ^ 2 is -4 */
+Primary       ::= Number | Word | Call | Count | Value | "(" Expr ")"   /* a Word is a name set by put, index inside a loop, or pi, empty, space, tab, comma, quote, newline */
+Value         ::= Fact | Property | EList | Chunk | NumberOf | Sort    /* the text, list and element values; also usable where a number goes */
+Fact          ::= "the" FactName "of" Operand                      /* name, class, storey, type, globalid, material of an element */
+FactName      ::= "name" | "class" | "storey" | "type" | "globalid" | "material"
+Property      ::= "property" ( String | Word ) "of" Operand        /* a property key such as "Pset_WallCommon.FireRating"; empty text when missing */
+EList         ::= "the" ( "names" | "globalids" | "classes" | "storeys" | "types" ) "of" ElementsArg   /* comma-separated text, at most 500 values */
+Chunk         ::= ChunkUnit Expr ( "to" Expr )? "of" Operand        /* item 2 of x, char 1 to 3 of x */
+ChunkUnit     ::= "item" | "word" | "line" | "char"                /* also "items", "words", "lines", "chars", "character", "characters" in the plural forms below */
+NumberOf      ::= "the" "number" "of" ( "items" | "words" | "lines" | "chars" ) "in" Operand
+Sort          ::= "sort" ( "items" | "words" | "lines" ) "of" Operand ( "descending" | "ascending" | "numeric" )*
+Operand       ::= Primary                                          /* an element is `it` or a GlobalId as text; a text is any primary: a name, a string, a call */
 Call          ::= Word "(" ( Full ( "," Full )* )? ")"               /* a function; the "(" touches the name */
 Count         ::= "the" "count" "of" ElementsArg                    /* how many elements match, in the model at compile time */
 
@@ -297,13 +340,14 @@ Full          ::= Cond
 Cond          ::= CAnd ( "or" CAnd )*                              /* lowest precedence */
 CAnd          ::= CNot ( "and" CNot )*
 CNot          ::= "not" CNot | Cmp
-Cmp           ::= Cat ( CmpOp Cat )?                               /* at most one comparison: join two with and */
+Cmp           ::= Cat ( CmpOp Cat | TextOp Cat )?                  /* at most one comparison: join two with and */
+TextOp        ::= "contains" | "begins" "with" | "ends" "with" | "is" "in" | "is" "not" "in"   /* without regard to case; "a is in b": b contains a */
 CmpOp         ::= "=" | "==" | "<>" | "!=" | "<" | ">" | "<=" | ">=" | "≠" | "≤" | "≥"
-Cat           ::= Expr ( "&" Expr )*                               /* text: each side as text, joined */
+Cat           ::= Expr ( ( "&" | "&&" ) Expr )*                    /* text: each side as text, joined; && puts one space between */
 (* In a full expression the primary also reads: *)
 FPrimary      ::= String | BoolWord | There | "(" Cond ")"
 There         ::= "there" ( "is" | "are" ) "no"? ElementsArg      /* true when the count is more than 0 (with "no": 0) */
-ElementsArg   ::= Elements | "(" Elements ")"                      /* in parentheses when more follows a "where" */
+ElementsArg   ::= Elements | "(" Elements ")"                      /* the short forms need no "where": the count of class IfcDoor; parentheses when more follows a "where" */
 ```
 
 - Comparison: two numbers compare as numbers. Two texts compare ignoring case (`<` and `>` use natural order, so "Level 2"
@@ -311,6 +355,18 @@ ElementsArg   ::= Elements | "(" Elements ")"                      /* in parenth
   values compare with `=` and `<>` only.
 - `and` and `or` stop at the first answer, so `n > 0 and 10 / n > 1` is safe. `and` binds tighter than `or`; `not` tighter than
   `and`. A condition must be a yes/no; a number or text there is an error.
+- Element facts and properties (`the name of it`, `property "..." of it`) read the model through the compiler's `elementField` option
+  (in the viewer: the query engine's columns); with no model loaded they are errors, a missing value is empty text. `contains`
+  and the other text tests compare as text, so a number is read as its digits. `&&` joins like `&` with one space between.
+- Lists are text. Items are separated by commas (fixed; the surrounding spaces are dropped), words by spaces, lines by line breaks,
+  and chars are single characters. Counting starts at 1; a piece past the end is empty text. Pieces joined again use "," for items,
+  a space for words and a line break for lines. `sort items of x` sorts without regard to case in natural order; `numeric` sorts as
+  numbers (an item that is not a number is an error); `descending` reverses. Names with commas in them split in `repeat for each item`.
+- Maths functions (a function of the script with the same name wins): `round(x)`, `round(x, digits)` (0 to 10 digits, halves away
+  from zero), `trunc`, `floor`, `ceil`, `abs`, `min(a, b, ...)`, `max(a, b, ...)`, `sqrt` (a negative is an error), `number(text)`.
+  `mod`, `div` with 0 on the right and `^` that is not a real number are errors, like a division by 0.
+- `random(n)` is a whole number from 1 to n and `random()` a number from 0 up to 1, from a seeded generator (mulberry32). The seed
+  is a hash of the script text unless `set the random seed to N` sets it, so the same script always compiles to the same film.
 - `the count of` and `there are` ask the model (the compiler's `resolve` option, as `repeat for each element` does); with no
   model loaded they are errors. They cannot count `active`, `completed` or `critical` (known only while a schedule plays).
   A `where` runs to the end of the line, or to `then` or `into`: write `the count of (where class = IfcDoor) > 3` and
@@ -358,7 +414,7 @@ ReservedName  ::= "fly" | "orbit" | "set" | "mode" | "apply" | "show" | "hide" |
                 | "to" | "into" | "times" | "where" | "class" | "everything" | "selection"
                 | "true" | "false" | "on" | "off" | "yes" | "no"
                 | "active" | "completed" | "critical" | "date" | "milestone" | "box" | "storey" | "storeys"
-                | "radial" | "by" | "from" | "around"
+                | "radial" | "by" | "from" | "around" | "default" | "contains" | "begins" | "ends"
 ```
 
 `fade` starts a statement (`fade new elements ...`) but is not reserved as a name, so `put 1.5 into fade` still works. A
@@ -430,7 +486,7 @@ The keywords the language knows. Each one appears in the grammar above as a quot
 
 | Group | Words |
 | --- | --- |
-| Statements | `fly`, `orbit`, `set`, `mode`, `apply`, `show`, `hide`, `isolate`, `select`, `caption`, `label`, `hover`, `wait`, `together`, `repeat`, `put`, `schedule`, `at`, `tint`, `explode`, `collapse`, `focus`, `section`, `if`, `else`, `on`, `function`, `return`, `fade`, `end` |
+| Statements | `fly`, `orbit`, `set`, `mode`, `apply`, `show`, `hide`, `isolate`, `select`, `caption`, `label`, `hover`, `wait`, `together`, `repeat`, `put`, `schedule`, `at`, `tint`, `explode`, `collapse`, `focus`, `section`, `if`, `else`, `on`, `function`, `return`, `fade`, `param`, `use`, `exit`, `next`, `end` |
 | 4D words | `date`, `milestone`, `around`, `box`, `storey`, `storeys`, `radial`, `by`, `from`, `planned`, `actual`, `variance`, `active`, `completed`, `critical` |
 | Modes | `ghost`, `solid`, `radiograph`, `glow`, `cutaway` |
 | Options and connectors | `to`, `view`, `preset`, `over`, `ease`, `margin`, `fading`, `for`, `with`, `about`, `into`, `times`, `time`, `in`, `each` |
@@ -440,6 +496,8 @@ The keywords the language knows. Each one appears in the grammar above as a quot
 | Units | `s`, `sec`, `secs`, `second`, `seconds`, `degree`, `degrees`, `deg` |
 | Elements | `where`, `class`, `classes`, `set`, `sets`, `the`, `selection`, `everything`, `it`, `elements`, `element`, `nothing`, `none` |
 | Loop names | `index`, `it` |
+| Text, list and maths | `property`, `names`, `globalids`, `classes`, `storeys`, `types`, `number`, `sort`, `item`, `items`, `word`, `words`, `line`, `lines`, `char`, `chars`, `descending`, `ascending`, `numeric`, `contains`, `begins`, `ends`, `mod`, `div`, `default`, `random`, `seed` |
+| Constants | `pi`, `empty`, `space`, `tab`, `comma`, `quote`, `newline` |
 | Booleans | `true`, `false`, `on`, `off`, `yes`, `no` |
 | Criteria | `and`, `or`, `not`, `like`, `in`, `between`, `is`, `null` |
 
@@ -462,6 +520,8 @@ Values from the code. A limit that is exceeded gives an error (or, for a loop co
 | Orbit angle | up to 36 000 degrees in either direction | `compiler.ts` `orbit` | Error (100 turns). |
 | Division | the divisor must not be 0; results must be finite | `compiler.ts` `num()` | Error. |
 | Passes of `repeat while`, `until`, `with` | 500 each | `LIMITS.maxIterations` | Error that names the loop's line: a `while` that is still going after 500 passes is stopped; a `with` range of more than 500 is refused before it runs. |
+| Text list | at most 500 values in `the names of ...`; at most 500 pieces in `repeat for each item` | `compiler.ts` `maxIterations` | The list is cut with a warning; the loop is an error. |
+| Random | `random(n)`: n a whole number from 1 | `compiler.ts` | Error otherwise. |
 | Call depth | 16 calls inside one another | `LIMITS.maxCallDepth` | Error at the 17th (a recursion without end). |
 | Loop index | `index` counts from 1 | `compiler.ts` `repeat` | Not a limit. Restored after the loop. |
 

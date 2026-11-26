@@ -4,7 +4,7 @@
 
 export interface StatementHelp {
   id: string;
-  group: 'Camera' | 'Look' | 'Visibility' | 'Selection and notes' | 'Timing and variables' | 'Decisions, loops and your own commands' | 'Playback' | '4D schedule';
+  group: 'Camera' | 'Look' | 'Visibility' | 'Selection and notes' | 'Timing and variables' | 'Decisions, loops and your own commands' | 'Reusable scripts' | 'Playback' | '4D schedule';
   /** The statement as written; `[ ]` marks what may be left out. */
   syntax: string;
   /** One line: what it does and how long it lasts. */
@@ -31,6 +31,8 @@ export const STATEMENT_HELP: readonly StatementHelp[] = [
   { id: 'repeat', group: 'Timing and variables', syntax: 'repeat N times ... end repeat', summary: 'Run the statements inside again and again. `index` counts from 1. At most 500 times.', example: 'repeat 3 times\n  orbit 120 degrees over 2 seconds\nend repeat' },
   { id: 'forEachElement', group: 'Timing and variables', syntax: 'repeat for each element in <elements> ... end repeat', summary: 'Run the statements once for each element. `it` is the element. At most 500 elements.', example: 'repeat for each element in class IfcPump\n  fly to it over 2 seconds\nend repeat' },
   { id: 'forEachSet', group: 'Timing and variables', syntax: 'repeat for each set in sets ... end repeat', summary: 'Run the statements once for each stored selection set. `it` is the set.', example: 'repeat for each set in sets\n  select it\n  caption it for 2 seconds\nend repeat' },
+  { id: 'forEachItem', group: 'Timing and variables', syntax: 'repeat for each item|word|line|char <name> in <text> ... end repeat', summary: 'Run the statements once for each piece of a text: items are between commas, words between spaces, lines between line breaks. The name holds the piece. At most 500 times.', example: 'repeat for each item floor in "Level 1, Level 2, Level 3"\n  caption floor for 1 seconds\nend repeat' },
+  { id: 'seed', group: 'Timing and variables', syntax: 'set the random seed to N', summary: 'Start the random numbers of random() and random(n) from seed N. Without it the seed comes from the script text, so the same script always gives the same film.', example: 'set the random seed to 7' },
   { id: 'put', group: 'Timing and variables', syntax: 'put <value> into <name>', summary: 'Keep a number, text ("a" & b joins text) or a yes/no under a name. Use the name wherever a number goes. Signs: + - * / and ( ).', example: 'put 2 * 1.5 into pause' },
   {
     id: 'if',
@@ -59,6 +61,11 @@ export const STATEMENT_HELP: readonly StatementHelp[] = [
     example: 'function double x\n  return x * 2\nend double\nwait double(1.5) seconds',
   },
   { id: 'return', group: 'Decisions, loops and your own commands', syntax: 'return [<value>]', summary: 'Inside a function: give the value back and stop. Inside a handler: stop early (no value).', example: 'on early n\n  if n > 1 then return\n  caption "small"\nend early\nearly 1' },
+  { id: 'exitRepeat', group: 'Decisions, loops and your own commands', syntax: 'exit repeat', summary: 'Leave the loop that holds it, at once. An error outside a loop.', example: 'repeat with i from 1 to 10\n  if i > 3 then\n    exit repeat\n  end if\n  caption "Step " & i for 1 seconds\nend repeat' },
+  { id: 'nextRepeat', group: 'Decisions, loops and your own commands', syntax: 'next repeat', summary: 'Skip the rest of this round of the loop and go on with the next one.', example: 'repeat with i from 1 to 5\n  if i = 3 then\n    next repeat\n  end if\n  caption "Step " & i for 1 seconds\nend repeat' },
+  { id: 'exitHandler', group: 'Decisions, loops and your own commands', syntax: 'exit <handler name>', summary: 'Leave the handler it stands in (the name must be that handler\'s own). Like `return` in a handler.', example: 'on early n\n  if n > 1 then\n    exit early\n  end if\n  caption "small"\nend early\nearly 1' },
+  { id: 'param', group: 'Reusable scripts', syntax: 'param <name> default <"text"|number|yes|no>', summary: 'Declare a value the person can change without editing the script: the Parameters form of the Script tab, xray-4d render --param, xray-pack --script-param. Top level only. The name works like a name you `put`.', example: 'param floor default "Level 1"' },
+  { id: 'use', group: 'Reusable scripts', syntax: 'use "<saved script>"', summary: 'Pull in the handlers and functions (only those) of another saved script of the Script tab, by name. A script that uses itself in a circle, or a missing script, is an error. A handler of this script wins over one of the library, with a warning. Top level only.', example: 'use "Floor helpers"' },
   { id: 'overlays', group: 'Playback', syntax: 'show|hide issues|drawings   (or: issues and drawings)', summary: 'Show or hide the issue pins and the drawings during playback. Both are hidden while a script plays unless it shows them, and come back as they were afterwards. Instant.', example: 'show issues and drawings' },
   { id: 'fadeNew', group: 'Playback', syntax: 'fade new elements over N seconds   |   fade new elements instantly', summary: 'Set how long elements that appear or disappear from here on fade (show, hide, schedule activities). Instantly is 0.', example: 'fade new elements over 1.5 seconds' },
   { id: 'schedule', group: '4D schedule', syntax: 'schedule "<plan>" [view planned|actual|variance] [from "<date>"] [to "<date>"] [over N seconds] [fade N seconds]', summary: 'Play a 4D plan by name over a time (default: the plan\'s film length). It runs in the background: the statements after it start with it. View, from and to go to the step for the host to rebuild the plan with. Fade is how long a new element fades in.', example: 'schedule "Tower A" view actual from "2026-09-01" to "2028-05-30" over 120 seconds fade 0.8 seconds' },
@@ -70,6 +77,21 @@ export const STATEMENT_HELP: readonly StatementHelp[] = [
   { id: 'focus', group: '4D schedule', syntax: 'focus <elements>   |   focus nothing', summary: 'Set the x-ray focus: what stands in front of these elements ghosts. `focus active` follows the active work of the schedule; `focus nothing` gives the focus back to the selection. Instant.', example: 'focus active' },
   { id: 'section', group: '4D schedule', syntax: 'section box around <elements>|storey "<name>" [over N seconds]', summary: 'Clip the model to a box around the elements or a storey. Lasts 1.5 seconds unless told.', example: 'section box around storey "Level 3" over 1.5 seconds' },
   { id: 'sectionOff', group: '4D schedule', syntax: 'section box off [over N seconds]', summary: 'Take the section box away, opening it out over the time.', example: 'section box off over 1 seconds' },
+];
+
+/** Values you can compute with: element facts, text tests, lists and chunks, maths. Used wherever an expression goes (`put`, `if`, captions, arguments). */
+export const EXPRESSION_HELP: readonly { id: string; syntax: string; summary: string; example: string }[] = [
+  { id: 'fact', syntax: 'the name|class|storey|type|globalid|material of <element>', summary: 'A fact of an element, as text; empty when the element has none. The element is `it` inside `repeat for each element`, or a GlobalId in text.', example: 'the storey of it' },
+  { id: 'property', syntax: 'property "<Pset.Prop>" of <element>', summary: 'A property of an element: text, a number or yes/no; empty text when the element has none.', example: 'property "Pset_WallCommon.FireRating" of it' },
+  { id: 'elist', syntax: 'the names|globalids|classes|storeys|types of <elements>', summary: 'The values of many elements as comma-separated text (empty ones left out), at most 500. Use it with `repeat for each item`.', example: 'the names of class IfcPump' },
+  { id: 'textTests', syntax: '<a> contains|begins with|ends with <b>   |   <a> is [not] in <b>', summary: 'Text tests for conditions, without regard to case. `a is in b` is true when b contains a.', example: 'the name of it contains "Fire"' },
+  { id: 'join', syntax: '<a> & <b>   |   <a> && <b>', summary: '`&` joins text; `&&` joins with one space between.', example: '"Level" && 2' },
+  { id: 'chunks', syntax: 'item|word|line|char <n> [to <m>] of <text>', summary: 'A piece of a text. Items are between commas (spaces around them dropped), words between spaces, lines between line breaks. Counting starts at 1; past the end gives empty text. Ranges join the pieces again.', example: 'item 2 of "a, b, c"' },
+  { id: 'number', syntax: 'the number of items|words|lines|chars in <text>', summary: 'How many pieces a text has.', example: 'the number of items in "a, b, c"' },
+  { id: 'sort', syntax: 'sort items|words|lines of <text> [descending] [numeric]', summary: 'The pieces in order, as text. Alphabetical without regard to case ("Level 2" before "Level 10"); `numeric` sorts as numbers.', example: 'sort items of "b, c, a" descending' },
+  { id: 'maths', syntax: 'round(x[, digits]) trunc(x) floor(x) ceil(x) abs(x) min(a, b, ...) max(a, b, ...) sqrt(x) number(text)', summary: 'Maths on numbers. round goes away from zero at .5. sqrt of a negative is an error.', example: 'round(2.456, 1)' },
+  { id: 'operators', syntax: '<a> mod <b>   <a> div <b>   <a> ^ <b>   pi', summary: 'mod and div (whole division, rounded down) with a zero on the right are errors. ^ is the power, tighter than * and /. pi is 3.14159.', example: '7 mod 3 + 2 ^ 3' },
+  { id: 'random', syntax: 'random(n)   |   random()', summary: 'A whole number from 1 to n, or a number from 0 up to 1. Seeded: the same script text gives the same numbers every time (set the random seed to change them).', example: 'random(6)' },
 ];
 
 /** What `<elements>` can be. */
@@ -94,8 +116,14 @@ export const TIMING_NOTES: readonly string[] = [
   '`if`, `repeat while`, `repeat until`, `repeat with` and your own commands are worked out when the script compiles, from numbers, text, the model (`the count of`, `there are`) and the 4D plan; the result is a fixed timeline. Nothing is decided while it plays.',
   'Names: a handler or function has its own names (its parameters, and what it `put`s); it can read the script\'s names and `it`, but a `put` inside never changes one outside.',
   'Issues and drawings are hidden while a script plays; `show issues` and `show drawings` bring them in, `hide` takes them away.',
+  'Text, lists and maths are worked out when the script compiles too. `random` is seeded from the script text, so the same script always gives the same film.',
   'A script runs at most one hour, makes at most 5000 steps and loops at most 500 times. Calls of your own commands nest at most 16 deep.',
 ];
+
+/** The markdown list of the expressions (the docs page holds it between markers). */
+export function expressionsMarkdown(): string {
+  return EXPRESSION_HELP.map((e) => `- \`${e.syntax.replace(/\s+\|\s+/g, ' | ')}\`: ${e.summary}`).join('\n');
+}
 
 /** A markdown reference, the same text as the docs page uses for its statement list. */
 export function referenceMarkdown(): string {

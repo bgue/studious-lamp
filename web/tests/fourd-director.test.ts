@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { directFourD } from '../src/schedule/director';
+import { directFourD, finaleSeconds } from '../src/schedule/director';
 import type { DirectorResult } from '../src/schedule/director';
 import { scriptFromPlan } from '../src/schedule/directorScript';
 import { compileScript } from '../src/anim/script/compiler';
@@ -293,7 +293,7 @@ describe('director on the FZK-Haus sample', () => {
 
   it('is deterministic and fits the film', () => {
     expect(JSON.stringify(directFourD(fzkPlan, fzkModel))).toBe(JSON.stringify(r));
-    for (const c of r.cues) expect(c.at + c.dur).toBeLessThanOrEqual(90 + 1e-6);
+    for (const c of r.cues) expect(c.at + c.dur).toBeLessThanOrEqual(90 + finaleSeconds(fzkPlan.style.finale) + 0.000001);
   });
 });
 

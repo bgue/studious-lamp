@@ -1,6 +1,6 @@
 // The pipeline commands of xray-4d: link, plan, render, pack, all. Registered into the command table by tools/xray-4d.mjs
 // (makeCommands). Progress goes to stderr (io.err), results to stdout or -o.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
@@ -41,7 +41,13 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     if (!c || typeof c !== 'object' || Array.isArray(c)) throw input(`config ${path} must be a JSON object`);
     if (c.schema !== undefined && c.schema !== 'xray-4d-config/1') throw input(`config ${path}: unsupported schema "${c.schema}" (expected xray-4d-config/1)`);
     if (!c.schedule || !c.model) throw input(`config ${path}: "schedule" and "model" sections are required (see web/public/samples/fzk-haus.4d.json)`);
-    return { ...c, schema: 'xray-4d-config/1', style: { ...parser.DEFAULT_STYLE, ...(c.style ?? {}) } };
+    let temporaryWorks;
+    if (c.temporaryWorks !== undefined) {
+      const t = parser.parseTempWorks(c.temporaryWorks);
+      if (!t.config || t.problems.length) throw input(`config ${path}: ${t.problems.join('; ')}`);
+      temporaryWorks = t.config;
+    }
+    return { ...c, schema: 'xray-4d-config/1', ...(temporaryWorks ? { temporaryWorks } : {}), style: { ...parser.DEFAULT_STYLE, ...(c.style ?? {}) } };
   }
 
   function loadSchedule(path, parser, project) {
@@ -209,6 +215,27 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
       if (String(args.fade).toLowerCase() === 'auto') delete style.fadeIn;
       else { const v = Number(String(args.fade).replace(/s$/i, '')); if (!Number.isFinite(v) || v < 0) throw usage(`--fade needs seconds (0 = at once) or auto, got "${args.fade}"`); style.fadeIn = v; }
     }
+    if (args.finale) { if (!['none', 'dolly', 'orbit'].includes(args.finale)) throw usage(`--finale is none, dolly or orbit, got "${args.finale}"`); style.finale = args.finale; }
+    if (args['zone-camera']?.length) {
+      // saved view names, when a views file (xray-views/1, or a bare list of names) is given; else the names are taken as they are (viewer-only)
+      let known = null;
+      if (args.views) {
+        const doc = readJson(args.views, 'views');
+        const list = Array.isArray(doc) ? doc : Array.isArray(doc.views) ? doc.views : null;
+        if (!list) throw input(`views ${args.views}: no "views" list (a views export of the Views tab)`);
+        known = new Set(list.map((v) => (typeof v === 'string' ? v : v?.name)).filter(Boolean));
+      }
+      style.zoneCameras = { ...(style.zoneCameras ?? {}) };
+      for (const z of args['zone-camera']) {
+        const at = String(z).indexOf('=');
+        if (at < 1 || at === String(z).length - 1) throw usage(`--zone-camera needs "Storey=Saved view", got "${z}"`);
+        const zone = String(z).slice(0, at).trim();
+        const view = String(z).slice(at + 1).trim();
+        if (known && !known.has(view)) io.err(`xray-4d: warning: --zone-camera: no saved view "${view}" in ${args.views}`);
+        style.zoneCameras[zone] = view;
+      }
+      if (!known) io.err('xray-4d: note: zone cameras name saved views of the viewer; without --views <views.json> they are not checked and play in the viewer only');
+    }
     if (args.issues) style.issuesInFilm = true;
     applyOnOff(args, style);
     const schedule = loadSchedule(xerPath, parser, args.project ?? config.schedule.project);
@@ -221,22 +248,44 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     }
     if (links.schedule?.source_hash && links.schedule.source_hash !== schedule.sourceHash) io.err('xray-4d: warning: links.json was made for another schedule file (hash differs)');
     const t0 = performance.now();
-    const plan = parser.buildPlan(schedule, links, m.model, style, { ...(baseline ? { baseline } : {}), config });
+    const plan = parser.buildPlan(schedule, links, m.model, style, { ...(baseline ? { baseline } : {}), config, ...(args['no-temporary-works'] ? { temporaryWorks: false } : {}) });
     const secs = plan.timeMap.length ? plan.timeMap[plan.timeMap.length - 1][1] : 0;
-    io.err(`plan: view ${style.view}, ${plan.elements.length} elements, ${plan.tasks.length} activities, ${plan.milestones.length} milestones, ${secs.toFixed(1)} s, ${fmtMs(performance.now() - t0)}`);
+    const tw = plan.temporaryWorks?.groups.length ?? 0;
+    io.err(`plan: view ${style.view}, ${plan.elements.length} elements, ${plan.tasks.length} activities, ${plan.milestones.length} milestones${tw ? `, ${tw} temporary works groups` : ''}, ${secs.toFixed(1)} s, ${fmtMs(performance.now() - t0)}`);
     out(args, io, JSON.stringify(plan) + '\n', 'plan');
     if (args['write-ifc']) await writeIfc(parser, m, schedule, links, plan, style.view, args['write-ifc'], io);
     return EXIT_OK;
   }
 
+  // ------------------------------------------------------------ script parameters and libraries
+  /** `--param name=value` (repeatable) as { name: value }. */
+  function parseParamArgs(list) {
+    const out = {};
+    for (const a of list ?? []) {
+      const eq = String(a).indexOf('=');
+      if (eq < 1) throw usage(`--param needs name=value, got "${a}"`);
+      out[String(a).slice(0, eq).trim()] = String(a).slice(eq + 1);
+    }
+    return out;
+  }
+  /** `--use-dir folder`: the .xrayanim files of the folder, by name without the extension, for `use "name"` lines. */
+  function readUseDir(dir) {
+    if (!dir) return {};
+    const d = resolve(dir);
+    if (!existsSync(d) || !statSync(d).isDirectory()) throw input(`--use-dir ${dir} is not a folder`);
+    const out = {};
+    for (const f of readdirSync(d).sort()) if (/\.xrayanim$/i.test(f)) out[f.replace(/\.xrayanim$/i, '')] = readFileSync(join(d, f), 'utf8').replace(/^\uFEFF/, '');
+    return out;
+  }
+
   // ------------------------------------------------------------ pack (and the page `render` drives)
   const planName = (p) => basename(p).replace(/\.4d\.json$|\.json$/i, '') || 'plan';
 
-  async function packPage(modelPath, planPath, scriptPath, outPath, extra, io) {
+  async function packPage(modelPath, planPath, scriptPath, outPath, extra, io, libFiles = []) {
     for (const [p, w] of [[modelPath, 'model'], [planPath, 'plan'], ...(scriptPath ? [[scriptPath, 'script']] : [])]) readFile(p, w);
     const { run, } = await import(pathToFileURL(join(webRoot, 'tools', 'xray-pack.mjs')).href);
     const { PackError } = await import(pathToFileURL(join(webRoot, 'tools', 'pack', 'lib.mjs')).href);
-    const argv = [modelPath, '--plans', planPath, '-o', outPath, '--force', ...(scriptPath ? ['--scripts', scriptPath] : []), ...extra];
+    const argv = [modelPath, '--plans', planPath, '-o', outPath, '--force', ...(scriptPath ? ['--scripts', [scriptPath, ...libFiles].join(',')] : []), ...extra];
     try {
       const code = await run(argv, { out: (s) => io.err(s), err: (s) => io.err(s) });
       if (code !== 0) throw input(`xray-pack failed (exit ${code})`);
@@ -251,7 +300,12 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     if (!modelPath || !planPath || args._.length > 2) throw usage('pack needs a model and a plan: xray-4d pack model.ifc build.4d.json [--script film.xrayanim] [--loop] -o build.html');
     if (!args.out) throw usage('pack needs -o <build.html>');
     const name = planName(planPath);
-    await packPage(modelPath, planPath, args.script, args.out, ['--autoplay', `plan:${name}`, '--kiosk', ...(args.loop ? ['--loop'] : []), ...(args.title ? ['--title', args.title] : [])], io);
+    const params = parseParamArgs(args.param);
+    if (Object.keys(params).length && !args.script) throw usage('--param needs --script');
+    if (args['use-dir'] && !args.script) throw usage('--use-dir needs --script');
+    // the libraries of the folder are packed with the script, so its `use "name"` lines find them in the page
+    const libFiles = args['use-dir'] ? Object.keys(readUseDir(args['use-dir'])).map((n) => join(resolve(args['use-dir']), `${n}.xrayanim`)).filter((f) => resolve(f) !== resolve(args.script)) : [];
+    await packPage(modelPath, planPath, args.script, args.out, ['--autoplay', `plan:${name}`, '--kiosk', ...Object.entries(params).flatMap(([k, v]) => ['--script-param', `${k}=${v}`]), ...(args.loop ? ['--loop'] : []), ...(args.title ? ['--title', args.title] : [])], io, libFiles);
     return EXIT_OK;
   }
 
@@ -282,6 +336,10 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     if (plan.schema !== 'xray-4d-plan/1') throw input(`plan ${planPath}: not a 4D plan (schema ${plan.schema ?? 'missing'})`);
     const name = planName(planPath);
     const scriptText = args.script ? readFile(args.script, 'script').toString('utf8') : null;
+    const params = parseParamArgs(args.param);
+    const libraries = readUseDir(args['use-dir']);
+    if (Object.keys(params).length && !args.script) throw usage('--param needs --script');
+    if (args['use-dir'] && !args.script) throw usage('--use-dir needs --script');
 
     const dir = mkdtempSync(join(tmpdir(), 'xray-4d-render-'));
     const t0 = performance.now();
@@ -315,12 +373,12 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
         const err = await p.evaluate('window.__xrayError');
         if (err) throw fail(`the viewer did not start: ${err}`, EXIT_RENDER);
         await p.waitForFunction('!!window.__xrayRecord && !!window.__xray4dFilm && !!window.__xrayScript', null, { timeout: 60000, polling: 300 });
-        const built = await p.evaluate(({ name, scriptText }) => {
-          const f = window.__xray4dFilm(name, scriptText);
+        const built = await p.evaluate(({ name, scriptText, params, libraries }) => {
+          const f = window.__xray4dFilm(name, scriptText, false, { params, libraries });
           if (!f.score) return { error: f.warning };
           window.__film = f.score;
           return { seconds: f.score.duration, cues: f.score.cues.length, warning: f.warning };
-        }, { name, scriptText });
+        }, { name, scriptText, params, libraries });
         if (built.error) throw fail(built.error, EXIT_RENDER);
         if (built.warning) io.err(`xray-4d: warning: ${built.warning}`);
         const frames = Math.max(1, Math.round(built.seconds * fps));
@@ -461,14 +519,14 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     const code = await doLink({ _: [modelPath, xerPath], ...shared, out: join(dir, 'links.json'), report: join(dir, 'link-report.html'), 'min-coverage': args['min-coverage'], assignments: args.assignments, prior: args.prior, 'id-property': args['id-property'], 'write-ifc': args['write-ifc'] ? join(dir, 'model.4d.ifc') : undefined }, io);
     if (code !== EXIT_OK) return code;
     stage('plan');
-    await doPlan({ _: [modelPath, xerPath, join(dir, 'links.json')], ...shared, out: join(dir, 'build.4d.json'), view: args.view, baseline: args.baseline, window: args.window, length: args.length, pace: args.pace, legend: args.legend, strip: args.strip }, io);
+    await doPlan({ _: [modelPath, xerPath, join(dir, 'links.json')], ...shared, out: join(dir, 'build.4d.json'), view: args.view, baseline: args.baseline, window: args.window, length: args.length, pace: args.pace, 'no-temporary-works': args['no-temporary-works'], legend: args.legend, strip: args.strip }, io);
     const planPath = join(dir, 'build.4d.json');
     if (!args['no-render']) {
       stage('render');
-      await doRender({ _: [modelPath, planPath], out: join(dir, `build.${args.format === 'webm' ? 'webm' : 'mp4'}`), size: args.size, fps: args.fps, format: args.format, hud: args.hud, legend: args.legend, strip: args.strip, script: args.script }, io);
+      await doRender({ _: [modelPath, planPath], out: join(dir, `build.${args.format === 'webm' ? 'webm' : 'mp4'}`), size: args.size, fps: args.fps, format: args.format, hud: args.hud, legend: args.legend, strip: args.strip, script: args.script, param: args.param, 'use-dir': args['use-dir'] }, io);
     }
     stage('pack');
-    await doPack({ _: [modelPath, planPath], out: join(dir, 'build.html'), script: args.script, loop: args.loop }, io);
+    await doPack({ _: [modelPath, planPath], out: join(dir, 'build.html'), script: args.script, param: args.param, 'use-dir': args['use-dir'], loop: args.loop }, io);
     io.err(`done: ${dir}`);
     return EXIT_OK;
   }
@@ -491,22 +549,27 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     },
     plan: {
       summary: 'build the 4D plan (build.4d.json): per-element states over time, time map, milestones',
-      usage: 'xray-4d plan <model.ifc> <schedule.xer> <links.json> --config map.4d.json [--view planned|actual|variance] [--baseline b.xer] [--window all|lookahead:6w|range:A..B] [--length 120s | --pace 1w=2s] [--explode auto|floor|off] [--fade 0.6s|auto] [--issues] [--legend on|off] [--strip on|off] [--write-ifc out.ifc] -o build.4d.json',
-      options: { ...COMMON, '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--explode': 'string', '--fade': 'string', '--issues': 'bool', '--legend': 'string', '--strip': 'string', '--write-ifc': 'string', '--out': 'string' },
+      usage: 'xray-4d plan <model.ifc> <schedule.xer> <links.json> --config map.4d.json [--view planned|actual|variance] [--baseline b.xer] [--window all|lookahead:6w|range:A..B] [--length 120s | --pace 1w=2s] [--explode auto|floor|off] [--fade 0.6s|auto] [--finale none|dolly|orbit] [--zone-camera "Storey=Saved view"]... [--views views.json] [--issues] [--legend on|off] [--strip on|off] [--no-temporary-works] [--write-ifc out.ifc] -o build.4d.json',
+      options: { ...COMMON, '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--explode': 'string', '--fade': 'string', '--finale': 'string', '--zone-camera': 'list', '--views': 'string', '--issues': 'bool', '--legend': 'string', '--strip': 'string', '--no-temporary-works': 'bool', '--write-ifc': 'string', '--out': 'string' },
       optionHelp: [cfgHelp, '  --project NAME   the schedule project', '  --view V         planned (default from the config), actual or variance',
         '  --baseline FILE  a baseline .xer, matched by activity ID', '  --window W       all, lookahead:6w (from the data date) or range:2027-05-01..2027-07-01',
         '  --length T       film length, 120s or 2m          --pace P   schedule time per video second, 1w=2s or 3d=1s',
+        '  --finale F       none, dolly (dolly-in, then a 90 degree orbit, ~14 s after the last work) or orbit (the orbit only)',
+        '  --zone-camera Z  "Storey=Saved view" (repeatable): the director flies to that saved view while the work lies on that storey. Saved views live in the viewer; with --views views.json (a Views tab export) the names are checked, else the option only takes effect in the viewer',
         '  --explode E      auto, floor (each floor apart while it is built) or off          --fade S   seconds a new part takes to appear (0 = at once, auto)',
         '  --legend on|off  the colour legend in the film (default on)        --strip on|off   the schedule strip along the bottom (default on)',
         '  --issues         keep the issue pins and drawings on screen while the film plays',
+        '  --no-temporary-works  leave the scaffold, falsework and formwork rules of the configuration out of the plan',
         '  --write-ifc FILE also write the model copy with the work schedule (the plan\'s view dates are the task dates)', '  -o, --out FILE  build.4d.json (default: standard output)'],
       run: doPlan,
     },
     render: {
       summary: 'render the 4D film to mp4, webm or a PNG zip (headless Chromium, frame by frame)',
-      usage: 'xray-4d render <model.ifc> <build.4d.json> [--script film.xrayanim] [--size 1920x1080] [--fps 30] [--format mp4|webm|png] [--hud on|off] [--legend on|off] [--strip on|off] -o build.mp4',
-      options: { '--script': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--legend': 'string', '--strip': 'string', '--out': 'string' },
-      optionHelp: ['  --script FILE    an .xrayanim script whose cues (camera, captions) play with the plan', '  --size WxH       default 1920x1080', '  --fps N          1 to 120, default 30',
+      usage: 'xray-4d render <model.ifc> <build.4d.json> [--script film.xrayanim [--param name=value ...] [--use-dir folder]] [--size 1920x1080] [--fps 30] [--format mp4|webm|png] [--hud on|off] [--legend on|off] [--strip on|off] -o build.mp4',
+      options: { '--script': 'string', '--param': 'list', '--use-dir': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--legend': 'string', '--strip': 'string', '--out': 'string' },
+      optionHelp: ['  --script FILE    an .xrayanim script whose cues (camera, captions) play with the plan',
+        '  --param N=V      a value for a "param" line of the script (repeatable), like --param floor="Level 2"; a name the script does not declare is a warning',
+        '  --use-dir DIR    resolve the script\'s `use "Name"` lines against the .xrayanim files of this folder (name = file name without the extension)', '  --size WxH       default 1920x1080', '  --fps N          1 to 120, default 30',
         '  --format F       mp4, webm or png (a zip of frames); default from the file extension', '  --hud on|off     composite the HUD (date, progress, captions); default on',
         '  --legend on|off  the colour legend (default: the plan\'s style, on)      --strip on|off   the schedule strip (default: the plan\'s style, on)', '  -o, --out FILE  the video file (required)',
         'Needs Playwright with Chromium. Exit 5 when the render fails.'],
@@ -525,15 +588,15 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     },
     pack: {
       summary: 'a self-contained kiosk page (one .html) that autoplays the 4D film',
-      usage: 'xray-4d pack <model.ifc> <build.4d.json> [--script film.xrayanim] [--loop] [--title T] -o build.html',
-      options: { '--script': 'string', '--loop': 'bool', '--title': 'string', '--out': 'string' },
-      optionHelp: ['  --script FILE    an .xrayanim script whose cues play with the plan', '  --loop           play again and again', '  --title T        page title', '  -o, --out FILE  the page (required)'],
+      usage: 'xray-4d pack <model.ifc> <build.4d.json> [--script film.xrayanim [--param name=value ...] [--use-dir folder]] [--loop] [--title T] -o build.html',
+      options: { '--script': 'string', '--param': 'list', '--use-dir': 'string', '--loop': 'bool', '--title': 'string', '--out': 'string' },
+      optionHelp: ['  --script FILE    an .xrayanim script whose cues play with the plan', '  --param N=V      a value for a "param" line of the script (repeatable)', '  --use-dir DIR    the folder of .xrayanim libraries for the script\'s `use` lines (packed with it)', '  --loop           play again and again', '  --title T        page title', '  -o, --out FILE  the page (required)'],
       run: doPack,
     },
     all: {
       summary: 'link, plan, render and pack in one run, stopping at the first failure',
       usage: 'xray-4d all <model.ifc> <schedule.xer> --config map.4d.json -o out/ [--no-render] [--min-coverage 0.9] [--write-ifc] [--script F] [--view V] [--window W] [--length T] [--size S] [--fps N]',
-      options: { ...COMMON, '--assignments': 'string', '--prior': 'string', '--id-property': 'string', '--min-coverage': 'string', '--write-ifc': 'bool', '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--script': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--legend': 'string', '--strip': 'string', '--loop': 'bool', '--no-render': 'bool', '--out': 'string' },
+      options: { ...COMMON, '--assignments': 'string', '--prior': 'string', '--id-property': 'string', '--min-coverage': 'string', '--write-ifc': 'bool', '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--script': 'string', '--param': 'list', '--use-dir': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--legend': 'string', '--strip': 'string', '--loop': 'bool', '--no-render': 'bool', '--no-temporary-works': 'bool', '--out': 'string' },
       optionHelp: [cfgHelp, '  -o, --out DIR    output directory: links.json, link-report.html, build.4d.json, build.mp4, build.html (model.4d.ifc with --write-ifc)', '  --no-render      skip the video', '  other options    as for link, plan, render and pack'],
       run: doAll,
     },

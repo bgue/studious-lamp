@@ -13,7 +13,7 @@ export const STEP_LABEL: Record<StepId, string> = { map: 'Map', link: 'Link', fi
 export const STEP_OF_SECTION: Record<string, StepId> = {
   values: 'map', assign: 'map', suggest: 'map', coverage: 'map',
   schedule: 'link', configure: 'link', link: 'link',
-  style: 'film', play: 'film', io: 'film',
+  style: 'film', tempworks: 'film', play: 'film', io: 'film',
 };
 
 export interface StepInput {

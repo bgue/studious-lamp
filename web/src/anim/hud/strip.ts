@@ -78,13 +78,20 @@ export function stripGroups(plan: FourDPlan, maxRows = MAX_STRIP_ROWS): Array<{ 
   return out;
 }
 
+/** The date range of the strip: the plan window, ending at the last activity and its milestones (a finale is film time after it, not plan time). */
+export function stripRange(plan: FourDPlan): [number, number] {
+  const from = plan.window.from;
+  const ends = [...plan.tasks.filter((k) => k.end >= from && k.start <= plan.window.to).map((k) => k.end), ...plan.milestones.map((m) => m.at)];
+  const last = ends.length ? Math.min(plan.window.to, Math.max(...ends)) : plan.window.to;
+  return [from, Math.max(from + 1, last)];
+}
+
 /** The strip's geometry in `rect` for plan time `planMs`. */
 export function stripLayout(plan: FourDPlan, rect: Rect, planMs: number, opts: StripOptions = {}): StripLayout {
   const rowH = opts.rowH ?? 7;
   const labelW = opts.labelW ?? 0;
   const groups = stripGroups(plan, opts.maxRows ?? MAX_STRIP_ROWS);
-  const from = plan.window.from;
-  const to = Math.max(from + 1, plan.window.to);
+  const [from, to] = stripRange(plan);
   const axis = { x: rect.x + labelW, w: Math.max(1, rect.w - labelW) };
   const px = (ms: number): number => axis.x + (Math.min(to, Math.max(from, ms)) - from) / (to - from) * axis.w;
   const ms = plan.milestones.filter((m) => m.at >= from && m.at <= to);

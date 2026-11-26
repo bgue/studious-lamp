@@ -69,6 +69,7 @@ def main() -> int:
     ap.add_argument('--chunks', type=int, default=3)
     ap.add_argument('--plan', help='use the 4D statements with this plan name')
     ap.add_argument('--name', default='Build sequence')
+    ap.add_argument('--as-param', action='store_true', help='declare the film title as a script parameter (param title default "...") and show it as a caption; the viewer shows it in the Parameters form')
     ap.add_argument('-o', '--out', required=True)
     a = ap.parse_args()
 
@@ -126,6 +127,9 @@ def main() -> int:
              '-- selection: ' + (', '.join(f'{k}={v}' for k, v in (('activities', a.activities), ('trade', a.trade), ('location', a.location), ('wbs', a.wbs),
                                                             ('from', a.date_from), ('to', a.date_to), ('critical', a.critical or None), ('status', a.status)) if v) or 'all linked activities'),
              '']
+    title = a.name + ': ' + (', '.join(f'{k}={v}' for k, v in (('trade', a.trade), ('location', a.location), ('wbs', a.wbs), ('status', a.status)) if v) or 'all linked activities')
+    if a.as_param:
+        lines += [f'param title default {q(title)}', '']
     events = []  # (time, order, kind, payload)
     for i, code in enumerate(chosen):
         x = acts[code]
@@ -144,7 +148,7 @@ def main() -> int:
     events.sort(key=lambda e: (e[0], e[1]))
 
     if a.plan:
-        lines += [f'schedule {q(a.plan)} view planned from {q(str(t0.date()))} to {q(str(t1.date()))} over {length:g} seconds', 'focus active', '']
+        lines += [f'schedule {q(a.plan)} view planned from {q(str(t0.date()))} to {q(str(t1.date()))} over {length:g} seconds', 'focus active', *(['caption title for 2 seconds'] if a.as_param else []), '']
         last_date = None
         for t, _, kind, p in events:
             when = t0 + dt.timedelta(days=t / length * span_days)
@@ -169,9 +173,14 @@ def main() -> int:
         if a.context == 'built' and before:
             lines.append(f'show {elements(before)}')
         if a.camera == 'follow':
-            lines.append(f'fly to {elements(selected)} over 1.5 seconds')
+            if a.as_param:
+                lines += ['together', f'  fly to {elements(selected)} over 1.5 seconds', '  caption title for 1.5 seconds', 'end together']
+            else:
+                lines.append(f'fly to {elements(selected)} over 1.5 seconds')
+        elif a.as_param:
+            lines.append('caption title for 1.5 seconds')
         lines.append('')
-        now = 1.5 if a.camera == 'follow' else 0.0
+        now = 1.5 if (a.camera == 'follow' or a.as_param) else 0.0
         slip = 0.0
         for idx, (t, _, kind, p) in enumerate(events):
             nxt = events[idx + 1][0] if idx + 1 < len(events) else length

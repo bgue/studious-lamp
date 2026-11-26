@@ -13,11 +13,11 @@ export interface HlPiece {
 }
 
 const KEYWORDS = new Set<string>(STATEMENT_WORDS);
-const OPTIONS = new Set(['date', 'milestone', 'around', 'by', 'from', 'box', 'storey', 'storeys', 'radial', 'planned', 'actual', 'variance', 'to', 'over', 'ease', 'margin', 'fading', 'for', 'with', 'about', 'into', 'times', 'preset', 'view', 'each', 'in', 'seconds', 'second', 'degrees', 'degree', 'linear', 'out', 'in', 'sets', 'nothing', 'then', 'while', 'until', 'down', 'if', 'new', 'instantly', 'issues', 'drawings', 'of']);
-const ELEMENTS = new Set(['there', 'is', 'are', 'count', 'active', 'completed', 'critical', 'where', 'class', 'classes', 'everything', 'selection', 'the', 'it', 'elements', 'element']);
-const COND = new Set(['and', 'or', 'not', 'like', 'between', 'is', 'null', 'true', 'false', 'on', 'off']);
+const OPTIONS = new Set(['date', 'milestone', 'around', 'by', 'from', 'box', 'storey', 'storeys', 'radial', 'planned', 'actual', 'variance', 'to', 'over', 'ease', 'margin', 'fading', 'for', 'with', 'about', 'into', 'times', 'preset', 'view', 'each', 'in', 'seconds', 'second', 'degrees', 'degree', 'linear', 'out', 'in', 'sets', 'nothing', 'then', 'while', 'until', 'down', 'if', 'new', 'instantly', 'issues', 'drawings', 'of', 'default', 'descending', 'ascending', 'numeric', 'repeat', 'seed']);
+const ELEMENTS = new Set(['there', 'is', 'are', 'count', 'active', 'completed', 'critical', 'where', 'class', 'classes', 'everything', 'selection', 'the', 'it', 'elements', 'element', 'property', 'name', 'names', 'storey', 'type', 'types', 'globalid', 'globalids', 'number', 'sort', 'item', 'items', 'word', 'words', 'line', 'lines', 'char', 'chars']);
+const COND = new Set(['and', 'or', 'not', 'like', 'between', 'is', 'null', 'true', 'false', 'on', 'off', 'contains', 'begins', 'ends', 'mod', 'div']);
 
-const RE = /(--.*|#(?![0-9a-fA-F]{6}(?![A-Za-z0-9_])).*)|(#[0-9a-fA-F]{6}(?![A-Za-z0-9_]))|("(?:[^"]|"")*"?|“[^”]*”?)|(\d+\.?\d*|\.\d+)|([A-Za-z_][A-Za-z0-9_.]*)|([=<>!+\-*/&(),]+)|(\s+)|(.)/gy;
+const RE = /(--.*|#(?![0-9a-fA-F]{6}(?![A-Za-z0-9_])).*)|(#[0-9a-fA-F]{6}(?![A-Za-z0-9_]))|("(?:[^"]|"")*"?|“[^”]*”?)|(\d+\.?\d*|\.\d+)|([A-Za-z_][A-Za-z0-9_.]*)|([=<>!+\-*/&^(),]+)|(\s+)|(.)/gy;
 
 /** Pieces of one line. `first` marks the statement word: it is the first word of the line. */
 export function highlightLine(text: string): HlPiece[] {

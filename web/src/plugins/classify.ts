@@ -29,6 +29,8 @@ import type { ApiKeyStore } from '../classify/keyStore';
 import { topTwo, overallConfidence } from '../classify/review';
 import { browserKeyStorages } from '../classify/keyStore';
 import { ClassifyService } from '../classify/service';
+import type { FacetGeometryEnv } from '../classify/service';
+import { Vector3 } from 'three';
 import type { CalibrationStatus } from '../classify/calibrationStatus';
 import type { ModelTest, RunOptions, Target } from '../classify/service';
 import { PROVIDERS, RULES_MODES } from '../classify/settings';
@@ -37,16 +39,24 @@ import { D3_DEFAULTS, JEV_DEFAULTS } from '../classify/settings';
 import { propertyNames } from '../classify/schema';
 import type { ManualPartial } from '../classify/results';
 import type { ClassifyInput, ClassifyResult, ClassifyStats } from '../classify/types';
+import type { FacetId, FacetResult, FacetSet } from '../classify/facets/defs';
+import type { ManualFacetPartial } from '../classify/facets/write';
 import { downloadText } from '../tools/csv';
 import { ICONS } from '../tools/icons';
 import { registerTool } from '../tools/registry';
-import { button, check, note, row, section, statusLine, chips } from '../tools/ui';
+import { button, check, note, row, section, select, statusLine, chips } from '../tools/ui';
 import type { Widget } from '../tools/ui';
 import { el } from '../ui/dom';
 import { registerParamSection } from '../ui/params';
 import { quoteIdent } from '../query';
+import { collectClassInfos } from '../ui/classTreePanel';
+import type { ClassSource } from '../ui/classTreePanel';
+import { NOT_CLASSIFIED, legendRows } from '../classify/classTree';
+import type { LegendRow } from '../classify/classTree';
+import { FACET_IDS } from '../classify/facets/defs';
 import { openCriteriaSetEditor } from './sidebar';
 import { ReviewWalk } from './classifyReview';
+import { buildFacetsFolder } from './classifyFacets';
 import { SELECTION_CSS, buildSelectionCard } from './classifySelection';
 import { addRightSidebarTab } from '../ui/rightSidebar';
 import type { RightTabHandle } from '../ui/rightSidebar';
@@ -72,6 +82,29 @@ export interface ClassifyApi {
   setSchema(json: unknown): string[];
   results(): ClassifyResult[];
   override(id: string | number, partial: ManualPartial): ClassifyResult;
+  /** The facets engine (Trade, Placement, Material, Phase, Orientation, ClassRepair); see docs-features/classify.md, "Facets". */
+  facets: {
+    defs(): unknown;
+    enabled(): Record<string, boolean>;
+    setEnabled(facet: FacetId, on: boolean): void;
+    classify(target: Target): Promise<unknown>;
+    estimate(target: Target): Promise<{ calls: number; signatures: number }>;
+    /** Requests, signatures, sources per facet and errors of the last facets run. */
+    stats(): unknown;
+    results(): Record<string, FacetSet>;
+    of(id: number | string): FacetSet;
+    override(id: number | string, facet: FacetId, partial: ManualFacetPartial): FacetResult;
+    removeOverride(id: number | string, facet: FacetId): Promise<void>;
+  };
+  /** The concrete sets (XR_Concrete*); see docs-features/classify.md, "Concrete". */
+  concrete: {
+    enabled(): boolean;
+    setEnabled(on: boolean): void;
+    results(): Record<string, Record<string, unknown>>;
+    of(id: number | string): Record<string, unknown>;
+    stats(): unknown;
+    override(id: number | string, set: 'ConcreteElement' | 'ConcreteMethod' | 'ConcreteReinforcement', code: string): Promise<void>;
+  };
   clear(): void;
   export(kind: 'json' | 'csv' | 'throughline'): string;
   abort(): void;
@@ -97,6 +130,10 @@ export interface ClassifyApi {
   importThroughline(json: unknown): { errors: string[]; warnings: string[] };
   selectNeedsReview(): number;
   colourByDiscipline(on?: boolean): boolean;
+  /** Colour the elements by Discipline or a facet (Trade, Placement, Material, Phase, Orientation); 'Off' restores. Returns the mode. */
+  colourBy(mode?: 'Off' | 'Discipline' | 'Trade' | 'Placement' | 'Material' | 'Phase' | 'Orientation' | 'ClassRepair'): string;
+  /** Draw the elements that need review washed out. Returns the state. */
+  confidenceShading(on?: boolean): boolean;
   /** The temperatures in use, the mode and the numbers of the last fit. */
   calibration(): CalibrationStatus;
   /** Fit one temperature per question on the elements that the rules labelled in this model (held-out numbers in the report). */
@@ -145,7 +182,14 @@ const CSS = `
 .xc-text:focus-visible,.xt-select select:focus-visible{outline:1px solid var(--sb-accent,#3b9cff)}
 .xc-warn{color:#e0b252}
 .xc-err{color:#ff8f8f}
-.xc-legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:#b9c4d2}
+.xc-legend{display:flex;flex-direction:column;gap:1px;font-size:11px;color:#b9c4d2}
+.xc-lg{display:flex;align-items:center;gap:6px;padding:1px 4px;border-radius:3px;cursor:pointer}
+.xc-lg:hover{background:#1b2230}
+.xc-lg.on{background:#1f4a7a}
+.xc-lg.off .xc-lg-name{opacity:.45;text-decoration:line-through}
+.xc-lg-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xc-lg-cnt{color:var(--sb-dim,#8d99a8)}
+.xc-lg .xc-edit{padding:0 3px;font-size:10px}
 .xc-top2{color:var(--sb-dim,#8d99a8)}
 .xc-review{color:#e0b252}
 .xc-edit{background:transparent;border:1px solid transparent;color:var(--sb-dim,#8d99a8);cursor:pointer;padding:0 4px;border-radius:3px}
@@ -192,24 +236,54 @@ const fmt2 = (n: number): string => (Math.round(n * 100) / 100).toFixed(2);
 
 // ---------------------------------------------------------------- colour by discipline
 
+/** What "Colour by" can show: Off, the discipline, or a facet. */
+export type ColourBy = 'Off' | 'Discipline' | (typeof FACET_IDS)[number];
+
+/** Pull a colour towards grey and light: an element that needs review looks washed out. */
+export function washOut(c: readonly [number, number, number]): [number, number, number] {
+  const l = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+  const f = (v: number): number => (0.35 * v + 0.65 * l) * 0.85 + 0.15 * 0.75;
+  return [f(c[0]), f(c[1]), f(c[2])];
+}
+
 class Tint {
   private saved: Map<number, [number, number, number]> | null = null;
-  on = false;
+  /** Colour by: Off, Discipline or a facet id. */
+  mode: ColourBy = 'Off';
+  /** Confidence shading: elements that need review are drawn washed out. */
+  shade = false;
   constructor(private readonly app: ViewerApp, private readonly svc: ClassifyService) {}
+
+  /** Colouring by a value (the old "Colour by discipline" switch). */
+  get on(): boolean {
+    return this.mode !== 'Off';
+  }
+
+  get active(): boolean {
+    return this.on || this.shade;
+  }
 
   apply(): void {
     this.restore(false);
-    if (!this.on) return;
+    if (!this.active) return;
     const m = this.svc.model;
     if (!m) return;
     const color = this.app.renderer.state.color;
     const saved = new Map<number, [number, number, number]>();
-    for (const r of this.svc.results()) {
-      const id = m.byGlobalId.get(r.id);
-      if (id === undefined) continue;
-      const o = id * 3;
-      saved.set(id, [color[o]!, color[o + 1]!, color[o + 2]!]);
-      const c = disciplineRgb(r.discipline.code);
+    const disc = new Map(this.svc.results().map((r) => [r.id, r] as const));
+    const facets = this.svc.facetResults();
+    for (const e of m.elements) {
+      const d = disc.get(e.globalId);
+      const fs = facets.get(e.globalId);
+      let code: string | undefined;
+      if (this.mode === 'Discipline') code = d?.discipline.code;
+      else if (this.mode !== 'Off') code = fs?.[this.mode]?.code;
+      const review = this.shade && (d?.needsReview === true || (fs !== undefined && Object.values(fs).some((r) => r?.needsReview)));
+      if (code === undefined && !review) continue;
+      const o = e.id * 3;
+      saved.set(e.id, [color[o]!, color[o + 1]!, color[o + 2]!]);
+      let c: [number, number, number] = code !== undefined ? disciplineRgb(code) : [color[o]!, color[o + 1]!, color[o + 2]!];
+      if (review) c = washOut(c);
       color[o] = c[0];
       color[o + 1] = c[1];
       color[o + 2] = c[2];
@@ -232,8 +306,21 @@ class Tint {
   }
 
   set(on: boolean): void {
-    this.on = on;
-    if (on) this.apply();
+    this.setMode(on ? 'Discipline' : 'Off');
+  }
+
+  setMode(mode: ColourBy): void {
+    this.mode = mode;
+    this.refresh();
+  }
+
+  setShade(on: boolean): void {
+    this.shade = on;
+    this.refresh();
+  }
+
+  private refresh(): void {
+    if (this.active) this.apply();
     else this.restore();
   }
 
@@ -810,6 +897,8 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   const bAll = button('Classify all', () => run('all'), { title: 'Classify every element of the model' });
   const bStop = button('Stop', () => svc.abort(), { title: 'Stop after the requests in flight' });
   box.append(estimateEl, useRules.root, row(bSel, bAll, bStop), prog, progLine);
+  const facetsFolder = buildFacetsFolder(app, svc);
+  box.appendChild(facetsFolder.root);
 
   // ---- results
   box.appendChild(section('Results'));
@@ -950,23 +1039,71 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
 
   // ---- output
   box.appendChild(section('Output'));
-  const legend = el('div', 'xc-legend');
-  const colour = add(check('Colour by discipline', () => tint.on, (v) => { tint.set(v); renderLegend(); }));
+  const legend = el('div', 'xc-legend', { 'data-role': 'colour-legend' });
+  const colourOptions = ['Off', 'Discipline', ...FACET_IDS.filter((f) => f !== 'ClassRepair')] as ColourBy[];
+  const colour = add(select<ColourBy>('Colour by', colourOptions, () => tint.mode, (v) => { tint.setMode(v); isolated = null; renderLegend(); }));
+  const shading = add(check('Confidence shading', () => tint.shade, (v) => { tint.setShade(v); }));
+  let isolated: string | null = null;
+  const userHides = (): Set<number> => app.controller.settings.overrides.userHides;
+  const applyHides = (): void => { app.controller.refreshOverrides(); app.runSightlinesNow(); };
+  const classSource = (): ClassSource => ({ results: () => svc.results(), facetResults: () => svc.facetResults() });
+  const legendQueryColumns = (): { discipline: string; subDiscipline: string } => {
+    const n = propertyNames(svc.schema);
+    return { discipline: `${svc.schema.psetName}.${n.discipline}`, subDiscipline: `${svc.schema.psetName}.${n.subDiscipline}` };
+  };
   const renderLegend = (): void => {
     legend.replaceChildren();
-    if (!tint.on) return;
-    const seen = new Set(svc.results().map((r) => r.discipline.code));
-    for (const dsc of svc.schema.disciplines) {
-      if (!seen.has(dsc.code)) continue;
-      const s = el('span');
+    const m = svc.model;
+    if (!tint.on || !m) return;
+    const level = tint.mode;
+    const rows = legendRows(collectClassInfos(m, classSource()), level, { columns: legendQueryColumns() });
+    const hides = userHides();
+    for (const r of rows) {
+      const hiddenAll = r.ids.length > 0 && r.ids.every((id) => hides.has(id));
+      const line = el('div', `xc-lg${isolated === r.code ? ' on' : ''}${hiddenAll ? ' off' : ''}`, { 'data-role': 'legend-row', 'data-code': r.code, role: 'button', tabindex: '0', 'data-help-key': 'Classify drawer/Legend row', 'data-help-title': 'Legend row', title: `Click to show only ${r.label}. Click again to show everything.` });
       const dot = el('span', 'xt-dot');
-      dot.style.background = rgbCss(disciplineRgb(dsc.code));
-      s.append(dot, document.createTextNode(`${dsc.code} ${dsc.label}`));
-      legend.appendChild(s);
+      if (r.code) dot.style.background = rgbCss(disciplineRgb(r.code));
+      else dot.style.border = '1px solid #8d99a8';
+      const name = el('span', 'xc-lg-name', undefined, r.code ? `${r.code} ${r.label}` : NOT_CLASSIFIED);
+      const cnt = el('span', 'xc-lg-cnt', undefined, String(r.count));
+      line.append(dot, name, cnt);
+      if (r.review > 0) line.appendChild(el('span', 'xc-review', { title: `${r.review} of ${r.count} need review` }, `${Math.max(1, Math.round((100 * r.review) / r.count))}%`));
+      const eye = el('button', 'xc-edit', { type: 'button', 'data-act': 'eye', title: hiddenAll ? 'Show' : 'Hide', 'aria-label': `${hiddenAll ? 'Show' : 'Hide'} ${r.code || NOT_CLASSIFIED}` }, hiddenAll ? 'Show' : 'Hide');
+      const sv = el('button', 'xc-edit', { type: 'button', 'data-act': 'save', title: 'Save as set', 'aria-label': `Save ${r.code || NOT_CLASSIFIED} as set` }, '+set');
+      line.append(eye, sv);
+      const isolate = (row: LegendRow): void => {
+        const h = userHides();
+        if (isolated === row.code) {
+          h.clear();
+          isolated = null;
+        } else {
+          const keep = new Set(row.ids);
+          for (const e of m.elements) { if (keep.has(e.id)) h.delete(e.id); else h.add(e.id); }
+          isolated = row.code;
+        }
+        applyHides();
+        renderLegend();
+      };
+      line.addEventListener('click', (ev) => {
+        const act = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset['act'];
+        if (act === 'eye') {
+          const h = userHides();
+          for (const id of r.ids) { if (hiddenAll) h.delete(id); else h.add(id); }
+          isolated = null;
+          applyHides();
+          renderLegend();
+        } else if (act === 'save') {
+          const nm = `${level} ${r.code || NOT_CLASSIFIED}`;
+          if (r.query) openCriteriaSetEditor(r.query, nm);
+        } else isolate(r);
+      });
+      line.addEventListener('keydown', (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === line) { ev.preventDefault(); isolate(r); } });
+      legend.appendChild(line);
     }
   };
   box.append(
     colour.root,
+    shading.root,
     legend,
     row(
       button('Select needs review', () => { const n = api.selectNeedsReview(); infoMsg = `${n} element${n === 1 ? '' : 's'} need review and ${n === 1 ? 'is' : 'are'} selected.`; svc.notify(); }, { title: 'Select every element that needs review' }),
@@ -1125,6 +1262,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     renderTable();
     renderLegend();
     paintReview();
+    facetsFolder.update();
     scheduleEstimate();
   };
 
@@ -1193,6 +1331,25 @@ function geoSource(app: ViewerApp): GeoSource {
   };
 }
 
+/** The geometry the facets read: world-space triangles of an element, and the BVH ray caster of the viewer. */
+function facetGeometryOf(app: ViewerApp): FacetGeometryEnv {
+  const origin = new Vector3();
+  const dir = new Vector3();
+  return {
+    mesh: (id) => {
+      const g = app.geometry?.elementMesh(id);
+      if (!g) return null;
+      return { position: g.getAttribute('position').array as ArrayLike<number>, index: g.index ? (g.index.array as ArrayLike<number>) : null, dispose: () => g.dispose() };
+    },
+    raycast: (o, d, max, candidates) => {
+      if (!app.geometry) return [];
+      origin.set(o[0], o[1], o[2]);
+      dir.set(d[0], d[1], d[2]);
+      return app.geometry.raycastAll(origin, dir, max, candidates);
+    },
+  };
+}
+
 let voidIndex: { model: unknown; counts: Map<number, number> } | null = null;
 
 /** The numeric shape line of an element (geometryVector): box, mesh, storey elevation and the number of openings from the loaded model. */
@@ -1235,6 +1392,7 @@ export const classifyPlugin: AppPlugin = {
       thumbnails: (id, ts) => renderThumbs(thumbSource(app), id, ts),
       geometry: (id, gs) => buildGeometry(geoSource(app), id, gs),
       shape: (id) => shapeOfElement(app, id),
+      facetGeometry: facetGeometryOf(app),
     });
     svc = service;
     tint = new Tint(app, service);
@@ -1274,6 +1432,26 @@ export const classifyPlugin: AppPlugin = {
       setSchema: (json) => service.setSchema(json, false),
       results: () => service.results(),
       override: (id, partial) => service.override(id, partial),
+      facets: {
+        defs: () => service.facetDefs(),
+        enabled: () => ({ ...service.facetOn }),
+        setEnabled: (f, on) => service.setFacetEnabled(f, on),
+        classify: (target) => service.classifyFacets(target).then((r) => (r ? r.stats : null)),
+        estimate: (target) => service.estimateFacets(target),
+        stats: () => service.lastFacetStats,
+        results: () => Object.fromEntries(service.facetResults()),
+        of: (id) => service.facetsOf(id),
+        override: (id, facet, partial) => service.overrideFacet(id, facet, partial),
+        removeOverride: (id, facet) => service.removeFacetOverride(id, facet),
+      },
+      concrete: {
+        enabled: () => service.concreteOn,
+        setEnabled: (on) => service.setConcreteEnabled(on),
+        results: () => Object.fromEntries(service.concreteResults()),
+        of: (id) => service.concreteOf(id),
+        stats: () => service.lastConcreteStats,
+        override: (id, set, code) => service.overrideConcrete(id, set, code),
+      },
       clear: () => { service.clear(); t.apply(); },
       export: (kind) => service.export(kind),
       abort: () => service.abort(),
@@ -1340,13 +1518,31 @@ export const classifyPlugin: AppPlugin = {
       },
       colourByDiscipline: (on) => {
         if (on !== undefined) { t.set(on); service.notify(); }
-        return t.on;
+        return t.mode === 'Discipline';
+      },
+      colourBy: (mode) => {
+        if (mode !== undefined) { t.setMode(mode); service.notify(); }
+        return t.mode;
+      },
+      confidenceShading: (on) => {
+        if (on !== undefined) { t.setShade(on); service.notify(); }
+        return t.shade;
       },
       state: () => ({ running: service.running, provider: service.draft.provider, model: service.modelId(), schemaTitle: service.schema.title, placeholder: service.schema.placeholder === true, hash: service.schemaHashValue }),
     };
     window.__xrayClassify = api;
 
-    service.onChange(() => { if (t.on && !service.running) t.apply(); });
+    service.onChange(() => {
+      if (t.active && !service.running) t.apply();
+      window.dispatchEvent(new Event('xray-classification'));
+    });
+    // The Model tab's "By classification" tree reads the same results.
+    (window as unknown as { __xrayClassSource?: ClassSource }).__xrayClassSource = {
+      results: () => service.results(),
+      facetResults: () => service.facetResults(),
+      order: () => { const d = service.facetDefs(); return Object.fromEntries(FACET_IDS.map((f) => [f, d[f].codes.map((c) => c.code)])); },
+      columns: () => { const n = propertyNames(service.schema); return { discipline: `${service.schema.psetName}.${n.discipline}`, subDiscipline: `${service.schema.psetName}.${n.subDiscipline}` }; },
+    };
 
     // The panel lives in the Classification tab of the right sidebar (not in a drawer). The tool keeps its id, its button and the
     // `tool.classify` action: they open that tab.
@@ -1405,14 +1601,14 @@ export const classifyPlugin: AppPlugin = {
       enabled: () => !!service.model, run: () => walk.open(),
     });
     registerAction({ id: 'classify.stop', label: 'Classify: stop', group: 'Tools', keys: [], run: () => api.abort() });
-    registerAction({ id: 'classify.colour', label: 'Classify: colour by discipline', group: 'Tools', keys: [], run: () => api.colourByDiscipline(!t.on) });
+    registerAction({ id: 'classify.colour', label: 'Classify: colour by discipline', group: 'Tools', keys: [], run: () => api.colourByDiscipline(t.mode !== 'Discipline') });
   },
   onModel(app) {
     const service = svc;
     if (!service || !app.loaded) return;
     reviewWalk?.onModel();
     tint?.forget();
-    if (tint) tint.on = false;
+    if (tint) { tint.mode = 'Off'; tint.shade = false; }
     disposeThumbRenderer();
     service.setModel(app.controller.model, app.modelName); // notifies the drawer
     lastSelKey = '';

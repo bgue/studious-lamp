@@ -173,6 +173,8 @@ export const ELEMENT_RULES: ReadonlyArray<{ selector: string; key: string | ((el
   { selector: '.sb-tab', key: (e) => ((e.textContent ?? '').trim() === 'Sets' ? 'Sidebar/Sets tab' : 'Sidebar/Model tab'), title: (e) => `${(e.textContent ?? '').trim()} tab` },
   { selector: '.dk-toggle, .dk-rail-label', key: 'Right sidebar/Collapse toggle', title: 'Collapse toggle' },
   { selector: '.sb-filter', key: 'Sidebar/Filter box', title: 'Filter box' },
+  { selector: '.tr .rv', key: 'Sidebar/Review share', title: 'Review share' },
+  { selector: '.tr .sv', key: 'Sidebar/Save as set', title: 'Save as set' },
   { selector: '.tv-scroll', key: 'Sidebar/Model tree', title: 'Model tree' },
   { selector: '.eye', key: 'Sidebar/Eye icon', title: 'Eye icon' },
   { selector: '.tr .dot', key: 'Sidebar/Bucket dot', title: 'Bucket dot' },
@@ -333,7 +335,7 @@ export const REVISION_HELP_KEYS: readonly string[] = [
 /** Keys of the Script tab of the right sidebar (src/anim/scriptPanel.ts): its controls carry the key in `data-help-key`. */
 export const SCRIPT_HELP_KEYS: readonly string[] = [
   'Script tab/Run', 'Script tab/Pause', 'Script tab/Stop', 'Script tab/Name', 'Script tab/Save', 'Script tab/Delete', 'Script tab/Saved scripts',
-  'Script tab/Examples', 'Script tab/Example', 'Script tab/Export', 'Script tab/Import', 'Script tab/Editor', 'Script tab/Problems', 'Script tab/Reference', 'Script tab/Record',
+  'Script tab/Examples', 'Script tab/Example', 'Script tab/Export', 'Script tab/Import', 'Script tab/Editor', 'Script tab/Problems', 'Script tab/Parameters', 'Script tab/Reference', 'Script tab/Record',
 ];
 
 /** Keys of the video export dialog and its busy overlay (src/anim/record/ui.ts): the controls carry the key in `data-help-key`. */

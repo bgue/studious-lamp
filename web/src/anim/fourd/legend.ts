@@ -3,6 +3,7 @@
 // (src/anim/hud/legend.ts) and by the storyboard PDF (src/schedule/storyboard.ts), so both show the same key.
 
 import type { FourDPlan } from '../../schedule/types';
+import { TEMP_COLOURS } from '../../schedule/tempworks';
 import { AHEAD_RGB, BEHIND_RGB, CRITICAL_RGB, EXISTING_GREY, GLOW_RGB, REMOVED_RGB, toHex, tradeColour } from './look';
 
 export type LegendKind = 'fill' | 'glow' | 'outline' | 'ghost';
@@ -24,20 +25,12 @@ export interface LegendContent {
 export const MAX_LEGEND_TRADES = 8;
 export const BUILT_COLOUR = '#cfd6df';
 export const PLANNED_COLOUR = '#7f8a99';
-export const TEMPORARY_COLOUR = '#e0a35a';
 
-/** Temporary works colours, when the plan carries them: `plan.temporary` as one { colour, label? } or a list of them. Never required. */
+/** Temporary works in the plan: one entry per kind present (scaffold, falsework, formwork) in the colour the film draws it in. */
 function temporaryEntries(plan: FourDPlan): LegendEntry[] {
-  const raw = (plan as unknown as { temporary?: unknown }).temporary;
-  const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
+  const kinds = new Set((plan.temporaryWorks?.groups ?? []).map((g) => g.kind));
   const out: LegendEntry[] = [];
-  for (const r of list) {
-    if (!r || typeof r !== 'object') continue;
-    const o = r as { colour?: unknown; color?: unknown; label?: unknown; name?: unknown };
-    const colour = typeof o.colour === 'string' ? o.colour : typeof o.color === 'string' ? o.color : TEMPORARY_COLOUR;
-    const label = typeof o.label === 'string' ? o.label : typeof o.name === 'string' ? o.name : 'Temporary works';
-    if (!out.some((e) => e.label === label)) out.push({ label, colour, kind: 'fill' });
-  }
+  for (const k of ['scaffold', 'falsework', 'formwork'] as const) if (kinds.has(k)) out.push({ label: k[0]!.toUpperCase() + k.slice(1), colour: TEMP_COLOURS[k], kind: 'fill' });
   return out;
 }
 

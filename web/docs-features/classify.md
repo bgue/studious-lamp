@@ -991,8 +991,8 @@ where XR_Classification.NeedsReview = TRUE
 where MasterFormatDivision = '23' and class = 'IfcDuctSegment'
 ```
 
-The properties live in the loaded model only: export CSV or JSON to keep them. **Colour by discipline** tints the elements
-(the legend lists the codes). **Select needs review** selects the elements that need review; **Save needs-review set** opens the
+The properties live in the loaded model only: export CSV or JSON to keep them. **Colour by** tints the elements by the discipline or a facet
+(the legend lists the values; see "Classification tree and colours"). **Select needs review** selects the elements that need review; **Save needs-review set** opens the
 criteria-set editor with the query `"XR_Classification.NeedsReview" = TRUE`. **Export CSV** and **Export JSON** save the
 results (`GlobalId`, discipline and its top 2 probabilities, sub-discipline, division, confidence, source, model id,
 `NeedsReview`, rationale for rules).
@@ -1002,6 +1002,249 @@ results (`GlobalId`, discipline and its top 2 probabilities, sub-discipline, div
 The pencil on a row opens a form: discipline, sub-discipline and division (lists from the schema). **Apply override** gives the
 element a result with source `manual` and confidence 1. A manual result wins over rules, cache and model, survives
 **Clear results** and new runs, and is kept per model and schema hash in `localStorage`. **Remove override** deletes it.
+
+## Facets
+
+Besides discipline, sub-discipline and division, the classifier answers six more questions about an element, each as its own
+**facet**: **Trade**, **Placement**, **Material**, **Phase**, **Orientation** and **ClassRepair**. The design is
+`docs/design/classification-facets.md`; this section is what is built (engine and namespace; batch mode, the tree view and the messy-model
+checks come later on top of it). Classify runs the facets after the discipline; the Classification tab has a **Facets** folder with a
+switch per facet (all on by default; ClassRepair only ever offers a suggestion) and, for the selected element, its facet values with the
+confidence and the source, and a picker to set one by hand (source `manual`; kept per model, wins over every other source).
+
+| Facet | Answers | Codes | How it is decided |
+| --- | --- | --- | --- |
+| `Trade` | Who builds it? | EARTH, CONC, STEEL, TIMBER, MASON, ROOF, FACADE, GLAZ, DRYLN, FINISH, DOORS, MECH, PLUMB, ELEC, FIRE, LIFT, SITE, OTHER | rules from class + discipline + material (`IfcSlab` + concrete is CONC, `IfcWall` + masonry is MASON, a ceiling covering is DRYLN, `IfcDoor` is DOORS, `IfcPipeSegment` + PLB is PLUMB), then the model |
+| `Placement` | Where does it sit, does it carry load? | EXT, INT, BOUNDARY (and LoadBearing true/false) | its own `Pset_*Common.IsExternal` / `LoadBearing`, checked against the geometry; else the envelope test; else the model |
+| `Material` | What is it made of? | CONCRETE, STEEL, TIMBER, MASONRY, GYPSUM, GLASS, ALUMINIUM, INSULATION, PLASTIC, STONE, EARTH, OTHER | keyword table over the IFC material and layer-set name, the type name, the name; else the model |
+| `Phase` | When is it built? | SUBSTR, FRAME, ENVELOPE, SERVICES, FITOUT, EXTERNAL | rules from Trade + Placement + load-bearing + level (below ground); else the model |
+| `Orientation` | Which way does it point? | HORIZONTAL, VERTICAL, INCLINED, ALONG_X, ALONG_Y, DIAGONAL | measured only |
+| `ClassRepair` | What is it really? | KEEP or a suggested IFC class (IfcColumn, IfcBeam, IfcWall, ...) | only for proxies, untyped `IfcBuiltElement` and classes the shape contradicts: names, type names and shape; else the model |
+
+**Orientation** is area-weighted PCA of the element's world-space triangles. The spreads along the principal axes give the shape:
+linear (beams, columns, pipes), planar (walls, slabs, doors) or compact (equipment). `Tilt` is degrees from horizontal (a linear
+element: its axis; a planar one: the plane); `Azimuth` is the direction in plan from model +X (a line has no sense, so 0 to 180): the axis
+of a linear element, the plane normal of a vertical or inclined plane, the longest side of a flat or compact one. `Class`: planar with a
+vertical normal (within 5 degrees) is HORIZONTAL, with a horizontal normal VERTICAL, otherwise INCLINED; linear vertical is VERTICAL,
+horizontal ones are ALONG_X / ALONG_Y (within 5 degrees of the axes) or DIAGONAL. `Upright` is told for classes that have a top (doors,
+windows, stairs, furniture, equipment): from the placement's local +Z when the model gives it, else by comparing the horizontal area at
+the base and the top. `Plausible` comes from a per-class table (wall vertical; slab horizontal or inclined; column vertical or inclined;
+beam not vertical; door and window vertical and not upside down; roof, pipes, ducts any) and an implausible one sets `NeedsReview`.
+
+**Placement by geometry**: a wall, curtain wall, window or door shoots horizontal rays from three points along its middle, along both face
+normals, against the envelope set (walls, curtain walls, windows, doors, roofs). Clear on one side and blocked on the other is BOUNDARY,
+blocked on both is INT, clear on both is EXT; a wall on the outline of its storey's plan is BOUNDARY even when a wing blocks the ray.
+Roofs, the top slab and the ground slab are BOUNDARY, other slabs INT, footings and piles EXT. Any other element is EXT outside the storey
+outline, else 8 rays decide (none clear is INT, most clear EXT, in between BOUNDARY with a low confidence). The test reads the viewer's BVH
+and runs in slices so the page stays responsive. When the element's own `IsExternal` and the geometry disagree with confidence, the
+geometry wins (`Source = geometry`) and the element needs review.
+
+**Model facets.** For what the rules leave open (a rule below 0.85 is not final), the configured provider is asked one question per facet
+with the facet's codes as options (`facet_trade`, `facet_placement` (+ `facet_loadbearing` yes/no), `facet_material`, `facet_phase`,
+`facet_classrepair`), once per signature (the discipline signature plus what the facet depends on, for example the material for Trade). The
+state holds what is already known (`facets`: material, placement, trade, discipline, orientation) and the shape line. The temperature of
+the discipline question scales the facet answers; a result needs review when its confidence is below the facet's threshold (the schema's
+`facets.<Facet>.minConfidence`, default the schema's) or its top-2 margin is under 0.15. The answers are cached per model, facet code lists
+and provider. A model failure leaves the weak rule, flagged for review.
+
+**The namespace.** Results are written (when `writePset` is on) as properties of the element, one set per facet, `XR_<Facet>`:
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `XR_<Facet>.Code` | label | the chosen code |
+| `XR_<Facet>.Label` | label | its name |
+| `XR_<Facet>.Confidence` | real 0-1 | calibrated probability; 1 for a measured or manual value |
+| `XR_<Facet>.Source` | label | `rule`, `model`, `geometry`, `ifc`, `manual` (`batch-learned` later) |
+| `XR_<Facet>.Model` | label | provider and model id for `model`; absent otherwise |
+| `XR_<Facet>.NeedsReview` | boolean | below the threshold, a close second, two sources disagree, or implausible |
+| `XR_<Facet>.SchemeVersion` | label | `xr-facets/1` |
+| `XR_Placement.Exposure` | label | EXT, INT or BOUNDARY (repeats `Code`) |
+| `XR_Placement.LoadBearing` | boolean | |
+| `XR_Placement.ExposureSource`, `.LoadBearingSource` | label | `ifc`, `geometry`, `rule`, `model` or `manual` |
+| `XR_Orientation.Tilt`, `.Azimuth` | real | degrees, 0.1 precision |
+| `XR_Orientation.Upright`, `.Plausible` | boolean | absent when unknown |
+| `XR_Orientation.PrincipalAxis` | label | `X`, `Y` or `Z`; absent when none |
+| `XR_ClassRepair.OriginalClass`, `.SuggestedClass`, `.SuggestedPredefinedType` | label | |
+| `XR_ClassRepair.Applied` | boolean | false; the class is never rewritten by the classifier |
+| `XR_Trade.WorkPackage` | label | free text, set by hand |
+
+`XR_Classification` (the discipline) keeps its fields and gains `SchemeVersion`. A facet that is off writes nothing; an empty value is
+left out. In a query the bare facet name is an alias for the code: `Trade` is `XR_Trade.Code` (also `Placement`, `Phase`, `Orientation`,
+`ClassRepair`; `material` stays the IFC material column, so use `XR_Material.Code`). Examples:
+
+```
+count where Trade = 'CONC'
+count where Placement = 'BOUNDARY' and class = 'IfcWall'
+where XR_Orientation.Plausible = FALSE
+where XR_ClassRepair.Code <> 'KEEP' and XR_ClassRepair.Confidence >= 0.8
+sum NetArea by XR_Phase.Code
+```
+
+CSV and JSON exports gain the facet columns `XR_<Facet>.<Field>` (JSON: a `facets` object by GlobalId and `facetScheme`).
+
+**Schema.** The shipped schema has an optional `facets` section: `{ "version": "xr-facets/1", "Trade": { "enabled": true, "minConfidence": 0.6,
+"description": "...", "codes": [ { "code": "CONC", "label": "...", "description": "..." } ] }, ... }`. A schema file without it loads and gets the
+same defaults. Codes the rules produce must stay in the lists (a rule's code that a custom list lacks is still written as it is).
+
+**API**: `__xrayClassify.facets` has `defs()`, `enabled()`, `setEnabled(facet, on)`, `classify(target)`, `estimate(target)`, `results()`,
+`of(id)`, `override(id, facet, { code, loadBearing?, workPackage?, predefinedType? })` and `removeOverride(id, facet)`. In code
+(`src/classify/facets/`): `measureOrientation` and `orientationPlausible` (orientation.ts), `createPlacementProbe` and `meshRayHits`
+(placementGeometry.ts), `materialRule`, `placementRule`, `loadBearingRule`, `tradeRule`, `phaseRule`, `classRepairRule` (facetRules.ts),
+`classifyFacets`, `facetQuestions`, `estimateFacetCalls` (engine.ts), `facetProperties`, `makeManualFacet`, `facetCsvColumns` (write.ts),
+`defaultFacetDefs`, `parseFacets` (defs.ts). Everything there is pure TypeScript, no DOM.
+
+## Classification tree and colours
+
+The facets (see "Facets") make two views of the whole model. Both are computed from the `XR_*` properties, so they follow every
+change of a classification. The page [classification-tree.md](classification-tree.md) has the short version.
+
+**By classification (Model tab).** The Model tab has a switch at the top, **Model tree** | **By classification**. The second shows
+the same elements in a tree grouped by 1 to 4 levels that you choose in **Group by**: Phase, Discipline, Sub-discipline, Trade,
+Placement, Material, Orientation, Storey, IFC class (and UniFormat levels 1 to 3). The presets, which are data in
+`src/classify/classTree.ts` (`PRESETS`), are:
+
+| Preset | Levels |
+| --- | --- |
+| **Construction** | Phase > Trade > IFC class |
+| **Ownership** | Discipline > Sub-discipline > IFC class |
+| **Envelope** | Placement > Material > IFC class |
+| **Standard (UniFormat II)** | UniFormat level 1 > level 2 > level 3 (A > A10 > A1010) |
+
+An element with no value at a level goes under **Not classified** at that level, so nothing disappears. Every group row shows its
+count, an amber percentage when part of it needs review, the eye (hide or show the group) and **+set** (hover the row). A click
+selects the elements of the row; the keyboard, type-ahead and virtualisation are those of the model tree
+([keyboard.md](keyboard.md#model-tree-keys)). The filter box filters this tree too. The mode and the grouping are kept in
+`localStorage["xray.classtree.v1"]` for this viewer only.
+
+**UniFormat II.** `public/classification/uniformat2.json` holds levels 1 to 3 (A Substructure to G Building Sitework, with the
+standard titles) and an ordered list of rules. A rule has `when` (lists of IFC class prefixes, Placement, Phase, Trade and
+Discipline codes) and a `code`. The first rule that holds for all its conditions gives the code of the element (level 3). When no
+rule holds, `fallbacks` gives a level 1 or 2 code by Phase; with none, the element is Not classified. **Mapping...** (shown for
+the Standard preset) loads your own file of the same shape for this browser, **Reset** goes back to the shipped one. MasterFormat
+stays the work-results code of each element. On the FZK-Haus every element reaches at least level 2 and 42 of 82 reach level 3
+(the 40 timber members stay at B10 because their class cannot tell roof from floor framing).
+
+**Colour by.** The Output section of the Classification tab has a **Colour by** list: Off, Discipline, Trade, Placement, Material,
+Phase or Orientation. The legend under it has a row for each value, with its count and the share that needs review. Click a row to
+show only its elements (click again for all), **Hide** hides them, **+set** opens the criteria-set editor with the query of the row.
+`window.__xrayClassify.colourBy('Trade')` does the same from a script; `colourByDiscipline(true)` still works.
+
+**Confidence shading.** The **Confidence shading** switch draws every element that needs review washed out (less saturated and
+lighter), over any Colour by choice or over the model colours, so doubtful areas show in the picture.
+
+**Save as set.** Each group row of the tree and each legend row is a query, for example
+`XR_Trade.Code = 'CONC' and XR_Phase.Code = 'FRAME'`; an element without a value is `XR_Trade.Code IS NULL`. **+set** opens the
+criteria-set editor with it, so the set updates by itself and works in the search bar and in scripts. UniFormat rows have no
+property to query, so **+set** saves the elements as a plain set. Not done yet: the Disagreement marker and the facet filter of the
+review walk (design section 7).
+
+## Concrete
+
+Concrete elements get five more sets, `XR_ConcreteGeometry`, `XR_ConcreteElement`, `XR_ConcreteMethod`, `XR_ConcreteSpec` and
+`XR_ConcreteReinforcement`, so that cost, formwork, pours and later the rebar can be tied to a stable element with a role, a local frame and
+measured faces. The design is `docs/design/concrete-classification.md` (steps 1 and 2 are built: the measured geometry, marks, roles,
+method, specification and the reinforcement intent; the tree preset, colour and the quantity summary and the rebar matcher come later).
+Classify runs them after the facets, for the **whole model** at once (marks and pour groups need every concrete element). The Facets folder has a
+**Concrete** switch and, for the selected element, its concrete sets (role, method and reinforcement type can be set by hand; source `manual`).
+
+**Which elements.** Concrete material (the Material facet, else the keyword rule), or an `IfcFooting` / `IfcPile` whose material is not
+another one, or a slab, wall, column, beam, stair, ramp, member, plate, proxy and so on that has `Pset_ConcreteElementGeneral` or a
+`Pset_PrecastConcreteElement*` set. Masonry, steel and timber elements are not in the family. Every set has the core fields
+(`Code`, `Label`, `Confidence`, `Source`, `Model`, `NeedsReview`, `SchemeVersion = xr-concrete/1`).
+
+**XR_ConcreteGeometry** is measured, no model. Frame: IFC axes, right handed, `FrameOrigin` is the minimum corner of the element in its own
+frame; `FrameX`, `FrameY`, `FrameZ` are unit vectors ("x y z"). By role: slabs and footings Z up and X along the longer side (across two
+parallel line supports when that is all it bears on); walls Z up, X along the wall, Y out of the face (the exterior face when known);
+beams X along the axis, Z up; columns, piles Z along the axis and X along the longer section side; an inclined slab has Z normal to its top.
+
+| Property | Meaning |
+| --- | --- |
+| `Volume` (m3), `VolumeEstimated` | exact for a closed mesh; otherwise the bounds volume in the local frame, flagged and `NeedsReview` |
+| `FormworkArea` (m2) | faces that are not upward-facing (normal Z below 0.5) and not against another concrete element or the ground |
+| `TopArea`, `SoffitArea` | upward-facing area; formed downward-facing area (not against concrete or ground) |
+| `FrameOrigin`, `FrameX`, `FrameY`, `FrameZ` | the local frame |
+| `Length`, `Width`, `Thickness` (m) | slab, footing, beam: extents along X, Y, Z (beam depth is Thickness); wall: X, height, Y; column: height (Z), X, Y |
+| `SectionShape` | `RECT`, `CIRC`, `T`, `L`, `I`, `IRREGULAR`, from the end cap on a 16 x 16 grid |
+| `Faces` | planar faces: `NAME area`, `C<area>` against concrete, `G<area>` against ground, e.g. `TOP 12.3; BOTTOM 12.3 G12.3`. Names `TOP`, `BOTTOM`, `SIDE_X+/-`, `SIDE_Y+/-`, `END_+/-` (ends of beams, walls and columns), `INCL`, a repeat gets `#2` |
+| `Supports`, `Carries` | GlobalIds (comma separated, at most 20) of the concrete elements it bears on and of those that bear on it: bounds contact (bottom on top within 5 cm, plan overlap) refined by the face contact |
+
+Faces lie against another element when the point 2 cm outside the face is inside that element's bounds (a sampled test, so areas have
+about 1% noise); against the ground when below the ground level (the lowest storey's floor) and the role is a foundation or a slab on grade
+(soffit), or a footing, pile cap and so on (sides). Mesh units are metres.
+
+**XR_ConcreteElement** `Code` is a role: PAD_FOOTING, STRIP_FOOTING, RAFT, PILE_CAP, PILE, GRADE_BEAM, PLINTH, SLAB_ON_GRADE, SUSPENDED_SLAB, FLAT_SLAB,
+RIBBED_SLAB, WAFFLE_SLAB, TRANSFER_SLAB, TOPPING, LANDING, BEAM, DOWNSTAND_BEAM, UPSTAND_BEAM, TRANSFER_BEAM, COLUMN, PIER, WALL, SHEAR_WALL, CORE_WALL,
+RETAINING_WALL, BASEMENT_WALL, PARAPET, STAIR, RAMP, CORBEL, CURB, EQUIPMENT_PAD, PRECAST_PANEL, OTHER. Decided by: names and type names
+("pile cap", "Bodenplatte", "transfer", "Kern", "Unterzug"), the predefined type, the class, then the geometry (slab at the ground level on
+the lowest storey is SLAB_ON_GRADE, a slab resting on walls, columns or beams above ground is SUSPENDED_SLAB, a beam that carries a column is
+TRANSFER_BEAM, a footing by plan area and aspect, a wall below ground is a BASEMENT_WALL). A rule at 0.85 or more is final; below it the model is
+asked "what is its structural role?" with **only the codes allowed for the IFC class** (a slab is never asked COLUMN). Other fields: `Mark`,
+`MarkSource` (`ifc` or `generated`), `Storey` (0 = lowest storey), `HostGroup` (pour group).
+
+**Marks.** The mark is the IFC `PieceMark` (precast pset) or `Attr.Tag` when it is present and unique among the concrete elements, else
+`<role prefix><storey index>-<n>` (`S1-03` the third suspended slab on storey 1, `C0-12`, `W1-04`; prefixes: FP, FS, RF, PC, PL, GB, PT, SG, S, FL,
+RS, WS, TS, TP, LD, B, UB, TB, C, PR, W, SW, CW, RW, BW, PA, ST, RP, CB, CU, EP, PP, X). Each series is numbered by the frame origin's X, then Y
+(5 cm steps), then GlobalId, so the same model gives the same marks whatever the element order. **Pour groups** (`PG-<storey>-<n>`): elements that
+touch, are on one storey, are cast on site (CAST_IN_PLACE, POST_TENSIONED, COMPOSITE_DECK) and are in one class (slabs with their beams; walls with
+columns; foundations with the slab on grade). Precast and tilt-up elements and stairs have none.
+
+**XR_ConcreteMethod** `Code`: CAST_IN_PLACE, PRECAST, POST_TENSIONED, TILT_UP, COMPOSITE_DECK, UNKNOWN. From a precast pset, the IFC4
+`ConstructionMethod` (In-Situ or Precast), names ("PT", "post-tension", "precast", "hollowcore", "tilt-up", "metal deck"; "PC" is precast except on
+a footing), tendons next to the element, the role; foundations are cast in place; else CAST_IN_PLACE at 0.55 (needs review), or the model.
+
+**XR_ConcreteSpec** `Code` is the strength class (`UNKNOWN` when none). Read from the IFC properties first (`Source = ifc`), then parsed from
+the material, type and name; the cover from a table. Fields:
+
+| Property | Meaning |
+| --- | --- |
+| `StrengthClass`, `StrengthUnit`, `Standard` | EN 206 `C30/37`, `LC25/28`, `C30`; DIN `B35` becomes `C25/30`; ACI `4000 psi`, `5 ksi` (from `f'c = 5 ksi`) with the unit `psi` / `ksi`, `32 MPa`. `Standard` is `EN206` or `ACI318` |
+| `ExposureClass`, `ExposureSource` | EN 206 (X0, XC1-4, XD1-3, XS1-3, XF1-4, XA1-3, comma separated) or ACI 318 (F, S, W, C, from the IFC property only). `ExposureSource` is `ifc`, `rule` (named in the text) or `suggested` |
+| `CoverNominal`, `CoverMainBars`, `CoverLinks` (mm), `CoverSource` | from `ConcreteCover`, `ConcreteCoverAtMainBars`, `ConcreteCoverAtLinks` (a value below 1 is metres); else the table (`table`, `ifc+table`) |
+| `FireResistance` | `FireRating` (`REI 90` becomes `REI90`, a bare number `R60`) |
+| `ReinforcementGrade` | `ReinforcementStrengthClass` |
+| `Derived` | the fields this set filled that the IFC left empty (comma separated) |
+
+**Exposure is never decided by a rule or a model.** With nothing in the IFC or the text it is a suggestion from the Placement facet and the level
+(below ground XC2; EXT or BOUNDARY XC4, XF1; INT XC1), `ExposureSource = suggested` and the set `NeedsReview`. A cover taken from the table also
+sets `NeedsReview` until it is confirmed. The **cover table** is `public/classification/concrete-cover.json` (EN: cover by exposure class, a
+minimum by role for ground-cast members, the extra for the main bars of beams and columns; ACI: ground 75, weather 50, interior 40, slabs and walls
+inside 20 mm). Edit it to the project's specification; `ClassifyService.setCoverTable(json)` loads another one.
+
+**The IFC property names** were checked against the IFC4 (ADD2) and IFC2x3 property set templates. `Pset_ConcreteElementGeneral` has (IFC4)
+`ConstructionMethod`, `StructuralClass`, `StrengthClass`, `ExposureClass`, `ReinforcementVolumeRatio`, `ReinforcementAreaRatio`,
+`ConcreteCover`, `ConcreteCoverAtMainBars`, `ConcreteCoverAtLinks`, `ReinforcementStrengthClass` (IFC2x3: `EnvironmentalClass`, `FireRating`,
+`ConstructionType`, `ConcreteCoverAtMainBars`, `ConcreteCoverAtLinks`, `StructuralClass`); `Pset_PrecastConcreteElementGeneral` and `...Fabrication`
+have `TypeDesignator`, `ProductionLotId`, `PieceMark`. **`CastingMethod` and `AssemblyPlace` do not exist in IFC4**; `ConstructionMethod` is read instead.
+
+**XR_ConcreteReinforcement** is the intent, `Code`: REINFORCED, POST_TENSIONED, FIBRE, PLAIN, UNKNOWN (from the method, names such as
+"blinding" or "steel fibre", the IFC reinforcement properties; structural concrete is REINFORCED at 0.86; non-structural roles 0.6 and then the model).
+`Scheme`: slabs ONE_WAY / TWO_WAY (names, the role, bears on two opposite sides only, else the measured span ratio: 2 or more is one-way, 1.4 or
+less two-way, between it is asked of the model with the ratio in the state), walls SINGLE_LAYER (under 0.14 m) / DOUBLE_LAYER (0.2 m and over),
+beams, columns and piles LINKS, pad footings, rafts and pile caps TWO_WAY. `RatioEstimate` (kg/m3, `RatioSource` `ifc` or `rule`): the IFC
+`ReinforcementVolumeRatio`, else a table by role (footings 90, slabs 105, flat slabs 120, beams 175, columns 215, walls 80, transfer slabs 250,
+transfer beams 275; 0 for plain and fibre concrete), and `MassEstimate` (kg) = ratio x volume for a closed mesh. `BarCount`, `MeshCount`,
+`TendonCount`, `MatchedMass`, `MatchedRatio` and `RatioCheck` are filled by the rebar matcher later.
+
+**The decision model** is asked once per signature (the element's discipline signature plus what the answer depends on: class, size, ground
+and support classes) through the same providers, cache, calibration and review thresholds as the facets: `concrete_role` (options: the roles
+allowed for the class), `concrete_method`, `concrete_reinforcement`, `concrete_slab_scheme` (span ratio in the state). Exposure, strength, cover
+and fire resistance are never asked. A model failure leaves the weak rule, flagged for review. A manual role, method or reinforcement type wins.
+
+Queries (the bare names `ConcreteElement`, `ConcreteMethod`, `ConcreteSpec`, `ConcreteReinforcement` are aliases for `XR_<Set>.Code`; `contains` is
+`like '%...%'`):
+
+```
+count where ConcreteElement = 'SUSPENDED_SLAB'
+sum XR_ConcreteGeometry.Volume by XR_ConcreteSpec.StrengthClass
+where XR_ConcreteSpec.ExposureClass contains 'XD'
+sum XR_ConcreteGeometry.FormworkArea by Storey
+where XR_ConcreteSpec.NeedsReview = TRUE and ConcreteElement = 'WALL'
+```
+
+CSV and JSON exports gain the columns `XR_Concrete<Set>.<Field>` (JSON: a `concrete` object by GlobalId and `concreteScheme`). Code:
+`src/classify/concrete/`: `geometry.ts` (`concreteGeometry`, `meshVolume`, `minAreaRect`), `rules.ts`, `spec.ts` (`parseStrength`, `parseExposure`,
+`specOf`, `parseCoverTable`), `marks.ts`, `contacts.ts` (`contactGraph`, `pourGroups`), `engine.ts` (`classifyConcrete`), `write.ts`, `defs.ts`. Pure
+TypeScript, no DOM. Service: `concreteOn`, `concreteOf(id)`, `concreteResults()`, `runConcrete()`, `overrideConcrete(id, set, code)`.
 
 ## Review walk
 

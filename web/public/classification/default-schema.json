@@ -573,5 +573,405 @@
         "description": "Power generation equipment such as solar, wind, hydroelectric and thermal."
       }
     ]
+  },
+  "facets": {
+    "version": "xr-facets/1",
+    "Trade": {
+      "enabled": true,
+      "minConfidence": 0.6,
+      "description": "Who builds it (the work package)?",
+      "codes": [
+        {
+          "code": "EARTH",
+          "label": "Earthworks",
+          "description": "Excavation, fill, grading and shoring"
+        },
+        {
+          "code": "CONC",
+          "label": "Concrete works",
+          "description": "Cast-in-place and precast concrete: foundations, slabs, walls, columns, beams, stairs"
+        },
+        {
+          "code": "STEEL",
+          "label": "Steel works",
+          "description": "Structural and miscellaneous steel: columns, beams, braces, stairs, railings"
+        },
+        {
+          "code": "TIMBER",
+          "label": "Timber works",
+          "description": "Structural and finish carpentry: timber and glulam frames, joists, rafters, CLT panels"
+        },
+        {
+          "code": "MASON",
+          "label": "Masonry",
+          "description": "Brick, block and stone walls"
+        },
+        {
+          "code": "ROOF",
+          "label": "Roofing",
+          "description": "Roof coverings, membranes, insulation above the deck, flashings"
+        },
+        {
+          "code": "FACADE",
+          "label": "Facade and cladding",
+          "description": "Exterior wall systems, cladding, curtain walling, rainscreens"
+        },
+        {
+          "code": "GLAZ",
+          "label": "Glazing",
+          "description": "Windows, glazed screens, skylights"
+        },
+        {
+          "code": "DRYLN",
+          "label": "Drylining and partitions",
+          "description": "Plasterboard walls and ceilings, metal stud partitions, suspended ceilings"
+        },
+        {
+          "code": "FINISH",
+          "label": "Finishes",
+          "description": "Floor, wall and ceiling finishes, paint, tiling, joinery, furniture"
+        },
+        {
+          "code": "DOORS",
+          "label": "Doors and ironmongery",
+          "description": "Doors, frames, hardware, shutters"
+        },
+        {
+          "code": "MECH",
+          "label": "Mechanical (HVAC)",
+          "description": "Ducts, air handling, chillers, boilers, heating and cooling pipework"
+        },
+        {
+          "code": "PLUMB",
+          "label": "Plumbing",
+          "description": "Water supply, drainage, sanitary fixtures"
+        },
+        {
+          "code": "ELEC",
+          "label": "Electrical",
+          "description": "Power, lighting, cable routes, switchgear, data and communications"
+        },
+        {
+          "code": "FIRE",
+          "label": "Fire protection",
+          "description": "Sprinklers, standpipes, fire alarm and detection"
+        },
+        {
+          "code": "LIFT",
+          "label": "Vertical transport",
+          "description": "Elevators, escalators, hoists"
+        },
+        {
+          "code": "SITE",
+          "label": "Site works",
+          "description": "Paving, landscaping, site utilities, fences, roads"
+        },
+        {
+          "code": "OTHER",
+          "label": "Other",
+          "description": "Work that fits none of the other trades"
+        }
+      ]
+    },
+    "Placement": {
+      "enabled": true,
+      "minConfidence": 0.6,
+      "description": "Where does it sit (exterior, interior, on the envelope) and does it carry load?",
+      "codes": [
+        {
+          "code": "EXT",
+          "label": "Exterior",
+          "description": "Outside the building, exposed to weather"
+        },
+        {
+          "code": "INT",
+          "label": "Interior",
+          "description": "Inside the building envelope, not exposed to weather"
+        },
+        {
+          "code": "BOUNDARY",
+          "label": "Envelope boundary",
+          "description": "On the building envelope: weather on one side, building on the other"
+        }
+      ]
+    },
+    "Material": {
+      "enabled": true,
+      "minConfidence": 0.6,
+      "description": "What is it mainly made of?",
+      "codes": [
+        {
+          "code": "CONCRETE",
+          "label": "Concrete",
+          "description": "Concrete, reinforced concrete, precast, grout, screed"
+        },
+        {
+          "code": "STEEL",
+          "label": "Steel",
+          "description": "Structural steel, reinforcing steel, stainless steel, cast iron"
+        },
+        {
+          "code": "TIMBER",
+          "label": "Timber",
+          "description": "Wood, glulam, CLT, plywood, OSB, timber boards"
+        },
+        {
+          "code": "MASONRY",
+          "label": "Masonry",
+          "description": "Brick, concrete block, calcium silicate, aerated block"
+        },
+        {
+          "code": "GYPSUM",
+          "label": "Gypsum",
+          "description": "Plasterboard, drywall, gypsum plaster"
+        },
+        {
+          "code": "GLASS",
+          "label": "Glass",
+          "description": "Glass and glazing units"
+        },
+        {
+          "code": "ALUMINIUM",
+          "label": "Aluminium",
+          "description": "Aluminium frames and sheet"
+        },
+        {
+          "code": "INSULATION",
+          "label": "Insulation",
+          "description": "Mineral wool, EPS, XPS, PIR, glass wool"
+        },
+        {
+          "code": "PLASTIC",
+          "label": "Plastic",
+          "description": "PVC, polyethylene, polypropylene and other polymers"
+        },
+        {
+          "code": "STONE",
+          "label": "Stone",
+          "description": "Natural stone, granite, marble, slate"
+        },
+        {
+          "code": "EARTH",
+          "label": "Earth",
+          "description": "Soil, gravel, sand, clay, fill"
+        },
+        {
+          "code": "OTHER",
+          "label": "Other",
+          "description": "Another material, or a mix with no main material"
+        }
+      ]
+    },
+    "Phase": {
+      "enabled": true,
+      "minConfidence": 0.6,
+      "description": "When in the job is it built?",
+      "codes": [
+        {
+          "code": "SUBSTR",
+          "label": "Substructure",
+          "description": "Below ground: excavation, footings, foundation walls, piles, ground slab"
+        },
+        {
+          "code": "FRAME",
+          "label": "Frame",
+          "description": "The load-bearing structure above ground: columns, beams, floor slabs, structural walls, stairs"
+        },
+        {
+          "code": "ENVELOPE",
+          "label": "Envelope",
+          "description": "The weather barrier: external walls, windows, external doors, roof"
+        },
+        {
+          "code": "SERVICES",
+          "label": "Services",
+          "description": "Mechanical, plumbing, electrical, fire and vertical transport installations"
+        },
+        {
+          "code": "FITOUT",
+          "label": "Fit-out",
+          "description": "Interior partitions, doors, ceilings, finishes, fixed furniture"
+        },
+        {
+          "code": "EXTERNAL",
+          "label": "External works",
+          "description": "Site works outside the building"
+        }
+      ]
+    },
+    "Orientation": {
+      "enabled": true,
+      "minConfidence": 0.6,
+      "description": "Which way does it point? (measured from the geometry)",
+      "codes": [
+        {
+          "code": "HORIZONTAL",
+          "label": "Horizontal",
+          "description": "A slab-like or compact element lying flat (its plane or footprint is horizontal)"
+        },
+        {
+          "code": "VERTICAL",
+          "label": "Vertical",
+          "description": "A wall-like element standing upright, or a linear element along the vertical axis"
+        },
+        {
+          "code": "INCLINED",
+          "label": "Inclined",
+          "description": "Tilted between horizontal and vertical (roofs, ramps, braces)"
+        },
+        {
+          "code": "ALONG_X",
+          "label": "Along X",
+          "description": "A horizontal linear element parallel to the model X axis (within 5 degrees)"
+        },
+        {
+          "code": "ALONG_Y",
+          "label": "Along Y",
+          "description": "A horizontal linear element parallel to the model Y axis (within 5 degrees)"
+        },
+        {
+          "code": "DIAGONAL",
+          "label": "Diagonal",
+          "description": "A horizontal linear element at an angle to both model axes"
+        }
+      ]
+    },
+    "ClassRepair": {
+      "enabled": true,
+      "minConfidence": 0.6,
+      "description": "What is it, when its IFC class is generic or the geometry contradicts it? (suggestions only)",
+      "codes": [
+        {
+          "code": "KEEP",
+          "label": "Keep the class",
+          "description": "The IFC class is right, or no better class is known"
+        },
+        {
+          "code": "IfcColumn",
+          "label": "Column",
+          "description": "Suggested IFC4 class IfcColumn"
+        },
+        {
+          "code": "IfcBeam",
+          "label": "Beam",
+          "description": "Suggested IFC4 class IfcBeam"
+        },
+        {
+          "code": "IfcMember",
+          "label": "Member (brace, truss member)",
+          "description": "Suggested IFC4 class IfcMember"
+        },
+        {
+          "code": "IfcWall",
+          "label": "Wall",
+          "description": "Suggested IFC4 class IfcWall"
+        },
+        {
+          "code": "IfcSlab",
+          "label": "Slab",
+          "description": "Suggested IFC4 class IfcSlab"
+        },
+        {
+          "code": "IfcRoof",
+          "label": "Roof",
+          "description": "Suggested IFC4 class IfcRoof"
+        },
+        {
+          "code": "IfcFooting",
+          "label": "Footing",
+          "description": "Suggested IFC4 class IfcFooting"
+        },
+        {
+          "code": "IfcPile",
+          "label": "Pile",
+          "description": "Suggested IFC4 class IfcPile"
+        },
+        {
+          "code": "IfcStair",
+          "label": "Stair",
+          "description": "Suggested IFC4 class IfcStair"
+        },
+        {
+          "code": "IfcStairFlight",
+          "label": "Stair flight",
+          "description": "Suggested IFC4 class IfcStairFlight"
+        },
+        {
+          "code": "IfcRamp",
+          "label": "Ramp",
+          "description": "Suggested IFC4 class IfcRamp"
+        },
+        {
+          "code": "IfcRailing",
+          "label": "Railing",
+          "description": "Suggested IFC4 class IfcRailing"
+        },
+        {
+          "code": "IfcDoor",
+          "label": "Door",
+          "description": "Suggested IFC4 class IfcDoor"
+        },
+        {
+          "code": "IfcWindow",
+          "label": "Window",
+          "description": "Suggested IFC4 class IfcWindow"
+        },
+        {
+          "code": "IfcCurtainWall",
+          "label": "Curtain wall",
+          "description": "Suggested IFC4 class IfcCurtainWall"
+        },
+        {
+          "code": "IfcPlate",
+          "label": "Plate",
+          "description": "Suggested IFC4 class IfcPlate"
+        },
+        {
+          "code": "IfcCovering",
+          "label": "Covering (ceiling, flooring, cladding)",
+          "description": "Suggested IFC4 class IfcCovering"
+        },
+        {
+          "code": "IfcPipeSegment",
+          "label": "Pipe segment",
+          "description": "Suggested IFC4 class IfcPipeSegment"
+        },
+        {
+          "code": "IfcDuctSegment",
+          "label": "Duct segment",
+          "description": "Suggested IFC4 class IfcDuctSegment"
+        },
+        {
+          "code": "IfcFurniture",
+          "label": "Furniture",
+          "description": "Suggested IFC4 class IfcFurniture"
+        },
+        {
+          "code": "IfcLightFixture",
+          "label": "Light fixture",
+          "description": "Suggested IFC4 class IfcLightFixture"
+        },
+        {
+          "code": "IfcSanitaryTerminal",
+          "label": "Sanitary terminal",
+          "description": "Suggested IFC4 class IfcSanitaryTerminal"
+        },
+        {
+          "code": "IfcPump",
+          "label": "Pump",
+          "description": "Suggested IFC4 class IfcPump"
+        },
+        {
+          "code": "IfcTank",
+          "label": "Tank",
+          "description": "Suggested IFC4 class IfcTank"
+        },
+        {
+          "code": "IfcFan",
+          "label": "Fan",
+          "description": "Suggested IFC4 class IfcFan"
+        }
+      ]
+    }
   }
 }
