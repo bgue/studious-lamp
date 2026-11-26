@@ -111,6 +111,9 @@ export type Cue =
       view?: 'planned' | 'actual' | 'variance';
       from?: string;
       to?: string;
+      /** Additive: how long a newly built element fades in (and a removed one fades out), in seconds of the cue. Absent: the
+       *  plan's style (`style.fadeIn`), else the default (10 % of the activity interval or 0.6 s, the shorter). 0 = at once. */
+      fadeIn?: number;
     })
   /** Tint elements with a colour (#rrggbb), fading over the cue; null removes the tint. */
   | (CueBase & { kind: 'tint'; elements: ElementRef; colour: string | null })
@@ -120,7 +123,13 @@ export type Cue =
   /** The x-ray focus set: these elements (occluders in front of them ghost); null gives the focus back to the selection. */
   | (CueBase & { kind: 'focus'; elements: ElementRef | null })
   /** A section box around elements or a storey (margin in metres), or off (null), eased over the cue. */
-  | (CueBase & { kind: 'sectionBox'; around: ElementRef | { storey: string } | null; margin?: number });
+  | (CueBase & { kind: 'sectionBox'; around: ElementRef | { storey: string } | null; margin?: number })
+  /** Additive: show or hide the issue pins and the drawings (markup overlays) while the score plays. A player hides both when
+   *  playback starts (unless PlayOptions.overlays says otherwise) and puts them back as they were when playback ends. */
+  | (CueBase & { kind: 'overlays'; issues?: boolean; drawings?: boolean })
+  /** Additive: the default fade for elements that appear or disappear from here on (show/hide without an explicit fade, schedule
+   *  activities), in seconds. 0 = at once. */
+  | (CueBase & { kind: 'fadeDefault'; seconds: number });
 
 export type CueKind = Cue['kind'];
 
@@ -143,6 +152,8 @@ export interface PlayOptions {
   onEnd?(): void;
   /** Called as cues start (for the line highlight and the timeline cursor). */
   onCue?(cue: Cue, index: number): void;
+  /** Issue pins and drawings while playing; default both false (hidden). An `overlays` cue changes them during playback. */
+  overlays?: { issues?: boolean; drawings?: boolean };
 }
 
 /** What the player offers; the fly-through work implements it (src/anim/player.ts) and registers it with `setScorePlayer`. */
