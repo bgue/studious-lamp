@@ -107,11 +107,13 @@ await tour.step('30.2 Try it steps 1-2: build a fly-through "Overview" in the vi
   await page.getByRole('menuitem', { name: 'Rename' }).dispatchEvent('click');
   await page.waitForTimeout(400);
   tour.check('step 1: "Build a fly-through in the Views tab. Name it Overview"', (await page.evaluate(() => window.__xrayFlythrough.list().map((f) => f.name))).includes('Overview'));
-  const dl = page.waitForEvent('download');
+  const dlp = page.waitForEvent('download', { timeout: 30000 }).catch(() => null);
   await page.getByRole('button', { name: 'More fly-through actions' }).click();
-  await page.getByRole('menuitem', { name: 'Export file' }).dispatchEvent('click');
-  const d = await dl;
-  flyFile = at('overview.json'); await d.saveAs(flyFile);
+  await page.getByRole('menuitem', { name: 'Export file' }).click({ force: true, timeout: 20000 }).catch(() => {});
+  const d = await dlp;
+  flyFile = at('overview.json');
+  tour.known('step 2: "open the ⋯ menu ... click Export file": the menu item saves the file', !!d, 'the menu item Export file gave no download here (the file was taken from the same data through window.__xrayFlythrough.exportJson)');
+  if (d) await d.saveAs(flyFile); else writeFileSync(flyFile, await page.evaluate(() => window.__xrayFlythrough.exportJson()));
   const doc = JSON.parse(readFileSync(flyFile, 'utf8'));
   tour.check('step 2: "Export file. You get an xray-flythroughs/1 file"', /xray-flythroughs\/1/.test(JSON.stringify(doc).slice(0, 300)) && JSON.stringify(doc).includes('Overview'), Object.keys(doc).join());
   tour.check('"fly-through captions are your own text ... go into a packed page only when you name the file": the export has no reviewer name or key', !/reviewer|apikey/i.test(JSON.stringify(doc)));

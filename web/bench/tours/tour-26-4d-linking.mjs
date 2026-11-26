@@ -17,6 +17,7 @@ const pane = (page) => page.locator('#dk-pane-4d');
 const rep = (page) => page.evaluate(() => window.__xray4dSchedule.report());
 const noPicker = () => { delete window.showSaveFilePicker; delete window.showDirectoryPicker; };
 const linkBtn = (page) => pane(page).locator('button', { hasText: 'Link schedule' }).first();
+const linked = (page) => page.waitForFunction(() => /Elements/.test(document.querySelector('#dk-pane-4d [data-x4=link-coverage]')?.textContent ?? ''), null, { timeout: 120000 }).catch(() => {});
 async function toLink(page) {
   await ui.tab(page, '4D');
   await page.waitForSelector('#dk-pane-4d .x4');
@@ -68,11 +69,11 @@ await tour.step('26.1 Try it steps 1-3: FZK-Haus, 4D tab opens on Link, Open .xe
   await mason.fill(SAMPLE.tradeQueries['MASON-EXT']); await mason.press('Enter');
   await mason.focus();
   await page.waitForTimeout(600);
-  const count = await pane(page).locator('[data-trade="MASON-EXT"] .x4-count').innerText();
+  const count = await pane(page).locator('[data-trade="MASON-EXT"] .x4-count').evaluate((n) => n.textContent);
   tour.check('step 5: "The live count shows how many elements match" (MASON-EXT: class = IfcWallStandardCase and name like Wand-Ext%)', /^\d+$/.test(count.trim()) && Number(count) > 0, count);
   tour.check('"the matches are tinted orange while the box has focus"', await page.evaluate(() => { const d = window.__xray.app.controller; return !!d; }));
   await mason.fill("class = 'IfcNoSuchClass'"); await mason.press('Enter');
-  tour.check('"A zero means the query is wrong"', /^0\b/.test((await pane(page).locator('[data-trade="MASON-EXT"] .x4-count').innerText()).trim()));
+  tour.check('"A zero means the query is wrong"', /^0\b/.test(((await pane(page).locator('[data-trade="MASON-EXT"] .x4-count').evaluate((n) => n.textContent)) ?? '').trim()));
   await mason.fill(SAMPLE.tradeQueries['MASON-EXT']); await mason.press('Enter');
 });
 
@@ -92,6 +93,7 @@ await tour.step('26.1 Try it steps 6-8: Link schedule, read the result, suggesti
   const stepBefore = (await pane(page).locator('.x4-steps').innerText()).replace(/\s+/g, ' ');
   await linkBtn(page).click();
   await page.waitForFunction(() => window.__xray4dSchedule.report() !== null, null, { timeout: 60000 });
+  await linked(page);
   await page.waitForTimeout(800);
   const r = await rep(page);
   const wins = await page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => e.ifcClass === 'IfcWindow').length);
@@ -151,6 +153,7 @@ await tour.step('26.1 Activities with nothing in the model: Not modelled, Mark a
   await setTradeQueries(page);
   await linkBtn(page).click();
   await page.waitForFunction(() => window.__xray4dSchedule.report() !== null, null, { timeout: 60000 });
+  await linked(page);
   await page.waitForTimeout(800);
   const r = await rep(page);
   tour.check('all 82 elements link with the sample rules (100 %)', r.coverage.elements.linked === r.coverage.elements.considered && r.coverage.elements.considered === 82, JSON.stringify(r.coverage.elements));
@@ -221,6 +224,7 @@ await tour.step('26.3 Save the links into the IFC: Save IFC with 4D links, Activ
   await page.evaluate((c) => window.__xray4dSchedule.loadConfig(c), JSON.stringify(SAMPLE));
   await linkBtn(page).click();
   await page.waitForFunction(() => window.__xray4dSchedule.report() !== null, null, { timeout: 60000 });
+  await linked(page);
   await pane(page).locator('.x4-steps button', { hasText: 'Film' }).first().click();
   const save = pane(page).getByRole('button', { name: 'Save IFC with 4D links' });
   await save.scrollIntoViewIfNeeded();
@@ -251,6 +255,9 @@ await tour.step('26.3 Save the links into the IFC: Save IFC with 4D links, Activ
   await (await sec(page2, 'schedule')).getByRole('button', { name: /Open \.xer/ }).click();
   await (await ch3).setFiles(XER);
   await page2.waitForFunction(() => window.__xray4dSchedule.summary()?.project === 'FZK-HAUS', null, { timeout: 60000 });
+  const c2s = await sec(page2, 'configure');
+  await c2s.getByLabel('Location from').selectOption({ label: 'Not used' }).catch(() => {});
+  await c2s.getByLabel('Trade from').selectOption({ label: 'Not used' }).catch(() => {});
   await page2.locator('#dk-pane-4d button', { hasText: 'Link schedule' }).first().click();
   await page2.waitForTimeout(1500);
   const back = await page2.evaluate(() => window.__xray4dSchedule.links().links.filter((l) => l.source === 'property'));

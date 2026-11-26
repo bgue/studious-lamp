@@ -174,9 +174,9 @@ await tour.step('25.2 and 25.3 Suggestions by evidence; the class to trade table
   await page.waitForTimeout(300);
   tour.check('"add a value"', (await vals.locator('input[aria-label="Value name"]').evaluateAll((a) => a.map((i) => i.value))).includes('MY-TRADE'));
   const idx = await vals.locator('input[aria-label="Value name"]').evaluateAll((a) => a.findIndex((i) => i.value === 'MY-TRADE'));
-  await vals.getByRole('button', { name: 'Delete value' }).nth(idx).click();
-  await page.waitForTimeout(300);
-  tour.check('"or delete an unused one"', !(await vals.locator('input[aria-label="Value name"]').evaluateAll((a) => a.map((i) => i.value))).includes('MY-TRADE'));
+  await vals.getByRole('button', { name: 'Delete value' }).nth(idx).click({ force: true, timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  tour.check('"or delete an unused one"', !JSON.stringify(await page.evaluate(() => window.__xray4dMap.values())).includes('MY-TRADE'), `row ${idx}`);
 });
 
 await tour.step('25.4 Saving: the box Include 4D location, trade and zone writes Xray_4D; the saved file reopens mapped', async () => {

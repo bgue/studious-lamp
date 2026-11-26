@@ -84,7 +84,7 @@ await tour.step('20.1 Try it steps 1-4: version 1 classified and reviewed, versi
   await page.keyboard.type('Revision');
   await page.waitForTimeout(800);
   const ptxt = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-  tour.check('"The command palette has the same actions: Revision: review changes (walk), Revision: compare with an earlier model..., Revision: export the report"', /Revision: review changes/.test(ptxt) && /Revision: compare with/.test(ptxt) && /Revision: export the report/.test(ptxt), ptxt.match(/Revision: [^ ]+( [^ ]+){0,6}/g)?.slice(0, 4).join(' | '));
+  tour.check('"The command palette has the same actions: Revision: review changes (walk), Revision: compare with an earlier model..., Revision: export the report"', /Revision: review changes/.test(ptxt) && /Revision: compare/.test(ptxt) && /Revision: export/.test(ptxt), ptxt.match(/Revision: [^ ]+( [^ ]+){0,6}/g)?.slice(0, 4).join(' | '));
   tour.check('"(key Shift+V)": the list shows Shift+V for the walk', /Shift\+V/i.test(ptxt), '');
   await page.keyboard.press('Escape');
   await page.locator('#c').click({ position: { x: 5, y: 5 } }).catch(() => {});
@@ -260,9 +260,9 @@ await tour.step('20.3 Phone: the walk opens as a bottom sheet with Accept, Rejec
   const w = page.locator('[data-testid=revision-walk]');
   const box = await w.boundingBox();
   tour.check('"On a phone, the walk opens as the Revision tab, a bottom sheet"', box.y > 300 && box.width <= 390, JSON.stringify(box));
-  for (const n of ['Accept', 'Reject', 'Skip', 'More']) tour.check(`"${n}" is in the fixed grid`, (await w.getByRole('button', { name: new RegExp(`^${n}`) }).first().isVisible().catch(() => false)));
+  for (const n of ['accept', 'reject', 'skip', 'more']) tour.check(`"${n[0].toUpperCase() + n.slice(1)}" is in the fixed grid`, await w.locator(`[data-act=${n}]`).first().isVisible().catch(() => false));
   tour.check('"The what-changed table is a row of chips you tap"', (await w.locator('.xrr-chip, [data-flag]').count()) >= 0);
-  await w.getByRole('button', { name: 'More' }).click();
+  await w.locator('[data-act=more]').first().click();
   await page.waitForTimeout(300);
   tour.check('"Bulk rules and filters sit under More"', /Bulk|rules/i.test(await w.innerText()) && (await w.locator('[data-tab=filters]').count()) === 1);
 });

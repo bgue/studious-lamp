@@ -194,7 +194,7 @@ await tour.step('23.2 Try it 4 and the messages table: mistakes on purpose, the 
     const r = await page.evaluate((t) => window.__xrayScript.compile(t).errors.map((e) => `${e.severity}: ${e.message}`), text);
     tour.check(`the messages table: "${said}"`, r.some((m) => re.test(m)), r.join(' | ').slice(0, 200));
   }
-  const many = await page.evaluate(() => window.__xrayScript.compile('repeat 500 times\n  repeat 11 times\n    caption "x" for 1 seconds\n  end repeat\nend repeat').errors.map((e) => e.message));
+  const many = await page.evaluate(() => window.__xrayScript.compile('repeat 500 times\n  repeat 11 times\n    caption "x" for 0.1 seconds\n  end repeat\nend repeat').errors.map((e) => e.message));
   tour.check('"The script makes more than 5000 steps. Use fewer or smaller loops"', many.some((m) => /more than 5000 steps/.test(m)), many.join(' | ').slice(0, 160));
   const w = await page.evaluate(() => window.__xrayScript.compile('set no.such.setting to 3').errors);
   tour.check('"Warnings do not stop the script. Errors do": an unknown setting is a warning', w.length > 0 && w.every((e) => e.severity === 'warning'), JSON.stringify(w.map((e) => e.severity)));

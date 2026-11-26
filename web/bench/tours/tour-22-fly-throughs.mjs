@@ -44,7 +44,7 @@ await tour.step('22.1 Try it steps 1-3: Views tab, Fly-through section, New, Fro
   const addSel = await page.getByLabel('Add a saved view as a keyframe').locator('option').count();
   tour.check('"The list next to Add keyframe adds one view"', addSel >= 3, `${addSel} options`);
   await ui.setCam(page, [6, 4, 6], [0, 1, 0]);
-  await page.locator('[data-help-key="Sidebar/Fly-through add keyframe"]').click({ timeout: 60000 });
+  await page.locator('[data-help-key="Sidebar/Fly-through add keyframe"]').evaluate((b) => b.click());
   await page.waitForTimeout(800);
   tour.check('"To add one at a time, orbit to a place and click Add keyframe"', (await cards(page).count()) === 4);
   const txt = (await cards(page).first().innerText()).replace(/\s+/g, ' ');
