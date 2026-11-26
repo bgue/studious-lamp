@@ -244,7 +244,10 @@ try {
   await settle(page, 200);
   check('arrow: Esc cancels the box (nothing selected, box hidden)', (await selSize(page)) === 0 && (await page.evaluate(() => getComputedStyle(document.getElementById('xray-boxselect')).display === 'none')));
 
-  // Shift adds
+  // Shift adds. Frame the whole model first: earlier drags move the orbit centre (orbits turn around the point grabbed), so the
+  // corner the second box covers could otherwise be empty.
+  await page.keyboard.press('Home');
+  await settle(page, 800);
   await page.mouse.move(bx0, by0);
   await page.mouse.down();
   await page.mouse.move(bx1, by1, { steps: 5 });

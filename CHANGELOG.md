@@ -5,6 +5,14 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 ## Unreleased
 
+- Changes for the next release are collected here.
+
+## v32 - 2026-11-26
+
+- Animation script: decisions and loops (`if ... then ... else`, `repeat while`, `repeat until`, `repeat with i from 1 to 10`),
+  your own commands and functions (`on name ... end name`, `function name ... return ... end name`), conditions such as
+  `there are class IfcDoor` and `the count of ...`, and the statements `show issues`, `hide drawings`,
+  `fade new elements over 0.8 seconds`.
 - Save IFC can write the classification facets: tick "Include classification facets" and every classified element gets its XR_Trade, XR_Placement, XR_Material, XR_Phase, XR_Orientation and XR_ClassRepair property sets in the saved file.
 - The Model tab has a switch **Model tree** | **By classification**: the elements grouped by 1 to 4 levels of Phase, Discipline, Trade, Placement, Material, Orientation, Storey or IFC class, with counts, an amber needs-review share, eye toggles and **+set** on each row. Presets: Construction, Ownership, Envelope and Standard (UniFormat II, A > A10 > A1010, mapping in `classification/uniformat2.json`).
 - Classify has **Colour by** (Discipline or any facet) with a legend whose rows isolate or hide a value, and **Confidence shading** that washes out the elements that need review.
