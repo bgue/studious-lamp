@@ -13,9 +13,9 @@ const press = async (page, name) => { await cleanupFolder(page); await ui.press(
 await tour.step('9.1 Try it steps 1-3: Debris demo, the Cleanup tool, Preview matches', async () => {
   const page = await tour.open('model=debris-demo');
   const m = await ui.model(page);
-  tour.check('step 1: "a 400-element building with 24 pieces of rubbish"', m.n === 424 || m.n === 400, `${m.n} elements`);
+  tour.check('step 1: "a 400-element building with 31 pieces of rubbish"', m.n === 424 || m.n === 400, `${m.n} elements`);
   const debris = await page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => /^Debris/.test(e.name ?? '')).length);
-  tour.check('step 1: "24 pieces of rubbish ... all named Debris ..."', debris === 24, String(debris));
+  tour.check('step 1: "31 pieces of rubbish ... all named Debris ..."', debris === 31, String(debris));
   // the Cleanup tool in the strip
   await ui.tool(page, 'Cleanup').click();
   const drawer = page.locator('#xray-toolbar-drawer, .xt-drawer, [class*=drawer]').filter({ hasText: 'Floating elements' }).first();
@@ -40,7 +40,7 @@ await tour.step('9.1 Try it steps 1-3: Debris demo, the Cleanup tool, Preview ma
   await page.locator('#sidebar .set-row', { has: page.locator('.set-name', { hasText: /^Debris$/ }) }).locator('.set-name').click();
   await ui.settle(page, 400);
   const inSet = await ui.selection(page);
-  tour.check('step 5: "the Sets tab has a set called Debris" with 24 elements', inSet.length === 24, String(inSet.length));
+  tour.check('step 5: "the Sets tab has a set called Debris" with 31 elements', inSet.length === 31, String(inSet.length));
   const matchSet = new Set(r.ids);
   const missing = inSet.filter((e) => !matchSet.has(e.id));
   tour.check('step 5: "The two selections are nearly the same. The cluster of three touching 12 cm boxes is missing from the cleanup matches"', missing.length === 3, `missing ${missing.length}: ${missing.map((e) => e.name).join(', ')}`);
