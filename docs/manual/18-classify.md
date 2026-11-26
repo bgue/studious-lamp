@@ -61,6 +61,14 @@ material, storey) as a premise and a sentence such as "This building element bel
 hypothesis, and rates how well they fit. The ratings of all options become probabilities. The element data stays in the page;
 only the model files are downloaded. With WebGPU it is fast. Without it the model runs on the processor and the tab says so.
 
+**Choosing a model.** The model list offers larger zero-shot models (ModernBERT base and large, a large DeBERTa) and, under
+**Decision mode**, the choice **Embed**. The embed mode does not rate sentences: it turns the element's description and each
+option into vectors and picks the closest. On the 20-element test set with its default model, EmbeddingGemma, it got 15 of 20
+sub-disciplines right against 6 for the default model, at about the same speed, but its download is 309 MB against 87 MB.
+That is why it is offered, not the default. The small Granite and Bekko models are about 10 times faster and less exact. The
+larger zero-shot models were slower and not better on this test, so the default stays the small DeBERTa model. Test on your
+own models before you switch: the test set is small.
+
 **Other providers.** The tab also offers Decision 3.0 d3-edge (in the browser with WebGPU after a large download, or on a
 server of your own), a small chat or embedding model in the browser (WebLLM) and Jev, a model reached over HTTP. Jev needs an
 endpoint and an API key. The key is kept in the tab or, if you choose, on this device. It is never part of any file the viewer
