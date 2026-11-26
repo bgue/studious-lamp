@@ -81,8 +81,10 @@ await tour.step('31 Choices and settings: the params section xr is not in a shar
   const doc = await page.evaluate(() => window.__xrayParams.collect?.() ?? null);
   const xr = doc?.xr;
   tour.check('"The params section xr has scale, pointerRays, fieldView, cutRadius and storeyCut"', !!xr && ['scale', 'pointerRays', 'fieldView', 'cutRadius', 'storeyCut'].every((k) => k in xr), JSON.stringify(xr));
-  const share = await page.evaluate(() => window.__xrayParams.shareUrl?.() ?? null);
-  tour.check('"It is not in a share link"', share === null || !/xr/.test(decodeURIComponent(atob((share.split('#p=')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/') || '')) ?? ''), '');
+  const share = await page.evaluate(() => window.__xrayParams.shareUrl());
+  let keys = [];
+  try { keys = Object.keys(JSON.parse(Buffer.from((share.split('#p=')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'))); } catch { /* checked next */ }
+  tour.check('"It is not in a share link": the link carries sections but not xr', keys.length > 2 && !keys.includes('xr'), keys.join());
 });
 
 await tour.finish();

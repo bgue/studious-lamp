@@ -42,9 +42,8 @@ await tour.step('29.1 Try it: send a view as a link (steps 1-4)', async () => {
 
 await tour.step('29.1 Try it steps 5-6: paste the address in a new tab', async () => {
   if (!viewLink) throw new Error('no view link from the previous step');
-  const page = await tour.open('', { url: viewLink });
-  await page.waitForTimeout(2500);
-  const st = (await ui.statusText(page)).replace(/\s+/g, ' ');
+  const page = await tour.open('', { url: viewLink, init: () => { const rec = () => { const m = (document.body?.innerText ?? '').match(/Shared view[^\n]*/); if (m && !window.__sharedNote) window.__sharedNote = m[0]; }; new MutationObserver(rec).observe(document, { subtree: true, childList: true, characterData: true }); } });
+  const st = (await page.evaluate(() => window.__sharedNote ?? '')) || (await ui.statusText(page)).replace(/\s+/g, ' ');
   tour.check('step 5: "The status bar says Shared view "Roof" applied. Press Save view to keep it."', /Shared view "Roof" applied\. Press Save view to keep it\./.test(st), st.slice(0, 200));
   tour.check('step 5: "The viewer loads FZK-Haus"', /fzk/i.test(st) || (await ui.model(page)).name.toLowerCase().includes('fzk'), (await ui.model(page)).name);
   tour.check('step 6: "The # part is gone ... a reload does not undo"', !(await page.evaluate(() => location.hash)).includes('view='));
@@ -91,8 +90,8 @@ await tour.step('29.1 The QR code (WebXR drawer) and 29.2 What you can export', 
   await ui.tab(page, 'Script');
   tour.check('table: Script tab, Export', /Export/.test(await page.locator('#dock').innerText()));
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
-  const dock = await page.locator('#dock').innerText();
-  tour.check('table: Presets folder, Export presets; All settings: Export JSON; Shortcuts: Edit shortcuts', ['Export presets', 'Export JSON', 'Edit shortcuts'].every((n) => dock.includes(n)));
+  const dock = await page.locator('#dock').evaluate((n) => n.textContent);
+  tour.check('table: Presets folder, Export presets; All settings: Export JSON; Shortcuts: Edit shortcuts', ['Export presets', 'Export JSON', 'Edit shortcuts'].every((n) => dock.includes(n)), '');
   await ui.tab(page, 'Views');
   const flyMore = await page.getByRole('button', { name: 'More fly-through actions' }).count();
   tour.check('table: fly-throughs, fly-through section menu (⋯) exports', flyMore === 1);
@@ -100,7 +99,7 @@ await tour.step('29.1 The QR code (WebXR drawer) and 29.2 What you can export', 
 
 await tour.step('29.2 The viewer alone: xray-viewer.html makes no network requests', async () => {
   const reqs = [];
-  const page = await tour.open('', { url: `file://${resolve(repoRoot, 'xray-viewer.html')}`, onRequest: (r) => { if (!/^(file|data|blob|about):/.test(r.url())) reqs.push(r.url()); } });
+  const page = await tour.open('', { url: `file://${resolve(repoRoot, 'xray-viewer.html')}`, waitUntil: 'commit', onRequest: (r) => { if (!/^(file|data|blob|about):/.test(r.url())) reqs.push(r.url()); } });
   const m = await ui.model(page);
   tour.check('"xray-viewer.html is one file that holds the application, the sample models and the IFC reader": it opens with a model', m.n > 0, `${m.name} ${m.n}`);
   tour.check('"It makes no network requests"', reqs.length === 0, reqs.slice(0, 3).join(' '));

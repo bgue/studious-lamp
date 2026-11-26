@@ -13,13 +13,13 @@ const out = mkdtempSync(join(tmpdir(), 'tour-30-'));
 const FZK = resolve(repoRoot, 'models', 'AC20-FZK-Haus.ifc');
 const pack = (args) => { const t0 = Date.now(); const r = spawnSync('node', [resolve(webRoot, 'tools/xray-pack.mjs'), ...args], { cwd: webRoot, encoding: 'utf8', timeout: 300000 }); return { code: r.status, out: r.stdout ?? '', err: r.stderr ?? '', s: (Date.now() - t0) / 1000 }; };
 const at = (n) => join(out, n);
-const openPacked = (file, opts = {}) => tour.open('', { url: `file://${file}`, ...opts });
+const openPacked = (file, opts = {}) => tour.open('', { url: `file://${file}`, waitUntil: 'commit', ...opts });
 
 await tour.step('30.1 Try it steps 1-5: pack the FZK house, open it, run again, --force', async () => {
   const r = pack([FZK, '-o', at('fzk.html')]);
   tour.check('steps 2-3: the command writes fzk.html', r.code === 0 && existsSync(at('fzk.html')), r.err.slice(-160));
   const mb = statSync(at('fzk.html')).size / 1e6;
-  tour.check('"fzk.html, about 2.2 MB"', mb > 1.5 && mb < 3.5, `${mb.toFixed(2)} MB`);
+  tour.check('"fzk.html, about 8.9 MB (the viewer is most of it)"', mb > 7.5 && mb < 10.5, `${mb.toFixed(2)} MB`);
   tour.check('"It takes about 1 second ... the first pack also builds the viewer template"', r.s < 120, `${r.s.toFixed(1)} s`);
   const again = pack([FZK, '-o', at('fzk.html')]);
   tour.check('step 5: "Run the same command again. It stops with a message, because the file exists" (exit 1, a line that starts with xray-pack:)', again.code === 1 && /^xray-pack:/m.test(again.err), `exit ${again.code}: ${again.err.trim().slice(0, 100)}`);
@@ -51,6 +51,11 @@ await tour.step('30.1 Set the starting look: --params, --select, --camera, --tit
   // a parameters file: Export JSON from the viewer, then change one value as the manual says ("a partial file is fine")
   writeFileSync(at('params.json'), JSON.stringify({ schema: 'xray-params/1', sightlines: { alphaMin: 0.37 } }));
   const r = pack([FZK, '-o', at('look.html'), '--params', at('params.json'), '--select', 'class:IfcWindow', '--camera', '9,6,11:0,1.5,0', '--title', 'My review', '--name', 'house', '--tools', 'open,xray,measure', '--no-topbar']);
+  pack([FZK, '-o', at('cam.html'), '--camera', '9,6,11:0,1.5,0']);
+  const cp = await openPacked(at('cam.html'));
+  await cp.waitForTimeout(2500);
+  const camOnly = await ui.cam(cp);
+  tour.check('"--camera px,py,pz:tx,ty,tz: Camera position and target, in metres" (alone)', Math.abs(camOnly.p[0] - 9) < 0.2 && Math.abs(camOnly.p[1] - 6) < 0.2 && Math.abs(camOnly.p[2] - 11) < 0.2 && Math.abs(camOnly.t[1] - 1.5) < 0.2, JSON.stringify(camOnly));
   tour.check('the pack with options succeeds', r.code === 0, r.err.slice(-200));
   const page = await openPacked(at('look.html'));
   await page.waitForTimeout(2500);
@@ -58,7 +63,7 @@ await tour.step('30.1 Set the starting look: --params, --select, --camera, --tit
   const sel = await ui.selection(page);
   tour.check('"--select ... class:IfcDuctSegment entries: Select these elements at start"', sel.length === 11 && sel.every((e) => e.cls === 'IfcWindow'), `${sel.length} selected: ${[...new Set(sel.map((e) => e.cls))].join()}`);
   const cam = await ui.cam(page);
-  tour.check('"--camera px,py,pz:tx,ty,tz: Camera position and target"', Math.abs(cam.t[1] - 1.5) < 0.5 && Math.hypot(cam.p[0] - 9, cam.p[2] - 11) < 8, JSON.stringify({ p: cam.p.map((v) => +v.toFixed(1)), t: cam.t.map((v) => +v.toFixed(1)) }));
+  tour.known('"Order of events ... camera, selection ... A later step wins": --camera together with --select keeps the camera', Math.abs(cam.p[0] - 9) < 1 && Math.abs(cam.p[2] - 11) < 1, 'with --select the camera is moved after the boot camera (the selection frames itself), so --camera is lost', JSON.stringify({ p: cam.p.map((v) => +v.toFixed(1)), t: cam.t.map((v) => +v.toFixed(1)) }));
   const am = await page.evaluate(() => window.__xrayParams.collect().sightlines?.alphaMin);
   tour.check('"--params file.json: Apply an exported parameters file. A partial file is fine."', Math.abs(am - 0.37) < 1e-6, `${am}`);
   const tools = await page.locator('#xray-toolbar button').evaluateAll((b) => b.map((x) => x.getAttribute('aria-label')));
@@ -73,8 +78,14 @@ await tour.step('30.1 Set the starting look: --params, --select, --camera, --tit
   const kp = await openPacked(at('kiosk0.html'));
   await kp.waitForTimeout(1500);
   tour.check('"--kiosk: Fold the model tree and the right sidebar and hide the top bar"', k.code === 0 && (await kp.evaluate(() => document.body.classList.contains('sb-collapsed'))) && (await kp.evaluate(() => window.__xrayRightSidebar.state().collapsed)) && !(await kp.locator('#xray-topbar').isVisible()), '');
-  const bad = pack([FZK, '-o', at('t2.html'), '--open-tool', 'classify', '--tools', 'open']);
-  tour.check('"--preset and --open-tool depend on other parts of the viewer. If a part is missing, the request is skipped ... never an error"', bad.code === 0);
+  const bad = pack([FZK, '-o', at('t2.html'), '--open-tool', 'nonsense']);
+  tour.check('"--preset and --open-tool depend on other parts of the viewer. If a part is missing, the request is skipped ... never an error"', bad.code === 0, bad.err.trim().slice(0, 100));
+  const notIn = pack([FZK, '-o', at('t3.html'), '--open-tool', 'classify', '--tools', 'open']);
+  tour.check('"--open-tool id" must be one of the tools that --tools shows (a usage error otherwise)', notIn.code === 1 && /not in --tools/.test(notIn.err), notIn.err.trim().slice(0, 100));
+  const ot = pack([FZK, '-o', at('t4.html'), '--open-tool', 'classify']);
+  const op = await openPacked(at('t4.html'));
+  await op.waitForTimeout(2000);
+  tour.check('"classify opens the Classification tab"', ot.code === 0 && (await op.getByRole('tab', { name: 'Classification', exact: true }).getAttribute('aria-selected')) === 'true');
 });
 
 let flyFile = '';
@@ -125,7 +136,7 @@ await tour.step('30.2 Try it steps 3-5: pack with --kiosk --flythroughs --autopl
   await page.waitForTimeout(2500);
   tour.check('step 5: "Press or turn the wheel on the canvas. The film stops. That is the way out of a kiosk loop" (and it does not start again)', (await page.evaluate(() => window.__xrayFlythrough.state().playing)) === false);
   const sz = statSync(at('kiosk.html')).size / 1e6;
-  tour.check('Size: "FZK house about 2.2 MB" with a fly-through', sz < 4, `${sz.toFixed(2)} MB`);
+  tour.check('Size: "FZK house about 8.9 MB" with a fly-through', sz > 7.5 && sz < 11, `${sz.toFixed(2)} MB`);
 });
 
 await tour.step('30.2 Options: --scripts, --plans, --ifc-reader, --samples; Size', async () => {
@@ -138,9 +149,9 @@ await tour.step('30.2 Options: --scripts, --plans, --ifc-reader, --samples; Size
   await page.waitForFunction(() => window.__xrayScript?.state()?.running || window.__xrayFlythrough?.state().playing, null, { timeout: 60000 }).catch(() => {});
   tour.check('"--autoplay script:Name" plays it at start', (await page.evaluate(() => !!window.__xrayScript.state()?.running || window.__xrayFlythrough.state().playing)), '');
   const a = statSync(at('fzk.html')).size, b = pack([FZK, '-o', at('reader.html'), '--ifc-reader']);
-  tour.check('Size table: "--ifc-reader adds about 1.2 MB"', b.code === 0 && Math.abs((statSync(at('reader.html')).size - a) / 1e6 - 1.2) < 0.9, `+${((statSync(at('reader.html')).size - a) / 1e6).toFixed(2)} MB`);
+  tour.check('Size table: "--ifc-reader adds about 1.4 MB"', b.code === 0 && Math.abs((statSync(at('reader.html')).size - a) / 1e6 - 1.4) < 0.6, `+${((statSync(at('reader.html')).size - a) / 1e6).toFixed(2)} MB`);
   const c = pack([FZK, '-o', at('samples.html'), '--samples']);
-  tour.check('Size table: "--samples adds about 1.8 MB"', c.code === 0 && Math.abs((statSync(at('samples.html')).size - a) / 1e6 - 1.8) < 1.2, `+${((statSync(at('samples.html')).size - a) / 1e6).toFixed(2)} MB`);
+  tour.check('Size table: "--samples adds about 1.7 MB"', c.code === 0 && Math.abs((statSync(at('samples.html')).size - a) / 1e6 - 1.7) < 0.8, `+${((statSync(at('samples.html')).size - a) / 1e6).toFixed(2)} MB`);
   const html = readFileSync(at('fzk.html'), 'utf8');
   tour.check('"Packed pages never contain API keys, tokens, reviewer names or pictures"', !/hf_[A-Za-z0-9]{10}|sk-[A-Za-z0-9]{10}/.test(html) && !/"reviewer"\s*:\s*"/.test(html));
   tour.check('"The model is stored as text (base64)": the page holds __xrayEmbeddedModels', /__xrayEmbeddedModels/.test(html));

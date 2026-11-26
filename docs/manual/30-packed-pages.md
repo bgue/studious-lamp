@@ -35,7 +35,7 @@ You need Node 22 and the viewer's `web/` folder with `npm install` done. Command
    node tools/xray-pack.mjs ../models/AC20-FZK-Haus.ifc -o fzk.html
    ```
 
-3. It takes about 1 second and writes `fzk.html`, about 2.2 MB. The first pack also builds the viewer template, which takes a few seconds more.
+3. It takes about 1 second and writes `fzk.html`, about 8.9 MB (the viewer is most of it). The first pack also builds the viewer template, which takes a few seconds more.
 4. Double-click `fzk.html`. The viewer opens with the house loaded.
 5. Run the same command again. It stops with a message, because the file exists. Add `--force` to replace it.
 
@@ -76,8 +76,8 @@ Selecting a duct at start makes it the focus, so the x-ray is already doing its 
 | `--open-tool id` | Open this tool's drawer at start. `classify` opens the Classification tab. |
 | `--no-topbar` | Hide the top bar only. |
 | `--kiosk` | Fold the model tree and the right sidebar and hide the top bar. |
-| `--ifc-reader` | Also embed the IFC reader, so the recipient can open their own IFC files. Adds about 1.2 MB. |
-| `--samples` | Also embed the sample models. Adds about 1.8 MB. |
+| `--ifc-reader` | Also embed the IFC reader, so the recipient can open their own IFC files. Adds about 1.4 MB. |
+| `--samples` | Also embed the sample models. Adds about 1.7 MB. |
 
 The tool ids are `open`, `presets`, `xray`, `viewModes`, `imaging`, `section`, `measure`, `clearance`, `penetrations`, `bcf`,
 `pointcloud`, `xr`, `cleanup` and `largeModel`.
@@ -145,11 +145,11 @@ lists what never travels).
 
 | Pack | Size |
 | --- | --- |
-| FZK house | about 2.2 MB |
-| Building (three IFC files) | about 1.2 MB |
-| The viewer itself | about 1.1 MB |
-| `--ifc-reader` | adds about 1.2 MB |
-| `--samples` | adds about 1.8 MB |
+| FZK house | about 8.9 MB |
+| Building (three IFC files) | about 7.8 MB |
+| The viewer itself | about 7.7 MB |
+| `--ifc-reader` | adds about 1.4 MB |
+| `--samples` | adds about 1.7 MB |
 
 The model is stored as text (base64), so it takes 4/3 of the glb size. Browsers get slow to open pages of more than a few tens of MB.
 

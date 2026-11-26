@@ -108,9 +108,9 @@ export async function startTour(name) {
     /**
      * Open a page on the served viewer and wait until it is ready. `query` is the part after `?` (default `model=building`).
      * Options: width, height (default 1400x900), init (a function run before the page scripts), url (a full URL instead, e.g. file:///...),
-     * onRequest (called with every request), route (a page.route handler for every URL, e.g. to answer map tile requests offline).
+     * onRequest (called with every request), route (a page.route handler for every URL, e.g. to answer map tile requests offline), waitUntil (the page.goto wait: 'commit' for a big single-file page that plays by itself; the ready flag is awaited anyway).
      */
-    async open(query = 'model=building', { width = 1400, height = 900, init, url, onRequest, route } = {}) {
+    async open(query = 'model=building', { width = 1400, height = 900, init, url, onRequest, route, waitUntil } = {}) {
       const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: PICTURES ? 2 : 1, colorScheme: 'light', acceptDownloads: true });
       const page = await ctx.newPage();
       page.setDefaultTimeout(90000);
@@ -119,7 +119,7 @@ export async function startTour(name) {
       if (init) await page.addInitScript(init);
       if (onRequest) page.on('request', (r) => onRequest(r));
       if (route) await page.route('**/*', route);
-      await page.goto(url ?? `http://127.0.0.1:${port}/?${query}`, { timeout: 240000 });
+      await page.goto(url ?? `http://127.0.0.1:${port}/?${query}`, { timeout: 240000, ...(waitUntil ? { waitUntil } : {}) });
       await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
       const err = await page.evaluate('window.__xrayError');
       if (err) throw new Error(`startup failed: ${String(err).split('\n')[0]}`);
