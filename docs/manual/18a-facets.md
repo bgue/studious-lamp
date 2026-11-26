@@ -44,7 +44,7 @@ Use **FZK-Haus** (Sample Projects).
 1. Open the **Classification** tab. Open the **Facets** folder. Every facet has a switch, all on.
 2. Click **Classify all**. The facets run after the discipline.
 3. In the search bar type `count where Trade = 'CONC'`. The house has 15 concrete elements.
-4. Type `count where Placement = 'BOUNDARY' and class = 'IfcWall'`. The external walls sit on the envelope. The house has 8 of them.
+4. Type `count where Placement = 'BOUNDARY' and class like 'IfcWall%'`. (The walls of FZK-Haus are `IfcWallStandardCase`, so `class = 'IfcWall'` would find none.) The external walls sit on the envelope. The house has 8 of them.
 5. Click a wall. The **Facets** folder shows its facet values with confidence and source. Open the Placement picker, choose
    another code and the source turns to `manual`. A manual value wins over every other source and is kept for this model.
 6. Type `where XR_Orientation.Plausible = FALSE`. A wall lying flat or a door upside down would appear here.
@@ -100,7 +100,7 @@ tree regroups the same elements by what the classifier found, whatever the file'
 2. In the **Model** tab of the left sidebar, click **By classification** in the switch **Model tree** | **By classification**.
 3. In **Group by** choose **Construction**. The tree reads Phase, then Trade, then IFC class. Each row has a count and, in amber,
    the share that needs review.
-4. Choose **Envelope** (Placement, Material, IFC class). Open `BOUNDARY` and `MASONRY`: the external walls are there.
+4. Choose **Envelope** (Placement, Material, IFC class). Open `BOUNDARY` and, under it, `CONCRETE`: the external walls are there. (The material rows read like `CONCRETE Concrete`: the code and its name.)
 5. Hover a row and click **+set**. The set editor opens with a query such as `XR_Trade.Code = 'CONC' and XR_Phase.Code = 'FRAME'`.
    Save it. Because it is a query, the set updates itself when the classification changes (chapter 8).
 6. Click the eye on a row to hide or show the group. Elements without a value at a level sit under **Not classified**.

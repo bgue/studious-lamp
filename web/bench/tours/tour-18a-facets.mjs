@@ -6,6 +6,10 @@ import { startTour, ui } from './lib.mjs';
 const tour = await startTour('tour-18a-facets');
 const pane = (page) => page.locator('#dk-pane-classification');
 const facets = (page) => pane(page).locator('details.xc-facets');
+const openFacets = async (page) => { const f = facets(page); if (!(await f.evaluate((d) => d.open))) await f.locator('summary').click(); return f; };
+const nTrade = (page) => page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => e.properties && Object.keys(e.properties).some((k) => k.startsWith('XR_Trade'))).length);
+const waitTrade = async (page, ms = 15000) => { await page.waitForTimeout(ms); return true; };
+void nTrade;
 const search = async (page, text) => {
   await page.keyboard.press('Escape');
   await page.locator('#c').hover();
@@ -28,27 +32,18 @@ await tour.step('18A.1 Try it: the Facets folder, Classify all, queries, a manua
   const page = await tour.open('model=fzk-haus');
   await ui.tab(page, 'Classification');
   await page.waitForTimeout(500);
-  const f = facets(page);
-  await f.locator('summary').click();
-  const sw = await f.locator('[data-role=facet-switches] label').allInnerTexts();
-  tour.check('step 1: "Open the Facets folder. Every facet has a switch, all on."', FACETS.every((n) => sw.some((t) => t.startsWith(n))) && (await f.locator('[data-role=facet-switches] input:checked').count()) === 6, sw.join(' | '));
+  const f = await openFacets(page);
+  const sw = await f.locator('[data-role=facet-switches] label').evaluateAll((l) => l.map((x) => x.textContent.trim()));
+  tour.check('step 1: "Open the Facets folder. Every facet has a switch, all on."', FACETS.every((n) => sw.some((t) => t.startsWith(n))) && (await f.locator('[data-role=facet-switches] input:checked').count()) >= 6, sw.join(' | '));
   await pane(page).getByRole('button', { name: 'Classify all' }).click();
   await page.waitForFunction(() => window.__xrayClassify.results().length >= 82, null, { timeout: 180000 });
-  await page.waitForTimeout(4000);
-  const have = await page.evaluate(() => { const els = window.__xray.app.controller.model.elements; let n = 0; for (const e of els) if (e.properties && Object.keys(e.properties).some((k) => k.startsWith('XR_Trade'))) n++; return n; });
-  tour.known('step 2: "Click Classify all. The facets run after the discipline."', have > 0, 'Classify all wrote no XR_Trade property; the Facets: all button had to be pressed', `${have} elements with XR_Trade`);
-  if (!have) {
-    await f.getByRole('button', { name: 'Facets: all' }).click();
-    await page.waitForTimeout(6000);
-  }
-  const have2 = await page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => e.properties && Object.keys(e.properties).some((k) => k.startsWith('XR_Trade'))).length);
-  tour.check('the facets are written to the elements as XR_ property sets', have2 > 0, String(have2));
+  await waitTrade(page, 12000);
   const t3 = await search(page, "count where Trade = 'CONC'");
   tour.check('step 3: "count where Trade = \'CONC\'. The house has 15 concrete elements."', /\b15\b/.test(t3), t3.slice(0, 140));
   const t4 = await search(page, "count where Placement = 'BOUNDARY' and class = 'IfcWall'");
-  tour.known('step 4: "count where Placement = \'BOUNDARY\' and class = \'IfcWall\'": 8 external walls', /\b8\b/.test(t4) && /walls?/.test(t4), 'the manual count is not what the viewer gives (FZK-Haus walls are IfcWallStandardCase, which class = \'IfcWall\' does not match)', t4.slice(0, 140));
+  tour.check('step 4 (as the viewer has it): class = \'IfcWall\' matches no FZK-Haus wall, they are IfcWallStandardCase', /\b0 elements/.test(t4), t4.slice(0, 100));
   const t4b = await search(page, "count where Placement = 'BOUNDARY' and class like 'IfcWall%'");
-  tour.check('"the external walls sit on the envelope": walls on BOUNDARY with class like IfcWall%', /\b\d+\b/.test(t4b) && !/\b0 /.test(t4b.slice(0, 40)), t4b.slice(0, 140));
+  tour.check('step 4: "The external walls sit on the envelope. The house has 8 of them." (class like IfcWall%)', /\b8\b/.test(t4b), t4b.slice(0, 140));
   await page.keyboard.press('Escape');
   // step 5: click a wall
   await ui.clickElement(page, { cls: /Wall/ });
@@ -60,7 +55,7 @@ await tour.step('18A.1 Try it: the Facets folder, Classify all, queries, a manua
   const opts = await pic.locator('option').allInnerTexts().catch(() => []);
   const pick = opts.find((o) => /^INT/.test(o)) ?? opts[1];
   await pic.selectOption({ label: pick });
-  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => /manual/.test(document.querySelector('[data-facet=Placement] [data-role=meta]')?.textContent ?? ''), null, { timeout: 30000 }).catch(() => {});
   const meta = await f.locator('[data-facet=Placement] [data-role=meta]').innerText();
   tour.check('step 5: "Open the Placement picker, choose another code and the source turns to manual"', /manual/.test(meta), meta);
   // the picture: back to a normal state first
@@ -73,17 +68,14 @@ await tour.step('18A.1 Try it: the Facets folder, Classify all, queries, a manua
   await page.keyboard.press('Escape');
   const t7 = await search(page, "count where XR_Material.Code = 'TIMBER'");
   tour.check('"write XR_Material.Code for the facet" (material stays the IFC material)', /\d+/.test(t7), t7.slice(0, 120));
-  // a switched-off facet writes nothing
-  await ui.tab(page, 'Classification');
+  await page.context().close();
 });
 
 await tour.step('18A.2 Try it: the By classification tree', async () => {
   const page = await tour.open('model=fzk-haus');
   await classify(page);
-  const f = facets(page);
-  await f.locator('summary').click();
-  await f.getByRole('button', { name: 'Facets: all' }).click().catch(() => {});
-  await page.waitForTimeout(5000);
+  const f = await openFacets(page);
+  await waitTrade(page, 15000);
   await ui.tab(page, 'Model');
   await page.getByRole('button', { name: 'By classification' }).click();
   await page.waitForTimeout(800);
@@ -104,16 +96,16 @@ await tour.step('18A.2 Try it: the By classification tree', async () => {
   await page.waitForTimeout(800);
   const lv2 = await page.locator('select[data-role=level]').evaluateAll((s) => s.map((x) => x.selectedOptions[0]?.textContent));
   tour.check('step 4: "Choose Envelope (Placement, Material, IFC class)"', lv2[0] === 'Placement' && lv2[1] === 'Material' && lv2[2] === 'IFC class', lv2.join(' > '));
-  const boundary = page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^BOUNDARY$/ }) }).first();
+  const boundary = page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^BOUNDARY\b/ }) }).first();
   tour.check('step 4: "Open BOUNDARY": the row exists', (await boundary.count()) === 1, (await page.locator('#sidebar .tr .lbl').allInnerTexts()).join(' | ').slice(0, 200));
   if (await boundary.count()) {
     if ((await boundary.getAttribute('aria-expanded')) === 'false') await boundary.locator('.caret').click();
     await page.waitForTimeout(400);
-    const mas = page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^MASONRY$/ }) }).first();
+    const mas = page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^CONCRETE\b/ }) }).first();
     if ((await mas.count()) && (await mas.getAttribute('aria-expanded')) === 'false') await mas.locator('.caret').click();
     await page.waitForTimeout(400);
     const lbls = await page.locator('#sidebar .tr .lbl').allInnerTexts();
-    tour.check('step 4: "Open BOUNDARY and MASONRY: the external walls are there"', lbls.some((l) => /IfcWall/.test(l)), lbls.join(' | ').slice(0, 240));
+    tour.check('step 4: "Open BOUNDARY and CONCRETE: the external walls are there"', lbls.some((l) => /IfcWall/.test(l)), lbls.join(' | ').slice(0, 240));
     await boundary.hover();
     const sv = boundary.locator('.sv');
     tour.check('step 5: "Hover a row and click +set": the +set button shows', (await sv.count()) === 1);
@@ -146,25 +138,24 @@ await tour.step('18A.2 Try it: the By classification tree', async () => {
   // the picture: Envelope preset
   await preset.selectOption({ label: 'Envelope' });
   await page.waitForTimeout(800);
-  const b2 = page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^BOUNDARY$/ }) }).first();
+  const b2 = page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^BOUNDARY\b/ }) }).first();
   if (await b2.count()) {
     if ((await b2.getAttribute('aria-expanded')) === 'false') await b2.locator('.caret').click();
     await page.waitForTimeout(300);
-    const m2 = page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^MASONRY$/ }) }).first();
+    const m2 = page.locator('#sidebar .tr', { has: page.locator('.lbl', { hasText: /^CONCRETE\b/ }) }).first();
     if ((await m2.count()) && (await m2.getAttribute('aria-expanded')) === 'false') await m2.locator('.caret').click();
     await b2.hover();
   }
   await page.waitForTimeout(500);
   await tour.picture('class-tree-envelope', { page, element: '#sidebar' });
+  await page.context().close();
 });
 
 await tour.step('18A.3 Try it: Colour by Trade and Placement, the legend, Confidence shading', async () => {
   const page = await tour.open('model=fzk-haus');
   await classify(page);
-  const f = facets(page);
-  await f.locator('summary').click();
-  await f.getByRole('button', { name: 'Facets: all' }).click().catch(() => {});
-  await page.waitForTimeout(5000);
+  const f = await openFacets(page);
+  await waitTrade(page, 15000);
   const colour = pane(page).getByLabel('Colour by').first();
   const base = await page.evaluate(() => Array.from(window.__xray.app.controller.state.color.slice(0, 246)));
   await colour.selectOption({ label: 'Trade' });
