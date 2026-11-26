@@ -29,6 +29,8 @@ import type { ApiKeyStore } from '../classify/keyStore';
 import { topTwo, overallConfidence } from '../classify/review';
 import { browserKeyStorages } from '../classify/keyStore';
 import { ClassifyService } from '../classify/service';
+import type { FacetGeometryEnv } from '../classify/service';
+import { Vector3 } from 'three';
 import type { CalibrationStatus } from '../classify/calibrationStatus';
 import type { ModelTest, RunOptions, Target } from '../classify/service';
 import { PROVIDERS, RULES_MODES } from '../classify/settings';
@@ -37,6 +39,8 @@ import { D3_DEFAULTS, JEV_DEFAULTS } from '../classify/settings';
 import { propertyNames } from '../classify/schema';
 import type { ManualPartial } from '../classify/results';
 import type { ClassifyInput, ClassifyResult, ClassifyStats } from '../classify/types';
+import type { FacetId, FacetResult, FacetSet } from '../classify/facets/defs';
+import type { ManualFacetPartial } from '../classify/facets/write';
 import { downloadText } from '../tools/csv';
 import { ICONS } from '../tools/icons';
 import { registerTool } from '../tools/registry';
@@ -47,6 +51,7 @@ import { registerParamSection } from '../ui/params';
 import { quoteIdent } from '../query';
 import { openCriteriaSetEditor } from './sidebar';
 import { ReviewWalk } from './classifyReview';
+import { buildFacetsFolder } from './classifyFacets';
 import { SELECTION_CSS, buildSelectionCard } from './classifySelection';
 import { addRightSidebarTab } from '../ui/rightSidebar';
 import type { RightTabHandle } from '../ui/rightSidebar';
@@ -72,6 +77,20 @@ export interface ClassifyApi {
   setSchema(json: unknown): string[];
   results(): ClassifyResult[];
   override(id: string | number, partial: ManualPartial): ClassifyResult;
+  /** The facets engine (Trade, Placement, Material, Phase, Orientation, ClassRepair); see docs-features/classify.md, "Facets". */
+  facets: {
+    defs(): unknown;
+    enabled(): Record<string, boolean>;
+    setEnabled(facet: FacetId, on: boolean): void;
+    classify(target: Target): Promise<unknown>;
+    estimate(target: Target): Promise<{ calls: number; signatures: number }>;
+    /** Requests, signatures, sources per facet and errors of the last facets run. */
+    stats(): unknown;
+    results(): Record<string, FacetSet>;
+    of(id: number | string): FacetSet;
+    override(id: number | string, facet: FacetId, partial: ManualFacetPartial): FacetResult;
+    removeOverride(id: number | string, facet: FacetId): Promise<void>;
+  };
   clear(): void;
   export(kind: 'json' | 'csv' | 'throughline'): string;
   abort(): void;
@@ -810,6 +829,8 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   const bAll = button('Classify all', () => run('all'), { title: 'Classify every element of the model' });
   const bStop = button('Stop', () => svc.abort(), { title: 'Stop after the requests in flight' });
   box.append(estimateEl, useRules.root, row(bSel, bAll, bStop), prog, progLine);
+  const facetsFolder = buildFacetsFolder(app, svc);
+  box.appendChild(facetsFolder.root);
 
   // ---- results
   box.appendChild(section('Results'));
@@ -1125,6 +1146,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     renderTable();
     renderLegend();
     paintReview();
+    facetsFolder.update();
     scheduleEstimate();
   };
 
@@ -1193,6 +1215,25 @@ function geoSource(app: ViewerApp): GeoSource {
   };
 }
 
+/** The geometry the facets read: world-space triangles of an element, and the BVH ray caster of the viewer. */
+function facetGeometryOf(app: ViewerApp): FacetGeometryEnv {
+  const origin = new Vector3();
+  const dir = new Vector3();
+  return {
+    mesh: (id) => {
+      const g = app.geometry?.elementMesh(id);
+      if (!g) return null;
+      return { position: g.getAttribute('position').array as ArrayLike<number>, index: g.index ? (g.index.array as ArrayLike<number>) : null, dispose: () => g.dispose() };
+    },
+    raycast: (o, d, max, candidates) => {
+      if (!app.geometry) return [];
+      origin.set(o[0], o[1], o[2]);
+      dir.set(d[0], d[1], d[2]);
+      return app.geometry.raycastAll(origin, dir, max, candidates);
+    },
+  };
+}
+
 let voidIndex: { model: unknown; counts: Map<number, number> } | null = null;
 
 /** The numeric shape line of an element (geometryVector): box, mesh, storey elevation and the number of openings from the loaded model. */
@@ -1235,6 +1276,7 @@ export const classifyPlugin: AppPlugin = {
       thumbnails: (id, ts) => renderThumbs(thumbSource(app), id, ts),
       geometry: (id, gs) => buildGeometry(geoSource(app), id, gs),
       shape: (id) => shapeOfElement(app, id),
+      facetGeometry: facetGeometryOf(app),
     });
     svc = service;
     tint = new Tint(app, service);
@@ -1274,6 +1316,18 @@ export const classifyPlugin: AppPlugin = {
       setSchema: (json) => service.setSchema(json, false),
       results: () => service.results(),
       override: (id, partial) => service.override(id, partial),
+      facets: {
+        defs: () => service.facetDefs(),
+        enabled: () => ({ ...service.facetOn }),
+        setEnabled: (f, on) => service.setFacetEnabled(f, on),
+        classify: (target) => service.classifyFacets(target).then((r) => (r ? r.stats : null)),
+        estimate: (target) => service.estimateFacets(target),
+        stats: () => service.lastFacetStats,
+        results: () => Object.fromEntries(service.facetResults()),
+        of: (id) => service.facetsOf(id),
+        override: (id, facet, partial) => service.overrideFacet(id, facet, partial),
+        removeOverride: (id, facet) => service.removeFacetOverride(id, facet),
+      },
       clear: () => { service.clear(); t.apply(); },
       export: (kind) => service.export(kind),
       abort: () => service.abort(),

@@ -28,3 +28,8 @@ export function sidecarModel(name: string): SceneModel {
 export function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 }
+
+/** Switch every facet off: tests of the discipline pipeline count provider traffic and export columns exactly. */
+export function offFacets(svc: { setFacetEnabled(f: 'Trade' | 'Placement' | 'Material' | 'Phase' | 'Orientation' | 'ClassRepair', on: boolean): void }): void {
+  for (const f of ['Trade', 'Placement', 'Material', 'Phase', 'Orientation', 'ClassRepair'] as const) svc.setFacetEnabled(f, false);
+}

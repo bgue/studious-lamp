@@ -22,6 +22,13 @@ What changed in the X-ray viewer, newest first. One section per release; the num
   the 4D configuration (`temporaryWorks`, edited in the Film step under "Temporary works"). They go up before the work they serve and
   come down after it, have their own layer and toggle, and are not part of the IFC model. `xray-4d plan` reads the rules
   (`--no-temporary-works` leaves them out). The FZK-Haus 4D sample has scaffold, props and formwork.
+- Classification facets: besides the discipline, each element can now get a Trade (who builds it), a Placement (outside, inside or
+  on the envelope, and load-bearing or not), a Material, a Phase (when it is built), an Orientation (measured from its shape: wall
+  lying flat, door upside down, column on its side are flagged) and, for generic elements, a suggested better IFC class.
+- The Classification tab has a Facets folder with a switch for each facet and the facet values of the selected element, which you can
+  set by hand.
+- The facets are written as properties named XR_Trade, XR_Placement and so on, so searches such as `count where Trade = 'CONC'` work;
+  the CSV and JSON exports include them.
 
 ## v31 - 2026-11-26
 

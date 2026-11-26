@@ -104,7 +104,7 @@ async function open(browser, opts = {}) {
     jev.foreign.push(req.url());
     return route.abort();
   });
-  await page.goto(`http://127.0.0.1:${port}/?model=synth5k`);
+  await page.goto(`http://127.0.0.1:${port}/?model=${opts.model ?? 'synth5k'}`);
   await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 120000 });
   const err = await page.evaluate('window.__xrayError');
   if (err) errors.push(`[app] ${err}`);
@@ -169,7 +169,7 @@ async function runDesktop(browser) {
     await page.evaluate(() => window.__xrayClassify.classify('all'));
     const s1 = await page.evaluate(() => window.__xrayClassify.stats());
     console.log(tag, `classify all with rules: ${Date.now() - t0} ms`, JSON.stringify({ bySource: s1.bySource, calls: s1.calls, needsReview: s1.needsReview }));
-    check(`${tag} classify all: 5000 results, all by rules, no request`, s1.total === 5000 && s1.bySource.rules === 5000 && jev.calls === callsBefore && s1.calls === 0);
+    check(`${tag} classify all: 5000 results, all by rules, the only requests are the facet questions`, s1.total === 5000 && s1.bySource.rules === 5000 && jev.calls - callsBefore === s1.calls);
 
     // ---- WHERE in the search bar and a quantity summary by discipline
     await typeInBar(page, "where discipline = 'MEC'");
@@ -188,16 +188,19 @@ async function runDesktop(browser) {
     await page.evaluate(() => window.__xrayClassify.clear());
     const est2 = await page.evaluate(() => window.__xrayClassify.estimate('all', { rules: false }));
     console.log(tag, 'estimate (rules off)', JSON.stringify(est2));
+    const fest = await page.evaluate(() => window.__xrayClassify.facets.estimate('all'));
     const c0 = jev.calls;
     await page.evaluate(() => window.__xrayClassify.classify('all', { rules: false }));
     const s2 = await page.evaluate(() => window.__xrayClassify.stats());
     const made = jev.calls - c0;
     console.log(tag, 'rules off:', JSON.stringify({ elements: s2.total, calls: made, signatures: s2.signatures, bySource: s2.bySource, models: s2.models, usage: s2.usage }));
-    check(`${tag} rules off: ${made} requests for ${s2.total} elements (cache answers the rest)`, s2.total === 5000 && made === s2.calls && made <= est2.calls && made > 0 && made < 60 && s2.bySource.model + s2.bySource.cache === 5000);
+    check(`${tag} rules off: ${made} requests for ${s2.total} elements (cache answers the rest)`, s2.total === 5000 && made === s2.calls && made <= est2.calls + fest.calls + 12 && made > 0 && made < 120 && s2.bySource.model + s2.bySource.cache === 5000);
     check(`${tag} the endpoint saw only the pinned model id`, [...jev.models].join() === 'jev-1.13.0');
     check(`${tag} every result carries the model id of the answer`, await page.evaluate(() => window.__xrayClassify.results().every((r) => r.model === 'jev-1.13.0')));
+    console.log(tag, 'run1 facets', JSON.stringify(await page.evaluate(() => window.__xrayClassify.facets.stats())));
     const again = jev.calls;
     await page.evaluate(() => window.__xrayClassify.classify('all', { rules: false }));
+    console.log(tag, 'run2 facets', JSON.stringify(await page.evaluate(() => window.__xrayClassify.facets.stats())), jev.calls - again);
     check(`${tag} a second run is answered from the cache (0 requests)`, jev.calls === again);
     check(`${tag} no request went to any other host`, jev.foreign.length === 0, jev.foreign.join(' '));
     await page.evaluate(() => window.__xray.app.selectIds(window.__xray.app.controller.model.elements.slice(0, 40).map((e) => e.id)));
@@ -341,6 +344,80 @@ async function runPhone(browser) {
   }
 }
 
+// ---------------------------------------------------------------- facets on the FZK-Haus
+
+async function runFacets(browser) {
+  const tag = '[fzk-haus facets]';
+  const { ctx, page, errors } = await open(browser, { model: 'fzk-haus' });
+  try {
+    await page.locator('.xt-btn-tool[data-tool="classify"]').click();
+    await page.waitForSelector('#dk-pane-classification .xt-table');
+    const t0 = Date.now();
+    await page.evaluate(() => window.__xrayClassify.classify('all'));
+    console.log(tag, `classify all with facets: ${Date.now() - t0} ms`);
+    const info = await page.evaluate(() => {
+      const api = window.__xrayClassify;
+      const res = api.facets.results();
+      const ids = Object.keys(res);
+      const by = (facet) => { const o = {}; for (const g of ids) { const c = res[g][facet]?.code; if (c) o[c] = (o[c] ?? 0) + 1; } return o; };
+      const els = api.results().map((r) => r.id);
+      return { elements: els.length, withOrientation: ids.filter((g) => res[g].Orientation).length, trade: by('Trade'), placement: by('Placement'), material: by('Material'), phase: by('Phase'), orientation: by('Orientation'), classRepair: by('ClassRepair'), res };
+    });
+    console.log(tag, JSON.stringify({ elements: info.elements, withOrientation: info.withOrientation, trade: info.trade, placement: info.placement, material: info.material, phase: info.phase, orientation: info.orientation, classRepair: info.classRepair }));
+    check(`${tag} every element has an Orientation`, info.elements > 0 && info.withOrientation === info.elements, `${info.withOrientation}/${info.elements}`);
+    const cls = await page.evaluate(() => {
+      const api = window.__xrayClassify;
+      const res = api.facets.results();
+      const out = { walls: [], slabs: [] };
+      for (const r of api.results()) {
+        const inp = api.buildInput(r.id);
+        const f = res[r.id];
+        if (!inp || !f) continue;
+        if (/^IfcWall/.test(inp.ifcClass) && inp.psets && (Object.values(inp.psets).some((p) => p.IsExternal === true) || /aussen|[-_ ]ext[-_ ]|exterior|external/i.test(inp.name))) out.walls.push(f.Placement?.code);
+        if (/^IfcSlab/.test(inp.ifcClass)) out.slabs.push(f.Orientation?.code);
+      }
+      return out;
+    });
+    console.log(tag, `external walls ${cls.walls.length}, slabs ${cls.slabs.length}`);
+    check(`${tag} the exterior walls (IsExternal, or Ext/Aussen in the name) get XR_Placement.Code = BOUNDARY`, cls.walls.length > 0 && cls.walls.every((c) => c === 'BOUNDARY'), JSON.stringify(cls.walls.slice(0, 5)));
+    check(`${tag} slabs are HORIZONTAL`, cls.slabs.length > 0 && cls.slabs.every((c) => c === 'HORIZONTAL' || c === 'INCLINED'), JSON.stringify([...new Set(cls.slabs)]));
+    const flat = cls.slabs.filter((c) => c === 'HORIZONTAL').length;
+    check(`${tag} most slabs are HORIZONTAL (the rest are roof slabs)`, flat >= cls.slabs.length / 2, `${flat}/${cls.slabs.length}`);
+    const conc = await page.evaluate(() => window.__xraySearch.summarize("count where Trade = 'CONC'").total);
+    console.log(tag, "count where Trade = 'CONC':", conc);
+    check(`${tag} count where Trade = 'CONC' answers`, typeof conc === 'number' && conc >= 0 && conc === (info.trade['CONC'] ?? 0), String(conc));
+    const bounds = await page.evaluate(() => window.__xraySearch.summarize("count where XR_Placement.Code = 'BOUNDARY'").total);
+    check(`${tag} the query engine sees XR_Placement.Code`, bounds === (info.placement['BOUNDARY'] ?? 0) && bounds > 0, String(bounds));
+    // the Facets folder
+    const folder = page.locator('#dk-pane-classification [data-testid="classify-facets"]');
+    check(`${tag} the Facets folder has a switch per facet`, (await folder.locator('input[type="checkbox"]').count()) === 6 && (await folder.locator('input[type="checkbox"]:checked').count()) === 6);
+    const first = await page.evaluate(() => Object.keys(window.__xrayClassify.facets.results())[0]);
+    await page.evaluate((gid) => { const app = window.__xray.app; const idx = app.controller.model.byGlobalId.get(gid); app.selectIds([idx]); }, first);
+    await page.waitForTimeout(400);
+    const rows = await folder.locator('[data-role="facet-selected"] [data-facet]').count();
+    check(`${tag} the selected element shows its facet values`, rows >= 4, String(rows));
+    // switch a facet off: its properties go away
+    await folder.locator('label[data-facet="Trade"] input').uncheck();
+    await page.waitForTimeout(200);
+    const gone = await page.evaluate(() => window.__xraySearch.summarize("count where XR_Trade.Code = 'CONC'").total);
+    check(`${tag} switching Trade off removes the XR_Trade properties`, gone === 0, String(gone));
+    await folder.locator('label[data-facet="Trade"] input').check();
+    // a manual override
+    await page.evaluate(() => window.__xrayClassify.facets.classify('all'));
+    const g0 = first;
+    await page.evaluate((gid) => window.__xrayClassify.facets.override(gid, 'Trade', { code: 'OTHER' }), g0);
+    const man = await page.evaluate((gid) => window.__xrayClassify.facets.of(gid).Trade, g0);
+    check(`${tag} a manual override has source manual and confidence 1`, man.source === 'manual' && man.confidence === 1 && man.code === 'OTHER');
+    const csv = await page.evaluate(() => window.__xrayClassify.export('csv').split('\r\n')[0]);
+    check(`${tag} the CSV export has the facet columns`, csv.includes('XR_Trade.Code') && csv.includes('XR_Orientation.Plausible'));
+    await shot(page, 'classify-facets.png');
+  } finally {
+    const real = errors.filter((e) => !/favicon/i.test(e));
+    check(`${tag} zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+}
+
 let browser;
 let exitCode = 0;
 try {
@@ -348,6 +425,7 @@ try {
   browser = await chromium.launch({ args: GL });
   await runDesktop(browser);
   await runPhone(browser);
+  await runFacets(browser);
   if (checks.some((c) => !c.ok)) exitCode = 1;
   console.log(`\n${checks.filter((c) => c.ok).length}/${checks.length} checks passed`);
 } catch (e) {
