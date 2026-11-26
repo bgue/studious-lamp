@@ -41,7 +41,13 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     if (!c || typeof c !== 'object' || Array.isArray(c)) throw input(`config ${path} must be a JSON object`);
     if (c.schema !== undefined && c.schema !== 'xray-4d-config/1') throw input(`config ${path}: unsupported schema "${c.schema}" (expected xray-4d-config/1)`);
     if (!c.schedule || !c.model) throw input(`config ${path}: "schedule" and "model" sections are required (see web/public/samples/fzk-haus.4d.json)`);
-    return { ...c, schema: 'xray-4d-config/1', style: { ...parser.DEFAULT_STYLE, ...(c.style ?? {}) } };
+    let temporaryWorks;
+    if (c.temporaryWorks !== undefined) {
+      const t = parser.parseTempWorks(c.temporaryWorks);
+      if (!t.config || t.problems.length) throw input(`config ${path}: ${t.problems.join('; ')}`);
+      temporaryWorks = t.config;
+    }
+    return { ...c, schema: 'xray-4d-config/1', ...(temporaryWorks ? { temporaryWorks } : {}), style: { ...parser.DEFAULT_STYLE, ...(c.style ?? {}) } };
   }
 
   function loadSchedule(path, parser, project) {
@@ -211,9 +217,10 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     }
     if (links.schedule?.source_hash && links.schedule.source_hash !== schedule.sourceHash) io.err('xray-4d: warning: links.json was made for another schedule file (hash differs)');
     const t0 = performance.now();
-    const plan = parser.buildPlan(schedule, links, m.model, style, { ...(baseline ? { baseline } : {}), config });
+    const plan = parser.buildPlan(schedule, links, m.model, style, { ...(baseline ? { baseline } : {}), config, ...(args['no-temporary-works'] ? { temporaryWorks: false } : {}) });
     const secs = plan.timeMap.length ? plan.timeMap[plan.timeMap.length - 1][1] : 0;
-    io.err(`plan: view ${style.view}, ${plan.elements.length} elements, ${plan.tasks.length} activities, ${plan.milestones.length} milestones, ${secs.toFixed(1)} s, ${fmtMs(performance.now() - t0)}`);
+    const tw = plan.temporaryWorks?.groups.length ?? 0;
+    io.err(`plan: view ${style.view}, ${plan.elements.length} elements, ${plan.tasks.length} activities, ${plan.milestones.length} milestones${tw ? `, ${tw} temporary works groups` : ''}, ${secs.toFixed(1)} s, ${fmtMs(performance.now() - t0)}`);
     out(args, io, JSON.stringify(plan) + '\n', 'plan');
     if (args['write-ifc']) await writeIfc(parser, m, schedule, links, plan, style.view, args['write-ifc'], io);
     return EXIT_OK;
@@ -357,7 +364,7 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     const code = await doLink({ _: [modelPath, xerPath], ...shared, out: join(dir, 'links.json'), report: join(dir, 'link-report.html'), 'min-coverage': args['min-coverage'], assignments: args.assignments, prior: args.prior, 'id-property': args['id-property'], 'write-ifc': args['write-ifc'] ? join(dir, 'model.4d.ifc') : undefined }, io);
     if (code !== EXIT_OK) return code;
     stage('plan');
-    await doPlan({ _: [modelPath, xerPath, join(dir, 'links.json')], ...shared, out: join(dir, 'build.4d.json'), view: args.view, baseline: args.baseline, window: args.window, length: args.length, pace: args.pace }, io);
+    await doPlan({ _: [modelPath, xerPath, join(dir, 'links.json')], ...shared, out: join(dir, 'build.4d.json'), view: args.view, baseline: args.baseline, window: args.window, length: args.length, pace: args.pace, 'no-temporary-works': args['no-temporary-works'] }, io);
     const planPath = join(dir, 'build.4d.json');
     if (!args['no-render']) {
       stage('render');
@@ -387,13 +394,14 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     },
     plan: {
       summary: 'build the 4D plan (build.4d.json): per-element states over time, time map, milestones',
-      usage: 'xray-4d plan <model.ifc> <schedule.xer> <links.json> --config map.4d.json [--view planned|actual|variance] [--baseline b.xer] [--window all|lookahead:6w|range:A..B] [--length 120s | --pace 1w=2s] [--explode auto|floor|off] [--fade 0.6s|auto] [--issues] [--write-ifc out.ifc] -o build.4d.json',
-      options: { ...COMMON, '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--explode': 'string', '--fade': 'string', '--issues': 'bool', '--write-ifc': 'string', '--out': 'string' },
+      usage: 'xray-4d plan <model.ifc> <schedule.xer> <links.json> --config map.4d.json [--view planned|actual|variance] [--baseline b.xer] [--window all|lookahead:6w|range:A..B] [--length 120s | --pace 1w=2s] [--explode auto|floor|off] [--fade 0.6s|auto] [--issues] [--no-temporary-works] [--write-ifc out.ifc] -o build.4d.json',
+      options: { ...COMMON, '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--explode': 'string', '--fade': 'string', '--issues': 'bool', '--no-temporary-works': 'bool', '--write-ifc': 'string', '--out': 'string' },
       optionHelp: [cfgHelp, '  --project NAME   the schedule project', '  --view V         planned (default from the config), actual or variance',
         '  --baseline FILE  a baseline .xer, matched by activity ID', '  --window W       all, lookahead:6w (from the data date) or range:2027-05-01..2027-07-01',
         '  --length T       film length, 120s or 2m          --pace P   schedule time per video second, 1w=2s or 3d=1s',
         '  --explode E      auto, floor (each floor apart while it is built) or off          --fade S   seconds a new part takes to appear (0 = at once, auto)',
         '  --issues         keep the issue pins and drawings on screen while the film plays',
+        '  --no-temporary-works  leave the scaffold, falsework and formwork rules of the configuration out of the plan',
         '  --write-ifc FILE also write the model copy with the work schedule (the plan\'s view dates are the task dates)', '  -o, --out FILE  build.4d.json (default: standard output)'],
       run: doPlan,
     },
@@ -416,7 +424,7 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     all: {
       summary: 'link, plan, render and pack in one run, stopping at the first failure',
       usage: 'xray-4d all <model.ifc> <schedule.xer> --config map.4d.json -o out/ [--no-render] [--min-coverage 0.9] [--write-ifc] [--script F] [--view V] [--window W] [--length T] [--size S] [--fps N]',
-      options: { ...COMMON, '--assignments': 'string', '--prior': 'string', '--id-property': 'string', '--min-coverage': 'string', '--write-ifc': 'bool', '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--script': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--loop': 'bool', '--no-render': 'bool', '--out': 'string' },
+      options: { ...COMMON, '--assignments': 'string', '--prior': 'string', '--id-property': 'string', '--min-coverage': 'string', '--write-ifc': 'bool', '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--script': 'string', '--size': 'string', '--fps': 'string', '--format': 'string', '--hud': 'string', '--loop': 'bool', '--no-render': 'bool', '--no-temporary-works': 'bool', '--out': 'string' },
       optionHelp: [cfgHelp, '  -o, --out DIR    output directory: links.json, link-report.html, build.4d.json, build.mp4, build.html (model.4d.ifc with --write-ifc)', '  --no-render      skip the video', '  other options    as for link, plan, render and pack'],
       run: doAll,
     },

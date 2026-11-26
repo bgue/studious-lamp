@@ -14,6 +14,10 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 - The 4D director has "Each floor apart": the storeys move apart around the floor being built, that floor is in x-ray focus and
   named, and they close again before the work moves on.
 - The FZK-Haus 4D sample shows its ground floor and roof storey built apart.
+- The 4D film builds temporary works: scaffold along the outer walls, falsework under slabs and formwork on concrete, from rules in
+  the 4D configuration (`temporaryWorks`, edited in the Film step under "Temporary works"). They go up before the work they serve and
+  come down after it, have their own layer and toggle, and are not part of the IFC model. `xray-4d plan` reads the rules
+  (`--no-temporary-works` leaves them out). The FZK-Haus 4D sample has scaffold, props and formwork.
 
 ## v31 - 2026-11-26
 

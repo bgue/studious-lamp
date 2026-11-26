@@ -5,7 +5,8 @@
 import { readTaskAttr } from '../schedule/attrs';
 import { isBuildType } from '../schedule/planTime';
 import { DEFAULT_STYLE } from '../schedule/types';
-import type { AttributeKind, FourDConfig, FourDStyle, Schedule, ScheduleAttrSource, SplitRule } from '../schedule/types';
+import { emptyTempWorks, parseTempWorks } from '../schedule/tempworks';
+import type { AttributeKind, FourDConfig, FourDStyle, Schedule, ScheduleAttrSource, SplitRule, TempWorksConfig, TempWorksRule } from '../schedule/types';
 
 export const CONFIG_SCHEMA = 'xray-4d-config/1' as const;
 export const ATTRS: readonly AttributeKind[] = ['location', 'trade', 'zone'];
@@ -200,6 +201,16 @@ export function notModelledCodes(config: FourDConfig): string[] {
   return Object.entries(config.activities ?? {}).filter(([, a]) => a.notModelled).map(([k]) => k);
 }
 
+/** Replace the temporary works rules ([] removes the section). */
+export function setTempWorks(config: FourDConfig, rules: readonly TempWorksRule[]): FourDConfig {
+  const c = clone(config);
+  if (rules.length) c.temporaryWorks = { version: 1, rules: clone([...rules]) } as TempWorksConfig;
+  else delete c.temporaryWorks;
+  return c;
+}
+
+export const tempWorksRules = (config: FourDConfig): TempWorksRule[] => config.temporaryWorks?.rules ?? (emptyTempWorks().rules);
+
 export function setStyle(config: FourDConfig, patch: Partial<FourDStyle>): FourDConfig {
   const c = clone(config);
   c.style = { ...c.style, ...clone(patch) };
@@ -274,6 +285,11 @@ export function parseConfig(input: unknown): ParsedConfig {
     const s: Record<string, SplitRule> = {};
     for (const [k, x] of Object.entries(v.split)) { if (typeof x === 'string' && (SPLITS as readonly string[]).includes(x)) s[k] = x as SplitRule; else problems.push(`split.${k} is not a split rule`); }
     c.split = s;
+  }
+  if (v.temporaryWorks !== undefined) {
+    const t = parseTempWorks(v.temporaryWorks);
+    problems.push(...t.problems);
+    if (t.config && t.config.rules.length) c.temporaryWorks = t.config;
   }
   if (isObj(v.style)) {
     const st = { ...(v.style as Partial<FourDStyle>) };

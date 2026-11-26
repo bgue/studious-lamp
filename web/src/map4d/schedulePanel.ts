@@ -13,6 +13,8 @@ import type { Map4dController } from './controller';
 import { linksWithStatus, proposedLinks } from './linkReview';
 import { setExisting, setSource, setSplit, setStyle, setTradeQuery, setValueMap, sourceChoices, sourceKey, sourcesOf, tradeKeys, valueRows } from './scheduleConfig';
 import type { ScheduleController } from './scheduleController';
+import { buildTempWorksSection } from './tempWorksPanel';
+import { getTempWorksLayer } from '../anim/fourd/tempWorksLayer';
 
 const STYLE_ID = 'xray-4d-schedule-style';
 const CSS = `
@@ -505,6 +507,9 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     cameraNote.textContent = s.camera === 'director' && sc.note ? sc.note : '';
   }
 
+  // ---------------------------------------------------------------- Temporary works
+  const tw = buildTempWorksSection(section('Temporary works', 'tempworks', false, 'Temporary works'), sc, getTempWorksLayer(app));
+
   // ---------------------------------------------------------------- Play: the film bar (top of the tab, sticky) and the Play section
   const pMsg = msgBox();
   const bar = el('div', 'x4-film', { role: 'group', 'aria-label': '4D film', 'data-x4': 'film-bar' });
@@ -603,6 +608,7 @@ export function buildSchedulePanel(root: HTMLElement, app: ViewerApp, sc: Schedu
     renderConfigure();
     renderLink();
     renderStyle();
+    tw.render();
     renderPlay();
     if (keep?.in && keep.label && (!document.activeElement || document.activeElement === document.body)) {
       const again = Array.from(root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')).find((e) => e.getAttribute('aria-label') === keep.label && e.type === keep.type);

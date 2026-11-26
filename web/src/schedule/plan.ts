@@ -21,6 +21,7 @@ import { FourDTable } from './model';
 import { DAY, actualSpan, isBuildType, isCritical, isMilestone, parseLocal, plannedSpan, projectCalendar, referenceSpan, resolveSplit } from './planTime';
 import type { Span, WorkCalendar } from './planTime';
 import { compile, parseQuery, QueryError } from '../query';
+import { buildTempWorksGroups } from './tempworks';
 
 export { parseLocal, formatLocal, isCritical } from './planTime';
 
@@ -33,6 +34,8 @@ export interface PlanOptions {
   existing?: Iterable<string>;
   /** Overlap of consecutive element slots inside an activity, fraction of a slot (default 0.25). */
   overlap?: number;
+  /** false: leave the temporary works of the configuration out of the plan (xray-4d plan --no-temporary-works). */
+  temporaryWorks?: boolean;
 }
 
 /** Weight of a non-working day in the time map, in working hours (a working day weighs its hours). */
@@ -243,6 +246,12 @@ export function buildPlan(schedule: Schedule, links: FourDLinks, model: FourDMod
     }
   }
 
+  // temporary works: rules of the configuration -> groups with their own erect and strike times
+  const spanOf = new Map<string, { start: number; end: number }>();
+  for (const [code, sp] of spans) spanOf.set(code, sp);
+  const tw = opts.temporaryWorks === false ? { groups: [] } : buildTempWorksGroups(opts.config?.temporaryWorks, { model, elements, spans: spanOf });
+  for (const g of tw.groups) for (const t of [g.erect.from, g.erect.to, g.strike.from, g.strike.to]) if (t > wf && t < wt) events.push(t);
+
   // tasks and milestones
   const tasks: PlanTask[] = [];
   const milestones: FourDPlan['milestones'] = [];
@@ -299,6 +308,7 @@ export function buildPlan(schedule: Schedule, links: FourDLinks, model: FourDMod
     milestones,
     timeMap,
     progress,
+    ...(tw.groups.length ? { temporaryWorks: { version: 1 as const, groups: tw.groups } } : {}),
   };
 }
 

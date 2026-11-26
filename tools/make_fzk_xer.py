@@ -167,6 +167,37 @@ TRADE_COLOURS = {
 }
 SPLITS = {'MASON-EXT': 'sweep_x', 'MASON-INT': 'sweep_x', 'TIMBER-RAFTER': 'sweep_x', 'WINDOWS': 'sweep_x', '*': 'none'}
 
+# Temporary works the film builds around the permanent work (config.temporaryWorks; docs-features/4d-temporary-works.md). They tie to
+# existing activities: the scaffold goes up two days before the external masonry of each floor and comes down during A1450 (Strike
+# scaffold, after the facade A1440); the first-floor slab stands on props put up during A1230 and struck during A1260 (after curing);
+# the formwork panels go on with the edge-form and props activities and come off a few days after the pour.
+TEMPORARY_WORKS = {
+    'version': 1,
+    'rules': [
+        {'id': 'scaffold', 'kind': 'scaffold', 'name': 'Scaffold',
+         'for': "class = 'IfcWallStandardCase' and name like 'Wand-Ext%'",
+         'erect': {'daysBefore': 1, 'duration': 2}, 'strike': {'activity': 'A1450'},
+         'size': {'offset': 0.3, 'width': 0.8, 'lift': 2.0, 'bay': 2.5, 'above': 1.0}},
+        {'id': 'props', 'kind': 'falsework', 'name': 'Falsework',
+         'for': "class = 'IfcSlab' and name = 'Slab-033'",
+         'erect': {'activity': 'A1230'}, 'strike': {'activity': 'A1260'},
+         'size': {'spacing': 1.2}},
+        {'id': 'form-ground', 'kind': 'formwork', 'name': 'Edge formwork',
+         'for': "class = 'IfcSlab' and name = 'Bodenplatte'",
+         'erect': {'activity': 'A1150'}, 'strike': {'daysAfter': 3, 'duration': 1},
+         'size': {'thickness': 0.05}},
+        {'id': 'form-beam', 'kind': 'formwork', 'name': 'Beam formwork',
+         'for': "class = 'IfcBeam' and name like 'Unterzug%'",
+         'erect': {'daysBefore': 1, 'duration': 1}, 'strike': {'daysAfter': 3, 'duration': 1}},
+        {'id': 'form-slab', 'kind': 'formwork', 'name': 'Slab formwork',
+         'for': "class = 'IfcSlab' and name = 'Slab-033'",
+         'erect': {'activity': 'A1230'}, 'strike': {'after': 'A1240', 'daysAfter': 7, 'duration': 1}},
+        {'id': 'form-footing', 'kind': 'formwork', 'name': 'Footing and column formwork',
+         'for': "class in ('IfcFooting', 'IfcColumn')",
+         'erect': {'daysBefore': 1, 'duration': 1}, 'strike': {'daysAfter': 3, 'duration': 1}},
+    ],
+}
+
 UDF_RESPONSIBLE = {  # fictional companies
     'SITE': 'Main contractor', 'EARTH': 'Erdbau Neckar GmbH', 'DRAIN': 'Erdbau Neckar GmbH', 'CONC-PREP': 'Rohbau Kraus GmbH',
     'CONC-SLAB': 'Rohbau Kraus GmbH', 'CONC-BEAM': 'Rohbau Kraus GmbH', 'MASON-EXT': 'Rohbau Kraus GmbH', 'MASON-INT': 'Rohbau Kraus GmbH',
@@ -433,6 +464,7 @@ def main() -> None:
         'tradeQueries': TRADE_QUERIES,
         'activities': {a.code: {'notModelled': True} for a in ACTS if a.kind == 'task' and a.trade not in TRADE_QUERIES},
         'split': SPLITS,
+        'temporaryWorks': TEMPORARY_WORKS,
         'style': {
             'view': 'planned', 'unbuilt': 'hidden', 'window': {'kind': 'all'}, 'length': 90, 'pace': 'warp', 'camera': 'director',
             'explode': 'floor', 'xrayFocus': True, 'sectionBox': 'auto', 'labels': 3, 'criticalFloatHours': 0, 'colours': TRADE_COLOURS,
