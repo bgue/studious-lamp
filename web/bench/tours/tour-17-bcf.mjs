@@ -21,7 +21,8 @@ await tour.step('17.2 Try it: make an issue with a drawing, export BCF 2.1, dele
   await page.locator('#sidebar .vw-row .vw-name').first().click();
   await page.waitForTimeout(1000);
   await page.locator('#sidebar').getByRole('button', { name: 'Make issue', exact: true }).click();
-  await page.waitForTimeout(2500);
+  await page.waitForFunction(() => (window.__xrayBcf.currentTopics ?? window.__xrayBcf.topics).length >= 1, null, { timeout: 90000 }).catch(() => {});
+  await page.waitForTimeout(1500);
   const made = await issues(page);
   tour.check('"First make an issue with a drawing, as in 15.1"', made.length === 1, JSON.stringify(made).slice(0, 120));
   // step 1

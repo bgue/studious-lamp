@@ -24,7 +24,8 @@ await tour.step('15.1 Try it: Make issue from the view with drawings, the Issues
   const chooser = await page.locator('#sidebar select[aria-label="Make issue"]').locator('option').allInnerTexts();
   tour.check('step 2: "a list beside Make issue offers New issue (and Add to: <issue> for each issue that already exists)"', chooser[0] === 'New issue', chooser.join(' | '));
   await page.locator('#sidebar').getByRole('button', { name: 'Make issue', exact: true }).click();
-  await page.waitForTimeout(2500);
+  await page.waitForFunction(() => (window.__xrayBcf.currentTopics ?? window.__xrayBcf.topics).length >= 1, null, { timeout: 90000 }).catch(() => {});
+  await page.waitForTimeout(1500);
   const l1 = await issues(page);
   tour.check('step 3: "makes the issue from the view\'s title and note with status Open"', l1.length === 1 && /open/i.test(l1[0].status ?? l1[0].topicStatus ?? ''), JSON.stringify(l1).slice(0, 200));
   const det = await page.locator('#sidebar').innerText();
@@ -138,7 +139,7 @@ await tour.step('15.2 Status, priority, assignee, due date, comments, history, l
   tour.check('search finds comment text', (await items(page).count()) === 1);
   await page.getByPlaceholder('Search title, description, comments').fill('');
   // top bar search finds issues
-  await page.locator('#c').hover();
+  await page.mouse.move(900, 500);
   await page.keyboard.press('/');
   await page.keyboard.type('sill');
   await page.waitForTimeout(900);
