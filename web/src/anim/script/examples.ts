@@ -85,6 +85,54 @@ mode solid
 `,
   },
   {
+    id: 'floors',
+    title: 'Floor by floor',
+    about: 'A handler for each storey, called in a counting loop; a storey without walls is skipped (synth5k).',
+    text: `-- Floor by floor: one handler, called for each storey. A storey with no walls is skipped.
+-- (try it on the synth5k sample: its storeys are "Level 1" ... "Level 5")
+on showFloor name
+  if there are (where class = IfcWall and storey = name) then
+    show where storey = name fading over 0.5 seconds
+    fly to where storey = name over 2 seconds margin 2
+    caption name "Walls: " & the count of (where class = IfcWall and storey = name) for 2 seconds
+  end if
+end showFloor
+
+mode ghost
+hide everything
+fly to everything over 2 seconds
+repeat with i from 1 to 6
+  showFloor "Level " & i
+end repeat
+show everything fading over 1 seconds
+`,
+  },
+  {
+    id: 'pumpcount',
+    title: 'Count the pumps',
+    about: 'Decide by what the model holds: a function for the wording, an if for the story (process-plant).',
+    text: `-- Tell the story of the pumps. The script looks at the model when it compiles and picks what to show.
+function plural n
+  if n = 1 then return n & " pump"
+  return n & " pumps"
+end plural
+
+put the count of class IfcPump into pumps
+if pumps = 0 then
+  caption "No pumps" "This model has none" for 3 seconds
+else
+  mode ghost
+  caption "Pumps" "This model has " & plural(pumps) for 3 seconds
+  fly to class IfcPump over 3 seconds margin 2.5
+  select class IfcPump
+  if pumps > 1 then
+    orbit 90 degrees about class IfcPump over 4 seconds
+  end if
+  select nothing
+end if
+`,
+  },
+  {
     id: 'film4d',
     title: 'A 4D film: follow the work',
     about: 'Play a 4D plan, follow the active work, explode the storeys when it spreads, clip to one storey (needs a plan named "Demo").',

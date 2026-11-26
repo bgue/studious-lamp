@@ -13,8 +13,8 @@ export interface HlPiece {
 }
 
 const KEYWORDS = new Set<string>(STATEMENT_WORDS);
-const OPTIONS = new Set(['date', 'milestone', 'around', 'by', 'from', 'box', 'storey', 'storeys', 'radial', 'planned', 'actual', 'variance', 'to', 'over', 'ease', 'margin', 'fading', 'for', 'with', 'about', 'into', 'times', 'preset', 'view', 'each', 'in', 'seconds', 'second', 'degrees', 'degree', 'linear', 'out', 'in', 'sets', 'nothing']);
-const ELEMENTS = new Set(['active', 'completed', 'critical', 'where', 'class', 'classes', 'everything', 'selection', 'the', 'it', 'elements', 'element']);
+const OPTIONS = new Set(['date', 'milestone', 'around', 'by', 'from', 'box', 'storey', 'storeys', 'radial', 'planned', 'actual', 'variance', 'to', 'over', 'ease', 'margin', 'fading', 'for', 'with', 'about', 'into', 'times', 'preset', 'view', 'each', 'in', 'seconds', 'second', 'degrees', 'degree', 'linear', 'out', 'in', 'sets', 'nothing', 'then', 'while', 'until', 'down', 'if', 'new', 'instantly', 'issues', 'drawings', 'of']);
+const ELEMENTS = new Set(['there', 'is', 'are', 'count', 'active', 'completed', 'critical', 'where', 'class', 'classes', 'everything', 'selection', 'the', 'it', 'elements', 'element']);
 const COND = new Set(['and', 'or', 'not', 'like', 'between', 'is', 'null', 'true', 'false', 'on', 'off']);
 
 const RE = /(--.*|#(?![0-9a-fA-F]{6}(?![A-Za-z0-9_])).*)|(#[0-9a-fA-F]{6}(?![A-Za-z0-9_]))|("(?:[^"]|"")*"?|“[^”]*”?)|(\d+\.?\d*|\.\d+)|([A-Za-z_][A-Za-z0-9_.]*)|([=<>!+\-*/&(),]+)|(\s+)|(.)/gy;
