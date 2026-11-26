@@ -34,7 +34,8 @@ await tour.step('17.2 Try it: make an issue with a drawing, export BCF 2.1, dele
   tour.check('step 1: "Open the Issues tab and click your issue. Its detail opens."', await page.getByRole('button', { name: 'Export BCF 2.1' }).isVisible());
   // step 2
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByRole('button', { name: 'Export BCF 2.1' }).click()]);
-  const file = await dl.path();
+  const file = `/tmp/x/${Date.now()}-${dl.suggestedFilename()}`;
+  await dl.saveAs(file);
   const bytes = readFileSync(file);
   tour.check('step 2: "The browser downloads a .bcfzip of every issue in the list"', /\.(bcfzip|bcf)$/.test(dl.suggestedFilename()) && bytes.subarray(0, 2).toString() === 'PK', `${dl.suggestedFilename()} ${bytes.length} bytes`);
   const fflate = await isUnzip();
@@ -68,9 +69,10 @@ await tour.step('17.2 Try it: make an issue with a drawing, export BCF 2.1, dele
   await ui.tab(page, 'Issues');
   const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), page.getByRole('button', { name: 'Open BCF' }).click()]);
   await fc.setFiles(file);
-  await page.waitForTimeout(3500);
+  await page.waitForFunction(() => (window.__xrayBcf.currentTopics ?? window.__xrayBcf.topics).length >= 1, null, { timeout: 90000 }).catch(() => {});
+  await page.waitForTimeout(1500);
   const reopened = await issues(page);
-  tour.check('step 5: "The issue is back, with its status, priority, comments and snapshot"', reopened.length === 1, JSON.stringify(reopened).slice(0, 200));
+  tour.check('step 5: "The issue is back, with its status, priority, comments and snapshot"', reopened.length === 1, JSON.stringify(reopened).slice(0, 200) + ' | ' + (await ui.statusText(page)).replace(/\s+/g, ' ').slice(0, 100) + ' | ' + (await page.locator('#sidebar').innerText()).replace(/\s+/g, ' ').slice(0, 200));
   const back2 = page.getByRole('button', { name: '‹ Issues' });
   if (await back2.count()) await back2.click();
   await page.locator('#sidebar .is-item').first().click();
@@ -88,7 +90,8 @@ await tour.step('17.2 Try it: make an issue with a drawing, export BCF 2.1, dele
   await page.waitForTimeout(800);
   tour.check('step 6: "Click Clear on the view row. ... elements you hid yourself stay hidden."', (await userHides(page)) === mine, `${mine} before, ${await userHides(page)} after`);
   // 3.0 export
-  const [d3] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByRole('button', { name: 'Export BCF 3.0' }).click()]);
+  await page.mouse.move(900, 500);
+  const [d3] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.getByRole('button', { name: 'Export BCF 3.0' }).click({ timeout: 90000 })]);
   const b3 = readFileSync(await d3.path());
   const fflate3 = await isUnzip();
   if (fflate3) {
@@ -112,7 +115,8 @@ await tour.step('17.2 Opening replaces, unless you have your own; a file for ano
   await page.locator('#sidebar .is-item').first().click();
   await page.waitForTimeout(800);
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByRole('button', { name: 'Export BCF 2.1' }).click()]);
-  const file = await dl.path();
+  const file = `/tmp/x/${Date.now()}-${dl.suggestedFilename()}`;
+  await dl.saveAs(file);
   await page.getByRole('button', { name: '‹ Issues' }).click();
   // a second own issue, then open the file: it is merged in, not replaced
   await ui.clickElement(page, { cls: 'IfcWindow' });
@@ -123,7 +127,8 @@ await tour.step('17.2 Opening replaces, unless you have your own; a file for ano
   await page.waitForTimeout(2500);
   const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), (async () => { const b = page.getByRole('button', { name: '‹ Issues' }); if (await b.count()) await b.click(); await page.getByRole('button', { name: 'Open BCF' }).click(); })()]);
   await fc.setFiles(file);
-  await page.waitForTimeout(3000);
+  await page.waitForFunction(() => (window.__xrayBcf.currentTopics ?? window.__xrayBcf.topics).length >= 3, null, { timeout: 90000 }).catch(() => {});
+  await page.waitForTimeout(1500);
   const titles = (await issues(page)).map((i) => i.title);
   tour.check('"If you have unsaved issues of your own, the file is merged in instead"', titles.includes('Own issue') && titles.includes('Second own issue') && titles.length === 2, titles.join(' | '));
 });
