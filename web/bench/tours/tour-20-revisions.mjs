@@ -84,7 +84,7 @@ await tour.step('20.1 Try it steps 1-4: version 1 classified and reviewed, versi
   await page.keyboard.type('Revision');
   await page.waitForTimeout(800);
   const ptxt = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-  tour.check('"The command palette has the same actions: Revision: review changes (walk), Revision: compare with an earlier model..., Revision: export the report"', /Revision: review changes/.test(ptxt) && /Revision: compare/.test(ptxt) && (await (async () => { await page.locator('#xray-topbar-search input').first().fill('Revision: export'); await page.waitForTimeout(600); return /Revision: export the report/.test((await page.locator('body').innerText()).replace(/\s+/g, ' ')); })()), ptxt.match(/Revision: [^ ]+( [^ ]+){0,6}/g)?.slice(0, 4).join(' | '));
+  tour.check('"The command palette has the same actions: Revision: review changes (walk), Revision: compare with an earlier model..., Revision: export the report"', /Revision: review changes/.test(ptxt) && /Revision: compare/.test(ptxt) && (await (async () => { await page.keyboard.press('Control+A'); await page.keyboard.type('Revision: export'); await page.waitForTimeout(800); return /Revision: export the report/.test((await page.locator('body').innerText()).replace(/\s+/g, ' ')); })()), ptxt.match(/Revision: [^ ]+( [^ ]+){0,6}/g)?.slice(0, 4).join(' | '));
   tour.check('"(key Shift+V)": the list shows Shift+V for the walk', /Shift\+V/i.test(ptxt), '');
   await page.keyboard.press('Escape');
   await page.locator('#c').click({ position: { x: 5, y: 5 } }).catch(() => {});

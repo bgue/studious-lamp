@@ -104,7 +104,7 @@ await tour.step('27.1 Try it steps 4-6: Window look ahead 6 weeks, the date slid
   await page.waitForTimeout(500);
   // the picture: Style with View, Unbuilt parts, Window and Film length visible
   await st.scrollIntoViewIfNeeded();
-  await page.evaluate(() => document.querySelector('#dk-pane-4d details[data-sec=style]')?.scrollIntoView({ block: 'start' }));
+  await page.evaluate(() => { const d = document.querySelector('#dk-pane-4d details[data-sec=style]'); if (d) { d.style.scrollMarginTop = '250px'; d.scrollIntoView({ block: 'start' }); } });
   await page.waitForTimeout(500);
   await tour.picture('4d-style', { page, element: '#dock' });
 });

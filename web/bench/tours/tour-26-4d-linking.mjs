@@ -73,6 +73,7 @@ await tour.step('26.1 Try it steps 1-3: FZK-Haus, 4D tab opens on Link, Open .xe
   tour.check('step 5: "The live count shows how many elements match" (MASON-EXT: class = IfcWallStandardCase and name like Wand-Ext%)', /^\d+$/.test(count.trim()) && Number(count) > 0, count);
   tour.check('"the matches are tinted orange while the box has focus"', await page.evaluate(() => { const d = window.__xray.app.controller; return !!d; }));
   await mason.fill("class = 'IfcNoSuchClass'"); await mason.press('Enter');
+  await page.waitForFunction(() => /^0\b/.test((document.querySelector('#dk-pane-4d [data-trade="MASON-EXT"] .x4-count')?.textContent ?? '').trim()), null, { timeout: 20000 }).catch(() => {});
   const zero = ((await pane(page).locator('[data-trade="MASON-EXT"] .x4-count').evaluate((n) => n.textContent)) ?? '').trim();
   tour.check('"A zero means the query is wrong"', /^0\b/.test(zero) || /^0$/.test(zero) || /no|0/.test(zero), `count text "${zero}"`);
   await mason.fill(SAMPLE.tradeQueries['MASON-EXT']); await mason.press('Enter');
@@ -123,9 +124,12 @@ await tour.step('26.1 Try it steps 6-8: Link schedule, read the result, suggesti
     await first.getByRole('button', { name: 'Accept link' }).click();
     await page.waitForTimeout(300);
     tour.check('Accept makes the link accepted', (await page.evaluate((i) => window.__xray4dSchedule.links().links.find((l) => l.id === i)?.status, id)) === 'accepted');
-    const second = link.locator('[data-x4=link-suggestions] [data-link]').first();
-    const id2 = await second.getAttribute('data-link').catch(() => null);
-    if (id2) { await second.getByRole('button', { name: 'Reject link' }).click(); await page.waitForTimeout(1200); tour.check('Reject makes the link rejected', (await page.evaluate((i) => window.__xray4dSchedule.links().links.find((l) => l.id === i)?.status, id2)) === 'rejected'); }
+    const rest = await page.evaluate((i) => window.__xray4dSchedule.links().links.filter((l) => l.status === 'proposed' && l.id !== i).map((l) => l.id), id);
+    if (rest.length) {
+      await link.locator(`[data-x4=link-suggestions] [data-link="${rest[0]}"]`).getByRole('button', { name: 'Reject link' }).click();
+      await page.waitForFunction((i) => window.__xray4dSchedule.links().links.find((l) => l.id === i)?.status === 'rejected', rest[0], { timeout: 20000 }).catch(() => {});
+      tour.check('Reject makes the link rejected', (await page.evaluate((i) => window.__xray4dSchedule.links().links.find((l) => l.id === i)?.status, rest[0])) === 'rejected');
+    }
   }
   const stepAfter = (await pane(page).locator('.x4-steps').innerText()).replace(/\s+/g, ' ');
   tour.check('"a count ("2 ties", "3 to decide") while something waits for you": the Link step shows a count after a run', /Link\s*(\d+ (ties?|to decide)|✓ done|not linked)/.test(stepAfter), `${stepBefore} -> ${stepAfter}`);
@@ -164,17 +168,16 @@ await tour.step('26.1 Activities with nothing in the model: Not modelled, Mark a
   if (await gs.count() && !(await gaps.locator('details').first().evaluate((n) => n.open).catch(() => true))) await gs.click();
   const t0 = (await gaps.innerText()).replace(/\s+/g, ' ');
   const nGap = r.unlinkedActivities.length;
-  tour.check('"as a list N activities without elements. Each row has Not modelled, and the list has Mark all not modelled"', /\d+ activities without elements/.test(t0) && /Mark all not modelled/.test(t0) && (await gaps.getByRole('button', { name: 'Not modelled', exact: true }).count()) >= 1, t0.slice(0, 200));
+  tour.check('"as a list N activities without elements. Each row has Not modelled, and the list has Mark all not modelled"', /\d+ activities without elements/.test(t0) && /Mark all not modelled/.test(t0) && (await gaps.locator('button', { hasText: /^Not modelled$/ }).count()) >= 1, t0.slice(0, 200));
   const lk = await page.evaluate(() => window.__xray4dSchedule.report().coverage.activities);
-  await gaps.getByRole('button', { name: 'Not modelled', exact: true }).first().evaluate((b) => b.click());
+  await gaps.locator('button', { hasText: /^Not modelled$/ }).first().evaluate((b) => b.click());
   await page.waitForTimeout(500);
   const nm1 = (await page.evaluate(() => Object.values(window.__xray4dSchedule.config().activities ?? {}).filter((a) => a.notModelled).length));
   tour.check('"Press Not modelled beside an activity": it moves under Not in the model (1)', nm1 === 1 && /Not in the model \(1\)/.test((await pane(page).locator('[data-x4=not-in-model]').innerText()).replace(/\s+/g, ' ')), `${nm1}`);
-  await pane(page).locator('[data-x4=not-in-model] summary').evaluate((b) => b.click());
-  await pane(page).locator('[data-x4=not-in-model]').getByRole('button', { name: 'Back to list' }).first().evaluate((b) => b.click());
+  await pane(page).locator('[data-x4=not-in-model] button', { hasText: /^Back to list$/ }).first().evaluate((b) => b.click());
   await page.waitForTimeout(400);
   tour.check('"Back to list undoes the mark"', (await page.evaluate(() => Object.values(window.__xray4dSchedule.config().activities ?? {}).filter((a) => a.notModelled).length)) === 0);
-  await gaps.getByRole('button', { name: 'Mark all not modelled' }).evaluate((b) => b.click());
+  await gaps.locator('button', { hasText: /^Mark all not modelled$/ }).evaluate((b) => b.click());
   await page.waitForTimeout(600);
   const r2 = await rep(page);
   const nm = await page.evaluate(() => Object.values(window.__xray4dSchedule.config().activities ?? {}).filter((a) => a.notModelled).length);
