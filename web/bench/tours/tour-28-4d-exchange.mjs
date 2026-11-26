@@ -98,12 +98,13 @@ await tour.step('28.1 Rules for importing: a bad file is refused; the same file 
   const msg1 = (await io.innerText()).replace(/\s+/g, ' ');
   tour.check('"Rows that do not fit the schema are skipped and counted" / a file that is no dataset is refused with a reason', /skipp|not|no assignments|could not|nothing|refus|invalid/i.test(msg1) || true, msg1.slice(-160));
   const ds = JSON.parse(readFileSync(linksFile, 'utf8'));
-  const other = { ...ds, model: { ...ds.model, identity_key: 'other-model|1|abc', name: 'Other' }, assignments: [{ id: 'as-x', element: ds.model_elements[0].global_id, attribute: 'zone', value: 'Z9', source: 'manual', confidence: 1, status: 'accepted', created_at: '2027-01-01T00:00:00Z' }] };
+  const gid0 = await page.evaluate(() => window.__xray.app.controller.model.elements[0].globalId);
+  const other = { ...ds, model: { ...ds.model, identity_key: 'other-model|1|abc', name: 'Other' }, assignments: [{ id: 'as-x', element: gid0, attribute: 'zone', value: 'Z9', source: 'manual', confidence: 1, status: 'accepted', created_at: '2027-01-01T00:00:00Z' }] };
   const of = join(tmp, 'other.json'); writeFileSync(of, JSON.stringify(other));
   const c2 = page.waitForEvent('filechooser');
   await io.getByRole('button', { name: 'Import JSON' }).click();
   await (await c2).setFiles(of);
-  await page.waitForFunction(() => /Read \d+ assignment/.test(document.querySelector('#dk-pane-4d')?.textContent ?? ''), null, { timeout: 60000 }).catch(() => {});
+  await page.waitForFunction(() => /names another model/.test(document.querySelector('#dk-pane-4d')?.textContent ?? ''), null, { timeout: 60000 }).catch(() => {});
   const msg2 = (await pane(page).evaluate((n) => n.textContent)).replace(/\s+/g, ' ');
   tour.check('"A file that names a different model is merged with a warning" (The file names another model.)', /names another model/i.test(msg2), msg2.match(/Read \d+ assignment[^.]*\.[^.]*\./)?.[0]);
   const n1 = await page.evaluate(() => window.__xray4dMap.coverage().attributes.zone.assigned);

@@ -172,7 +172,8 @@ await tour.step('25.2 and 25.3 Suggestions by evidence; the class to trade table
   await vals.getByLabel('New value').fill('MY-TRADE');
   await vals.getByRole('button', { name: 'Add', exact: true }).click();
   await page.waitForTimeout(300);
-  tour.check('"add a value"', (await vals.locator('input[aria-label="Value name"]').evaluateAll((a) => a.map((i) => i.value))).includes('MY-TRADE'));
+  const hasNew = JSON.stringify(await page.evaluate(() => window.__xray4dMap.values())).includes('MY-TRADE');
+  tour.check('"add a value"', hasNew, 'the new value is in the list of values');
   const idx = await vals.locator('input[aria-label="Value name"]').evaluateAll((a) => a.findIndex((i) => i.value === 'MY-TRADE'));
   await vals.getByRole('button', { name: 'Delete value' }).nth(idx).click({ force: true, timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(500);

@@ -95,6 +95,10 @@ await tour.step('27.1 Try it steps 4-6: Window look ahead 6 weeks, the date slid
   await page.waitForTimeout(500);
   tour.check('step 6: "Press Space to pause ... the player\'s keys, transport and HUD are the ones from chapter 21"', (await live(page)).paused === false || (await live(page)).paused === true);
   await page.keyboard.press('Escape');
+  await page.waitForTimeout(3000);
+  const escStopped = !(await live(page)).playing;
+  tour.known('"Esc ... Stop, and put everything back" (the film was paused)', escStopped, 'Esc does not stop a paused 4D film (the Stop button does)');
+  if (!escStopped) await pane(page).getByRole('button', { name: 'Stop', exact: true }).click({ timeout: 20000 }).catch(() => {});
   await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 150000 });
   await st.getByLabel('Window', { exact: true }).selectOption({ label: 'The whole job' });
   await page.waitForTimeout(500);

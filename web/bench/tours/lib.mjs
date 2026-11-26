@@ -120,7 +120,7 @@ export async function startTour(name) {
       if (onRequest) page.on('request', (r) => onRequest(r));
       if (route) await page.route('**/*', route);
       await page.goto(url ?? `http://127.0.0.1:${port}/?${query}`, { timeout: 240000, ...(waitUntil ? { waitUntil } : {}) });
-      await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
+      await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000, polling: 500 });
       const err = await page.evaluate('window.__xrayError');
       if (err) throw new Error(`startup failed: ${String(err).split('\n')[0]}`);
       await ui.settle(page);

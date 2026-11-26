@@ -45,7 +45,7 @@ On the **FZK-Haus** sample (not the 4D one, so you start clean):
 6. In **Coverage**, open the **Colour** list and pick **By location**, **By trade** or **By zone**. Elements are tinted by value; grey ones have none. The colouring is
    temporary: it goes away when you leave the tab and comes back when you return.
 
-> Picture (4d-coverage): the 4D tab on Coverage, the house tinted by trade, grey elements still unassigned.
+> Picture (4d-coverage): the 4D tab on Coverage, the house tinted by trade, with the colour legend and the counts of elements with and without a value (the zone is still empty).
 
 ### Assign by hand
 
