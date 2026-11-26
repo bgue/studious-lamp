@@ -12,7 +12,7 @@ import { registerAction } from '../input/actions';
 import { buildInput } from '../classify/build';
 import { disciplineRgb, rgbCss } from '../classify/palette';
 import { detectWebGpu, describeModel, customModelCheck, WEBLLM_EMBED_MODELS, WEBLLM_MODELS, WEBLLM_MODES, webllmModelInfo } from '../classify/providers/webllm';
-import { DECISION_DEVICES, DECISION_DTYPES, DECISION_MODELS, DEFAULT_HYPOTHESES, HYPOTHESIS_KEYS, decisionModelInfo, describeDecisionModel } from '../classify/providers/decision';
+import { DECISION_DEVICES, DECISION_DTYPES, DECISION_MODELS, DECISION_MODES, EMBED_MODELS, describeEmbedModel, DEFAULT_HYPOTHESES, HYPOTHESIS_KEYS, decisionModelInfo, describeDecisionModel } from '../classify/providers/decision';
 import { D3_NO_WEBGPU, chooseD3Runtime } from '../classify/providers/d3';
 import { D3_BACKENDS, D3_DEVICES, IMAGE_MARGIN_MAX, IMAGE_MARGIN_MIN, IMAGE_MODES, IMAGE_SIZE_MAX, IMAGE_SIZE_MIN, IMAGE_SIZE_STEP, IMAGE_STYLES } from '../classify/providers/d3Config';
 import { TEMPERATURE_KEYS } from '../classify/calibrate';
@@ -481,6 +481,9 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   const CUSTOM = '__custom';
   const decPreset = add(pick('Decision model', [...DECISION_MODELS.map((m) => ({ value: m.id, text: m.label })), { value: CUSTOM, text: 'Another model from Hugging Face...' }],
     () => (decisionModelInfo(d().hfModel) ? d().hfModel : CUSTOM), (v) => { if (v !== CUSTOM) apply({ hfModel: v }); else decModelId.input.focus(); }));
+  const decMode = add(pick('Decision mode', DECISION_MODES.map((m) => ({ value: m, text: m === 'nli' ? 'NLI (a zero-shot model reads each option)' : 'Embed (label prototypes, cosine similarity)' })), () => d().decisionMode, (v) => apply({ decisionMode: v })));
+  const decEmbed = add(pick('Decision embedding model', [...EMBED_MODELS.map((m) => ({ value: m.id, text: m.label }))], () => d().embedModel, (v) => apply({ embedModel: v })));
+  const decEmbedTemp = add(numField('Decision embedding temperature', 0.005, 1, 0.005, () => d().embedTemperature, (v) => apply({ embedTemperature: v })));
   const decModelId = add(textField('Hugging Face model id', () => d().hfModel, (v) => apply({ hfModel: v.trim() }), { placeholder: 'owner/name, for example MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33' }));
   const decDevice = add(pick('Device', DECISION_DEVICES.map((v) => ({ value: v, text: v === 'auto' ? 'Auto (WebGPU when present)' : v === 'webgpu' ? 'WebGPU' : 'WASM (CPU, slower)' })), () => d().device, (v) => apply({ device: v })));
   const decDtype = add(pick('Data type', DECISION_DTYPES.map((v) => ({ value: v, text: v === 'auto' ? 'Auto (q8 on WASM, fp16 on WebGPU)' : v })), () => d().dtype, (v) => apply({ dtype: v })));
@@ -504,7 +507,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   const HYP_LABEL: Record<(typeof HYPOTHESIS_KEYS)[number], string> = { discipline: 'Discipline hypothesis', sub_discipline: 'Sub-discipline hypothesis', masterformat: 'Division hypothesis', building_element: 'Building hypothesis' };
   for (const k of HYPOTHESIS_KEYS) advDec.append(add(textField(HYP_LABEL[k], () => d().hypothesis[k], (v) => apply({ hypothesis: { ...d().hypothesis, [k]: v.trim() } }))).root);
   advDec.append(row(button('Reset hypotheses', () => apply({ hypothesis: { ...DEFAULT_HYPOTHESES } }), { title: 'Use the default hypothesis sentences' })));
-  dec.append(decPreset.root, decModelId.root, decDevice.root, decDtype.root, decInfo, decRuntime, decProg, decProgLine, cacheLine, advDec);
+  dec.append(decMode.root, decPreset.root, decModelId.root, decEmbed.root, decEmbedTemp.root, decDevice.root, decDtype.root, decInfo, decRuntime, decProg, decProgLine, cacheLine, advDec);
   box.appendChild(dec);
 
   // Decision 3.0 d3-edge: in the browser (onnxruntime-web, WebGPU) or on a System One endpoint
@@ -1173,7 +1176,13 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     testBtn.setDisabled(p === 'off' ? 'Choose a provider first' : false);
     // decision model
     if (p === 'decision') {
-      decInfo.textContent = `${describeDecisionModel(d().hfModel, d().dtype)}${decisionModelInfo(d().hfModel) ? '' : ' A model that is not in the list is checked before it downloads: it must be a zero-shot or NLI model.'}`;
+      const emb = d().decisionMode === 'embed';
+      decPreset.root.style.display = emb ? 'none' : '';
+      decModelId.root.style.display = emb ? 'none' : '';
+      decEmbed.root.style.display = emb ? '' : 'none';
+      decEmbedTemp.root.style.display = emb ? '' : 'none';
+      if (emb) decInfo.textContent = describeEmbedModel(d().embedModel, d().dtype);
+      else decInfo.textContent = `${describeDecisionModel(d().hfModel, d().dtype)}${decisionModelInfo(d().hfModel) ? '' : ' A model that is not in the list is checked before it downloads: it must be a zero-shot or NLI model.'}`;
       if (!svc.gpu) void svc.probeGpu().then(() => svc.notify());
       decRuntime.textContent = svc.runtimeNote();
       const pr = svc.decisionProgress;

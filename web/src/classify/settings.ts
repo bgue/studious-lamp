@@ -12,9 +12,9 @@ import {
 } from './providers/d3Config';
 import type { D3Backend, D3Device, GeometryText, ImageMode, ImageStyle } from './providers/d3Config';
 import {
-  DECISION_DEFAULT_MODEL, DECISION_DEVICES, DECISION_DTYPES, DEFAULT_HYPOTHESES, HF_DEFAULT_ENDPOINT, HYPOTHESIS_KEYS, hfModelProblem, hypothesisProblem,
+  DECISION_DEFAULT_MODEL, DECISION_DEVICES, DECISION_DTYPES, DECISION_MODES, EMBED_DEFAULT_MODEL, embedModelInfo, DEFAULT_HYPOTHESES, HF_DEFAULT_ENDPOINT, HYPOTHESIS_KEYS, hfModelProblem, hypothesisProblem,
 } from './providers/decision';
-import type { DecisionDevice, DecisionDtype, HypothesisTemplates } from './providers/decision';
+import type { DecisionDevice, DecisionDtype, DecisionMode, HypothesisTemplates } from './providers/decision';
 import {
   DEFAULT_EMBED_TEMPERATURE, DEFAULT_HYBRID_MARGIN, WEBLLM_DEFAULT_EMBED_MODEL, WEBLLM_DEFAULT_MODEL, WEBLLM_EMBED_MODELS, WEBLLM_MODELS, WEBLLM_MODES, customModelCheck,
 } from './providers/webllm';
@@ -112,6 +112,12 @@ export interface DecisionSettings {
   provider: 'decision';
   /** A Hugging Face repository id (owner/name) of a zero-shot or NLI model with ONNX weights. */
   hfModel: string;
+  /** nli: zero-shot NLI pairs with `hfModel`. embed: label prototypes with `embedModel` (softmax over cosines at `embedTemperature`). */
+  decisionMode: DecisionMode;
+  /** The embedding model (embed mode): a Hugging Face repository id with ONNX weights for transformers.js feature extraction. */
+  embedModel: string;
+  /** Softmax temperature over the cosine similarities (embed mode). */
+  embedTemperature: number;
   device: DecisionDevice;
   /** auto: fp16 on WebGPU when the adapter supports it, q8 on WASM. */
   dtype: DecisionDtype;
@@ -161,13 +167,15 @@ export interface ClassifyDraft extends ClassifyShared {
   webllmCustomModel: string;
   webllmCustomLib: string;
   hfModel: string;
+  decisionMode: DecisionMode;
+  embedModel: string;
   device: DecisionDevice;
   dtype: DecisionDtype;
   hfEndpoint: string;
   hypothesis: HypothesisTemplates;
 }
 
-export const DECISION_DEFAULTS = { hfModel: DECISION_DEFAULT_MODEL, device: 'auto', dtype: 'auto', hfEndpoint: HF_DEFAULT_ENDPOINT } as const;
+export const DECISION_DEFAULTS = { hfModel: DECISION_DEFAULT_MODEL, decisionMode: 'nli', embedModel: EMBED_DEFAULT_MODEL, device: 'auto', dtype: 'auto', hfEndpoint: HF_DEFAULT_ENDPOINT } as const;
 export const WEBLLM_DEFAULTS = {
   webllmModel: WEBLLM_DEFAULT_MODEL, webllmMode: 'chat', webllmEmbedModel: WEBLLM_DEFAULT_EMBED_MODEL, embedTemperature: DEFAULT_EMBED_TEMPERATURE,
   hybridMargin: DEFAULT_HYBRID_MARGIN, webllmCustomModel: '', webllmCustomLib: '',
@@ -201,7 +209,7 @@ export function toSettings(d: ClassifyDraft): ClassifySettings {
         hybridMargin: d.hybridMargin, webllmCustomModel: d.webllmCustomModel, webllmCustomLib: d.webllmCustomLib,
       };
     case 'decision':
-      return { ...shared, provider: 'decision', hfModel: d.hfModel, device: d.device, dtype: d.dtype, hfEndpoint: d.hfEndpoint, hypothesis: { ...d.hypothesis } };
+      return { ...shared, provider: 'decision', hfModel: d.hfModel, decisionMode: d.decisionMode, embedModel: d.embedModel, embedTemperature: d.embedTemperature, device: d.device, dtype: d.dtype, hfEndpoint: d.hfEndpoint, hypothesis: { ...d.hypothesis } };
     case 'mock':
       return { ...shared, provider: 'mock' };
     default:
@@ -227,7 +235,7 @@ export function toDraft(s: ClassifySettings, base: ClassifyDraft = defaultDraft(
       webllmCustomModel: s.webllmCustomModel, webllmCustomLib: s.webllmCustomLib,
     });
   }
-  if (s.provider === 'decision') Object.assign(d, { hfModel: s.hfModel, device: s.device, dtype: s.dtype, hfEndpoint: s.hfEndpoint, hypothesis: { ...s.hypothesis } });
+  if (s.provider === 'decision') Object.assign(d, { hfModel: s.hfModel, decisionMode: s.decisionMode, embedModel: s.embedModel, embedTemperature: s.embedTemperature, device: s.device, dtype: s.dtype, hfEndpoint: s.hfEndpoint, hypothesis: { ...s.hypothesis } });
   return d;
 }
 
@@ -245,7 +253,7 @@ const SECRET_NAME = /key|token|secret|password|authorization|bearer/i;
 const KNOWN = new Set([
   'provider', 'schemaUrl', 'minConfidence', 'writePset', 'endpoint', 'model', 'timeoutMs', 'concurrency', 'maxStateBytes', 'webllmModel',
   'webllmMode', 'webllmEmbedModel', 'embedTemperature', 'hybridMargin', 'webllmCustomModel', 'webllmCustomLib',
-  'hfModel', 'device', 'dtype', 'hfEndpoint', 'hypothesis',
+  'hfModel', 'decisionMode', 'embedModel', 'device', 'dtype', 'hfEndpoint', 'hypothesis',
   'rulesMode', 'calibration', 'temperatures', 'images', 'imageStyle', 'imagePlan', 'imageSize', 'imageMargin', 'imageViews', 'geometryText', 'geometryContext', 'geometryVector', 'jevImages',
   'd3Backend', 'd3Repo', 'd3Revision', 'd3HfEndpoint', 'd3Device', 'd3Endpoint', 'd3Model', 'd3MaxStateBytes',
 ]);
@@ -510,6 +518,18 @@ export function validateSettings(raw: unknown): SettingsCheck {
     const p = hfModelProblem(raw['hfModel']);
     if (p) errors.push(`hfModel: ${p} Using ${DECISION_DEFAULTS.hfModel}.`);
     else d.hfModel = (raw['hfModel'] as string).trim();
+  }
+  if (raw['decisionMode'] !== undefined) {
+    if ((DECISION_MODES as readonly unknown[]).includes(raw['decisionMode'])) d.decisionMode = raw['decisionMode'] as DecisionMode;
+    else errors.push(`decisionMode must be one of ${DECISION_MODES.join(', ')}. Using "nli".`);
+  }
+  if (raw['embedModel'] !== undefined) {
+    const p = hfModelProblem(raw['embedModel']);
+    if (p) errors.push(`embedModel: ${p} Using ${DECISION_DEFAULTS.embedModel}.`);
+    else {
+      d.embedModel = (raw['embedModel'] as string).trim();
+      if (usesDecision && d.decisionMode === 'embed' && !embedModelInfo(d.embedModel)) warnings.push(`embedModel "${d.embedModel}" is not one of the tested embedding models. It must have ONNX weights for transformers.js feature extraction.`);
+    }
   }
   if (raw['device'] !== undefined) {
     if ((DECISION_DEVICES as readonly unknown[]).includes(raw['device'])) d.device = raw['device'] as DecisionDevice;

@@ -119,7 +119,7 @@ export function createProvider(s: ClassifySettings, deps: ProviderDeps): Decisio
       });
     case 'decision':
       return createDecisionProvider({
-        model: s.hfModel, device: s.device, dtype: s.dtype, hfEndpoint: s.hfEndpoint, hypothesis: s.hypothesis,
+        model: s.hfModel, mode: s.decisionMode, embedModel: s.embedModel, temperature: s.embedTemperature, device: s.device, dtype: s.dtype, hfEndpoint: s.hfEndpoint, hypothesis: s.hypothesis,
         ...(deps.hfToken ? { token: deps.hfToken } : {}),
         ...(deps.onDecisionProgress ? { onProgress: deps.onDecisionProgress } : {}),
         ...(deps.decisionLoad ? { loadLib: deps.decisionLoad } : {}),
@@ -156,6 +156,7 @@ function providerIdBase(s: ClassifySettings, o: { vision?: boolean } = {}): stri
     }
     case 'decision':
       // Other hypothesis sentences give other decisions, so they are part of the identity.
+      if (s.decisionMode === 'embed') return `decision:embed:${s.embedModel}@T${s.embedTemperature}`;
       return `decision:${s.hfModel}${customHypotheses(s.hypothesis) ? `@h${shortHash(JSON.stringify(s.hypothesis))}` : ''}`;
     case 'mock':
       return 'mock:mock-1';

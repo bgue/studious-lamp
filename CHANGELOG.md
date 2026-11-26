@@ -10,6 +10,7 @@ What changed in the X-ray viewer, newest first. One section per release; the num
   the video and the packed page, and each has a switch in the Film step and an `xray-4d --legend` / `--strip` option.
 - The Film step has "Storyboard PDF": still frames of the film at weekly dates on landscape pages, each with its date, week and the
   work going on, and the legend on every page. `xray-4d storyboard` makes the same PDF from the command line.
+- Classification: the decision model gains ModernBERT and DeBERTa-large zero-shot options and an `embed` mode (label prototypes with EmbeddingGemma, Bekko or Granite embeddings, `decisionMode` and `embedModel` settings), benchmarked in the classification guide; the default stays the DeBERTa-v3 xsmall NLI model.
 
 ## v32 - 2026-11-26
 

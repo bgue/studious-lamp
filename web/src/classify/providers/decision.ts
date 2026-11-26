@@ -16,6 +16,10 @@
 import { ProviderError } from '../types';
 import type { DecisionModel } from '../types';
 import type { Answer, Answers, JsonObject, JsonValue, Questions } from '../jevAdapter';
+import { EMBED_DEFAULT_MODEL, embedModelInfo, embedScores, embedYes, negation, normaliseVec, tensorRows } from './decisionEmbed';
+import type { DecisionMode, EmbedModelInfo } from './decisionEmbed';
+
+export * from './decisionEmbed';
 
 // ---------------------------------------------------------------- the library
 
@@ -63,6 +67,10 @@ export const DECISION_MODELS: readonly DecisionModelInfo[] = [
   { id: 'Xenova/nli-deberta-v3-xsmall', label: 'DeBERTa-v3 xsmall NLI (has fp16)', sizesMB: { fp32: 284, fp16: 143, q8: 87 }, note: 'Plain NLI (SNLI and MNLI). Has fp16 weights for WebGPU.' },
   { id: 'MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33', label: 'DeBERTa-v3 base zero-shot (better)', sizesMB: { fp32: 739, q8: 244 }, note: 'More exact, about 3 times slower.' },
   { id: 'MoritzLaurer/deberta-v3-base-zeroshot-v2.0', label: 'DeBERTa-v3 base zero-shot v2.0', sizesMB: { fp32: 739 }, note: 'Only fp32 weights: a large download.' },
+  { id: 'MoritzLaurer/ModernBERT-base-zeroshot-v2.0', label: 'ModernBERT base zero-shot v2.0', sizesMB: { fp32: 599, fp16: 300, q8: 151, q4: 225 }, note: 'Apache-2.0. ModernBERT backbone, labels entailment / not_entailment.' },
+  { id: 'MoritzLaurer/ModernBERT-large-zeroshot-v2.0', label: 'ModernBERT large zero-shot v2.0', sizesMB: { fp32: 1584, fp16: 792, q8: 398, q4: 422 }, note: 'Apache-2.0. The large ModernBERT: a big download and slow on the CPU.' },
+  { id: 'onnx-community/deberta-v3-large-zeroshot-v2.0-c-ONNX', label: 'DeBERTa-v3 large zero-shot v2.0-c', sizesMB: { fp32: 1840, fp16: 921, q8: 539, q4: 821 }, note: 'The large DeBERTa zero-shot model. A big download.' },
+  { id: 'onnx-community/ModernBERT-base-nli-ONNX', label: 'ModernBERT base NLI (tasksource)', sizesMB: { fp32: 599, fp16: 300, q8: 151, q4: 225 }, note: 'ONNX conversion of tasksource/ModernBERT-base-nli. Plain NLI: labels entailment / neutral / contradiction.' },
 ];
 export const DECISION_DEFAULT_MODEL = DECISION_MODELS[0]!.id;
 export const decisionModelInfo = (id: string): DecisionModelInfo | undefined => DECISION_MODELS.find((m) => m.id === id);
@@ -88,6 +96,24 @@ export function describeDecisionModel(id: string, dtype: DecisionDtype = 'auto')
 }
 
 // ---------------------------------------------------------------- the model config check
+
+/** Label names (lower case) that mean "the hypothesis follows" and "it does not". Zero-shot models say not_entailment, NLI models contradiction. */
+const ENTAIL_LABELS = ['entailment', 'entailed', 'entail'];
+const AGAINST_LABELS = ['contradiction', 'not_entailment', 'not_entailed', 'non_entailment', 'not-entailment'];
+
+/**
+ * Which logit is "entailment" and which is the one to set it against, from a label to id map. Case does not matter. The plain
+ * contradiction label wins over a not_entailment one when both exist. Null when the model has no entailment label or nothing to set it against.
+ */
+export function nliLabelIds(label2id: Record<string, number> | undefined | null): { entailmentId: number; againstId: number; binary: boolean } | null {
+  if (!label2id) return null;
+  const lower = Object.entries(label2id).filter(([, v]) => typeof v === 'number').map(([k, v]) => [k.toLowerCase().trim(), v] as const);
+  const ent = lower.find(([k]) => ENTAIL_LABELS.includes(k));
+  if (!ent) return null;
+  const against = AGAINST_LABELS.map((a) => lower.find(([k]) => k === a)).find((x) => x !== undefined);
+  if (!against) return null;
+  return { entailmentId: ent[1], againstId: against[1], binary: against[0] !== 'contradiction' };
+}
 
 export interface NliConfigCheck {
   ok: boolean;
@@ -119,15 +145,15 @@ export function checkNliConfig(cfg: unknown, id = 'This model'): NliConfigCheck 
   if (arch.length && !arch.some((a) => /SequenceClassification/i.test(a))) {
     return { ok: false, message: `${id} is not a classifier (its architecture is ${arch.join(', ')}), so it cannot decide among options. ${want}`, labels };
   }
-  const ent = [...byId.entries()].find(([, v]) => v === 'entailment');
+  const ids = nliLabelIds(Object.fromEntries([...byId.entries()].map(([k, v]) => [v, k])));
+  const ent = ids ? ([ids.entailmentId] as const) : ([...byId.entries()].find(([, v]) => ENTAIL_LABELS.includes(v)) ?? null);
   if (!ent) {
     return { ok: false, message: `${id} is not a zero-shot or NLI model: its labels are ${labels.length ? labels.join(', ') : 'missing'}, and none is "entailment". ${want}`, labels };
   }
-  const against = [...byId.entries()].find(([, v]) => v === 'contradiction') ?? [...byId.entries()].find(([, v]) => v === 'not_entailment');
-  if (!against) {
+  if (!ids) {
     return { ok: false, message: `${id} has an "entailment" label but no "contradiction" or "not_entailment" label (its labels are ${labels.join(', ')}). ${want}`, labels };
   }
-  return { ok: true, message: '', labels, entailmentId: ent[0], againstId: against[0], binary: against[1] === 'not_entailment' };
+  return { ok: true, message: '', labels, entailmentId: ids.entailmentId, againstId: ids.againstId, binary: ids.binary };
 }
 
 export interface ModelInspection extends NliConfigCheck {
@@ -220,7 +246,7 @@ export function chooseRuntime(device: DecisionDevice, dtype: DecisionDtype, mode
     dev = 'wasm';
     note = gpu.present ? 'Slower: WebGPU is present but the browser found no GPU adapter, so the model runs on the CPU with WebAssembly.' : WASM_NOTE;
   }
-  const info = decisionModelInfo(model);
+  const info = decisionModelInfo(model) ?? embedModelInfo(model);
   const has = (d: Exclude<DecisionDtype, 'auto'>): boolean => !info || info.sizesMB[d] !== undefined;
   let pick: Exclude<DecisionDtype, 'auto'>;
   const fallbacks: RuntimeChoice['fallbacks'] = [];
@@ -437,10 +463,10 @@ function rawScorer(pipe: ZeroShotPipe, stats: DecisionStats, batch: number): Sco
   const model = pipe.model;
   const l2i = model?.config?.label2id;
   if (typeof tok !== 'function' || typeof model !== 'function' || !l2i) return null;
-  const lower = Object.fromEntries(Object.entries(l2i).map(([k, v]) => [k.toLowerCase(), v]));
-  const entId = lower['entailment'];
-  const againstId = lower['contradiction'] ?? lower['not_entailment'];
-  if (entId === undefined || againstId === undefined) return null;
+  const ids = nliLabelIds(l2i);
+  if (!ids) return null;
+  const entId = ids.entailmentId;
+  const againstId = ids.againstId;
   const cache = new Map<string, PairLogits>();
   const logits = async (premise: string, hyps: readonly string[], signal: AbortSignal): Promise<PairLogits[]> => {
     const out: Array<PairLogits | undefined> = hyps.map((h) => cache.get(`${premise}\u0000${h}`));
@@ -619,6 +645,12 @@ export async function loadTransformers(): Promise<TransformersModule> {
 
 export interface DecisionOptions {
   model: string;
+  /** nli (default): zero-shot NLI pairs. embed: label prototypes with an embedding model (`embedModel`, `temperature`). */
+  mode?: DecisionMode;
+  /** The embedding model of the embed mode. */
+  embedModel?: string;
+  /** Softmax temperature over the cosine similarities (embed mode). */
+  temperature?: number;
   device: DecisionDevice;
   dtype: DecisionDtype;
   hfEndpoint: string;
@@ -659,21 +691,36 @@ export interface DecisionProvider extends DecisionModel {
   dispose(): Promise<void>;
 }
 
+/** The feature-extraction pipeline of transformers.js (a fake in the tests). */
+export interface EmbedPipe {
+  (texts: string[], opts: { pooling: 'mean' | 'cls'; normalize: boolean }): Promise<{ data: ArrayLike<number>; dims: number[] }>;
+  dispose?(): Promise<void> | void;
+}
+
+/** Embeds texts on the element side (`query`) or the option side (`doc`), with the prefixes and pooling of the model. Option vectors are cached. */
+interface Embedder {
+  embed(texts: string[], kind: 'query' | 'doc', signal: AbortSignal): Promise<number[][]>;
+}
+
 export function createDecisionProvider(o: DecisionOptions): DecisionProvider {
+  const mode: DecisionMode = o.mode ?? 'nli';
+  const modelId = mode === 'embed' ? (o.embedModel ?? EMBED_DEFAULT_MODEL) : o.model;
+  const embedInfo: EmbedModelInfo = embedModelInfo(modelId) ?? { id: modelId, label: modelId, sizesMB: {}, pooling: 'mean', queryPrefix: '', docPrefix: '', note: '' };
+  const temperature = o.temperature ?? 0.05;
   const stats = emptyDecisionStats();
-  let loaded: Promise<{ scorer: Scorer; report: LoadReport; pipe: ZeroShotPipe }> | null = null;
+  let loaded: Promise<{ scorer: Scorer | null; embedder: Embedder | null; report: LoadReport; pipe: { dispose?(): Promise<void> | void } }> | null = null;
   let report: LoadReport | null = null;
   let downloadedBytes = 0;
 
-  const doLoad = async (signal?: AbortSignal): Promise<{ scorer: Scorer; report: LoadReport; pipe: ZeroShotPipe }> => {
+  const doLoad = async (signal?: AbortSignal): Promise<{ scorer: Scorer | null; embedder: Embedder | null; report: LoadReport; pipe: { dispose?(): Promise<void> | void } }> => {
     const t0 = Date.now();
-    const bad = hfModelProblem(o.model);
+    const bad = hfModelProblem(modelId);
     if (bad) throw new ProviderError(bad);
     const token = o.token?.() ?? null;
     const gpu = await (o.gpu ?? probeGpu)();
-    const rt = chooseRuntime(o.device, o.dtype, o.model, gpu);
+    const rt = chooseRuntime(o.device, o.dtype, modelId, gpu);
     // A custom model is checked before its weights are downloaded: a wrong model should not cost 700 MB.
-    if (!o.skipInspect && !decisionModelInfo(o.model)) {
+    if (!o.skipInspect && mode === 'nli' && !decisionModelInfo(o.model)) {
       const ins = await inspectModel(o.model, { endpoint: o.hfEndpoint, token, ...(o.fetchImpl ? { fetchImpl: o.fetchImpl } : {}), ...(signal ? { signal } : {}) });
       if (!ins.ok) throw new ProviderError(ins.message);
     }
@@ -709,7 +756,7 @@ export function createDecisionProvider(o: DecisionOptions): DecisionProvider {
     try {
       for (const dtype of tryTypes) {
         try {
-          pipe = await lib.pipeline('zero-shot-classification', o.model, { device: rt.device, dtype, progress_callback: track });
+          pipe = await lib.pipeline(mode === 'embed' ? 'feature-extraction' : 'zero-shot-classification', modelId, { device: rt.device, dtype, progress_callback: track });
           used = dtype;
           break;
         } catch (e) {
@@ -721,25 +768,54 @@ export function createDecisionProvider(o: DecisionOptions): DecisionProvider {
     } finally {
       if (token) env['fetch'] = origFetch;
     }
-    if (!pipe) throw explainLoadError(lastErr, { model: o.model, dtype: rt.dtype, endpoint, device: rt.device });
+    if (!pipe) throw explainLoadError(lastErr, { model: modelId, dtype: rt.dtype, endpoint, device: rt.device });
+    const batch = o.batch ?? (rt.device === 'webgpu' ? 16 : 8);
+    if (mode === 'embed') {
+      const ep = pipe as unknown as EmbedPipe;
+      const docCache = new Map<string, number[]>();
+      const embedder: Embedder = {
+        async embed(texts, kind, signal) {
+          const prefix = kind === 'query' ? embedInfo.queryPrefix : embedInfo.docPrefix;
+          const todo = kind === 'doc' ? [...new Set(texts.filter((t) => !docCache.has(t)))] : texts;
+          if (todo.length) {
+            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+            const t0 = Date.now();
+            const out: number[][] = [];
+            for (let i = 0; i < todo.length; i += batch) {
+              const r = await ep(todo.slice(i, i + batch).map((t) => prefix + t), { pooling: embedInfo.pooling, normalize: true });
+              out.push(...tensorRows(r.data, r.dims).map((v) => normaliseVec(v)));
+            }
+            if (out.length !== todo.length) throw new ProviderError(`The embedding model returned ${out.length} vectors for ${todo.length} texts.`);
+            stats.pairs += todo.length;
+            stats.passes += Math.ceil(todo.length / batch);
+            stats.ms += Date.now() - t0;
+            if (kind === 'query') return out;
+            todo.forEach((t, i) => docCache.set(t, out[i]!));
+          }
+          return texts.map((t) => docCache.get(t)!);
+        },
+      };
+      const repE: LoadReport = { device: rt.device, dtype: used, note: rt.note, loadMs: Date.now() - t0, sizeMB: Math.round(downloadedBytes / 1e5) / 10, labels: [] };
+      report = repE;
+      return { scorer: null, embedder, report: repE, pipe };
+    }
     // The label check on the loaded model is the authority (the catalog and the config check come first, but a mirror can differ).
     const l2i = pipe.model?.config?.label2id;
     if (l2i) {
       const chk = checkNliConfig({ label2id: l2i }, `"${o.model}"`);
       if (!chk.ok) throw new ProviderError(chk.message);
     }
-    const batch = o.batch ?? (rt.device === 'webgpu' ? 16 : 8);
     const scorer = rawScorer(pipe, stats, batch) ?? publicScorer(pipe, stats);
     const labels = l2i ? Object.keys(l2i) : [];
     const rep: LoadReport = { device: rt.device, dtype: used, note: rt.note, loadMs: Date.now() - t0, sizeMB: Math.round(downloadedBytes / 1e5) / 10, labels };
     report = rep;
-    return { scorer, report: rep, pipe };
+    return { scorer, embedder: null, report: rep, pipe };
   };
 
   // A load that failed is not retried for a while by decide(): a run over many signatures must not repeat a failing download.
   let failure: { error: unknown; at: number } | null = null;
   const FAILURE_MS = 30_000;
-  const ensure = (signal?: AbortSignal, retry = true): Promise<{ scorer: Scorer; report: LoadReport; pipe: ZeroShotPipe }> => {
+  const ensure = (signal?: AbortSignal, retry = true): Promise<{ scorer: Scorer | null; embedder: Embedder | null; report: LoadReport; pipe: { dispose?(): Promise<void> | void } }> => {
     if (!loaded) {
       if (!retry && failure && Date.now() - failure.at < FAILURE_MS) return Promise.reject(failure.error);
       loaded = doLoad(signal);
@@ -754,14 +830,45 @@ export function createDecisionProvider(o: DecisionOptions): DecisionProvider {
   const maxPremise = o.maxPremiseTokens ?? DEFAULT_PREMISE_TOKENS;
   const templateOf = (name: string): string => (o.hypothesis as unknown as Record<string, string>)[name] ?? FALLBACK_HYPOTHESIS;
 
+  /** The embed mode: label prototypes. The element text on the query side, each option (title and short description) on the document side. */
+  const runEmbed = async (embedder: Embedder, premise: string, questions: Questions, signal: AbortSignal): Promise<Answers> => {
+    const answers: Record<string, Answer> = {};
+    const [qv] = await embedder.embed([premise], 'query', signal);
+    for (const [name, q] of Object.entries(questions)) {
+      if (q.type === 'choice') {
+        const options = Object.keys(q.criteria);
+        if (options.length === 0) throw new ProviderError(`The question "${name}" has no options.`);
+        const vecs = await embedder.embed(options.map((k) => optionPhrase(q.criteria[k]!)), 'doc', signal);
+        const sc = embedScores(qv!, vecs, temperature);
+        let best = 0;
+        sc.probs.forEach((p, i) => { if (p > sc.probs[best]!) best = i; });
+        answers[name] = {
+          type: 'choice', choice: options[best]!, confidence: sc.probs[best]!,
+          probabilities: Object.fromEntries(options.map((opt, i) => [opt, sc.probs[i]!])),
+          logits: Object.fromEntries(options.map((opt, i) => [opt, sc.logits[i]!])),
+        };
+      } else if (q.type === 'noul') {
+        const st = q.instructions.trim();
+        const [pos, neg] = await embedder.embed([st, negation(st)], 'doc', signal);
+        const y = embedYes(qv!, pos!, neg!, temperature);
+        answers[name] = { type: 'noul', noul: y.p, logit: y.logit };
+      } else {
+        throw new ProviderError('The decision model does not answer score questions.');
+      }
+    }
+    return { model: `decision:embed:${modelId}`, answers };
+  };
+
   // One request at a time: the model runs one batch at a time anyway.
   let chain: Promise<unknown> = Promise.resolve();
   const run = async (state: JsonObject, questions: Questions, signal: AbortSignal): Promise<Answers> => {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-    const { scorer } = await ensure(signal, false);
+    const { scorer, embedder } = await ensure(signal, false);
     stats.requests++;
     const premise = buildPremise(state, maxPremise);
     const answers: Record<string, Answer> = {};
+    if (embedder) return runEmbed(embedder, premise, questions, signal);
+    if (!scorer) throw new ProviderError('The decision model did not load.');
 
     // Plan: the hypotheses of every question. With raw logits all questions share the batches.
     interface Plan { name: string; kind: 'choice' | 'noul'; options: string[]; hyps: string[] }

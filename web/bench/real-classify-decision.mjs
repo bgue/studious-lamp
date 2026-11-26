@@ -8,6 +8,8 @@
 //     mkdir /tmp/tjs && cd /tmp/tjs && npm i @huggingface/transformers@4.3.2
 //     TRANSFORMERS_NODE=/tmp/tjs/node_modules/@huggingface/transformers/dist/transformers.node.mjs \
 //     HF_MODEL=MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33 DTYPE=q8 DEVICE=cpu node bench/real-classify-decision.mjs
+// MODE=embed (PROVIDER=decision)  label prototypes with an embedding model: HF_MODEL is the embedding model (for example
+//     onnx-community/granite-embedding-97m-multilingual-r2-ONNX), TEMP the softmax temperature over the cosines (default 0.05).
 // PROVIDER=d3                  d3-edge in Node (onnxruntime-node, CPU) from a local copy of warsang/d3-edge-web:
 //     ORT_NODE=/tmp/ortnode/node_modules/onnxruntime-node/dist/index.js TRANSFORMERS_NODE=... D3_DIR=/tmp/d3web PROVIDER=d3 node bench/real-classify-decision.mjs
 // PROVIDER=d3 with D3_MM=1     our own multimodal export (tools/export_d3_web.py) in D3_DIR, read as a plain base URL; with PICTURES_DIR (bench/d3/make-bench-pictures.mjs)
@@ -77,8 +79,9 @@ try {
     const MODEL = process.env.HF_MODEL ?? 'MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33';
     const DTYPE = process.env.DTYPE ?? 'q8';
     const DEVICE = process.env.DEVICE ?? 'cpu'; // Node: 'cpu' (onnxruntime-node)
+    const EMBED = process.env.MODE === 'embed';
     const p = D.createDecisionProvider({
-      model: MODEL, device: 'wasm', dtype: DTYPE, hfEndpoint: 'https://huggingface.co',
+      model: MODEL, ...(EMBED ? { mode: 'embed', embedModel: MODEL, temperature: Number(process.env.TEMP ?? 0.05) } : {}), device: 'wasm', dtype: DTYPE, hfEndpoint: 'https://huggingface.co',
       hypothesis: { ...D.DEFAULT_HYPOTHESES, ...(process.env.HYP_DISCIPLINE ? { discipline: process.env.HYP_DISCIPLINE } : {}), ...(process.env.HYP_SUB ? { sub_discipline: process.env.HYP_SUB } : {}), ...(process.env.HYP_MF ? { masterformat: process.env.HYP_MF } : {}) },
       onProgress: (pr) => { if (pr.totalMB && Math.round(pr.progress * 100) % 25 === 0) process.stdout.write(`\r  ${pr.text}      `); },
       loadLib: async () => {
@@ -90,7 +93,7 @@ try {
     const t0 = Date.now();
     const rep = await p.load();
     console.log(`\nloaded ${MODEL} (${rep.dtype}) in ${Date.now() - t0} ms, labels ${rep.labels.join('/')}`);
-    provider = p; modelId = `decision:${MODEL}`; label = `${MODEL} ${rep.dtype}`; stats = () => { const s = p.stats(); return { requests: s.requests, pairs: s.pairs, passes: s.passes }; };
+    provider = p; modelId = `decision:${EMBED ? 'embed:' : ''}${MODEL}`; label = `${MODEL} ${rep.dtype}${EMBED ? ` embed T${process.env.TEMP ?? 0.05}` : ''}`; stats = () => { const s = p.stats(); return { requests: s.requests, pairs: s.pairs, passes: s.passes }; };
   }
 
   // The model runs once per signature; the raw scores stay in the cache. rules:false: every element goes to the model.

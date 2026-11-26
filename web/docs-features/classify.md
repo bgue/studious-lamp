@@ -260,6 +260,8 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | `d3Endpoint`, `d3Model` | `d3` | `http://localhost:8899/v1/systemone`, `vllm-sr/d3-edge` | The System One URL and model id of the endpoint backend (what `vllm-sr serve -e vllm-sr/d3-edge` exposes) |
 | `d3MaxStateBytes` | `d3` | 2000 | Cap of the element state in the prompt, 500 to 64000. Each token costs time on a small device |
 | `timeoutMs`, `concurrency` | `jev`, `d3` (endpoint) | 30000, 4 | As for Jev |
+| `decisionMode` | `decision` | `nli` | `nli` (a zero-shot model reads each option) or `embed` (label prototypes with an embedding model, softmax over cosine similarities) |
+| `embedModel` | `decision` | `onnx-community/embeddinggemma-300m-ONNX` | The embedding model of the embed mode (Hugging Face id with ONNX weights) |
 | `hfModel` | `decision` | `MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33` | A Hugging Face repository id, `owner/name`, of a zero-shot or NLI model with ONNX weights |
 | `device` | `decision` | `auto` | `auto` (WebGPU when the browser has it, else WASM), `webgpu`, `wasm` |
 | `dtype` | `decision` | `auto` | `auto` (q8 on WASM, fp16 on WebGPU when the adapter has `shader-f16` and the model has fp16 weights, else fp32), `fp32`, `fp16`, `q8`, `q4` |
@@ -268,7 +270,7 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | `webllmModel` | `webllm` | `Qwen3-0.6B-q4f16_1-MLC` | One of the tested WebLLM model ids |
 | `webllmMode` | `webllm` | `chat` | `chat`, `embed` or `hybrid` |
 | `webllmEmbedModel` | `webllm` | `snowflake-arctic-embed-s-q0f32-MLC-b4` | Embedding model for `embed` and `hybrid` (`-m-` is the larger one) |
-| `embedTemperature` | `webllm` | 0.05 | 0.005 to 1. Softmax temperature over the cosine similarities |
+| `embedTemperature` | `webllm`, `decision` (embed mode) | 0.05 | 0.005 to 1. Softmax temperature over the cosine similarities |
 | `hybridMargin` | `webllm` | 0.15 | 0 to 1. Hybrid: below this top-2 margin the chat model decides |
 | `webllmCustomModel`, `webllmCustomLib` | `webllm` | empty | Advanced. A custom MLC model: the Hugging Face repository URL and the compiled `.wasm` library URL. Both or neither |
 
@@ -341,6 +343,25 @@ file contains onnxruntime-web, so no other import is needed). The single-file vi
 | `Xenova/nli-deberta-v3-xsmall` | q8 87 MB, fp16 143 MB, fp32 284 MB | Plain NLI (SNLI, MNLI), labels `contradiction` / `entailment` / `neutral`. Has fp16 for WebGPU |
 | `MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33` (better) | q8 244 MB, fp32 739 MB | About 3 times slower than xsmall |
 | `MoritzLaurer/deberta-v3-base-zeroshot-v2.0` | fp32 739 MB only | The repository has no quantized file: a large download |
+| `MoritzLaurer/ModernBERT-base-zeroshot-v2.0` | q8 151 MB, fp16 300 MB, fp32 599 MB | ModernBERT backbone, Apache-2.0, labels `entailment` / `not_entailment`. Slow on the CPU, exact only in fp32 |
+| `MoritzLaurer/ModernBERT-large-zeroshot-v2.0` | q8 398 MB, fp16 792 MB, fp32 1584 MB | The large ModernBERT: a big download, no better in q8 |
+| `onnx-community/deberta-v3-large-zeroshot-v2.0-c-ONNX` | q8 539 MB, fp16 921 MB, fp32 1840 MB | The large DeBERTa zero-shot model: a big download, slow |
+| `onnx-community/ModernBERT-base-nli-ONNX` | q8 151 MB, fp16 300 MB, fp32 599 MB | The ONNX conversion of `tasksource/ModernBERT-base-nli` (which has no ONNX files itself). Labels `entailment` / `neutral` / `contradiction` |
+
+Not usable: `onnx-community/von-ONNX` (Von 1.3) is only the ModernBERT-large backbone (`ModernBertModel`, no `tokenizer.json`); its option-marker scoring head is not in the ONNX
+export, so the zero-shot pipeline cannot run it. The label names are matched without regard to case, `not_entailment` (the binary zero-shot models) or `contradiction` (NLI models)
+is the score set against `entailment` (`nliLabelIds` in `decision.ts`). ModernBERT loads and runs under transformers.js 4.3.2: no version change was needed.
+
+**Embed mode** (`decisionMode: "embed"`). Instead of one NLI pass per option, an embedding model puts each option's title and short description (the label prototype) and the element text
+in the same space; the probabilities are a softmax over the cosine similarities divided by `embedTemperature` (default 0.05, as in the WebLLM embed mode), so calibration and the
+review flag work as for NLI. A yes/no question compares the statement with its negation. The option vectors are computed once and kept. `embedModel` takes any feature-extraction
+model with ONNX weights; the three tested ones carry their pooling and prefixes (`decisionEmbed.ts`):
+
+| Embedding model | Sizes | Note |
+| --- | --- | --- |
+| `onnx-community/embeddinggemma-300m-ONNX` (default of the embed mode) | q8 309 MB, q4 197 MB, fp16 617 MB, fp32 1235 MB | Gemma terms of use. Query prefix `task: search result | query: `. The most exact here |
+| `hotchpotch/bekko-embedding-v1-a25m` | fp32 199 MB (the repository's `model.onnx`) | MIT, multilingual, no prefixes. The Bekko embedding of July 2026 |
+| `onnx-community/granite-embedding-97m-multilingual-r2-ONNX` | q8 98 MB, fp16 195 MB, fp32 390 MB | Apache-2.0, CLS pooling. Very fast, less exact on the discipline |
 
 The dropdown shows these with their sizes, and the **Hugging Face model id** box takes any other repository id (`owner/name`,
 checked for its format). **Device** is `auto` (WebGPU when `navigator.gpu` gives an adapter, else WASM), `webgpu` or `wasm`; a forced
@@ -421,6 +442,26 @@ small sample and the rules are only a proxy for the truth: read it as an order o
 | `Xenova/nli-deberta-v3-xsmall` | 13 of 20 | 7 of 20 | 2 of 20 | 818 ms |
 | `MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33` | 12 of 20 | 4 of 20 | 6 of 20 | 1596 ms |
 | `MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33` | 11 of 20 | 8 of 20 | 6 of 20 | 132 ms |
+
+**New models, same harness, same machine** (20 elements, 5 each of `fzk-haus`, `debris-demo`, `synth5k`, 3 `building`, 2 `plumbing`: the sample is not the one of the table above, so compare within this table;
+"Time per element" is the mean over the 20 elements (a decision for all three questions), and the ModernBERT rows varied between 7 and 14 s with other work on the machine):
+
+| Model (Node CPU) | Discipline | Sub-discipline | Division | Time per element |
+| --- | --- | --- | --- | --- |
+| `MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33` q8 (default) | 16 of 20 | 6 of 20 | 8 of 18 | 1035 ms |
+| `MoritzLaurer/ModernBERT-base-zeroshot-v2.0` q8 | 15 of 20 | 8 of 20 | 0 of 18 | 14113 ms |
+| `MoritzLaurer/ModernBERT-base-zeroshot-v2.0` fp32 | 17 of 20 | 13 of 20 | 4 of 18 | 8678 ms |
+| `MoritzLaurer/ModernBERT-large-zeroshot-v2.0` q8 | 9 of 20 | 7 of 20 | 4 of 18 | 4238 ms |
+| `onnx-community/deberta-v3-large-zeroshot-v2.0-c-ONNX` q8 | 10 of 20 | 6 of 20 | 1 of 18 | 18610 ms |
+| `onnx-community/ModernBERT-base-nli-ONNX` q8 | 7 of 20 | 7 of 20 | 3 of 18 | 7440 ms |
+| embed `onnx-community/embeddinggemma-300m-ONNX` q8, T 0.05 | 16 of 20 | 15 of 20 | 7 of 18 | 901 ms |
+| embed `hotchpotch/bekko-embedding-v1-a25m` fp32, T 0.05 | 15 of 20 | 11 of 20 | 4 of 18 | 86 ms |
+| embed `onnx-community/granite-embedding-97m-multilingual-r2-ONNX` q8, T 0.05 | 10 of 20 | 9 of 20 | 7 of 18 | 73 ms |
+
+Reading it: the quantized (q8) ModernBERT and the large models are worse than the default on this sample, and ModernBERT is 8 to 18 times slower on the CPU. In embed mode EmbeddingGemma
+matches the default on the discipline, is far better on the sub-discipline (15 of 20 against 6) at the same speed, with a download 3.5 times larger (309 MB against 87 MB). Division is weak for all.
+**The default stays the xsmall NLI model** (a new model must be clearly better at similar size and speed); embed mode is opt-in, and EmbeddingGemma is the one to try first. The temperature does not change the
+ranking, only the confidences. Run any model with `HF_MODEL=... DTYPE=... node bench/real-classify-decision.mjs` and `MODE=embed TEMP=0.05` for an embedding model.
 
 In Chromium, on the WASM path with the real CDN module and the real download (`device wasm`, `q8`, no WebGPU in the sandbox): load 10.1 s for 95.9 MB of files
 (the model, its tokenizer and config), the test question in 341 ms, and `synth5k` with the rules off (9 signatures, 544 pairs, 73 passes) in **86 s**, about 9.6 s per signature.
