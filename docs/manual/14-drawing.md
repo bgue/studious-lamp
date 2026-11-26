@@ -39,7 +39,7 @@ one of two ways, and the viewer picks one for each drawing.
 The view appears under **With drawings** with `✎ 3`. Click its row: the view is restored and its detail opens in place of the
 list. `‹ Views` goes back.
 
-> Picture: the drawing toolbar over FZK-Haus with a cloud on a window, an arrow, and a callout reading "Check the lintel".
+> Picture (drawing-toolbar): the drawing toolbar over FZK-Haus with a cloud on a window, an arrow, and a callout reading "Check the lintel".
 
 **The tools.**
 

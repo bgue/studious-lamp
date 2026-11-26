@@ -93,7 +93,7 @@ starts on 1 March 2027.
 4. Drag the date slider in the film bar. It scrubs by schedule date: you see the house as it stands on that day.
 5. Scrub to 19 May 2027, the data date. One activity is under way: the rafters.
 
-> Picture: the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.
+> Picture (4d-film-midway): the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.
 
 ### What the example is built to show
 

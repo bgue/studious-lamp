@@ -51,7 +51,7 @@ The 4D sample already did this for you. To see the steps, repeat them.
    confidence first and the reasons under each row.
 8. Press **Open report** for the link report in a new window.
 
-> Picture: the Link step after a run: coverage table, ties, unlinked groups and the suggestions list.
+> Picture (4d-link-step): the Link step after a run: coverage table, ties, unlinked groups and the suggestions list.
 
 Press **Save** in **Configure** to keep the setup for this model. It is also kept after every change.
 

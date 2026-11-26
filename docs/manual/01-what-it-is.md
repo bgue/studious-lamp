@@ -54,7 +54,7 @@ thin pipe. A far part that blocks your view still ghosts in this viewer (the ori
 and near parts). A far wall that blocks the whole focus settles at an opacity of about 0.40. You can turn that off
 (see 4.2).
 
-> Picture: the Building model with one duct selected. The duct is solid; the slab above it and one wall are faint with
+> Picture (focus-context-occluder): the Building model with one duct selected. The duct is solid; the slab above it and one wall are faint with
 > visible outlines; the rest of the building is solid.
 
 **Words used in this manual.** A *view* is a captured moment: camera, what is shown, hidden, cut and selected. A *preset* is

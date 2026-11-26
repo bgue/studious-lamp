@@ -40,7 +40,7 @@ Now try the other direction: select a different element, then in the Issues tab 
 **Attach a snapshot of the current view**, on by default, and **Click the model to place the pin (else: middle of the
 selection)**. Click **Create issue**. You get a second issue with its own view.
 
-> Picture: the Issues tab with two issues. The first is open with its snapshot, the drawing burned in, and the views block under it.
+> Picture (issues-tab): the Issues tab with two issues. The first is open with its snapshot, the drawing burned in, and the views block under it.
 
 ## 15.2 Status, priority, assignee, due date, comments, history
 

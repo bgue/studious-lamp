@@ -36,7 +36,7 @@ being fitted inside a closed wall stay visible without hiding the building.
 5. Drag the date slider. While a film plays it seeks. From a stop, it starts the film paused at that date.
 6. Press `Space` to pause. The player's keys, transport and HUD are the ones from chapter 21.
 
-> Picture: the Style section with View, Unbuilt parts, Window and Film length visible.
+> Picture (4d-style-section): the Style section with View, Unbuilt parts, Window and Film length visible.
 
 ### Reading the screen
 

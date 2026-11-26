@@ -58,7 +58,7 @@ appear only in [D] sections.
 - Headings use the chapter number without a leading zero: `# 1. Title`, `## 1.1 Title`, matching the TOC numbers. File names keep two digits (`01-what-it-is.md`).
 - Reader tags from the TOC ([C], [P], [D]) on sections that are only for one kind of reader.
 - Tables for comparisons (what each thing stores, which tool for which job). At most one table per section.
-- No screenshots in this pass; where a picture would help, write `> Picture: <what it should show>` on its own line.
+- Where a picture helps, write `> Picture (some-id): <what it should show>` on its own line. The id is required: lowercase words and digits joined by hyphens, unique across the manual, and never changed (it names the file `docs/manual/img/<id>.jpg`). The text is the caption and the alt text, so say what the picture shows. The tour tests (`web/bench/tours/`) capture the pictures; `tools/build_manual.py` shows `img/<id>.jpg` when the file exists and a placeholder when it does not.
 - Length: 1,200–3,000 words per chapter; appendices as long as needed.
 - Cross-references: "see chapter 15" or "see 15.3". Links to source docs are not part of the manual text.
 

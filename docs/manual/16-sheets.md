@@ -37,7 +37,7 @@ The sample PDFs are not in the **Sample Projects** menu. They come with the sour
    rectangle on the plan. Click **Done**.
 9. Click **Back to model**. The model returns as you left it.
 
-> Picture: a sample sheet open over FZK-Haus with a cloud on the plan, and the bar above it showing Back to model, Fit and Draw.
+> Picture (sheet-open): a sample sheet open over FZK-Haus with a cloud on the plan, and the bar above it showing Back to model, Fit and Draw.
 
 **How it works.** The first time you open a PDF, the viewer loads two libraries, one to read and draw pages and one to write
 PDFs. Nothing leaves your computer. In the single file build the libraries are embedded and unpacked on first use. A PDF

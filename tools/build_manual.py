@@ -2,15 +2,21 @@
 """Build the X-ray viewer manual (docs/manual/*.md) into one self-contained HTML page.
 
     pip install markdown==3.7
-    python tools/build_manual.py [-o docs/manual/xray-manual.html] [--fragment]
+    python tools/build_manual.py [-o docs/manual/xray-manual.html] [--fragment] [--embed-images]
 
 Parts and chapter titles come from docs/manual/TOC.md; chapter text from the NN-*.md and A-*.md files. Cross-references
 ("see chapter 15", "see 15.3", "Appendix B") become links. `--fragment` writes the page without <html>/<head>/<body> (the
 form the artifact publisher wraps itself).
+
+A note `> Picture (some-id): text` becomes a figure when `docs/manual/img/<some-id>.jpg` (or .png) exists, with the note's text as the
+caption and the alt text; without the file it stays a placeholder. The image is referenced as `img/<id>.jpg` (relative to the page, so the
+repository page and the release zip work). `--embed-images` inlines the images as data URIs for a single-file publish and warns when the
+page is over 12 MB. The tour tests (web/bench/tours) write the images.
 """
 from __future__ import annotations
 
 import argparse
+import base64
 import html
 import re
 import sys
@@ -20,6 +26,11 @@ import markdown
 
 ROOT = Path(__file__).resolve().parent.parent
 MAN = ROOT / "docs" / "manual"
+
+IMG = MAN / "img"
+EMBED_IMAGES = False
+PAGE_LIMIT = 12 * 1024 * 1024
+MIME = {".jpg": "image/jpeg", ".png": "image/png"}
 
 LIST_RE = re.compile(r"^( +)([-*+]|\d+\.)( )")
 
@@ -81,6 +92,29 @@ def read_parts() -> list[tuple[str, list[str]]]:
     return parts
 
 
+def picture_file(pid: str | None) -> Path | None:
+    if not pid:
+        return None
+    for ext in MIME:
+        f = IMG / f"{pid}{ext}"
+        if f.is_file():
+            return f
+    return None
+
+
+def picture_html(pid: str | None, caption: str) -> str:
+    """A figure for a picture note: the image when its file exists, the placeholder otherwise."""
+    f = picture_file(pid)
+    if f is None:
+        return f'<figure class="pic"><span class="pic-k">Picture</span><figcaption>{caption}</figcaption></figure>'
+    if EMBED_IMAGES:
+        src = f"data:{MIME[f.suffix]};base64," + base64.b64encode(f.read_bytes()).decode("ascii")
+    else:
+        src = f"img/{f.name}"
+    alt = html.escape(re.sub(r"<[^>]+>", "", html.unescape(caption)), quote=True)
+    return f'<figure class="shot" id="pic-{pid}"><img src="{src}" alt="{alt}" loading="lazy" decoding="async"><figcaption>{caption}</figcaption></figure>'
+
+
 def render_chapter(key: str, path: Path) -> tuple[str, str, list[tuple[str, str]]]:
     """(title, html, [(section number, section title)])."""
     text = path.read_text(encoding="utf-8")
@@ -98,10 +132,10 @@ def render_chapter(key: str, path: Path) -> tuple[str, str, list[tuple[str, str]
     body = normalise(body)
     md = markdown.Markdown(extensions=["tables", "fenced_code", "attr_list", "sane_lists"], output_format="html")
     out = md.convert(body)
-    # Blockquote notes: "> Picture:" become figure placeholders.
+    # Blockquote notes "> Picture (id): text" become a figure when img/<id>.jpg (or .png) exists, else a placeholder.
     out = re.sub(
-        r"<blockquote>\s*<p>Picture:\s*(.*?)</p>\s*</blockquote>",
-        lambda m: f'<figure class="pic"><span class="pic-k">Picture</span><figcaption>{m.group(1)}</figcaption></figure>',
+        r"<blockquote>\s*<p>Picture(?: \(([a-z0-9-]+)\))?:\s*(.*?)</p>\s*</blockquote>",
+        lambda m: picture_html(m.group(1), m.group(2)),
         out,
         flags=re.S,
     )
@@ -217,6 +251,9 @@ figure.pic { margin: 6px 0 20px; padding: 14px 16px; border: 1px dashed var(--ru
   font: 14px/1.45 var(--f-ui); color: var(--muted); }
 .pic-k { font: 600 11px/1.6 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); border: 1px solid currentColor; border-radius: 4px; padding: 0 6px; }
 figure.pic figcaption { margin: 0; }
+figure.shot { margin: 6px 0 22px; }
+figure.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 8px; background: #fff; }
+figure.shot figcaption { margin-top: 6px; font: 14px/1.45 var(--f-ui); color: var(--muted); }
 mark { background: var(--mark); color: inherit; border-radius: 2px; }
 .top { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); font: 13px var(--f-ui);
   background: var(--ink); color: var(--paper); border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; text-decoration: none; }
@@ -335,9 +372,17 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("-o", "--out", default=str(MAN / "xray-manual.html"))
     ap.add_argument("--fragment", action="store_true")
+    ap.add_argument("--embed-images", action="store_true", help="inline docs/manual/img/* as data URIs (single-file publish)")
     a = ap.parse_args()
-    Path(a.out).write_text(build(a.fragment), encoding="utf-8")
-    print(a.out)
+    global EMBED_IMAGES
+    EMBED_IMAGES = a.embed_images
+    page = build(a.fragment)
+    Path(a.out).write_text(page, encoding="utf-8")
+    size = len(page.encode("utf-8"))
+    n = sum(1 for _ in IMG.glob("*.jpg")) + sum(1 for _ in IMG.glob("*.png")) if IMG.is_dir() else 0
+    print(f"{a.out} ({size / 1048576:.1f} MB, {n} images{', embedded' if EMBED_IMAGES else ''})")
+    if size > PAGE_LIMIT:
+        print(f"warning: the page is {size / 1048576:.1f} MB, over the 12 MB limit for a single-file publish", file=sys.stderr)
 
 
 if __name__ == "__main__":
