@@ -39,6 +39,11 @@ opening 10 mm larger than each overlap. It shows you what a clean result looks l
 
 ### What the columns say
 
+The drawer table has the columns `#`, `Element`, `Host`, `Storey`, `Size`, `Thk` (host thickness), `Status` and `Gap`. The `location` and
+`orientation` columns are in the CSV only. The status chips read `no opening`, `opening` and `unknown`, each with a count. The storey chips and the
+host class chips show only when the list has more than one storey or host class.
+
+
 | Column | Meaning |
 | --- | --- |
 | `#` | row number |

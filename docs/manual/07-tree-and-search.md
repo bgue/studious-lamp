@@ -37,7 +37,7 @@ counting the elements that satisfy the condition. The language of those conditio
    to a crossed eye. Click it again to show them.
 6. Press `Alt+F`. The cursor jumps to the filter box above the tree. Type `door`. The tree shrinks to the matching
    elements, with every branch open, and a count appears beside the box (`5 matches` for `door` in FZK-Haus: its five IfcDoor elements). Press `Escape` to clear
-   the filter and give the keys back to the page.
+   the filter, and `Escape` once more to give the keys back to the page.
 
 ### How it works
 
@@ -109,14 +109,15 @@ Hidden elements are not drawn, cannot be picked and are removed from the selecti
 
 ### Try it
 
-1. Press `/` or `Ctrl+K`. The cursor goes into the search box in the top bar. On a phone, tap the search icon first.
+1. Open **Synthetic 5k** (it has ducts and several storeys; needs the served app, see 2.2). Press `/` or `Ctrl+K`. The cursor goes into
+   the search box in the top bar. On a phone, tap the search icon first.
 2. Type `wall`. Results appear after a short pause, grouped under headers: **Elements**, **Commands**, **Presets**,
    **Views** and so on. The group with the best match is on top.
 3. Press the Down arrow. The first element row is highlighted in the 3D view while it is the active row.
 4. Press `Enter`. The element is selected and the camera frames it.
-5. Open the box again, type `rdct`. It finds `Rectangular Duct`: letters can be an abbreviation of the start of
+5. Open the box again, type `dri`. It finds `Duct riser L0 4,4`: letters can be an abbreviation of the start of
    each word. Matched letters are highlighted.
-6. Type `duct level 2`. All three words must match, in any order. A word can match the start of a name, the start of
+6. Type `duct level 2`. All three words must match, in any order, in the name or in the storey. A word can match the start of a name, the start of
    a word inside it, or any part of it.
 7. Type `>hide` and press `Enter`. The `>` limits the search to commands and settings, so you see only what the
    keyboard could do.
@@ -161,7 +162,7 @@ ready at once. A larger model is indexed in the background, and the footer says 
 
 ### Try it
 
-1. Press `/` and type `where class like 'IfcWall%'`.
+1. Open **Synthetic 5k**. Press `/` and type `where class like 'IfcWall%'`.
 2. The list is replaced by one row: `N elements match`, with the top classes. The footer repeats the count. It updates
    as you type.
 3. Add ` and storey like '%1%'`. The count drops.

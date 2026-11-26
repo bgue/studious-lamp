@@ -32,10 +32,10 @@ Three class toggles are a blunt extra: `proxies` (generic IfcBuildingElementProx
 
 ### Try it
 
-1. Open **Sample Projects** and choose **Debris demo**. It is a 400-element building with 24 pieces of rubbish
+1. Open **Sample Projects** and choose **Debris demo**. It is a 400-element model that holds 31 pieces of rubbish
    added, all named `Debris …` and kept in a set called **Debris** (chapter 8).
 2. Open the **Cleanup** tool in the tool strip, or the **Model cleanup** folder in the **Parameters** tab. Both show the
-   same rules.
+   same rules. The drawer has the short buttons **Preview**, **Hide** and **Restore**. The folder has the full set, named as below.
 3. Leave the defaults. Press **Preview matches**. The matches turn magenta. When there are fewer than 50, the camera
    frames them.
 4. Some matches sit inside walls and are hidden behind them. Press **Select matches** to select them. Selected elements

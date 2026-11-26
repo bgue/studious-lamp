@@ -32,7 +32,7 @@ animation scripts (chapter 23) and the issue checks all use the same language. O
 2. Select a few elements: click one, then `Shift`+click others (or use the rectangle select of chapter 3.2).
 3. In the left sidebar open the **Sets** tab and press **Save selection as…**. Type a name, for example `Test walls`,
    and confirm.
-4. A new line appears: the name, a count and two small buttons, **+** and **⋯**.
+4. A new line appears: the name, a count and two small buttons, **+** and **⋯**. (FZK-Haus already has two sample sets, `Rafters` and `Ground floor walls`.)
 5. Press `Escape` to clear the selection. Click the name of the set. The elements are selected again and the camera
    frames them. `Shift`+click the name adds them to what is already selected. The **+** button does the same.
 6. Open **⋯**. For a static set you see **Update from selection**, **Rename**, **Duplicate** and **Delete**. Delete
@@ -71,7 +71,7 @@ context menu and in 4D, scripts and checks. Examples use the sample models, but 
 5. Look at the live line under the editor. It says `n matches of N elements`. If you made a mistake it shows the error
    and puts a caret under the place.
 6. Press **Preview**. The matches are selected and framed, nothing is saved yet.
-7. Press **Save**. The set appears in the list with a funnel icon.
+7. Press **Save set**. The set appears in the list with a funnel icon.
 8. Open **⋯**. A criteria set has **Re-evaluate now** and **Edit criteria…** instead of **Update from selection**.
    `Ctrl+Enter` in the Query box also saves.
 
@@ -227,7 +227,7 @@ beam and the wall length on a wall. Useful names are `length`, `width`, `height`
 `area`, `volume` and `weight`. You can also type the last part of a property (`netsidearea`), several words (`net side area`)
 or the full key (`Qto_WallBaseQuantities.NetVolume`).
 
-The answer appears under the search box (for example `42 pipe segments, sum of length 318.4 m`) and, with `by`, the top
+The answer appears under the search box (for example `924 pipe segments · Σ length 2 310 m`, with `Σ` for the sum) and, with `by`, the top
 three groups. `Enter` selects the elements and frames them. `Shift+Enter` leaves the selection alone. A small card under the bar repeats the answer, stays
 while the pointer is on it, and fades after about 6 s. A click on it copies the text.
 

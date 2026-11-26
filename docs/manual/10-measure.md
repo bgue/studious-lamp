@@ -26,9 +26,9 @@ A blue ramp shows the rest. It is like a heat camera that looks at distances.
    view measure.
 3. Keep `mode` on `point to point`. Click one point on a wall surface, then another point on the floor. A dashed line
    follows the cursor with the live length. After the second click the dimension stays, with its label.
-4. Turn on `snap to vertices`. Move toward a corner: a yellow ring appears when the cursor is within 12 px of a corner,
+4. Check that `snap to vertices` is on (it is by default; in the drawer it reads **Snap to vertices (12 px)**). Move toward a corner: a yellow ring appears when the cursor is within 12 px of a corner,
    and the click lands on the corner exactly.
-5. Switch `mode` to `element to element`. Click the duct, then a wall. The label shows the shortest distance between the two
+5. Switch `mode` to `element to element`. The duct sits inside the chimney, so first hide the chimney and the walls with the eye icons of their class rows in the **Model** tree. Click the duct, then show the walls again (`Alt+H`) and click a wall. The label shows the shortest distance between the two
    surfaces, and the two closest points are marked. If the elements touch or cross, it shows 0.
 6. Look at the drawer. Each measurement is listed with a delete button. **Clear** removes them all. **Export CSV**
    saves them.
@@ -69,14 +69,14 @@ joined to its dimension by a dashed leader line.
 ### Try it
 
 1. In the **Building** model, select the duct. Click it, or find it with the search bar (7.2).
-2. Open the **Clearance** tool in the strip. Colouring starts. (The command palette also has `clearance.toggle`.)
+2. Open the **Clearance** tool in the strip and tick **Show clearance of the context to the focus**. Colouring starts. (The command palette also has `clearance.toggle`.)
 3. The context elements, meaning walls, slabs, beams and columns, take colours. Red is a clash. Amber is closer than `tight`.
    Everything else within range is fine and runs from teal (near) to blue (far). Anything beyond `max range` keeps its normal colour. A legend sits at
    the bottom right of the view.
 4. The drawer shows counts per band and the time it took.
 5. Select another element. The colours are recomputed for it.
 6. Raise `tight (m)` from 0.05 to 0.2. More elements turn amber.
-7. Switch clearance off. The original colours return.
+7. Untick the switch. The original colours return.
 
 ### What each band means
 
