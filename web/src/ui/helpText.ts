@@ -5481,6 +5481,18 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Pick Each floor apart to see every floor on its own. Pick Off for a still building.',
     'Report: Limitations and extensions, 4D schedule',
   ),
+  '4D tab/Style finale': h(
+    'The list adds a closing shot after the last work.',
+    'The first choice glides toward the finished building, then circles it a quarter turn under a caption. The second only circles. None ends the film at the last work.',
+    'Pick Dolly in, then orbit for a closing shot. The director camera must be on.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
+  '4D tab/Style zone camera': h(
+    'The list picks a saved view for a level.',
+    'When all the work in view lies on this level, the view glides to the saved one. Automatic lets the film frame the work.',
+    'Pick a view from the Views tab. Leave Automatic to let the director choose.',
+    'Report: Limitations and extensions, 4D schedule',
+  ),
   '4D tab/Style fade in': h(
     'The box sets how many seconds a new part takes to appear.',
     'A longer time lets new parts melt into view. Zero makes them show at once.',

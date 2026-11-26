@@ -206,6 +206,27 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
       if (String(args.fade).toLowerCase() === 'auto') delete style.fadeIn;
       else { const v = Number(String(args.fade).replace(/s$/i, '')); if (!Number.isFinite(v) || v < 0) throw usage(`--fade needs seconds (0 = at once) or auto, got "${args.fade}"`); style.fadeIn = v; }
     }
+    if (args.finale) { if (!['none', 'dolly', 'orbit'].includes(args.finale)) throw usage(`--finale is none, dolly or orbit, got "${args.finale}"`); style.finale = args.finale; }
+    if (args['zone-camera']?.length) {
+      // saved view names, when a views file (xray-views/1, or a bare list of names) is given; else the names are taken as they are (viewer-only)
+      let known = null;
+      if (args.views) {
+        const doc = readJson(args.views, 'views');
+        const list = Array.isArray(doc) ? doc : Array.isArray(doc.views) ? doc.views : null;
+        if (!list) throw input(`views ${args.views}: no "views" list (a views export of the Views tab)`);
+        known = new Set(list.map((v) => (typeof v === 'string' ? v : v?.name)).filter(Boolean));
+      }
+      style.zoneCameras = { ...(style.zoneCameras ?? {}) };
+      for (const z of args['zone-camera']) {
+        const at = String(z).indexOf('=');
+        if (at < 1 || at === String(z).length - 1) throw usage(`--zone-camera needs "Storey=Saved view", got "${z}"`);
+        const zone = String(z).slice(0, at).trim();
+        const view = String(z).slice(at + 1).trim();
+        if (known && !known.has(view)) io.err(`xray-4d: warning: --zone-camera: no saved view "${view}" in ${args.views}`);
+        style.zoneCameras[zone] = view;
+      }
+      if (!known) io.err('xray-4d: note: zone cameras name saved views of the viewer; without --views <views.json> they are not checked and play in the viewer only');
+    }
     if (args.issues) style.issuesInFilm = true;
     const schedule = loadSchedule(xerPath, parser, args.project ?? config.schedule.project);
     const baseline = args.baseline ? loadSchedule(args.baseline, parser, args.project ?? config.schedule.project) : undefined;
@@ -424,11 +445,13 @@ export function makeCommands({ loadParser, CliError, EXIT_OK, EXIT_USAGE, EXIT_I
     },
     plan: {
       summary: 'build the 4D plan (build.4d.json): per-element states over time, time map, milestones',
-      usage: 'xray-4d plan <model.ifc> <schedule.xer> <links.json> --config map.4d.json [--view planned|actual|variance] [--baseline b.xer] [--window all|lookahead:6w|range:A..B] [--length 120s | --pace 1w=2s] [--explode auto|floor|off] [--fade 0.6s|auto] [--issues] [--no-temporary-works] [--write-ifc out.ifc] -o build.4d.json',
-      options: { ...COMMON, '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--explode': 'string', '--fade': 'string', '--issues': 'bool', '--no-temporary-works': 'bool', '--write-ifc': 'string', '--out': 'string' },
+      usage: 'xray-4d plan <model.ifc> <schedule.xer> <links.json> --config map.4d.json [--view planned|actual|variance] [--baseline b.xer] [--window all|lookahead:6w|range:A..B] [--length 120s | --pace 1w=2s] [--explode auto|floor|off] [--fade 0.6s|auto] [--finale none|dolly|orbit] [--zone-camera "Storey=Saved view"]... [--views views.json] [--issues] [--no-temporary-works] [--write-ifc out.ifc] -o build.4d.json',
+      options: { ...COMMON, '--view': 'string', '--baseline': 'string', '--window': 'string', '--length': 'string', '--pace': 'string', '--explode': 'string', '--fade': 'string', '--finale': 'string', '--zone-camera': 'list', '--views': 'string', '--issues': 'bool', '--no-temporary-works': 'bool', '--write-ifc': 'string', '--out': 'string' },
       optionHelp: [cfgHelp, '  --project NAME   the schedule project', '  --view V         planned (default from the config), actual or variance',
         '  --baseline FILE  a baseline .xer, matched by activity ID', '  --window W       all, lookahead:6w (from the data date) or range:2027-05-01..2027-07-01',
         '  --length T       film length, 120s or 2m          --pace P   schedule time per video second, 1w=2s or 3d=1s',
+        '  --finale F       none, dolly (dolly-in, then a 90 degree orbit, ~14 s after the last work) or orbit (the orbit only)',
+        '  --zone-camera Z  "Storey=Saved view" (repeatable): the director flies to that saved view while the work lies on that storey. Saved views live in the viewer; with --views views.json (a Views tab export) the names are checked, else the option only takes effect in the viewer',
         '  --explode E      auto, floor (each floor apart while it is built) or off          --fade S   seconds a new part takes to appear (0 = at once, auto)',
         '  --issues         keep the issue pins and drawings on screen while the film plays',
         '  --no-temporary-works  leave the scaffold, falsework and formwork rules of the configuration out of the plan',

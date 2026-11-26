@@ -42,6 +42,19 @@ const text = scriptFromPlan(plan, { cues, notes, noteTimes }, { planName: 'Tower
   moves; a section box is never open while the floors are apart. Every decision is in the notes (`floor "Dachgeschoss": the work moves onto it ...`,
   `collapse (2 s) before the work moves on to ...`, floors left as they are because the work is too short, and so on). A model with fewer than
   two storeys gets no explode, and says so.
+- **Camera per floor.** Style `zoneCameras` maps a storey name to a saved view name (the Views tab). When all the work in view for a shot
+  (the interest set, not a wide shot) lies on one storey that has an entry, the director writes `camera { to: { view } }` (a glide of the
+  usual 2 to 3.2 s, under the same comfort rules) instead of framing the elements, and notes it: `camera for Erdgeschoss: saved view 'EG south'`.
+  The same view is not flown to again until the framing changes. A name that no saved view has is the host's business (the cue does nothing
+  there). UI: Style, "Camera per floor", one row per storey, empty = Automatic. It travels in the `.4d.json`. CLI: `xray-4d plan
+  --zone-camera "Erdgeschoss=EG south"` (repeatable; `--views views.json`, a Views tab export, checks the names, otherwise the setting
+  plays in the viewer only because saved views live there). Zone values other than storeys are not looked at by the director.
+- **Finale.** Style `finale`: `none` (default), `dolly`, `orbit` ("Finale" in the Style section; director camera only). After the last work
+  the director collapses a building that is still apart (2 s), clears the focus it had set, then `dolly`: a dolly-in toward the finished
+  building (frame all, margin 1.08, 6 s, eased in and out), and a 90 degree orbit over 8 s (eased in and out) with a caption: the last
+  milestone's name, or "Complete". `orbit` is the orbit and caption alone. The camera waits for its last move and the 3 s spacing first. The film is
+  longer by 14 s (8 s) after the plan's end; `DirectorResult.duration` gives the length, `finaleSeconds(finale)` the addition. The
+  notes say each step. The FZK-Haus sample sets `finale: 'dolly'`.
 - **Beats.** At up to 3 phase milestones (names such as "complete", "closed", "weathertight", "topping-out", or all milestones when none
   match; at least 12 s apart) an 11.6 s beat: `focus` on the whole building, explode, a wide shot, a 70 degree orbit, collapse, and
   `focus active` again. The camera does nothing else meanwhile.

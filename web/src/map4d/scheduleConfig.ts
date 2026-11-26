@@ -296,6 +296,15 @@ export function parseConfig(input: unknown): ParsedConfig {
     if (st.view !== undefined && !VIEWS.includes(st.view)) problems.push(`style.view "${String(st.view)}" is not planned, actual or variance`);
     const EXPLODES = ['auto', 'off', 'floor'];
     if (st.explode !== undefined && !EXPLODES.includes(st.explode)) { problems.push(`style.explode "${String(st.explode)}" is not auto, floor or off`); delete st.explode; }
+    if (st.finale !== undefined && !['none', 'dolly', 'orbit'].includes(st.finale)) { problems.push(`style.finale "${String(st.finale)}" is not none, dolly or orbit`); delete st.finale; }
+    if (st.zoneCameras !== undefined) {
+      if (!isObj(st.zoneCameras)) { problems.push('style.zoneCameras is not an object of storey name to saved view name'); delete st.zoneCameras; }
+      else {
+        const z: Record<string, string> = {};
+        for (const [k, x] of Object.entries(st.zoneCameras)) { if (typeof x === 'string' && x) z[k] = x; else problems.push(`style.zoneCameras.${k} is not a saved view name`); }
+        st.zoneCameras = z;
+      }
+    }
     if (st.fadeIn !== undefined && !(typeof st.fadeIn === 'number' && Number.isFinite(st.fadeIn) && st.fadeIn >= 0)) { problems.push('style.fadeIn is not a number of seconds (0 or more)'); delete st.fadeIn; }
     if (st.issuesInFilm !== undefined && typeof st.issuesInFilm !== 'boolean') { problems.push('style.issuesInFilm is not true or false'); delete st.issuesInFilm; }
     const { view, ...rest } = st;

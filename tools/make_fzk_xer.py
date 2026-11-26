@@ -467,7 +467,7 @@ def main() -> None:
         'temporaryWorks': TEMPORARY_WORKS,
         'style': {
             'view': 'planned', 'unbuilt': 'hidden', 'window': {'kind': 'all'}, 'length': 90, 'pace': 'warp', 'camera': 'director',
-            'explode': 'floor', 'xrayFocus': True, 'sectionBox': 'auto', 'labels': 3, 'criticalFloatHours': 0, 'colours': TRADE_COLOURS,
+            'explode': 'floor', 'finale': 'dolly', 'xrayFocus': True, 'sectionBox': 'auto', 'labels': 3, 'criticalFloatHours': 0, 'colours': TRADE_COLOURS,
             'captions': True, 'milestoneHold': 1.5,
         },
     }

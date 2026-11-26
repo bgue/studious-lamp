@@ -5,6 +5,8 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 ## Unreleased
 
+- The 4D director has "Camera per floor" (Style): pick a saved view for a floor and the camera flies to it while the work lies on that floor (CLI: `xray-4d plan --zone-camera "Erdgeschoss=EG south"`).
+- The 4D film has a "Finale" (Style): a slow dolly-in and a 90 degree orbit after the last work, with a "Complete" caption; the FZK-Haus sample uses it.
 - Issue pins and drawings are hidden while a fly-through, script or 4D film plays or is recorded, and come back exactly as they were
   when it stops.
 - The 4D tab has "Issues and drawings in the film" (Style) and fly-throughs have "Issues and drawings": tick them to keep the pins
