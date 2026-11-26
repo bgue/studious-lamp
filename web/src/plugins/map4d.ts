@@ -22,6 +22,8 @@ import type { PanelHandle } from '../map4d/panel';
 import type { Target } from '../map4d/targets';
 import type { Assignment, AttributeKind, FourDConfig, FourDLinks, FourDPlan, ReviewStatus } from '../schedule/types';
 import type { LinkReport } from '../schedule/report';
+import { getTempWorksLayer } from '../anim/fourd/tempWorksLayer';
+import type { TempWorksLayer } from '../anim/fourd/tempWorksLayer';
 import { addRightSidebarTab } from './rightSidebar';
 import type { RightTabHandle } from './rightSidebar';
 
@@ -89,6 +91,8 @@ export interface Schedule4dApi {
   step(id?: 'map' | 'link' | 'film'): 'map' | 'link' | 'film' | null;
   /** Mark activities as not in the model (or clear the mark): kept with the configuration. */
   markNotModelled(codes: string[], on?: boolean): void;
+  /** The temporary works layer of the film: its visibility, the groups of the plan, their state now (phase, progress, pieces shown) and the label of the piece under a point (NDC). */
+  tempWorks(set?: { visible?: boolean }): { visible: boolean; groups: NonNullable<FourDPlan['temporaryWorks']>['groups']; state: ReturnType<TempWorksLayer['state']>; pick(ndcX: number, ndcY: number): string | null };
   ready(): Promise<void>;
   flush(): Promise<boolean>;
   reset(): void;
@@ -167,6 +171,11 @@ export const map4dPlugin: AppPlugin = (() => {
         open,
         step: (id) => panel?.showStep(id) ?? null,
         markNotModelled: (codes, on = true) => sc.markNotModelled(codes, on),
+        tempWorks: (set) => {
+          const l = getTempWorksLayer(app);
+          if (set?.visible !== undefined) { l.setVisible(set.visible); panel?.render(); }
+          return { visible: l.visible, groups: sc.plan?.temporaryWorks?.groups ?? [], state: l.state(), pick: (x, y) => l.describeAt(x, y) };
+        },
         ready: () => sc.ready(),
         flush: () => sc.flush(),
         reset: () => sc.reset(),

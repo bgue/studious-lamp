@@ -16,6 +16,10 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 - The FZK-Haus 4D sample shows its ground floor and roof storey built apart.
 - Animation script: element properties in expressions (`the name of it`, `the storey of it`, `property "Pset_WallCommon.FireRating" of it`, `the names of class IfcWall`); text tests (`contains`, `is in`, `begins with`, `ends with`) and `&&`; lists and chunks (`item 2 of x`, `the number of words in x`, `sort items of x`, `repeat for each item v in x`); `exit repeat`, `next repeat`, `exit <handler>`; maths (`round`, `trunc`, `abs`, `min`, `max`, `sqrt`, `mod`, `div`, `^`, `pi`) and a seeded `random(n)` so the same script gives the same film.
 - Animation script: `param name default value` declares a value shown in a Parameters form above Run in the Script tab (also `xray-4d render --param`, `xray-pack --script-param`, `window.__xrayScript.compile(text, { params })`), and `use "Name"` pulls in the handlers and functions of another saved script (`--use-dir` on the command line). Two new examples: "Label the fire-rated walls" and "One script, any floor". The ifc-4d-schedule skill checker takes `--param` and resolves `use` next to the script; `anim_write.py --as-param`.
+- The 4D film builds temporary works: scaffold along the outer walls, falsework under slabs and formwork on concrete, from rules in
+  the 4D configuration (`temporaryWorks`, edited in the Film step under "Temporary works"). They go up before the work they serve and
+  come down after it, have their own layer and toggle, and are not part of the IFC model. `xray-4d plan` reads the rules
+  (`--no-temporary-works` leaves them out). The FZK-Haus 4D sample has scaffold, props and formwork.
 
 ## v31 - 2026-11-26
 

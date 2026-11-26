@@ -31,6 +31,7 @@ import { getHudLayer } from './hud';
 import { OverlayGate, applyOverlaysToDom, overlayDefault } from './overlays';
 import { collapseRunner, explodeRunner, focusRunner, sectionRunner, tintRunner } from './fourd/cues';
 import { resolvePlan } from './fourd/plans';
+import { getTempWorksLayer } from './fourd/tempWorksLayer';
 import { Schedule4dRunner } from './fourd/runner';
 import { ViewerLookSink } from './fourd/viewerSink';
 import { ViewerExplode, ViewerFocus, ViewerSection } from './fourd/viewerTargets';
@@ -266,6 +267,7 @@ export class ViewerScoreHost implements PlayerHost {
     if (time !== undefined) this.stepTimedFades(time);
     this.applyFades();
     this.sink.applyFrame();
+    if (this.schedule) getTempWorksLayer(this.app).sync();
     if (this.fourdSightDirty) {
       const now = performance.now();
       if (this.exact || now - this.lastFourdSight >= FOURD_SIGHTLINES_MS) {
@@ -800,7 +802,7 @@ export class ViewerScoreHost implements PlayerHost {
     let earlyAt = -Infinity;
     for (const c of this.scoreCues) if (c.kind === 'fadeDefault' && c.at <= cue.at + 1e-9 && c.at >= earlyAt) { early = Number.isFinite(c.seconds) ? Math.max(0, c.seconds) : 0; earlyAt = c.at; }
     const fadeIn = cue.fadeIn ?? early ?? plan.style.fadeIn;
-    const runner = new Schedule4dRunner({ plan, ids: this.idsOfPlan(plan), sink: this.sink, cueDur: cue.dur, ...(fadeIn !== undefined ? { fadeIn } : {}) });
+    const runner = new Schedule4dRunner({ plan, ids: this.idsOfPlan(plan), sink: this.sink, cueDur: cue.dur, ...(fadeIn !== undefined ? { fadeIn } : {}), ...(plan.temporaryWorks ? (() => { const t = getTempWorksLayer(this.app).bind(plan); return t ? { tempWorks: t } : {}; })() : {}) });
     this.schedule = runner;
     setLiveSchedule(runner);
     return runner;

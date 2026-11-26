@@ -187,8 +187,73 @@ export interface FourDConfig {
   activities?: Record<string, { query?: string; globalIds?: string[]; split?: SplitRule; /** 'remove': the activity demolishes the elements it matches (default 'build'). Added by the linker. */ role?: 'build' | 'remove'; /** true: the activity builds something the model does not contain (earthworks, finishes ...). It is no coverage gap and the film names it as work not in the model. Set by a person in the Link step. */ notModelled?: boolean }>;
   /** Split rule by trade value ('*' = default). */
   split?: Record<string, SplitRule>;
+  /** Scaffolding, falsework and formwork the film builds around the permanent work (src/schedule/tempworks.ts). Additive. */
+  temporaryWorks?: TempWorksConfig;
   style: FourDStyle;
 }
+
+// ---------------------------------------------------------------- temporary works (rules in the configuration, groups in the plan)
+
+export type TempWorksKind = 'scaffold' | 'falsework' | 'formwork';
+
+/** Size parameters in metres; each kind reads its own and falls back to the defaults (TEMP_DEFAULTS in src/schedule/tempworks.ts). */
+export interface TempWorksSize {
+  /** scaffold: distance of the inner standards from the face of the wall. */
+  offset?: number;
+  /** scaffold: width of the working platform. */
+  width?: number;
+  /** scaffold: height of one lift. */
+  lift?: number;
+  /** scaffold: length of one bay. */
+  bay?: number;
+  /** scaffold: guard height above the top of the served elements. */
+  above?: number;
+  /** falsework: prop spacing. */
+  spacing?: number;
+  /** formwork: panel thickness. */
+  thickness?: number;
+}
+
+/** When it is put up: during an activity, or `daysBefore` days before the served work starts (taking `duration` days). */
+export interface TempWorksErect { activity?: string; daysBefore?: number; duration?: number }
+/** When it comes down: during an activity, or `daysAfter` days after the end of the served work (or of activity `after`), taking `duration` days. */
+export interface TempWorksStrike { activity?: string; after?: string; daysAfter?: number; duration?: number }
+
+export interface TempWorksRule {
+  /** Short id (also in the group ids); default `tw1`, `tw2` ... by position. */
+  id?: string;
+  kind: TempWorksKind;
+  /** Label for the film and the panel ('Scaffold, external walls'). */
+  name?: string;
+  /** Criteria query selecting the permanent elements it serves (the viewer's query language). */
+  for: string;
+  erect?: TempWorksErect;
+  strike?: TempWorksStrike;
+  size?: TempWorksSize;
+}
+
+export interface TempWorksConfig {
+  version: 1;
+  rules: TempWorksRule[];
+}
+
+/** One piece of temporary works with its own timeline: erect (from..to), in use, strike (from..to), in plan time (ms). */
+export interface TempWorksGroup {
+  id: string;
+  rule: string;
+  kind: TempWorksKind;
+  label: string;
+  storey?: string;
+  /** The activity that builds the served elements. */
+  task?: string;
+  /** GlobalIds of the permanent elements it serves. */
+  elements: string[];
+  erect: { from: number; to: number };
+  strike: { from: number; to: number };
+  size: Required<TempWorksSize>;
+}
+
+export interface TempWorksPlan { version: 1; groups: TempWorksGroup[] }
 
 // ---------------------------------------------------------------- links (the LinkML schema schema/linkml/xray_4d.yaml)
 //
@@ -318,4 +383,6 @@ export interface FourDPlan {
   timeMap: Array<[number, number]>;
   /** Progress curve for the HUD S-curve: fraction complete (0..1) planned and actual at sample times. */
   progress: Array<{ at: number; planned: number; actual?: number }>;
+  /** Temporary works (scaffold, falsework, formwork) with their own timelines; absent when the configuration has no rules. */
+  temporaryWorks?: TempWorksPlan;
 }

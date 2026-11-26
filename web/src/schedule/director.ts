@@ -702,6 +702,16 @@ export function directFourD(plan: FourDPlan, model: DirectorModel, opts: Directo
       }
       caps.push({ t: f.t, title: f.title, text: f.text, d: FLOOR_CAPTION_S });
     }
+    // temporary works are context, never framed: a scaffold that goes up is named in one line, merged into a caption that is near anyway
+    for (const g of plan.temporaryWorks?.groups ?? []) {
+      if (g.kind !== 'scaffold' || g.erect.to < plan.window.from || g.erect.to > plan.window.to) continue;
+      const t = tauOfPlan(g.erect.to);
+      const line = `Scaffold up${g.storey !== undefined ? ` on ${g.storey}` : ''}`;
+      const near = caps.find((c) => Math.abs(c.t - t) < 2.5);
+      if (near) {
+        if (near.text.length + line.length < 70) { near.text = `${near.text} · ${line}`; note(near.t, `caption "${near.title}" also says "${line}" (scaffold erected)`); }
+      } else if (!caps.some((c) => Math.abs(c.t - t) < 4)) caps.push({ t, title: line, text: isoDate(g.erect.to), d: 2.5 });
+    }
     caps.sort((a, b) => a.t - b.t);
     caps.forEach((c, i) => {
       const nextT = caps[i + 1]?.t ?? Infinity;

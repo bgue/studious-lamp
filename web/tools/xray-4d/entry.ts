@@ -8,6 +8,7 @@ export { fromSidecar } from '../../src/schedule/model';
 export { linkSchedule } from '../../src/schedule/link';
 export { buildReport, renderReportHtml } from '../../src/schedule/report';
 export { buildPlan } from '../../src/schedule/plan';
+export { parseTempWorks } from '../../src/schedule/tempworks';
 export { DEFAULT_STYLE } from '../../src/schedule/types';
 export { parseLocal, formatLocal, formatDate } from '../../src/schedule/planTime';
 export { buildWorkSchedule } from '../../src/ifcsave/workSchedule';
