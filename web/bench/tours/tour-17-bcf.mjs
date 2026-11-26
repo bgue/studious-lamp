@@ -20,8 +20,7 @@ await tour.step('17.2 Try it: make an issue with a drawing, export BCF 2.1, dele
   await page.locator('#sidebar .vw-chip', { hasText: /^With drawings/ }).click();
   await page.locator('#sidebar .vw-row .vw-name').first().click();
   await page.waitForTimeout(1000);
-  await page.locator('#sidebar').getByRole('button', { name: 'Make issue' }).first().click();
-  await page.locator('.xm-menu [role=menuitem], [role=menu] [role=menuitem]').filter({ hasText: 'New issue' }).first().click();
+  await page.locator('#sidebar').getByRole('button', { name: 'Make issue', exact: true }).click();
   await page.waitForTimeout(2500);
   const made = await issues(page);
   tour.check('"First make an issue with a drawing, as in 15.1"', made.length === 1, JSON.stringify(made).slice(0, 120));
@@ -104,7 +103,7 @@ await tour.step('17.2 Opening replaces, unless you have your own; a file for ano
   await ui.tab(page, 'Issues');
   await page.getByRole('button', { name: 'New issue' }).first().click();
   await page.locator('#bcf-f-create').waitFor();
-  await page.locator('#bcf-f-create').locator('xpath=ancestor::form').locator('input[type=text], input:not([type])').first().fill('Own issue');
+  await page.locator('#bcf-f-title').fill('Own issue');
   await page.locator('#bcf-f-create').click();
   await page.waitForTimeout(2500);
   const back = page.getByRole('button', { name: '‹ Issues' });
@@ -118,7 +117,7 @@ await tour.step('17.2 Opening replaces, unless you have your own; a file for ano
   await ui.clickElement(page, { cls: 'IfcWindow' });
   await page.getByRole('button', { name: 'New issue' }).first().click();
   await page.locator('#bcf-f-create').waitFor();
-  await page.locator('#bcf-f-create').locator('xpath=ancestor::form').locator('input[type=text], input:not([type])').first().fill('Second own issue');
+  await page.locator('#bcf-f-title').fill('Second own issue');
   await page.locator('#bcf-f-create').click();
   await page.waitForTimeout(2500);
   const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), (async () => { const b = page.getByRole('button', { name: '‹ Issues' }); if (await b.count()) await b.click(); await page.getByRole('button', { name: 'Open BCF' }).click(); })()]);

@@ -41,7 +41,7 @@ Use the **Process plant** sample. It has pumps, vessels, piping, paving and kerb
 2. Open the **Classification** tab of the right sidebar. On a phone it is a bottom sheet. If the sidebar is folded, press `]`.
 3. Keep **Provider** on its default (rules and cache only). Click **Classify all**.
 4. Read the results table: element, discipline, sub-discipline, division, confidence, top 2, source. Most rows say *rules*.
-5. Click **Colour by discipline**. The plant is tinted by trade and the legend lists the codes.
+5. In the **Output** section choose **Discipline** in the list **Colour by**. The plant is tinted by trade and the legend lists the codes.
 6. Click **Select needs review**. Only the elements the rules were not sure about are selected.
 7. In the search bar type `count where discipline = 'MEC'`. The count comes from the classification, because the results are
    written back to the elements as properties.

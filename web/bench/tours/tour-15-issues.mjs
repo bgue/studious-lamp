@@ -21,12 +21,9 @@ await tour.step('15.1 Try it: Make issue from the view with drawings, the Issues
   await page.waitForTimeout(1200);
   tour.check('step 1: "Click the row of your view with drawings. Its detail opens."', await page.getByText('‹ Views').first().isVisible());
   // step 2
-  const make = page.locator('#sidebar').getByRole('button', { name: 'Make issue' }).first();
-  await make.click();
-  await page.waitForTimeout(500);
-  const chooser = (await page.locator('.xm-menu, [role=menu]').first().innerText().catch(() => '')).replace(/\n+/g, ' | ');
-  tour.check('step 2: "A chooser offers New issue and Add to: <issue> for each issue that already exists"', /New issue/.test(chooser), chooser);
-  await page.locator('.xm-menu [role=menuitem], [role=menu] [role=menuitem]').filter({ hasText: 'New issue' }).first().click();
+  const chooser = await page.locator('#sidebar select[aria-label="Make issue"]').locator('option').allInnerTexts();
+  tour.check('step 2: "a list beside Make issue offers New issue (and Add to: <issue> for each issue that already exists)"', chooser[0] === 'New issue', chooser.join(' | '));
+  await page.locator('#sidebar').getByRole('button', { name: 'Make issue', exact: true }).click();
   await page.waitForTimeout(2500);
   const l1 = await issues(page);
   tour.check('step 3: "makes the issue from the view\'s title and note with status Open"', l1.length === 1 && /open/i.test(l1[0].status ?? l1[0].topicStatus ?? ''), JSON.stringify(l1).slice(0, 200));
@@ -65,13 +62,13 @@ await tour.step('15.1 Try it: Make issue from the view with drawings, the Issues
   await ui.tab(page, 'Issues');
   await page.getByRole('button', { name: 'New issue' }).first().click();
   await page.waitForTimeout(500);
-  const dlg = page.locator('#bcf-f-create').locator('xpath=ancestor::form');
+  const dlg = page.locator('#bcf-form');
   const labels = await dlg.locator('label, .bcf-field').allInnerTexts().catch(() => []);
   const dtxt = await page.locator('body').innerText();
   tour.check('"The dialog is headed New issue. Fill Title and Description. Pick Type, Status and Priority. Add Labels and Assigned to. Author is remembered."', ['Title', 'Description', 'Type', 'Status', 'Priority', 'Labels', 'Assigned to', 'Author'].every((l) => new RegExp(l).test(dtxt)), labels.join(' | ').slice(0, 200));
   tour.check('"Two options: Attach a snapshot of the current view (on by default), and Click the model to place the pin"', /Attach a snapshot of the current view/.test(dtxt) && /Click the model to place the pin/.test(dtxt) && (await page.locator('#bcf-f-snapshot').isChecked()));
-  await dlg.locator('input[type=text], input:not([type])').first().fill('Door too narrow');
-  await dlg.locator('textarea').first().fill('The door does not meet the width.');
+  await page.locator('#bcf-f-title').fill('Door too narrow');
+  await page.locator('#bcf-f-description').fill('The door does not meet the width.');
   await page.locator('#bcf-f-create').click();
   await page.waitForTimeout(2500);
   const l2 = await issues(page);
@@ -80,8 +77,8 @@ await tour.step('15.1 Try it: Make issue from the view with drawings, the Issues
   const back = page.getByRole('button', { name: '‹ Issues' });
   if (await back.count()) await back.click();
   await page.waitForTimeout(500);
-  await items(page).first().click();
-  await page.waitForTimeout(1800);
+  await page.locator('#sidebar .is-item', { hasText: 'View 1' }).first().click();
+  await page.waitForTimeout(2500);
   await page.mouse.move(700, 120);
   await ui.settle(page, 800);
   await tour.picture('issues-tab', { page, clip: { x: 0, y: 0, width: 640, height: 900 } });
@@ -93,8 +90,8 @@ await tour.step('15.2 Status, priority, assignee, due date, comments, history, l
   await ui.tab(page, 'Issues');
   await page.getByRole('button', { name: 'New issue' }).first().click();
   await page.locator('#bcf-f-create').waitFor();
-  const dlg = page.locator('#bcf-f-create').locator('xpath=ancestor::form');
-  await dlg.locator('input[type=text], input:not([type])').first().fill('Window sill too low');
+  const dlg = page.locator('#bcf-form');
+  await page.locator('#bcf-f-title').fill('Window sill too low');
   await page.locator('#bcf-f-create').click();
   await page.waitForTimeout(2500);
   const det = page.locator('#sidebar');
@@ -117,7 +114,7 @@ await tour.step('15.2 Status, priority, assignee, due date, comments, history, l
   await page.waitForTimeout(500);
   const txt = await det.innerText();
   tour.check('"The comments with Add comment"', /Checked on site\./.test(txt), txt.replace(/\s+/g, ' ').slice(-200));
-  tour.check('"History: created, each comment, last change"', /History/.test(txt) && /[Cc]reated/.test(txt), txt.match(/History[\s\S]{0,160}/)?.[0]?.replace(/\s+/g, ' ') ?? '');
+  tour.check('"History: created, each comment, last change"', /history/i.test(txt) && /created/i.test(txt), txt.match(/History[\s\S]{0,160}/)?.[0]?.replace(/\s+/g, ' ') ?? '');
   tour.check('"Add current view", "Place pin", "Export BCF 2.1", "Export BCF 3.0" and "Delete issue" are there', ['Add current view', 'Place pin', 'Export BCF 2.1', 'Export BCF 3.0', 'Delete issue'].every((b) => txt.includes(b)), '');
   // add current view
   await det.getByRole('button', { name: 'Add current view' }).click();
@@ -129,17 +126,17 @@ await tour.step('15.2 Status, priority, assignee, due date, comments, history, l
   await page.waitForTimeout(400);
   const chips = await page.locator('#sidebar .is-fchip').allInnerTexts();
   tour.check('"The list has a search box and the chips All, Open and Closed, each with a count"', chips.length === 3 && /^All 1/.test(chips[0]) && /^Open 1/.test(chips[1]) && /^Closed 0/.test(chips[2]), chips.join(' | '));
-  await page.getByLabel('Search', { exact: true }).fill('sill');
+  await page.getByPlaceholder('Search title, description, comments').fill('sill');
   await page.waitForTimeout(300);
   const nHit = await items(page).count();
-  await page.getByLabel('Search', { exact: true }).fill('zzzz');
+  await page.getByPlaceholder('Search title, description, comments').fill('zzzz');
   await page.waitForTimeout(300);
   const nMiss = await items(page).count();
   tour.check('"Search matches title, description, assignee, labels and comment text"', nHit === 1 && nMiss === 0, `${nHit} / ${nMiss}`);
-  await page.getByLabel('Search', { exact: true }).fill('Checked on');
+  await page.getByPlaceholder('Search title, description, comments').fill('Checked on');
   await page.waitForTimeout(300);
   tour.check('search finds comment text', (await items(page).count()) === 1);
-  await page.getByLabel('Search', { exact: true }).fill('');
+  await page.getByPlaceholder('Search title, description, comments').fill('');
   // top bar search finds issues
   await page.locator('#c').hover();
   await page.keyboard.press('/');

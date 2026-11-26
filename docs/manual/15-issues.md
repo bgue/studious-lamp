@@ -24,8 +24,8 @@ Two quick ways to start:
 **Try it.** Use the **FZK-Haus** sample. Do 14.1 first, so that a view with drawings exists.
 
 1. Open the **Views** tab. Click the row of your view with drawings. Its detail opens.
-2. In the detail, click **Make issue**. A chooser offers **New issue** and **Add to: <issue>** for each issue that already
-   exists. Choose **New issue**.
+2. In the detail, a list beside the button **Make issue** offers **New issue** and **Add to: <issue>** for each issue that already
+   exists. Leave **New issue** chosen and click **Make issue**.
 3. The viewer restores the view, makes the issue from the view's title and note with status **Open**, and takes a snapshot.
    The view's row now has the tag `Issue`, and its detail says `In issue: <title>` with **Open issue**.
 4. Open the **Issues** tab. Your issue is in the list with status, priority, the number of views, comments and assignee. The
