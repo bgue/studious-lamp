@@ -18,6 +18,8 @@ export interface TreeHost {
   select(ids: ElementId[], additive: boolean): void;
   setHidden(ids: ElementId[], hide: boolean): void;
   hover(id: ElementId | null): void;
+  /** Classification tree: "Save as set" on a group row. */
+  saveSet?(node: TreeNode): void;
   /** True when an enabled global action would take this key: the tree then leaves the letter to it instead of type-ahead. */
   isGlobalKey?(e: KeyboardEvent): boolean;
 }
@@ -39,6 +41,9 @@ export class TreeView {
   private rows: FlatRow[] = [];
   private expanded = new Set<string>();
   private savedExpanded: Set<string> | null = null;
+  /** True while the rows come from setRoots (the classification tree) and not from the model. */
+  private custom = false;
+  private modelState: { expanded: Set<string> } | null = null;
   private query = '';
   private lastHtml = '';
   private lastStart = -1;
@@ -87,6 +92,9 @@ export class TreeView {
   /** Rebuild for a new model. */
   setModel(model: SceneModel): void {
     this.model = model;
+    this.custom = false;
+    this.modelState = null;
+    this.scroller.setAttribute('aria-label', 'Model tree');
     this.activeKey = null;
     this.query = '';
     this.savedExpanded = null;
@@ -97,9 +105,47 @@ export class TreeView {
     this.render(true);
   }
 
+  /**
+   * Show a ready-made tree (the classification tree) instead of the model tree; null returns to the model tree. `expand` replaces
+   * the expansion (a new grouping); without it the expansion and the active row stay (the same grouping, new values).
+   */
+  setRoots(roots: TreeNode[] | null, expand?: Set<string>): void {
+    if (!this.model) return;
+    if (roots) {
+      if (!this.custom) {
+        this.modelState = { expanded: this.expanded };
+        this.custom = true;
+        this.activeKey = null;
+        this.expanded = expand ?? new Set();
+        this.scroller.setAttribute('aria-label', 'Classification tree');
+        this.scroller.scrollTop = 0;
+      } else if (expand) {
+        this.expanded = expand;
+        this.scroller.scrollTop = 0;
+      }
+      this.roots = roots;
+    } else if (this.custom) {
+      this.custom = false;
+      this.query = '';
+      this.savedExpanded = null;
+      this.roots = buildTree(this.model);
+      this.expanded = this.modelState?.expanded ?? defaultExpanded(this.roots);
+      this.modelState = null;
+      this.activeKey = null;
+      this.scroller.setAttribute('aria-label', 'Model tree');
+      this.scroller.scrollTop = 0;
+    } else return;
+    this.rebuildRows();
+    this.render(true);
+  }
+
+  get showsClassification(): boolean {
+    return this.custom;
+  }
+
   /** Filter by name, globalId or class substring. Empty restores the full tree and the previous expansion. */
   setFilter(query: string): void {
-    if (!this.model) return;
+    if (!this.model || this.custom) return;
     const q = query.trim().toLowerCase();
     if (q === this.query) return;
     const wasFiltered = this.query !== '';
@@ -125,13 +171,14 @@ export class TreeView {
   /** Number of elements shown (matches while filtering, else all). */
   visibleElementCount(): number {
     let n = 0;
-    for (const r of this.roots) if (r.kind === 'storey') n += r.count;
+    for (const r of this.roots) if (r.kind === 'storey' || this.custom) n += r.count;
     return n;
   }
 
   /** Expand storey and class of the element and scroll its row into view. Returns false when it is not shown. */
   reveal(id: ElementId): boolean {
     if (!this.model) return false;
+    if (this.custom) return this.revealCustom(id);
     const p = elementPath(this.model, id);
     if (!p) return false;
     this.expanded.add(p.storey);
@@ -148,6 +195,34 @@ export class TreeView {
     if (top < this.scroller.scrollTop || top + ROW_H > this.scroller.scrollTop + h) {
       this.scroller.scrollTop = Math.max(0, top - h / 2 + ROW_H / 2);
     }
+    this.render(true);
+    return true;
+  }
+
+  private revealCustom(id: ElementId): boolean {
+    const path: string[] = [];
+    const find = (n: TreeNode): string | null => {
+      if (n.elementId === id) return n.key;
+      if (n.children.length === 0 || !n.ids.includes(id)) return null;
+      path.push(n.key);
+      for (const c of n.children) {
+        const k = find(c);
+        if (k) return k;
+      }
+      path.pop();
+      return null;
+    };
+    let key: string | null = null;
+    for (const r of this.roots) if ((key = find(r))) break;
+    if (!key) return false;
+    for (const k of path) this.expanded.add(k);
+    this.rebuildRows();
+    const i = this.rows.findIndex((r) => r.node.key === key);
+    if (i < 0) return false;
+    this.activeKey = key;
+    const h = this.scroller.clientHeight || 300;
+    const top = i * ROW_H;
+    if (top < this.scroller.scrollTop || top + ROW_H > this.scroller.scrollTop + h) this.scroller.scrollTop = Math.max(0, top - h / 2 + ROW_H / 2);
     this.render(true);
     return true;
   }
@@ -334,7 +409,7 @@ export class TreeView {
     let html = '';
     const act = this.activeIndex();
     for (let i = start; i < end; i++) html += this.rowHtml(i, this.rows[i]!, sel, hid, i === act);
-    if (this.rows.length === 0) html = `<div class="tv-empty">${this.query ? 'No matching elements' : 'No elements'}</div>`;
+    if (this.rows.length === 0) html = `<div class="tv-empty">${this.query ? 'No matching elements' : this.custom ? 'No elements to show' : 'No elements'}</div>`;
     if (!force && start === this.lastStart && html === this.lastHtml) return;
     this.lastStart = start;
     this.lastHtml = html;
@@ -378,12 +453,18 @@ export class TreeView {
       ? `<span class="caret${row.expanded ? ' open' : ''}" data-act="caret"></span>`
       : '<span class="caret none"></span>';
     const eyeCls = hiddenAll ? ' off' : hiddenSome ? ' part' : '';
-    const cnt = n.elementId === null ? `<span class="cnt">${n.count}</span>` : '';
+    let cnt = n.elementId === null ? `<span class="cnt">${n.count}</span>` : '';
+    if (this.custom && n.review) {
+      const pct = Math.max(1, Math.round((100 * n.review) / Math.max(1, n.count)));
+      if (n.elementId === null) cnt = `<span class="rv" title="${n.review} of ${n.count} need review">${pct}%</span>${cnt}`;
+      else cnt = '<span class="rv" title="Needs review">!</span>';
+    }
+    const save = this.custom && n.elementId === null && this.host.saveSet ? '<span class="sv" data-act="save" title="Save as set">+set</span>' : '';
     const attrs = row.hasChildren ? ` aria-expanded="${row.expanded}"` : '';
     return (
       `<div class="tr k-${n.kind}${selected ? ' sel' : ''}${hiddenAll ? ' hid' : ''}${active ? ' act' : ''}" role="treeitem" id="${this.uid}-${i}" aria-selected="${selected}" aria-level="${row.depth + 1}" data-i="${i}" data-key="${esc(n.key)}"${attrs}` +
       ` style="padding-left:${4 + row.depth * 14}px" title="${esc(n.title)}">` +
-      `${caret}<span class="lbl">${esc(n.label)}</span>${cnt}` +
+      `${caret}<span class="lbl">${esc(n.label)}</span>${cnt}${save}` +
       `<span class="eye${eyeCls}" data-act="eye" title="${hiddenAll ? 'Show' : 'Hide'}">${hiddenAll ? EYE_OFF : EYE}</span>${dot}</div>`
     );
   }
@@ -405,6 +486,8 @@ export class TreeView {
     this.activeKey = n.key;
     if (act === 'caret') {
       this.toggle(n.key);
+    } else if (act === 'save') {
+      this.host.saveSet?.(n);
     } else if (act === 'eye') {
       const hidden = this.host.hidden();
       const allHidden = n.ids.length > 0 && n.ids.every((id) => hidden.has(id));

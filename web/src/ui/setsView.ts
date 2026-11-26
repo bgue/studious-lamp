@@ -224,6 +224,16 @@ export class SetsView {
     return this.sets;
   }
 
+  /** Save elements as a plain selection set (a classification node that has no query). Returns the message shown. */
+  saveIds(name: string, ids: readonly ElementId[]): string {
+    if (!this.model) return 'No model loaded.';
+    this.commit(addSet(this.sets, name, idsToGlobalIds(this.model, [...ids])));
+    const saved = this.sets[this.sets.length - 1]!;
+    const msg = `Saved "${saved.name}" (${ids.length}).`;
+    this.say(msg);
+    return msg;
+  }
+
   /** Open the criteria editor for a new set (prefilled) - used by the property context menu. */
   newCriteriaSet(query: string, name: string): void {
     this.openEditor(undefined, { query, name });

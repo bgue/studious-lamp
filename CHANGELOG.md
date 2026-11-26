@@ -6,6 +6,9 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 ## Unreleased
 
 - Save IFC can write the classification facets: tick "Include classification facets" and every classified element gets its XR_Trade, XR_Placement, XR_Material, XR_Phase, XR_Orientation and XR_ClassRepair property sets in the saved file.
+- The Model tab has a switch **Model tree** | **By classification**: the elements grouped by 1 to 4 levels of Phase, Discipline, Trade, Placement, Material, Orientation, Storey or IFC class, with counts, an amber needs-review share, eye toggles and **+set** on each row. Presets: Construction, Ownership, Envelope and Standard (UniFormat II, A > A10 > A1010, mapping in `classification/uniformat2.json`).
+- Classify has **Colour by** (Discipline or any facet) with a legend whose rows isolate or hide a value, and **Confidence shading** that washes out the elements that need review.
+- Every row of the classification tree and of the legend can be saved as a criteria set, for example `XR_Trade.Code = 'CONC' and XR_Phase.Code = 'FRAME'`.
 - The 4D director has "Camera per floor" (Style): pick a saved view for a floor and the camera flies to it while the work lies on that floor (CLI: `xray-4d plan --zone-camera "Erdgeschoss=EG south"`).
 - The 4D film has a "Finale" (Style): a slow dolly-in and a 90 degree orbit after the last work, with a "Complete" caption; the FZK-Haus sample uses it.
 - Issue pins and drawings are hidden while a fly-through, script or 4D film plays or is recorded, and come back exactly as they were

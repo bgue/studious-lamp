@@ -173,6 +173,8 @@ export const ELEMENT_RULES: ReadonlyArray<{ selector: string; key: string | ((el
   { selector: '.sb-tab', key: (e) => ((e.textContent ?? '').trim() === 'Sets' ? 'Sidebar/Sets tab' : 'Sidebar/Model tab'), title: (e) => `${(e.textContent ?? '').trim()} tab` },
   { selector: '.dk-toggle, .dk-rail-label', key: 'Right sidebar/Collapse toggle', title: 'Collapse toggle' },
   { selector: '.sb-filter', key: 'Sidebar/Filter box', title: 'Filter box' },
+  { selector: '.tr .rv', key: 'Sidebar/Review share', title: 'Review share' },
+  { selector: '.tr .sv', key: 'Sidebar/Save as set', title: 'Save as set' },
   { selector: '.tv-scroll', key: 'Sidebar/Model tree', title: 'Model tree' },
   { selector: '.eye', key: 'Sidebar/Eye icon', title: 'Eye icon' },
   { selector: '.tr .dot', key: 'Sidebar/Bucket dot', title: 'Bucket dot' },
