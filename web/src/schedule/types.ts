@@ -128,6 +128,10 @@ export interface FourDStyle {
   camera: 'director' | 'fixed' | 'none';
   /** auto: explode when work spreads over many storeys; floor: each floor apart while it is built (the active storey in focus); off. */
   explode: 'auto' | 'off' | 'floor';
+  /** Saved view name by storey name (or zone value): when the director frames work that lies in that storey, it flies to the saved view instead of computing a shot. Missing or empty: automatic. */
+  zoneCameras?: Record<string, string>;
+  /** Closing shot (director camera only): none; dolly (collapse, clear focus, ~6 s dolly-in, ~8 s 90 degree orbit, caption); orbit (the orbit only). Default none. */
+  finale?: 'none' | 'dolly' | 'orbit';
   /** Seconds of film a newly built element takes to fade in (a removed one to fade out); absent: 10 % of the activity interval or 0.6 s, the shorter. 0 = at once. */
   fadeIn?: number;
   /** Show the issue pins and the drawings while the film plays (default off: they are hidden during playback). */

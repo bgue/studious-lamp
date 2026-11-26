@@ -240,6 +240,7 @@
     "pace": "warp",
     "camera": "director",
     "explode": "floor",
+    "finale": "dolly",
     "xrayFocus": true,
     "sectionBox": "auto",
     "labels": 3,
