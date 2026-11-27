@@ -59,11 +59,10 @@ await tour.step('22.1 Try it steps 1-3: Views tab, Fly-through section, New, Fro
   const after = await page.evaluate(() => window.__xrayFlythrough.keyframes().map((k) => k.name));
   tour.check('step 4: "use the arrow buttons ... to reorder"', after[1] === before[0] && after[0] === before[1], `${before.join()} -> ${after.join()}`);
   await cards(page).nth(1).locator('.fl-shot').click();
-  await cards(page).nth(1).focus().catch(() => {});
   await page.keyboard.press('Alt+ArrowLeft');
   await page.waitForTimeout(300);
   const after2 = await page.evaluate(() => window.__xrayFlythrough.keyframes().map((k) => k.name));
-  tour.known('step 4: "press Alt+Left and Alt+Right to reorder"', after2.join() !== after.join(), 'Alt+Left on the selected card does not move it (the arrow buttons do)', `${after.join()} -> ${after2.join()}`);
+  tour.check('step 4: "press Alt+Left and Alt+Right to reorder"', after2.join() !== after.join(), `${after.join()} -> ${after2.join()}`);
   await cards(page).nth(3).locator('.fl-shot').click();
   await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
   await page.waitForTimeout(300);

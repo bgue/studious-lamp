@@ -388,6 +388,8 @@ export class FlythroughPanel {
       else {
         this.selected = i;
         this.render();
+        // The re-render replaced the button that was clicked: keep the keyboard on the card (Delete, Alt+Left / Alt+Right).
+        this.cards.querySelector<HTMLElement>(`[data-i="${i}"] .fl-shot`)?.focus();
         h.goTo(i);
       }
     });

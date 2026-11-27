@@ -236,7 +236,12 @@ function applyBoot(app: ViewerApp, boot: BootWithCamera): void {
   if (boot.select && boot.select.length > 0) {
     const { ids, missing } = resolveSelect(app.controller.model, boot.select);
     if (missing.length > 0) warn(`selection entries not found in the model: ${missing.slice(0, 12).join(', ')}${missing.length > 12 ? ', ...' : ''}`);
-    if (ids.length > 0) app.selectIds(ids);
+    if (ids.length > 0) {
+      // An explicit --camera wins: the selection must not fly the camera away from it.
+      const cin = boot.camera ? (win() as unknown as { __cinematic?: { quietly?(fn: () => void): void } }).__cinematic : undefined;
+      if (cin?.quietly) cin.quietly(() => app.selectIds(ids));
+      else app.selectIds(ids);
+    }
   }
 
   if (boot.kiosk) {

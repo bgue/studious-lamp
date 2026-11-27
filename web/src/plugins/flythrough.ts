@@ -141,6 +141,12 @@ function isTyping(t: EventTarget | null): boolean {
   return e.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.tagName);
 }
 
+/** Escape stops and Space pauses a film even when a slider has the focus (the 4D date bar, left focused by a click): a slider takes no text. */
+export function isRangeInput(t: EventTarget | null): boolean {
+  const e = t as HTMLInputElement | null;
+  return !!e && e.tagName === 'INPUT' && (e.type ?? '').toLowerCase() === 'range';
+}
+
 class FlythroughController {
   readonly store: FlyStore;
   readonly host: ViewerScoreHost;
@@ -747,7 +753,7 @@ export const flythroughPlugin: AppPlugin = {
     window.addEventListener(
       'keydown',
       (e) => {
-        if (!c.player.playing || c.exporting || isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (!c.player.playing || c.exporting || (isTyping(e.target) && !((e.key === 'Escape' || e.key === ' ') && isRangeInput(e.target))) || e.ctrlKey || e.metaKey || e.altKey) return;
         let handled = true;
         if (e.key === 'Escape') c.stop();
         else if (e.key === ' ' || e.code === 'Space') {

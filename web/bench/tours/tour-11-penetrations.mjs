@@ -37,6 +37,7 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   await page.locator('.xt-table thead th', { hasText: '#' }).first().click();
   // filters
   const nAll = await rowsOf(page).count();
+  const totalAll = await page.evaluate(() => window.__xrayPenetrations.summary.total); // the table shows at most 500 rows of them
   const storeyChip = page.locator('.xt-chip', { hasText: /^Level 1$/ });
   await storeyChip.click();
   await page.waitForTimeout(400);
@@ -66,7 +67,7 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   const other = await page.evaluate((mep0) => window.__xrayPenetrations.rows.findIndex((r, i) => r.mep !== mep0 && i < 500), rowData.mep);
   await rowsOf(page).nth(other).click({ modifiers: ['Control'] });
   for (let i = 0; i < 10 && (await ui.selection(page)).length < 2; i++) await page.waitForTimeout(700);
-  tour.known('step 5: "Ctrl or Shift click selects several rows"', (await ui.selection(page)).length >= 2, 'a Ctrl+click on a second row (a different MEP element) left only one element selected', String((await ui.selection(page)).length));
+  tour.check('step 5: "Ctrl or Shift click selects several rows"', (await ui.selection(page)).length >= 2, String((await ui.selection(page)).length));
   // step 6: markers
   const markersOn = await page.evaluate(() => document.querySelectorAll('svg [data-pen], svg g[data-marker], svg circle').length);
   tour.check('step 6: "Look at the markers in the model"', markersOn > 0, String(markersOn));
@@ -87,13 +88,17 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   tour.check('"The drawer lists at most 500 rows"', (await rowsOf(page).count()) <= 500);
   // scope focus only
   const scopeSel = page.locator('select').filter({ has: page.locator('option', { hasText: 'focus only' }) }).first();
-  const okScope = await scopeSel.selectOption({ label: 'focus only' }, { timeout: 8000 }).then(() => true).catch(() => false);
+  // clearing the selection with Esc also closes the drawer: clear it first, open the drawer again, then change the scope
   await ui.clearSelection(page);
-  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).click({ timeout: 20000, force: true }).then(() => true).catch(() => false);
-  tour.known('"Analyse runs it again, for example after you changed the scope"', okScope && okAn, 'the scope list or the Analyse button of the drawer could not be used', `scope ${okScope}, analyse ${okAn}`);
-  await page.waitForTimeout(3000);
+  if ((await page.locator('.xt-table-wrap').filter({ visible: true }).count()) === 0) await ui.tool(page, 'Penetrations').click();
+  const okScope = await scopeSel.selectOption({ label: 'focus only' }, { timeout: 8000 }).then(() => true).catch(() => false);
+  let anErr = '';
+  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).filter({ visible: true }).first().click({ timeout: 15000 }).then(() => true).catch((e) => { anErr = String(e).replace(/\s+/g, " ").slice(0, 1200); return false; });
+  tour.check('"Analyse runs it again, for example after you changed the scope"', okScope && okAn, `scope ${okScope}, analyse ${okAn} ${anErr}`);
+  await page.waitForFunction((n) => window.__xrayPenetrations.summary.total !== n, totalAll, { timeout: 90000 }).catch(() => {});
+  await page.waitForTimeout(1500);
   const sumFocus = await page.evaluate(() => window.__xrayPenetrations.summary.total);
-  tour.check('"scope: focus only (the current focus)" re-analyses with fewer or no rows', sumFocus <= nAll, `${nAll} -> ${sumFocus}`);
+  tour.check('"scope: focus only (the current focus)" re-analyses with fewer or no rows', sumFocus <= totalAll, `${totalAll} -> ${sumFocus}`);
 });
 
 await tour.step('11.1 Models without opening data read unknown (Building)', async () => {

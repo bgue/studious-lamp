@@ -268,9 +268,10 @@ await tour.step('26.3 Save the links into the IFC: Save IFC with 4D links, Activ
   await c2s.getByLabel('Trade from').selectOption({ label: 'Not used' }).catch(() => {});
   await page2.locator('#dk-pane-4d button', { hasText: 'Link schedule' }).first().click();
   await page2.waitForTimeout(1500);
-  const back = await page2.evaluate(() => window.__xray4dSchedule.links().links.filter((l) => l.source === 'property'));
+  const back = await page2.evaluate(() => window.__xray4dSchedule.links().links.filter((l) => l.source === 'property' || l.source === 'native'));
+  const withProp = await page2.evaluate(() => { const e = window.__xray.app.controller.model.elements.filter((x) => x.props && x.props['Xray_4D.ActivityIds']); return `${e.length} elements carry Xray_4D.ActivityIds, e.g. ${e.slice(0, 2).map((x) => x.props['Xray_4D.ActivityIds']).join(' | ')}`; });
   const srcs = await page2.evaluate(() => Object.entries(window.__xray4dSchedule.links().links.reduce((a, l) => ({ ...a, [l.source]: (a[l.source] ?? 0) + 1 }), {})).join());
-  tour.known('"Link schedule then gives those links back as accepted, confidence 1, source property"', back.length > 5 && back.every((l) => l.status === 'accepted' && l.confidence === 1), 'after opening the saved .xray.ifc and the .xer with no sources configured, Link schedule gives no link from Xray_4D.ActivityIds (the node command reads the same file back natively)', `${back.length} property links; sources: ${srcs}`);
+  tour.check('"Link schedule then gives those links back as accepted, confidence 1, source property" (source native when the file also holds the IfcTask assignments, which win)', back.length > 5 && back.every((l) => l.status === 'accepted' && l.confidence === 1), `${back.length} property links; sources: ${srcs}; ${withProp}`);
 });
 
 await tour.finish();

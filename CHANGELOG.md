@@ -16,6 +16,10 @@ What changed in the X-ray viewer, newest first. One section per release; the num
   includes the IFC4 terminals at the ends of duct and pipe runs (air, sanitary, waste and fire-suppression terminals).
 - Hiding the selection (`h`) also clears it, as the manual says; Ctrl or Shift+click in the penetrations table now adds the row's
   element to the viewer selection instead of replacing it.
+- `xray-pack --camera` now wins over `--select`: the page opens at the camera you gave, with the elements selected, instead of flying to them.
+- Fly-through cards: after a click on a card the keyboard stays on it, so Alt+Left and Alt+Right move it and Delete removes it.
+- Esc stops a 4D film or fly-through that is playing or paused even when a slider (the date bar) still has the keyboard focus.
+- A slider drag stays one undo step when a text field or the slider itself loses the keyboard focus during the drag.
 - Revisions: the comparison ignores every `XR_` property (the viewer's own classification and facet results), so classifying the
   earlier model no longer marks all its elements as changed and the unchanged decisions carry over again.
 

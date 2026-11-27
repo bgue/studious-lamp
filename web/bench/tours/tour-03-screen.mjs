@@ -240,6 +240,40 @@ await tour.step('3.2 Try it (Walk mode) steps 1-8', async () => {
   const sp2 = await wallSpot();
   await page.keyboard.down('Alt'); await page.mouse.dblclick(sp2.x, sp2.y); await page.keyboard.up('Alt');
   await ui.waitStill(page, 15000);
+  // The headless double click may leave the eye over the roof or looking out of a window, so there is no wall to walk at. Stand a person
+  // inside, on the ground floor at 1.6 m, facing a wall 2.5 to 6 m away (as a drop-in and a turn with the arrow keys would), then walk.
+  const faced = await page.evaluate(async () => {
+    const { blocksWalk } = await import('/src/input/walk.ts');
+    const { storeyFloors } = await import('/src/xr/field.ts');
+    const app = window.__xray.app, r = app.renderer, m = app.loaded.model, els = m.elements;
+    const floors = storeyFloors(m).map((f) => f.floorY).sort((a, b) => a - b);
+    const walls = els.filter((e) => /Wall/.test(e.ifcClass));
+    const bb = walls.reduce((q, e) => [Math.min(q[0], e.bounds[0]), Math.min(q[1], e.bounds[2]), Math.max(q[2], e.bounds[3]), Math.max(q[3], e.bounds[5])], [1e9, 1e9, -1e9, -1e9]);
+    const V = r.camera.position.constructor;
+    const hitAt = (p, d) => r.raycastVisible(p, d, 8, (id) => blocksWalk(els[id]?.ifcClass ?? '', r.state.flags[id] ?? 0, r.state.alpha[id] ?? 1));
+    let best = null;
+    for (const floor of floors) {
+      for (let x = bb[0] + 1; x < bb[2] - 1; x += 1) for (let z = bb[1] + 1; z < bb[3] - 1; z += 1) {
+        const eye = new V(x, floor + 1.6, z);
+        for (let a = 0; a < 360; a += 5) {
+          const d = new V(Math.cos((a * Math.PI) / 180), 0, Math.sin((a * Math.PI) / 180));
+          const waist = hitAt(new V(x, eye.y - 0.72, z), d);
+          if (!waist || Math.abs(waist.normal.y) > 0.3 || waist.distance < 2.5 || waist.distance > 6) continue;
+          // square on: a slanting approach slides along the wall, as it should, and a person walking at a wall faces it
+          if (Math.abs(waist.normal.x * d.x + waist.normal.z * d.z) < 0.97) continue;
+          // nothing near on the other rays, and not inside a wall: the opposite way is free for 0.5 m
+          const others = [0, -1.2].map((dy) => hitAt(new V(x, eye.y + dy, z), d));
+          if (others.some((h) => h && h.distance < 1.5)) continue;
+          const back = hitAt(eye, d.clone().negate());
+          if (back && back.distance < 0.5) continue;
+          if (!best || waist.distance < best.dist) best = { dist: waist.distance, eye, d, floor };
+        }
+      }
+      if (best) break;
+    }
+    if (best) { r.camera.position.copy(best.eye); r.controls.target.copy(best.eye).addScaledVector(best.d, 3); r.camera.lookAt(r.controls.target); r.controls.update(); }
+    return best ? { dist: +best.dist.toFixed(1), floors, eye: [best.eye.x, best.eye.y, best.eye.z].map((v) => +v.toFixed(1)) } : null;
+  });
   // hold W: with collision the eye comes to rest short of a wall while the key is still down
   await page.keyboard.down('w');
   let prev = await ui.cam(page), still = 0, travelled = 0;
@@ -251,20 +285,20 @@ await tour.step('3.2 Try it (Walk mode) steps 1-8', async () => {
     prev = c;
   }
   await page.keyboard.up('w');
-  tour.known('step 7: "Hold W toward a wall. You stop short of it."', still >= 6 && travelled > 0, 'with Walk collision on the eye did not come to rest against a wall within 90 s of holding W', `moved ${travelled.toFixed(1)} m, then stood still while W was held`);
+  tour.check('step 7: "Hold W toward a wall. You stop short of it."', faced !== null && still >= 6 && travelled > 0, `${JSON.stringify(faced)}: wall ahead; moved ${travelled.toFixed(1)} m, then stood still while W was held`);
   await ui.set(page, 'Walk collision', false);
   // step 8
   await page.locator('#c').hover();
   let escs = 0;
   for (; escs < 3; ) { await page.keyboard.press('Escape'); escs++; await page.waitForTimeout(500); if (await chip.isHidden()) break; }
-  if (escs > 1) tour.known('step 8: "Press Esc" leaves Walk mode with one press', false, `Esc had to be pressed ${escs} times (focus was in a Parameters checkbox after step 7)`);
-  tour.known('step 8: "Press Esc. The chip goes away"', await chip.isHidden(), 'Walk mode was still on after three Esc presses with focus in a Parameters checkbox');
+  tour.check('step 8: "Press Esc" leaves Walk mode with one press', escs === 1, `Esc had to be pressed ${escs} times`);
+  tour.check('step 8: "Press Esc. The chip goes away"', await chip.isHidden(), 'Walk mode was still on after three Esc presses');
   const o0 = await ui.cam(page);
   const box2 = await page.locator('#c').boundingBox();
   await page.mouse.move(box2.x + 600, box2.y + 400); await page.mouse.down(); await page.mouse.move(box2.x + 700, box2.y + 400, { steps: 5 }); await page.mouse.up();
   await ui.waitStill(page, 8000);
   const o1 = await ui.cam(page);
-  tour.known('step 8: "the mouse orbits again, around a point a short way in front of you"', Math.hypot(...o1.p.map((v, i) => v - o0.p[i])) > 0.02 && o0.d < 30, 'follows the Esc problem above', `pivot distance ${o0.d.toFixed(1)} m`);
+  tour.check('step 8: "the mouse orbits again, around a point a short way in front of you"', Math.hypot(...o1.p.map((v, i) => v - o0.p[i])) > 0.02 && o0.d < 30, `pivot distance ${o0.d.toFixed(1)} m`);
 });
 
 await tour.step('3.3 Try it: hover a wall, click it, read the Properties tab', async () => {
@@ -295,6 +329,8 @@ await tour.step('3.3 Try it: hover a wall, click it, read the Properties tab', a
 
 await tour.step('3.4 Try it: orbit, select a wall, change a slider, then Ctrl+Z three times', async () => {
   const page = await tour.open('model=fzk-haus');
+  // the pages of the earlier steps are not needed: each one keeps drawing and slows every frame of this one (the undo list reads the frames)
+  for (const c of page.context().browser().contexts()) if (c !== page.context()) await c.close().catch(() => {});
   const unfocus = () => page.evaluate(() => document.activeElement?.blur?.());
   const box = await page.locator('#c').boundingBox();
   await page.mouse.move(box.x + 700, box.y + 450); await page.mouse.down(); await page.mouse.move(box.x + 820, box.y + 470, { steps: 6 }); await page.mouse.up();
@@ -306,6 +342,10 @@ await tour.step('3.4 Try it: orbit, select a wall, change a slider, then Ctrl+Z 
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.folder(page, 'Display');
   const v0 = Number(await ui.valueOf(page, 'edgeAlpha'));
+  // the orbit damping of the first drag runs per frame, so with the slow headless frames it drifts on for a long time; a camera step
+  // that lands between the slider steps would split the drag, so wait until the camera is still
+  await ui.waitStill(page, 120000);
+  await page.waitForTimeout(2500);
   await ui.dragSlider(page, 'edgeAlpha', -60);
   await unfocus();
   await page.waitForTimeout(1200);
@@ -317,7 +357,7 @@ await tour.step('3.4 Try it: orbit, select a wall, change a slider, then Ctrl+Z 
   let n1 = 0, v2 = v1;
   while (n1 < 15 && Math.abs(v2 - v0) >= 0.011) { await page.keyboard.press('Control+z'); n1++; await page.waitForTimeout(1500); v2 = Number(await ui.valueOf(page, 'edgeAlpha')); }
   tour.check('Ctrl+Z: the slider goes back', Math.abs(v2 - v0) < 0.011, `${v0} -> ${v1} -> ${v2} after ${n1} presses`);
-  tour.known('"A slider drag is one step": one Ctrl+Z undoes the whole drag', n1 === 1, `a slider drag took ${n1} undo steps`);
+  tour.check('"A slider drag is one step": one Ctrl+Z undoes the whole drag', n1 === 1, `a slider drag took ${n1} undo steps`);
   let n2 = 0;
   while (n2 < 5 && (await ui.selection(page)).length > 0) { await page.keyboard.press('Control+z'); n2++; await page.waitForTimeout(1500); }
   tour.known('Ctrl+Z: the selection goes back', (await ui.selection(page)).length === 0, 'the selection was still there after 5 more Ctrl+Z presses (more undo steps than the three the manual shows sit above it)', `after ${n2} more presses`);

@@ -100,7 +100,9 @@ const EASE_MS = 240;
 let pointerHeld = false;
 if (typeof window !== 'undefined') {
   window.addEventListener('pointerdown', () => { pointerHeld = true; }, true);
-  for (const ev of ['pointerup', 'pointercancel', 'blur'] as const) window.addEventListener(ev, () => { pointerHeld = false; }, true);
+  // 'blur' also reaches a capture listener from every element that loses the focus (a slider takes and gives it while it is dragged):
+  // only the window itself losing the focus lets go.
+  for (const ev of ['pointerup', 'pointercancel', 'blur'] as const) window.addEventListener(ev, (e) => { if (ev === 'blur' && e.target !== window) return; pointerHeld = false; }, true);
 }
 
 const stack = new UndoStack<Entry>({
