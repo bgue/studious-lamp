@@ -183,10 +183,14 @@ try {
   check('f frames the selection while the tree has focus', dist(before, framed) > 0.05, `moved ${dist(before, framed).toFixed(2)}`);
   fi = await focusInfo(page);
   check('focus stays in the tree after f', fi.role === 'tree');
+  const kept = await page.evaluate('[...window.__xray.app.selection]');
   await page.keyboard.press('h');
   check('h hides the selection while the tree has focus', (await page.evaluate('window.__xray.app.controller.settings.overrides.userHides.size')) === 1);
+  check('h also clears the selection', (await sel(page)) === 0);
   await page.keyboard.press('Alt+h');
   check('Alt+h unhides', (await page.evaluate('window.__xray.app.controller.settings.overrides.userHides.size')) === 0);
+  await page.evaluate((ids) => window.__xray.app.selectIds(ids), kept); // select again for the Escape checks below
+  await settle(page); // let the fly-to of the new selection finish
   await page.keyboard.press('x');
   await page.keyboard.press('x');
 

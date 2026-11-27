@@ -520,11 +520,15 @@ try {
 
   // Hide and unhide.
   check('duct is selected', (await sel()) === 1);
+  const kept = await page.evaluate('[...window.__xray.app.selection]');
   await page.keyboard.press('h');
   const h1 = await hides();
+  check('h also clears the selection (hidden elements leave it)', (await sel()) === 0);
   await page.keyboard.press('Alt+h');
   const h2 = await hides();
   check('h hides the selection and Alt+h restores', h1 === 1 && h2 === 0, `hidden ${h1} then ${h2}`);
+  await page.evaluate((ids) => window.__xray.app.selectIds(ids), kept); // select the duct again for the checks below
+  await settle(); // let the fly-to of the new selection finish
 
   // Tab / PageUp do not throw; Tab keeps the selection.
   await page.keyboard.press('Tab');

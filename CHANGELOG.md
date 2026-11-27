@@ -3,7 +3,7 @@
 What changed in the X-ray viewer, newest first. One section per release; the number is the viewer download number
 (`tools/viewer-release.txt`). The viewer shows the newest section once, the first time you open a new version.
 
-## Unreleased
+## v33 - 2026-11-27
 
 - The 4D film has a colour legend (the trades of the film and what active, built, removed, critical and behind or ahead look like)
   and a schedule strip along the bottom (bars by trade, critical work marked, milestones, a marker for the date). Both are in

@@ -4574,6 +4574,24 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Choose the default to start. Choose the base size when answers are weak. Choose the last entry to type any id.',
     'Report: Limitations and extensions, classification',
   ),
+  'Classify drawer/Decision mode': h(
+    'The list chooses how the decision model picks a code. NLI lets a zero-shot model read each option as a sentence. Embed compares the part with a short description of each code.',
+    'Embed is about as fast and finds the sub-discipline more often on the test set. Its download is larger.',
+    'Keep NLI to start. Choose Embed when the sub-discipline answers are weak.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Decision embedding model': h(
+    'The list chooses the embedding model that Embed mode uses. The text under the list gives its download size.',
+    'The first choice gives the best answers on the test set. The others are smaller and much faster but less accurate.',
+    'Choose EmbeddingGemma for quality. Choose Bekko on a slow machine.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Decision embedding temperature': h(
+    'The number sets how sharply Embed mode turns similarities into confidences. A lower number gives more confident answers.',
+    'Confidence decides what goes to review. Too low a number sends fewer parts to review; too high a number sends more.',
+    'Keep the default. Raise it when too few uncertain parts reach the review walk.',
+    'Report: Limitations and extensions, classification',
+  ),
   'Classify drawer/Hugging Face model id': h(
     'The box holds the id of a model on Hugging Face, written as owner and name. The viewer checks the id before it downloads anything.',
     'A wrong id gives a plain message at once. A right id downloads the files the first time and reuses them later.',
