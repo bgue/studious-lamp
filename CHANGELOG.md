@@ -3,7 +3,7 @@
 What changed in the X-ray viewer, newest first. One section per release; the number is the viewer download number
 (`tools/viewer-release.txt`). The viewer shows the newest section once, the first time you open a new version.
 
-## v33 - 2026-11-27
+## Unreleased
 
 - Classification review walk: a **Review zoom** setting (Close, With surroundings as the default, Room, Storey; `Z` cycles it, `F` frames the
   current item again) keeps a small fitting in view with what it is fixed to. The card numbers the top candidates and `1` to `9` take one
@@ -14,6 +14,9 @@ What changed in the X-ray viewer, newest first. One section per release; the num
   `xray-classification-review/1`, with an optional `facetChanges` list and a `via` field) and make the facet result source `human`.
 - **Export manifest...** next to Export review log saves `xray-classification-manifest/1` (JSON, or a Markdown summary): counts by source,
   code and confidence, review actions, a from-to table of corrections. A list of human corrections and the reviewer names are opt-in boxes.
+
+## v33 - 2026-11-27
+
 - The 4D film has a colour legend (the trades of the film and what active, built, removed, critical and behind or ahead look like)
   and a schedule strip along the bottom (bars by trade, critical work marked, milestones, a marker for the date). Both are in
   the video and the packed page, and each has a switch in the Film step and an `xray-4d --legend` / `--strip` option.
