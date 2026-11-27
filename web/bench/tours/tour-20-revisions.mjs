@@ -84,7 +84,7 @@ await tour.step('20.1 Try it steps 1-4: version 1 classified and reviewed, versi
   await page.keyboard.type('Revision');
   await page.waitForTimeout(800);
   const ptxt = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-  tour.check('"The command palette has the same actions: Revision: review changes (walk), Revision: compare with an earlier model..., Revision: export the report"', /Revision: review changes/.test(ptxt) && /Revision: compare/.test(ptxt) && (await (async () => { await page.keyboard.press('Control+A'); await page.keyboard.type('Revision: export'); await page.waitForTimeout(800); return /Revision: export the report/.test((await page.locator('body').innerText()).replace(/\s+/g, ' ')); })()), ptxt.match(/Revision: [^ ]+( [^ ]+){0,6}/g)?.slice(0, 4).join(' | '));
+  tour.check('"The command palette has the same actions: Revision: review changes (walk), Revision: compare with an earlier model... (and, once a walk is open, Revision: export the report)"', /Revision: review changes/.test(ptxt) && /Revision: compare/.test(ptxt), ptxt.match(/Revision: [^ ]+( [^ ]+){0,6}/g)?.slice(0, 4).join(' | '));
   tour.check('"(key Shift+V)": the list shows Shift+V for the walk', /Shift\+V/i.test(ptxt), '');
   await page.keyboard.press('Escape');
   await page.locator('#c').click({ position: { x: 5, y: 5 } }).catch(() => {});
@@ -235,6 +235,11 @@ await tour.step('20.3 Try it steps 1-4: reload, open version 2 again, Resume, Re
   const rows = rep.csv.trim().split(/\r?\n/);
   tour.check('"one row per changed element with the verdict, the classification used, who decided and when"', rows.length - 1 === back.session.progress.total && /verdict|status/i.test(rows[0]) && /decided|by|who|reviewer/i.test(rows[0]), rows[0].slice(0, 200));
   tour.check('"The report holds reviewer names, as the review log does" (so check who will read it)', true);
+  await page.locator('#xray-topbar-search input').first().click();
+  await page.keyboard.type('Revision: export');
+  await page.waitForTimeout(800);
+  tour.check('"Revision: export the report" is in the palette while a walk is open', /Revision: export the report/.test((await page.locator('body').innerText()).replace(/\s+/g, ' ')));
+  await page.keyboard.press('Escape');
   const snaps = await page.evaluate(() => window.__xrayRevision.snapshots());
   tour.check('"Only three snapshots per file name are kept"', snaps.length <= 3, `${snaps.length}`);
   const dbs = await page.evaluate(async () => (indexedDB.databases ? (await indexedDB.databases()).map((d) => d.name) : []));

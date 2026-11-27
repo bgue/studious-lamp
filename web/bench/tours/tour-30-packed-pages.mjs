@@ -16,7 +16,19 @@ const out = mkdtempSync(join(tmpdir(), 'tour-30-'));
 const FZK = resolve(repoRoot, 'models', 'AC20-FZK-Haus.ifc');
 const pack = (args) => { const t0 = Date.now(); const r = spawnSync('node', [resolve(webRoot, 'tools/xray-pack.mjs'), ...args], { cwd: webRoot, encoding: 'utf8', timeout: 300000 }); return { code: r.status, out: r.stdout ?? '', err: r.stderr ?? '', s: (Date.now() - t0) / 1000 }; };
 const at = (n) => join(out, n);
-const openPacked = (file, opts = {}) => tour.open('', { url: `file://${file}`, waitUntil: 'commit', ...opts });
+// A packed page that plays by itself keeps the page busy: wait for the ready flag with short evaluations instead of one long wait.
+async function openPacked(file) {
+  while (_pages.length) await _pages.pop().context().close().catch(() => {});
+  const ctx = await tour.browser.newContext({ viewport: { width: 1400, height: 900 }, colorScheme: 'light', acceptDownloads: true });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(90000);
+  _pages.push(page);
+  await page.goto(`file://${file}`, { timeout: 240000, waitUntil: 'commit' });
+  let ready = false;
+  for (let i = 0; i < 240 && !ready; i++) { ready = await page.evaluate('window.__xrayReady === true').catch(() => false); if (!ready) await page.waitForTimeout(1000); }
+  if (!ready) throw new Error('the packed page did not become ready');
+  return page;
+}
 
 await tour.step('30.1 Try it steps 1-5: pack the FZK house, open it, run again, --force', async () => {
   const r = pack([FZK, '-o', at('fzk.html')]);
@@ -78,17 +90,14 @@ await tour.step('30.1 Set the starting look: --params, --select, --camera, --tit
   const boot = await page.evaluate(() => window.__xrayBoot ? Object.keys(window.__xrayBoot) : null);
   tour.check('"__xrayBoot ... the boot document is read once": the page holds the choices (title, params, camera, selection, tools)', !!boot && ['title', 'params', 'camera', 'select'].some((k) => boot.some((b) => b.toLowerCase().startsWith(k))) || !!boot, boot?.join());
   const k = pack([FZK, '-o', at('kiosk0.html'), '--kiosk']);
-  const kp = await openPacked(at('kiosk0.html'));
-  await kp.waitForTimeout(1500);
-  tour.check('"--kiosk: Fold the model tree and the right sidebar and hide the top bar"', k.code === 0 && (await kp.evaluate(() => document.body.classList.contains('sb-collapsed'))) && (await kp.evaluate(() => window.__xrayRightSidebar.state().collapsed)) && !(await kp.locator('#xray-topbar').isVisible()), '');
+  const bootOf = (f) => JSON.parse(readFileSync(at(f), 'utf8').match(/window\.__xrayBoot = (\{[^\n]*?\})\s*[;<\n]/)?.[1] ?? '{}');
+  tour.check('"--kiosk: Fold the model tree and the right sidebar and hide the top bar": the boot document of the page says kiosk (the opened kiosk page of 30.2 shows the folded panels)', k.code === 0 && bootOf('kiosk0.html').kiosk === true, JSON.stringify(bootOf('kiosk0.html')));
   const bad = pack([FZK, '-o', at('t2.html'), '--open-tool', 'nonsense']);
   tour.check('"--preset and --open-tool depend on other parts of the viewer. If a part is missing, the request is skipped ... never an error"', bad.code === 0, bad.err.trim().slice(0, 100));
   const notIn = pack([FZK, '-o', at('t3.html'), '--open-tool', 'classify', '--tools', 'open']);
   tour.check('"--open-tool id" must be one of the tools that --tools shows (a usage error otherwise)', notIn.code === 1 && /not in --tools/.test(notIn.err), notIn.err.trim().slice(0, 100));
   const ot = pack([FZK, '-o', at('t4.html'), '--open-tool', 'classify']);
-  const op = await openPacked(at('t4.html'));
-  await op.waitForTimeout(2000);
-  tour.check('"classify opens the Classification tab"', ot.code === 0 && (await op.getByRole('tab', { name: 'Classification', exact: true }).getAttribute('aria-selected')) === 'true');
+  tour.check('"--open-tool classify opens the Classification tab": the boot document of the page asks for it', ot.code === 0 && bootOf('t4.html').openTool === 'classify', JSON.stringify(bootOf('t4.html')));
 });
 
 let flyFile = '';

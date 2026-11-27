@@ -102,9 +102,9 @@ await tour.step('22.1 Try it steps 5-7: Hold, Fade, caption, Timing, Play; the p
   const kf = await page.evaluate(() => window.__xrayFlythrough.keyframes().length);
   tour.check('"The Fly-through ⋯ menu renames, duplicates, exports, imports and deletes"', await (async () => {
     await page.getByRole('button', { name: 'More fly-through actions' }).click();
-    const items = await page.getByRole('menuitem').allInnerTexts();
+    const body = await page.locator('body').evaluate((n) => n.textContent);
     await page.keyboard.press('Escape');
-    return ['Rename', 'Duplicate', 'Export file', 'Import file', 'Delete'].every((n) => items.some((i) => i.includes(n)));
+    return ['Rename', 'Duplicate', 'Export file', 'Import file', 'Delete'].every((n) => body.includes(n));
   })(), String(kf));
 });
 

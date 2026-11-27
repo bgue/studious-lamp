@@ -179,6 +179,9 @@ await tour.step('26.1 Activities with nothing in the model: Not modelled, Mark a
   tour.check('"Back to list undoes the mark"', (await page.evaluate(() => Object.values(window.__xray4dSchedule.config().activities ?? {}).filter((a) => a.notModelled).length)) === 0);
   await gaps.locator('button', { hasText: /^Mark all not modelled$/ }).evaluate((b) => b.click());
   await page.waitForTimeout(600);
+  const left = await gaps.locator('button', { hasText: /^Not modelled$/ }).count();
+  tour.check('"The bulk button leaves out activities that have a suggestion": one activity with a suggestion is left in the list', left === 1, `${left} left`);
+  if (left) { await gaps.locator('button', { hasText: /^Not modelled$/ }).first().evaluate((b) => b.click()); await page.waitForTimeout(600); }
   const r2 = await rep(page);
   const nm = await page.evaluate(() => Object.values(window.__xray4dSchedule.config().activities ?? {}).filter((a) => a.notModelled).length);
   tour.check('"Mark all not modelled for the whole list" marks the rest (the sample has 25)', nm === 25 || nm === nGap, `${nm} marked of ${nGap} gaps`);
