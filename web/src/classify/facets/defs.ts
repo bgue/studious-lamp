@@ -41,7 +41,8 @@ export interface FacetsSchema {
 }
 
 /** Who decided a facet value. */
-export type FacetSource = 'rule' | 'model' | 'geometry' | 'ifc' | 'manual' | 'batch-learned';
+export type FacetSource = 'rule' | 'model' | 'geometry' | 'ifc' | 'manual' | 'batch-learned' | 'human';
+// `human`: a person confirmed or corrected the value in the review walk (classify/reviewService.ts); the review log holds the change.
 
 export type FacetFieldValue = string | number | boolean;
 

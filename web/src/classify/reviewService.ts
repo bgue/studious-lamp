@@ -6,8 +6,10 @@
 // now disagrees.
 
 import type { KeyValueStorage } from './cache';
-import { committedResult, createReviewPersistence, isCommittedSource, modelFingerprint, ReviewLog, REVIEW_LOG_SCHEMA, REVIEWER_STORAGE_KEY, sameState, schemaEditionOf, stateOf, UNSURE_CONFIDENCE } from './reviewLog';
-import type { ImportOutcome, ReviewAction, ReviewChange, ReviewCommit, ReviewPersistence, ReviewState } from './reviewLog';
+import { committedResult, createReviewPersistence, HUMAN_FACET_SOURCE, isCommittedSource, modelFingerprint, ReviewLog, REVIEW_LOG_SCHEMA, REVIEWER_STORAGE_KEY, sameState, schemaEditionOf, stateOf, UNSURE_CONFIDENCE } from './reviewLog';
+import type { EffectiveFacet, ImportOutcome, ReviewAction, ReviewChange, ReviewCommit, ReviewFacetChange, ReviewPersistence, ReviewState, ReviewVia } from './reviewLog';
+import type { FacetLike } from './facetWalk';
+import type { FacetRef } from './reviewWalk';
 import { makeManual } from './results';
 import type { ManualPartial } from './results';
 import type { ResultStore } from './results';
@@ -25,6 +27,18 @@ export interface ReviewHost {
   /** Write results into the model properties, and remove them for the ids (when the setting is on). */
   write(results: readonly ClassifyResult[], clearIds: readonly string[]): void;
   emit(): void;
+  /** The facet result of an element (facets and concrete sets), or undefined. Absent in a host without facets. */
+  facetResult?(globalId: string, ref: FacetRef): FacetLike | undefined;
+  /** The code list of a facet, or null when it has none (the measured concrete sets). */
+  facetCodes?(ref: FacetRef): ReadonlyArray<{ code: string; label: string }> | null;
+  /** The decided facet values of the log changed: put them into the facet results (and the model properties). */
+  applyFacets?(effective: ReadonlyMap<string, EffectiveFacet>): void;
+}
+
+/** The session's review activity that the log does not hold (for the manifest): skips and undone pending items. */
+export interface ReviewActivity {
+  skipped: number;
+  undone: number;
 }
 
 export interface PendingChange extends ReviewChange {
@@ -32,9 +46,21 @@ export interface PendingChange extends ReviewChange {
   item: string;
 }
 
+export interface PendingFacetChange extends ReviewFacetChange {
+  item: string;
+}
+
 export class ReviewManager {
   log: ReviewLog | null = null;
   private pendingMap = new Map<string, PendingChange>();
+  /** Pending facet changes by `GlobalId|Facet`. */
+  private pendingFacetMap = new Map<string, PendingFacetChange>();
+  /** The item keys of the pending changes in the order they were made (the last one is what "Undo last" takes back). */
+  private pendingOrder: string[] = [];
+  /** What the log does not hold: skips and undone items of this session (counted for the manifest). */
+  readonly activity: ReviewActivity = { skipped: 0, undone: 0 };
+  /** The decided facets of the log now (key `GlobalId|Facet`). */
+  private facetEff: ReadonlyMap<string, EffectiveFacet> = new Map();
   /** The elements that the reviewer skipped in this session. Not a change: it is not committed, not in the log and not stored. */
   readonly skips = new SkipList();
   /** Resolves when the stored log of the current model is loaded and applied. */
@@ -82,7 +108,10 @@ export class ReviewManager {
   reload(): void {
     const m = this.host.model();
     this.pendingMap.clear();
+    this.pendingFacetMap.clear();
+    this.pendingOrder = [];
     this.skips.clear();
+    this.facetEff = new Map();
     const token = ++this.token;
     if (!m) {
       this.log = null;
@@ -119,6 +148,8 @@ export class ReviewManager {
         }
       }
     }
+    this.facetEff = log ? log.effectiveFacets() : new Map();
+    this.host.applyFacets?.(this.facetEff);
     store.setCommitted(next);
     const gone = [...before].filter((id) => !next.has(id));
     const back = gone.map((id) => store.get(id)).filter((r): r is ClassifyResult => !!r);
@@ -147,6 +178,29 @@ export class ReviewManager {
     return this.pendingMap.get(globalId);
   }
 
+  pendingFacets(): PendingFacetChange[] {
+    return [...this.pendingFacetMap.values()];
+  }
+  pendingFacetFor(globalId: string, facet: string): PendingFacetChange | undefined {
+    return this.pendingFacetMap.get(`${globalId}|${facet}`);
+  }
+  /** Every pending item (classification and facets): the count the Pending tab and the Commit button show. */
+  pendingCount(): number {
+    return this.pendingMap.size + this.pendingFacetMap.size;
+  }
+  /** The decided facets of the log now, by `GlobalId|Facet`. */
+  facetEffective(): ReadonlyMap<string, EffectiveFacet> {
+    return this.facetEff;
+  }
+  /** A facet of an element: its pending decision, or the committed one. */
+  facetDecision(globalId: string, facet: string): 'confirmed' | 'corrected' | null {
+    const key = `${globalId}|${facet}`;
+    const p = this.pendingFacetMap.get(key);
+    if (p) return p.action === 'correct' ? 'corrected' : 'confirmed';
+    const e = this.facetEff.get(key);
+    return e ? (e.change.action === 'correct' ? 'corrected' : 'confirmed') : null;
+  }
+
   /** The state that a result has now, or its pending state. */
   decision(globalId: string): 'confirmed' | 'corrected' | null {
     const p = this.pendingMap.get(globalId);
@@ -160,7 +214,7 @@ export class ReviewManager {
    * takes `codes`. A confirmation of an element that is committed with these codes already is left out. Throws a plain Error for a code
    * that is not in the schema.
    */
-  propose(globalIds: readonly string[], o: { action: ReviewAction; codes?: ManualPartial; item: string; comment?: string; unsure?: boolean }): PendingChange[] {
+  propose(globalIds: readonly string[], o: { action: ReviewAction; codes?: ManualPartial; item: string; comment?: string; unsure?: boolean; via?: ReviewVia }): PendingChange[] {
     const store = this.host.store();
     const schema = this.host.schema();
     const made: PendingChange[] = [];
@@ -184,24 +238,80 @@ export class ReviewManager {
         this.skips.remove([gid]);
         continue;
       }
-      const ch: PendingChange = { globalId: gid, before, after, action: after.source === 'corrected' ? 'correct' : 'confirm', item: o.item, ...(o.comment ? { comment: o.comment } : {}), ...(unsure ? { unsure: true as const } : {}) };
+      const ch: PendingChange = { globalId: gid, before, after, action: after.source === 'corrected' ? 'correct' : 'confirm', item: o.item, ...(o.comment ? { comment: o.comment } : {}), ...(unsure ? { unsure: true as const } : {}), ...(o.via && after.source === 'corrected' ? { via: o.via } : {}) };
       this.pendingMap.set(gid, ch);
       this.skips.remove([gid]); // a decision settles a skip
       made.push(ch);
     }
+    if (made.length) this.noteItem(o.item);
     this.host.emit();
     return made;
+  }
+
+  private noteItem(item: string): void {
+    this.pendingOrder = this.pendingOrder.filter((k) => k !== item);
+    this.pendingOrder.push(item);
+  }
+
+  /**
+   * Put the confirmation or correction of one facet of one element into the pending set. `confirm` keeps the code it has; `correct` takes
+   * `code`, which must be in the facet's code list. The result becomes source `human` when the change is committed. Throws a plain Error
+   * for a code that is not in the list, or for a facet that has no result. Returns null when nothing changes (the same human decision again).
+   */
+  proposeFacet(ref: FacetRef, globalId: string, o: { action: ReviewAction; code?: string; item: string; comment?: string; unsure?: boolean; via?: ReviewVia }): PendingFacetChange | null {
+    const cur = this.host.facetResult?.(globalId, ref);
+    if (!cur) throw new Error(`The element has no ${ref.id} result.`);
+    const codes = this.host.facetCodes?.(ref) ?? null;
+    let code = cur.code;
+    if (o.action === 'correct') {
+      if (!codes) throw new Error(`${ref.id} has no code list to pick from: confirm it or skip it.`);
+      const pick = o.code ?? '';
+      if (!codes.some((c) => c.code === pick)) throw new Error(`"${pick}" is not a ${ref.id} code. Use one of: ${codes.map((c) => c.code).join(', ')}.`);
+      code = pick;
+    }
+    const unsure = o.unsure === true;
+    const action: ReviewAction = code === cur.code ? 'confirm' : 'correct';
+    const key = `${globalId}|${ref.id}`;
+    if (cur.source === HUMAN_FACET_SOURCE && cur.code === code && (cur.confidence < 1) === unsure) {
+      this.pendingFacetMap.delete(key);
+      this.skips.remove([globalId]);
+      return null;
+    }
+    const ch: PendingFacetChange = {
+      globalId, facet: ref.id, item: o.item, action,
+      before: { code: cur.code, source: cur.source, confidence: cur.confidence },
+      after: { code, source: HUMAN_FACET_SOURCE, confidence: unsure ? UNSURE_CONFIDENCE : 1 },
+      ...(o.comment ? { comment: o.comment } : {}), ...(unsure ? { unsure: true as const } : {}), ...(o.via && action === 'correct' ? { via: o.via } : {}),
+    };
+    this.pendingFacetMap.set(key, ch);
+    this.skips.remove([globalId]);
+    this.noteItem(o.item);
+    this.host.emit();
+    return ch;
+  }
+
+  /** The item key that "Undo last" takes back: the newest pending item (classification or facet). */
+  lastPendingItem(): string | null {
+    return this.pendingOrder[this.pendingOrder.length - 1] ?? null;
   }
 
   /** Take back the pending changes of one walk item (or of one element). */
   undoPending(itemOrGlobalId: string): number {
     let n = 0;
     for (const [gid, p] of [...this.pendingMap]) if (p.item === itemOrGlobalId || gid === itemOrGlobalId) { this.pendingMap.delete(gid); n++; }
-    if (n) this.host.emit();
+    for (const [k, p] of [...this.pendingFacetMap]) if (p.item === itemOrGlobalId || p.globalId === itemOrGlobalId) { this.pendingFacetMap.delete(k); n++; }
+    if (n) {
+      this.pendingOrder = this.pendingOrder.filter((k) => k !== itemOrGlobalId);
+      this.activity.undone += 1;
+      this.host.emit();
+    }
     return n;
   }
   discardPending(): void {
+    if (this.pendingCount()) this.activity.undone += new Set([...this.pendingMap.values(), ...this.pendingFacetMap.values()].map((p) => p.item)).size;
     this.pendingMap.clear();
+    this.pendingFacetMap.clear();
+    this.pendingOrder = [];
     this.host.emit();
   }
 
@@ -212,9 +322,12 @@ export class ReviewManager {
     const log = this.log;
     if (!log) throw new Error('Load a model first.');
     const changes = this.pending();
-    if (changes.length === 0) throw new Error('There are no pending changes to commit.');
-    const c = log.commit({ author: this.reviewerName, note, changes: changes.map(({ item: _i, ...ch }) => ch) });
+    const facetChanges = this.pendingFacets();
+    if (changes.length === 0 && facetChanges.length === 0) throw new Error('There are no pending changes to commit.');
+    const c = log.commit({ author: this.reviewerName, note, changes: changes.map(({ item: _i, ...ch }) => ch), facetChanges: facetChanges.map(({ item: _i, ...ch }) => ch) });
     this.pendingMap.clear();
+    this.pendingFacetMap.clear();
+    this.pendingOrder = [];
     this.apply();
     void this.persist();
     return c;
