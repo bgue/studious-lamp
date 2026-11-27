@@ -151,15 +151,15 @@ The messages you will meet:
 
 | Message | What to do |
 | --- | --- |
-| `I do not know the statement "flyto"` | Write the statement with a space: `fly to ...` |
-| `A value with a space needs double quotes` | `storey = "Level 2"`, not `storey = Level 2` |
-| `The "together" on line 2 has no "end together"` | Add `end together` after the last line of the block |
-| `"end repeat" has no block to close` | One `end` too many, or a `repeat` is missing above |
-| `I do not know the name "pause"` | Give the number a name first: `put 1.5 into pause` |
-| `"it" has no meaning here` | `it` works only inside `repeat for each` |
+| ``I do not know the statement `flyto`.`` | Write the statement with a space: `fly to ...` |
+| `In the criteria: Unexpected "2": expected AND, OR or the end of the query.` | Put a value with a space in double quotes: `storey = "Level 2"`, not `storey = Level 2` |
+| ``The `together` on line 2 has no `end together`.`` | Add `end together` after the last line of the block |
+| `` `end repeat` has no block to close. `` | One `end` too many, or a `repeat` is missing above |
+| ``I do not know the name `pause`.`` | Give the number a name first: `put 1.5 into pause` |
+| `` `it` has no meaning here. `` | `it` works only inside `repeat for each` |
 | `There is no selection set named "Pmps"` | The message suggests the nearest names |
-| `I do not know the setting "..."; the player skips it` | A warning. Fix the name or leave the line |
-| `The margin 7 is outside 1 to 6` | A margin is between 1 and 6 |
+| ``I do not know the setting `...`; the player skips it if it does not either.`` | A warning. Fix the name or leave the line |
+| `The margin 7 is outside 1 to 6.` | A margin is between 1 and 6 |
 | `The script makes more than 5000 steps.` | Use fewer or smaller loops, or split the script |
 
 ### Choices and settings

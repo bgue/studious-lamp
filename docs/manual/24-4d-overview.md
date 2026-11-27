@@ -98,7 +98,7 @@ starts on 1 March 2027.
 6. Press **Play** again and watch for four things the sample is set up to show. Scaffold goes up along the outer walls before the masonry,
    and comes down after the facade. Props stand under the first-floor slab and formwork around the ground slab (27A.1). The ground floor and the
    roof storey are built **apart**: the storeys move away from each other around the floor being built (27.3). At the end the camera
-   dollies in and orbits the finished house, and a caption says "Complete".
+   dollies in and orbits the finished house, and a caption says "Handover".
 
 > Picture (4d-midfilm): the FZK-Haus 4D sample mid-film: half-built walls, the date and week top left, the S-curve top right.
 

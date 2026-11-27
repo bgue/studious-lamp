@@ -24,7 +24,7 @@ else
 end if
 ```
 
-Press **Run**. The caption names the number of pumps. Change `IfcPump` to `IfcDoor` and Run again: the `else` line plays.
+Press **Run**. The caption names the number of pumps. Change `IfcPump` to `IfcDuctSegment` (the plant has none) and Run again: the `else` line plays.
 
 Now count and wait:
 

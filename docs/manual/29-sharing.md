@@ -110,7 +110,7 @@ and everyone else only opens it.
 | --- | --- | --- |
 | All settings | **Export / import** folder, **Export JSON** | `xray-params/1` |
 | Views | **Views** tab, **Export** | `xray-views/1` |
-| Fly-throughs | **Views** tab, fly-through section, **Export file** | `xray-flythroughs/1` |
+| Fly-throughs | **Views** tab, fly-through section, **⋯** menu, **Export file** | `xray-flythroughs/1` |
 | Animation scripts | **Script** tab, **Export** | `.xrayanim` text |
 | Presets | **Presets** folder, **Export presets** | `xray-presets/1` |
 | Sets | **Sets** tab, **Export** | `xray-sets/1` |

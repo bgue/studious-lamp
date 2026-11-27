@@ -28,7 +28,7 @@ supported way to drive the viewer from the outside.
 Open the viewer, choose the **FZK-Haus 4D** sample, then open the browser's developer console.
 
 1. Check the tab is there: `window.__xray4dSchedule.summary()` returns the project, data date and counts.
-2. Read the links: `window.__xray4dSchedule.links().length` gives the number of links; `window.__xray4dSchedule.report()`
+2. Read the links: `window.__xray4dSchedule.links().links.length` gives the number of links; `window.__xray4dSchedule.report()`
    gives the coverage.
 3. Find out which tools are in the strip: `window.__xrayToolbar.tools()`.
 4. Open the 4D tab on the Play section: `window.__xray4dSchedule.open('play')`, then `window.__xray4dSchedule.play()`.
@@ -57,7 +57,7 @@ one, because saved data is restored asynchronously.
 | `__xray4dSchedule` | 4D workflow: `load`, `summary`, `config`, `link`, `links`, `report`, `decide`, `exportLinks`, `importLinks`, `plan`, `play`, `stop`, `seekDate`, `record`, `open`, `loadSample` |
 | `__xray4d`, `__xray4dFilm` | 4D playback: `registerPlan`, `demoPlan`, `play`, `state`, `live`, `bench`; the film builder that `xray-4d render` calls |
 | `__xrayBoot` | read once at start by a packed page: model, preset, params, camera, selection, tools, autoplay |
-| `__xrayReady`, `__xrayError`, `__xrayInfo` | flags a test waits on: `__xrayReady` is true after the first frame, `__xrayError` holds a start-up error |
+| `__xrayReady`, `__xrayError` | flags a test waits on: `__xrayReady` is true after the first frame, `__xrayError` holds a start-up error (it exists only after a failed start) |
 
 The table follows the source (`window.__xray…` assignments in `web/src/plugins` and `web/src/anim`). Each plugin file lists the
 methods of its object in the comment at its top. In a running viewer, `Object.keys(window).filter(k => k.startsWith('__xray'))`

@@ -42,10 +42,10 @@ On the **FZK-Haus** sample (not the 4D one, so you start clean):
 4. To take the sure ones at once, use **Accept all above** and pick a confidence, for example 0.85.
 5. Open **Coverage**. For each attribute you see how many elements have a value, have none, and have a proposal. Press
    **Select without** to select the elements that still have no accepted value, so you can see what is left.
-6. Press **Colour** and pick location, trade or zone. Elements are tinted by value; grey ones have none. The colouring is
+6. In **Coverage**, open the **Colour** list and pick **By location**, **By trade** or **By zone**. Elements are tinted by value; grey ones have none. The colouring is
    temporary: it goes away when you leave the tab and comes back when you return.
 
-> Picture (4d-coverage): the 4D tab on Coverage, the house tinted by trade, grey elements still unassigned.
+> Picture (4d-coverage): the 4D tab on Coverage, the house tinted by trade, with the colour legend and the counts of elements with and without a value (the zone is still empty).
 
 ### Assign by hand
 

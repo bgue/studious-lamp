@@ -201,7 +201,8 @@ An activity with no linked element in the file gets no task. IFC2X3 has no `IfcT
 the IFC copy, and writes the other outputs. Use IFC4 or IFC4X3.
 
 Reading back is automatic. `link` reads the model's own task assignments and treats them as native links with confidence 1.
-A file written by `--write-ifc` links natively again, with no configuration.
+A file written by `--write-ifc` links natively again, with no configuration of its own: `link` still needs a `--config` file, but one with empty
+`schedule` and `model` sections (`{"schema":"xray-4d-config/1","schedule":{},"model":{}}`) is enough.
 
 ## 32.5 Limits and gotchas
 

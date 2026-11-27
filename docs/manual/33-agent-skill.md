@@ -96,8 +96,8 @@ Open your agent in the repository folder.
 - Activities are keyed by P6 Activity ID, elements by GlobalId, never by name alone.
 - Only accepted links are written into the IFC, counted in the XER fields, or used by animations.
 - Never write `reviewed_by`. It is personal data.
-- Every output is a new file. Running again gives the same file: the `Xray 4D` schedule and the `4D` fields are replaced, not
-  duplicated, and nothing else is touched.
+- Every output is a new file. Running again replaces the `Xray 4D` schedule and the `4D` fields, and does not duplicate them. The XER copy comes
+  out byte for byte the same; the IFC copy differs only in its time stamps. Nothing else is touched.
 - IFC2X3 has no `IfcTaskTime`. Tasks and assignments are written, dates are not, and the report says so.
 - P6 can link one pair of activities twice (SS and FF). IFC keeps one sequence per pair. The first stays; the other is reported.
 
