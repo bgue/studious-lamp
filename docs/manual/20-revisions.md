@@ -94,7 +94,8 @@ to decide yet (skip). Alike changes are grouped: 40 columns that all moved 8 mm 
 
 Accepting creates an ordinary pending change of the review log from chapter 18, so commit, undo, revert and export all work the
 same way. **Commit** writes one commit, carries the earlier decisions of accepted matches, moves the issues and drawings of those
-matches to the new GlobalId, and applies your choice for the attachments of deleted elements:
+matches to the new GlobalId, and applies your choice for the attachments of deleted elements. The choice is on the card of a
+deleted element that has issues or drawings attached (not on the Commit panel), and it is one of:
 
 - **Keep, flagged** (default): a comment `element deleted in <model>` is added.
 - **Re-attach to the selected element.**

@@ -61,7 +61,7 @@ await tour.step('20.1 The snapshot the viewer stores by itself is enough for the
   await waitWalk(pa);
   const sa = await rev(pa);
   const exp = { new: 3, deleted: 4, changed: 14, rematched: 6 };
-  tour.known('"The viewer keeps a small snapshot in this browser after each classify run and each commit": the counts from that snapshot alone equal the truth file', ['new', 'deleted', 'changed', 'rematched'].every((k) => sa.session.counts[k] === exp[k]), 'with only the snapshot the viewer stores by itself, every matched element counts as changed (72 changed, 0 unchanged); after a forced snapshot the counts equal the truth file', JSON.stringify(sa.session.counts));
+  tour.check('"The viewer keeps a small snapshot in this browser after each classify run and each commit": the counts from that snapshot alone equal the truth file', ['new', 'deleted', 'changed', 'rematched'].every((k) => sa.session.counts[k] === exp[k]), JSON.stringify(sa.session.counts));
 });
 
 let ctxPage = null;
@@ -93,8 +93,8 @@ await tour.step('20.1 Try it steps 1-4: version 1 classified and reviewed, versi
   await waitWalk(page);
   const s = await rev(page);
   const exp = { new: 3, deleted: 4, changed: 14, rematched: 6 };
-  tour.known('"a few elements moved, one turned, 4 deleted, 3 added, and 6 given new GlobalIds": the counts equal the truth file', ['new', 'deleted', 'changed', 'rematched'].every((k) => s.session.counts[k] === exp[k]), 'every matched element is counted as changed (72 changed, 0 unchanged); bench/smoke-ifc-save-revision.mjs fails on the same check in this checkout', JSON.stringify(s.session.counts));
-  tour.known('"Unchanged elements keep your earlier decisions": the committed decisions of unchanged elements are in the new model',  (await page.evaluate(() => window.__xrayClassify.results().filter((r) => r.source === 'confirmed' || r.source === 'corrected').length)) >= 3, 'follows from the counts above: no element is unchanged, so no decision is carried (the smoke shows 0 commits carried)');
+  tour.check('"a few elements moved, one turned, 4 deleted, 3 added, and 6 given new GlobalIds": the counts equal the truth file', ['new', 'deleted', 'changed', 'rematched'].every((k) => s.session.counts[k] === exp[k]), JSON.stringify(s.session.counts));
+  tour.check('"Unchanged elements keep your earlier decisions": the committed decisions of unchanged elements are in the new model', (await page.evaluate(() => window.__xrayClassify.results().filter((r) => r.source === 'confirmed' || r.source === 'corrected').length)) >= 3);
   tour.check('"Review changes" opens the walk: the Revision tab exists in the right sidebar', (await page.getByRole('tab', { name: 'Revision', exact: true }).count()) === 1 || (await page.locator('[data-testid=revision-walk]').count()) === 1);
 });
 
@@ -138,6 +138,11 @@ await tour.step('20.2 Try it steps 4-6: Enter, R, N, Y; ? and Raise issue; B bul
   await page.waitForTimeout(800);
   const iss = await page.evaluate(() => { const t = window.__xrayIssues.controller.topics; return { n: t.length, sel: t[0]?.viewpoints[0]?.data?.selection?.length ?? 0 }; });
   tour.check('"Raise issue does, with the element GlobalIds as the components of the issue (chapter 15)"', iss.n === 1 && iss.sel >= 1, JSON.stringify(iss));
+  // the attachment choice is on the card of a deleted element that has an issue (the one just raised), not on the Commit panel
+  const choice = page.locator('[data-testid=revision-walk] [data-role=attach-choice]');
+  await choice.waitFor({ timeout: 10000 }).catch(() => {});
+  const choiceText = (await choice.innerText().catch(() => '')).replace(/\s+/g, ' ');
+  tour.check('"applies your choice for the attachments of deleted elements: Keep, flagged (default), Re-attach to the selected element, Resolve issues": on the card of a deleted element with an issue', /Keep, flagged/.test(choiceText) && /Re-attach to the selected element/.test(choiceText) && /Resolve issues/.test(choiceText) && (await choice.locator('input[value=keep]').isChecked().catch(() => false)), choiceText);
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(300);
   const before = (await walk(page)).progress;
@@ -190,8 +195,6 @@ await tour.step('20.2 Try it steps 4-6: Enter, R, N, Y; ? and Raise issue; B bul
   if (await page.locator('[data-act=foot-toggle]').count() && /Commit \(/.test(await page.locator('[data-act=foot-toggle]').innerText())) await page.locator('[data-act=foot-toggle]').click();
   const commitBtn = page.locator('[data-act=commit]');
   tour.check('step 6: the Commit button names the number of decisions', /Commit \d+ decisions?/.test(await commitBtn.innerText()), await commitBtn.innerText());
-  const attach = (await page.locator('[data-testid=revision-walk]').innerText()).replace(/\s+/g, ' ');
-  tour.known('"applies your choice for the attachments of deleted elements: Keep, flagged (default), Re-attach to the selected element, Resolve issues"', /Keep, flagged/.test(attach) && /Re-attach to the selected element/.test(attach) && /Resolve issues/.test(attach), 'the three choices are not on the Commit panel after the walk (one deleted element had an issue attached)', attach.slice(0, 200));
   await commitBtn.click();
   await page.waitForTimeout(1500);
   const hist = await page.evaluate(() => window.__xrayClassify.review.history().length);

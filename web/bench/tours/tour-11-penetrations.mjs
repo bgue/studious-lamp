@@ -37,6 +37,7 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   await page.locator('.xt-table thead th', { hasText: '#' }).first().click();
   // filters
   const nAll = await rowsOf(page).count();
+  const totalAll = await page.evaluate(() => window.__xrayPenetrations.summary.total); // the table shows at most 500 rows of them
   const storeyChip = page.locator('.xt-chip', { hasText: /^Level 1$/ });
   await storeyChip.click();
   await page.waitForTimeout(400);
@@ -89,11 +90,11 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   const scopeSel = page.locator('select').filter({ has: page.locator('option', { hasText: 'focus only' }) }).first();
   const okScope = await scopeSel.selectOption({ label: 'focus only' }, { timeout: 8000 }).then(() => true).catch(() => false);
   await ui.clearSelection(page);
-  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).click({ timeout: 20000, force: true }).then(() => true).catch(() => false);
-  tour.known('"Analyse runs it again, for example after you changed the scope"', okScope && okAn, 'the scope list or the Analyse button of the drawer could not be used', `scope ${okScope}, analyse ${okAn}`);
+  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).first().click({ timeout: 20000, force: true }).then(() => true).catch(() => false);
+  tour.check('\"Analyse runs it again, for example after you changed the scope\"', okScope && okAn, `scope ${okScope}, analyse ${okAn}`);
   await page.waitForTimeout(3000);
   const sumFocus = await page.evaluate(() => window.__xrayPenetrations.summary.total);
-  tour.check('"scope: focus only (the current focus)" re-analyses with fewer or no rows', sumFocus <= nAll, `${nAll} -> ${sumFocus}`);
+  tour.check('"scope: focus only (the current focus)" re-analyses with fewer or no rows', sumFocus <= totalAll, `${totalAll} -> ${sumFocus}`);
 });
 
 await tour.step('11.1 Models without opening data read unknown (Building)', async () => {
