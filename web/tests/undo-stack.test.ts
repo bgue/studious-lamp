@@ -80,6 +80,17 @@ describe('UndoStack', () => {
     expect(s.size).toBe(2);
   });
 
+  it('widens the coalesce window by the slack (slow frames spread the steps of a drag out)', () => {
+    let slack = 1500;
+    const s = new UndoStack<E>({ coalesceMs: 500, merge, slackMs: () => slack });
+    s.push(e('opacity', 0, { key: 'o', before: 1, after: 2 }));
+    s.push(e('opacity', 1800, { key: 'o', before: 2, after: 3 }));
+    expect(s.size).toBe(1);
+    slack = 0;
+    s.push(e('opacity', 3600, { key: 'o', before: 3, after: 4 }));
+    expect(s.size).toBe(2);
+  });
+
   it('drops a merged entry that came back to where it started', () => {
     const s = new UndoStack<E>({ coalesceMs: 500, merge });
     s.push(e('x', 0, { key: 'k', before: 1, after: 2 }));

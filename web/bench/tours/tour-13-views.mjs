@@ -48,7 +48,7 @@ await tour.step('13.2 Try it: save, restore, rename, reorder', async () => {
   await ui.waitMoved(page, c1, 12000).catch(() => {});
   const c2 = await ui.cam(page);
   const sel2 = await ui.selection(page);
-  tour.check('step 6: \"The camera turns back over about 0.4 s\"', Math.hypot(...c2.p.map((v, i) => v - c0.p[i])) < 0.5, `distance from saved ${Math.hypot(...c2.p.map((v, i) => v - c0.p[i])).toFixed(2)} m, started ${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(2)} m away`);
+  tour.check('step 6: "The camera turns back over about 0.4 s"', Math.hypot(...c2.p.map((v, i) => v - c0.p[i])) < 0.5, `distance from saved ${Math.hypot(...c2.p.map((v, i) => v - c0.p[i])).toFixed(2)} m, started ${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(2)} m away`);
   tour.check('step 6: "the hidden wall returns"', (await userHides(page)) === 0, String(await userHides(page)));
   tour.check('step 6: "and the window is selected again"', sel2.length === 1 && sel2[0].cls === 'IfcWindow' && doorSel[0]?.cls === 'IfcDoor', JSON.stringify(sel2));
   tour.check('step 6: "The row is marked as the last view you restored"', await r1.evaluate((r) => r.classList.contains('active')));

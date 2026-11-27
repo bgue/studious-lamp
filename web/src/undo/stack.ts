@@ -28,6 +28,8 @@ export interface UndoStackOptions<T extends UndoEntry> {
   merge?: (prev: T, next: T) => T | null;
   /** While this returns true (a pointer button is held), same-key entries merge however far apart they are. */
   holding?: () => boolean;
+  /** Extra milliseconds on the coalesce window: the entries of a drag are only as often as the frames (slow frames spread them out). */
+  slackMs?: () => number;
 }
 
 export const DEFAULT_CAP = 100;
@@ -43,12 +45,14 @@ export class UndoStack<T extends UndoEntry> {
   readonly coalesceMs: number;
   private readonly mergeFn: ((prev: T, next: T) => T | null) | undefined;
   private readonly holding: (() => boolean) | undefined;
+  private readonly slackMs: (() => number) | undefined;
 
   constructor(opts: UndoStackOptions<T> = {}) {
     this.cap = Math.max(1, Math.floor(opts.cap ?? DEFAULT_CAP));
     this.coalesceMs = opts.coalesceMs ?? DEFAULT_COALESCE_MS;
     this.mergeFn = opts.merge;
     this.holding = opts.holding;
+    this.slackMs = opts.slackMs;
   }
 
   get canUndo(): boolean {
@@ -97,7 +101,7 @@ export class UndoStack<T extends UndoEntry> {
   push(entry: T): boolean {
     if (this.applying || this.mutedCount > 0) return false;
     const last = this.undoList[this.undoList.length - 1];
-    if (last && entry.key !== undefined && last.key === entry.key && this.mergeFn && (entry.at - last.at <= this.coalesceMs || this.holding?.() === true)) {
+    if (last && entry.key !== undefined && last.key === entry.key && this.mergeFn && (entry.at - last.at <= this.coalesceMs + (this.slackMs?.() ?? 0) || this.holding?.() === true)) {
       const merged = this.mergeFn(last, entry);
       this.redoList = [];
       if (merged === null) this.undoList.pop();

@@ -90,8 +90,9 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   const scopeSel = page.locator('select').filter({ has: page.locator('option', { hasText: 'focus only' }) }).first();
   const okScope = await scopeSel.selectOption({ label: 'focus only' }, { timeout: 8000 }).then(() => true).catch(() => false);
   await ui.clearSelection(page);
-  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).first().click({ timeout: 20000, force: true }).then(() => true).catch(() => false);
-  tour.check('\"Analyse runs it again, for example after you changed the scope\"', okScope && okAn, `scope ${okScope}, analyse ${okAn}`);
+  let anErr = '';
+  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).filter({ visible: true }).first().click({ timeout: 20000 }).then(() => true).catch((e) => { anErr = String(e).slice(0, 300); return false; });
+  tour.check('"Analyse runs it again, for example after you changed the scope"', okScope && okAn, `scope ${okScope}, analyse ${okAn} ${anErr}`);
   await page.waitForTimeout(3000);
   const sumFocus = await page.evaluate(() => window.__xrayPenetrations.summary.total);
   tour.check('"scope: focus only (the current focus)" re-analyses with fewer or no rows', sumFocus <= totalAll, `${totalAll} -> ${sumFocus}`);
