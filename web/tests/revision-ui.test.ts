@@ -255,7 +255,7 @@ describe('keys', () => {
     }
   });
   it('reuses the review walk keys where the meaning is the same', () => {
-    const review = src('src/plugins/classifyReview.ts');
+    const review = src('src/plugins/classifyReview.ts') + src('src/classify/walkKeys.ts');
     for (const k of REVISION_WALK_KEYS.filter((x) => x.sameAsReview).flatMap((x) => x.keys)) expect(review.includes(`'${k}'`), k).toBe(true);
   });
   it('has no key twice and none with a modifier', () => {

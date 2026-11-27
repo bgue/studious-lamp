@@ -1,7 +1,7 @@
 // The review walk: a panel over the viewer that visits the classified elements in a logical order, shows the proposal with its confidence
 // and source, and records a confirmation, a runner-up pick or a correction as a pending change. "Commit" turns the pending changes into
-// one commit of the review log (classify/reviewLog.ts). The panel works with the keyboard (Enter or Y, 2, E, N or the right arrow, the left
-// arrow) and with buttons, so it also works on a phone. The reviewer's name is kept in this browser and nowhere else.
+// one commit of the review log (classify/reviewLog.ts). The panel works with the keyboard (Enter or Y, 1 to 9, E, N or the right arrow, the
+// left arrow, F, Z) and with buttons, so it also works on a phone. Facet results that need review are walk items too (classify/facetWalk.ts). The reviewer's name is kept in this browser and nowhere else.
 // Docs: docs-features/classify.md, section "Review walk".
 
 import { Box3, Vector3 } from 'three';
@@ -10,9 +10,19 @@ import { getKeymap } from '../input/keymap';
 import { currentPose, moveToBox, moveToPose, navSettings } from '../input/navigation';
 import type { Pose } from '../input/navigation';
 import { overallConfidence } from '../classify/review';
+import { CONCRETE_FACET_IDS } from '../classify/concrete/defs';
+import { FACET_IDS } from '../classify/facets/defs';
+import { buildFacetItems, facetCandidates, WALK_KINDS, WALK_KIND_LABEL } from '../classify/facetWalk';
+import type { FacetEntry, FacetLike, WalkKind } from '../classify/facetWalk';
+import { nextReviewZoom, REVIEW_ZOOMS, REVIEW_ZOOM_LABEL, resolveZoom, roomOf, storeyBox } from '../classify/reviewZoom';
+import type { ReviewZoom, SpaceBox } from '../classify/reviewZoom';
+import { escAction, filterCodes, walkKeyAction, ESC_CLOSE_MS } from '../classify/walkKeys';
+import type { EscFocus } from '../classify/walkKeys';
+import type { ReviewVia } from '../classify/reviewLog';
+import { buildManifestPanel } from './classifyManifest';
 import { divisionTitle, findDiscipline, findSub } from '../classify/schema';
-import { buildWalk, runnerUp, walkElementsOf, walkProgress, walkScope, WALK_ORDER_LABEL, WALK_ORDERS } from '../classify/reviewWalk';
-import type { RunnerUp, WalkElement, WalkItem, WalkOrder } from '../classify/reviewWalk';
+import { buildWalk, classCandidates, runnerUp, walkElementsOf, walkProgress, walkScope, WALK_ORDER_LABEL, WALK_ORDERS } from '../classify/reviewWalk';
+import type { FacetRef, RunnerUp, WalkElement, WalkItem, WalkOrder } from '../classify/reviewWalk';
 import type { ReviewCommit } from '../classify/reviewLog';
 import type { ClassifyService } from '../classify/service';
 import type { ClassifyResult } from '../classify/types';
@@ -52,6 +62,15 @@ const CSS = `
 .xrw-box{border:1px solid #2d6aa8;border-radius:4px;background:#0e141d;padding:7px;display:flex;flex-direction:column;gap:6px}
 .xrw-box label{display:flex;flex-direction:column;gap:2px;align-items:stretch;color:var(--sb-dim,#8d99a8)}
 .xrw-box select{width:100%}
+.xrw:focus{outline:none}
+.xrw-box[data-role=manifest-panel] label{flex-direction:row;align-items:center;gap:6px}
+.xrw-box input[data-role=code-filter]{width:100%;box-sizing:border-box}
+.xrw-hint{background:#3a2d12;color:#ffd98a;border:1px solid #8a6a1f;border-radius:4px;padding:4px 8px;margin:4px 0;font-size:12px}
+.xrw-cands{display:flex;flex-direction:column;gap:3px;margin:4px 0}
+.xrw-cand{display:flex;gap:8px;align-items:center;text-align:left;background:#121a26;color:inherit;border:1px solid #2a3647;border-radius:4px;padding:3px 7px;cursor:pointer;font:inherit}
+.xrw-cand.cur{border-color:#2d6aa8}
+.xrw-cand:hover{background:#1a2535}
+.xrw-cand kbd{min-width:1.2em;text-align:center}
 .xrw-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:6px}
 .xrw-btn{background:#1b2230;color:inherit;border:1px solid #2d3748;border-radius:4px;padding:5px 8px;cursor:pointer;font:inherit;text-align:center;line-height:1.2}
 .xrw-btn:hover:not(:disabled){background:#243049;border-color:#3a4a66}
@@ -119,13 +138,19 @@ export interface WalkHost {
 export interface WalkState {
   open: boolean;
   order: WalkOrder;
+  /** Which items the walk visits: classification, facets or both. */
+  kind: WalkKind;
+  /** How far the walk frames the element in view. */
+  zoom: ReviewZoom;
+  /** The first Esc armed the second (the "Esc again to close" hint is up). */
+  escArmed: boolean;
   filters: { needsReview: boolean; unconfirmed: boolean; discipline: string; unsure: boolean; onlySkipped: boolean };
   scope: 'all' | 'one';
   tab: 'walk' | 'pending' | 'history';
   itemIndex: number;
   items: number;
   elementIndex: number;
-  item: { key: string; title: string; elements: number } | null;
+  item: { key: string; title: string; elements: number; facet?: string } | null;
   progress: { confirmed: number; corrected: number; remaining: number; total: number };
   pending: number;
   editing: boolean;
@@ -144,6 +169,12 @@ export class ReviewWalk {
   private dock!: HTMLElement;
   private opened = false;
   private order: WalkOrder = 'type';
+  private kind: WalkKind = 'classification';
+  private escAt: number | null = null;
+  private hintEl: HTMLElement | null = null;
+  private hintTimer: ReturnType<typeof setTimeout> | null = null;
+  private spacesCache: { model: unknown; list: SpaceBox[] } | null = null;
+  private manifestOpen = false;
   private filters = { needsReview: false, unconfirmed: false, discipline: '', unsure: false, onlySkipped: false };
   private unsure = false;
   private scope: 'all' | 'one' = 'all';
@@ -151,7 +182,7 @@ export class ReviewWalk {
   private items: WalkItem[] = [];
   private itemIndex = 0;
   private elementIndex = 0;
-  private editing: { disc: string; sub: string; div: string } | null = null;
+  private editing: { disc: string; sub: string; div: string; filter: string; code: string } | null = null;
   private comment = '';
   private commitNote = '';
   private message: { text: string; error: boolean } | null = null;
@@ -191,10 +222,36 @@ export class ReviewWalk {
   /** Rebuild the list of items, keeping the position on the same item when it is still there. */
   private rebuild(keep = true): void {
     const key = keep ? this.items[this.itemIndex]?.key : undefined;
-    this.items = buildWalk(this.walkInput());
+    this.items = this.buildItems();
     const at = key ? this.items.findIndex((i) => i.key === key) : -1;
     this.itemIndex = at >= 0 ? at : Math.min(this.itemIndex, Math.max(0, this.items.length - 1));
     if (at < 0) this.elementIndex = 0;
+  }
+
+  /** The classification items and the facet items that the Kind filter asks for. */
+  private buildItems(): WalkItem[] {
+    const cls = this.kind === 'facets' ? [] : buildWalk(this.walkInput());
+    const fac = this.kind === 'classification' ? [] : buildFacetItems({ elements: this.elements(), entriesOf: (g) => this.facetEntries(g), skipped: this.svc.review.skips, filters: { ...(this.filters.unconfirmed ? { unconfirmed: true } : {}), ...(this.filters.unsure ? { unsure: true } : {}), ...(this.filters.onlySkipped ? { onlySkipped: true } : {}) } });
+    return [...cls, ...fac];
+  }
+
+  /** The facet and concrete results of an element, as walk entries. */
+  private facetEntries(globalId: string): FacetEntry[] {
+    const out: FacetEntry[] = [];
+    const fs = this.svc.facetsOf(globalId);
+    for (const id of FACET_IDS) { const r = fs[id]; if (r) out.push({ ref: { id, family: 'facet' }, result: r }); }
+    const cs = this.svc.concreteOf(globalId);
+    for (const id of CONCRETE_FACET_IDS) { const r = cs[id]; if (r) out.push({ ref: { id, family: 'concrete' }, result: r }); }
+    return out;
+  }
+
+  /** The facet of the item in view: its reference and result (a facet item), or null. */
+  private curFacet(): { ref: FacetRef; result: FacetLike } | null {
+    const it = this.item();
+    const cur = this.current();
+    if (!it?.facet || !cur) return null;
+    const result = this.facetEntries(cur.globalId).find((e) => e.ref.id === it.facet!.id)?.result;
+    return result ? { ref: it.facet, result } : null;
   }
 
   private item(): WalkItem | null {
@@ -207,7 +264,7 @@ export class ReviewWalk {
   private targets(): WalkElement[] {
     const it = this.item();
     if (!it) return [];
-    return this.scope === 'all' ? it.elements : [this.current()!].filter(Boolean);
+    return this.scope === 'all' && !it.facet ? it.elements : [this.current()!].filter(Boolean);
   }
 
   state(): WalkState {
@@ -215,15 +272,18 @@ export class ReviewWalk {
     return {
       open: this.opened,
       order: this.order,
+      kind: this.kind,
+      zoom: this.svc.reviewZoom(),
+      escArmed: this.escAt !== null,
       filters: { ...this.filters },
       scope: this.scope,
       tab: this.tab,
       itemIndex: this.itemIndex,
       items: this.items.length,
       elementIndex: this.elementIndex,
-      item: it ? { key: it.key, title: it.title, elements: it.elements.length } : null,
+      item: it ? { key: it.key, title: it.title, elements: it.elements.length, ...(it.facet ? { facet: it.facet.id } : {}) } : null,
       progress: this.progress(),
-      pending: this.svc.review.pending().length,
+      pending: this.svc.review.pendingCount(),
       editing: this.editing !== null,
       unsure: this.unsure,
       skipped: this.svc.review.skips.size,
@@ -241,13 +301,27 @@ export class ReviewWalk {
   }
 
   private progress(): ReturnType<typeof walkProgress> {
-    const scope = walkScope({ elements: this.elements(), resultOf: (g) => this.svc.store.get(g), filters: this.walkInput().filters, skipped: this.svc.review.skips });
-    return walkProgress(scope, (g) => this.svc.review.decision(g));
+    const p = { confirmed: 0, corrected: 0, remaining: 0, total: 0 };
+    if (this.kind !== 'facets') {
+      const scope = walkScope({ elements: this.elements(), resultOf: (g) => this.svc.store.get(g), filters: this.walkInput().filters, skipped: this.svc.review.skips });
+      Object.assign(p, walkProgress(scope, (g) => this.svc.review.decision(g)));
+    }
+    if (this.kind !== 'classification') {
+      for (const it of this.items) {
+        if (!it.facet) continue;
+        const d = this.svc.review.facetDecision(it.elements[0]!.globalId, it.facet.id);
+        p.total++;
+        if (d === 'confirmed') p.confirmed++;
+        else if (d === 'corrected') p.corrected++;
+        else p.remaining++;
+      }
+    }
+    return p;
   }
 
   // ------------------------------------------------------------ open, close
 
-  open(o: { order?: WalkOrder } = {}): void {
+  open(o: { order?: WalkOrder; kind?: WalkKind } = {}): void {
     if (!this.svc.model) return;
     ensureReviewWalkStyle();
     ensureKeyStyles();
@@ -261,6 +335,7 @@ export class ReviewWalk {
       this.off = this.svc.onChange(() => this.onService());
     }
     if (o.order) this.order = o.order;
+    if (o.kind) this.kind = o.kind;
     this.message = null;
     this.tab = 'walk';
     this.editing = null;
@@ -275,6 +350,7 @@ export class ReviewWalk {
     if (!this.opened) return;
     this.opened = false;
     window.removeEventListener('keydown', this.onKey, true);
+    this.clearHint();
     this.off?.();
     this.off = null;
     this.root?.remove();
@@ -293,7 +369,7 @@ export class ReviewWalk {
         navSettings.smoothMoves = smooth;
       }
     }
-    const n = this.svc.review.pending().length;
+    const n = this.svc.review.pendingCount();
     if (n > 0) showToast(`${n} pending change${n === 1 ? '' : 's'} kept: open the review walk again to commit them`, 3000);
   }
 
@@ -316,15 +392,34 @@ export class ReviewWalk {
 
   // ------------------------------------------------------------ view of the model
 
+  /** The IfcSpace elements of the model (for the Room zoom). */
+  private spaces(): SpaceBox[] {
+    const m = this.svc.model;
+    if (!m) return [];
+    if (this.spacesCache?.model !== m) this.spacesCache = { model: m, list: m.elements.filter((e) => e.ifcClass === 'IfcSpace').map((e) => ({ bounds: e.bounds, storey: e.storey })) };
+    return this.spacesCache.list;
+  }
+
+  /** Frame the item in view (not the whole model) at the review zoom: Close, With surroundings, Room or Storey. The element stays selected. */
   private focus(): void {
     const it = this.item();
     if (!it) return;
-    const ids = this.targets().map((e) => e.id);
+    const targets = this.targets();
+    const ids = targets.map((e) => e.id);
     if (ids.length === 0) return;
     this.app.selectIds(ids);
-    const box = new Box3();
-    for (const e of this.targets()) box.union(new Box3(new Vector3(e.bounds[0], e.bounds[1], e.bounds[2]), new Vector3(e.bounds[3], e.bounds[4], e.bounds[5])));
-    moveToBox(this.app, box, { margin: ids.length > 1 ? 1.15 : 1.6, tag: 'review' });
+    const first = targets[0]!;
+    const view = resolveZoom(this.svc.reviewZoom(), targets.map((e) => e.bounds), { room: roomOf(first.bounds, first.storey, this.spaces()), storey: storeyBox(first.storey, this.elements()) });
+    if (!view) return;
+    const b = view.box;
+    moveToBox(this.app, new Box3(new Vector3(b[0], b[1], b[2]), new Vector3(b[3], b[4], b[5])), { margin: view.margin, minDistance: view.minDistance, tag: 'review' });
+  }
+
+  /** Z: the next zoom (Close, With surroundings, Room, Storey), saved with the settings. */
+  private cycleZoom(): void {
+    this.svc.setReviewZoom(nextReviewZoom(this.svc.reviewZoom()));
+    this.render();
+    this.focus();
   }
 
   // ------------------------------------------------------------ steps
@@ -382,7 +477,7 @@ export class ReviewWalk {
     const it = this.item();
     const cur = this.current();
     if (!it || !cur) return;
-    this.svc.review.skips.add([cur.globalId]);
+    this.noteSkip([cur.globalId]);
     if (it.elements.length > 1 && this.elementIndex < it.elements.length - 1) this.goElement(this.elementIndex + 1);
     else this.goItem(this.itemIndex + 1);
   }
@@ -391,8 +486,12 @@ export class ReviewWalk {
   private skipGroup(): void {
     const it = this.item();
     if (!it) return;
-    this.svc.review.skips.add(it.elements.map((e) => e.globalId));
+    this.noteSkip(it.elements.map((e) => e.globalId));
     this.goItem(this.itemIndex + 1);
+  }
+
+  private noteSkip(ids: string[]): void {
+    this.svc.review.activity.skipped += this.svc.review.skips.add(ids);
   }
 
   private groupSkipFirst(): boolean {
@@ -430,12 +529,20 @@ export class ReviewWalk {
 
   // ------------------------------------------------------------ decisions
 
-  private decide(action: 'confirm' | 'correct', codes?: { discipline?: string; subDiscipline?: string | null; masterformat?: string | null }): void {
+  private decide(action: 'confirm' | 'correct', codes?: { discipline?: string; subDiscipline?: string | null; masterformat?: string | null }, o: { via?: ReviewVia; facetCode?: string } = {}): void {
     const it = this.item();
     if (!it) return;
-    const gids = this.targets().map((e) => e.globalId);
     try {
-      this.svc.review.propose(gids, { action, ...(codes ? { codes } : {}), item: it.key, ...(this.comment.trim() ? { comment: this.comment.trim() } : {}), ...(this.unsure ? { unsure: true } : {}) });
+      const f = it.facet;
+      const opts = { action, item: it.key, ...(this.comment.trim() ? { comment: this.comment.trim() } : {}), ...(this.unsure ? { unsure: true } : {}), ...(o.via ? { via: o.via } : {}) };
+      if (f) {
+        const cur = this.current();
+        if (!cur) return;
+        this.svc.review.proposeFacet(f, cur.globalId, { ...opts, ...(o.facetCode ? { code: o.facetCode } : {}) });
+      } else {
+        const gids = this.targets().map((e) => e.globalId);
+        this.svc.review.propose(gids, { ...opts, ...(codes ? { codes } : {}) });
+      }
       this.message = null;
     } catch (e) {
       this.message = { text: e instanceof Error ? e.message : String(e), error: true };
@@ -452,48 +559,85 @@ export class ReviewWalk {
     this.decide('confirm');
   }
 
-  private runner(): RunnerUp | null {
-    const cur = this.current();
-    const r = cur ? this.svc.store.get(cur.globalId) : undefined;
-    if (!r) return null;
+  private classValid(r: ClassifyResult): (part: RunnerUp['part'], code: string) => boolean {
     const schema = this.svc.schema;
-    return runnerUp(r, (part, code) => {
+    return (part, code) => {
       if (part === 'discipline') return !!findDiscipline(schema, code);
       if (part === 'subDiscipline') {
         const d = findDiscipline(schema, r.discipline.code);
         return !!d && !!findSub(d, code);
       }
       return !!divisionTitle(schema, code);
-    });
+    };
+  }
+
+  private runner(): RunnerUp | null {
+    const cur = this.current();
+    const r = cur ? this.svc.store.get(cur.globalId) : undefined;
+    if (!r || this.item()?.facet) return null;
+    return runnerUp(r, this.classValid(r));
+  }
+
+  /**
+   * The numbered candidates of the item in view. Key 1 is the proposal (Confirm), key 2 the runner-up, keys 3 to 9 the next options of the
+   * same part (a classification) or of the facet. Empty when only one option was scored.
+   */
+  private candidates(): Array<{ code: string; label: string; probability: number | null; part?: RunnerUp['part'] }> {
+    const f = this.curFacet();
+    if (f) return facetCandidates(f.result, this.svc.facetCodesOf(f.ref)).map((c) => ({ ...c }));
+    const cur = this.current();
+    const r = cur ? this.svc.store.get(cur.globalId) : undefined;
+    if (!r) return [];
+    const cc = classCandidates(r, this.classValid(r));
+    if (!cc) return [];
+    const schema = this.svc.schema;
+    const label = (code: string): string => (cc.part === 'discipline' ? findDiscipline(schema, code)?.label : cc.part === 'subDiscipline' ? findSub(findDiscipline(schema, r.discipline.code)!, code)?.label : divisionTitle(schema, code)) ?? '';
+    return cc.list.map((c) => ({ code: c.code, label: label(c.code), probability: c.probability, part: cc.part }));
+  }
+
+  /** Keys 1 to 9: take candidate `rank` (1 confirms; 2 is the runner-up; the rest are corrections). */
+  private takeCandidate(rank: number): void {
+    if (rank === 1) { this.confirm(); return; }
+    const c = this.candidates()[rank - 1];
+    if (!c) return;
+    const via: ReviewVia = rank === 2 ? 'runner-up' : 'candidate';
+    if (this.item()?.facet) this.decide('correct', undefined, { via, facetCode: c.code });
+    else this.decide('correct', c.part === 'discipline' ? { discipline: c.code } : c.part === 'subDiscipline' ? { subDiscipline: c.code } : { masterformat: c.code }, { via });
   }
 
   private useRunnerUp(): void {
-    const up = this.runner();
-    if (!up) return;
-    this.decide('correct', up.part === 'discipline' ? { discipline: up.code } : up.part === 'subDiscipline' ? { subDiscipline: up.code } : { masterformat: up.code });
+    this.takeCandidate(2);
   }
 
   private startEdit(): void {
     const cur = this.current();
-    const r = cur ? this.svc.store.get(cur.globalId) : undefined;
-    if (!r) return;
-    this.editing = { disc: r.discipline.code, sub: r.subDiscipline?.code ?? '', div: r.masterformat?.division ?? '' };
+    if (!cur) return;
+    const f = this.curFacet();
+    if (f) {
+      if (!this.svc.facetCodesOf(f.ref)) { this.message = { text: `${f.ref.id} has no code list to pick from: confirm it or skip it.`, error: true }; this.render(); return; }
+      this.editing = { disc: '', sub: '', div: '', filter: '', code: f.result.code };
+    } else {
+      const r = this.svc.store.get(cur.globalId);
+      if (!r) return;
+      this.editing = { disc: r.discipline.code, sub: r.subDiscipline?.code ?? '', div: r.masterformat?.division ?? '', filter: '', code: '' };
+    }
+    this.message = null;
     this.render();
-    this.root?.querySelector<HTMLElement>('.xrw-edit select')?.focus();
+    this.root?.querySelector<HTMLElement>('[data-role=code-filter]')?.focus();
   }
 
   private applyEdit(): void {
     const e = this.editing;
     if (!e) return;
-    this.decide('correct', { discipline: e.disc, subDiscipline: e.sub || null, masterformat: e.div || null });
+    if (this.item()?.facet) this.decide('correct', undefined, { facetCode: e.code });
+    else this.decide('correct', { discipline: e.disc, subDiscipline: e.sub || null, masterformat: e.div || null });
   }
 
   private undoLast(): void {
-    const p = this.svc.review.pending();
-    const last = p[p.length - 1];
+    const last = this.svc.review.lastPendingItem();
     if (!last) return;
-    const n = this.svc.review.undoPending(last.item);
-    const at = this.items.findIndex((i) => i.key === last.item);
+    const n = this.svc.review.undoPending(last);
+    const at = this.items.findIndex((i) => i.key === last);
     this.message = { text: `Undid ${n} pending change${n === 1 ? '' : 's'}.`, error: false };
     if (at >= 0) this.goItem(at);
     else this.render();
@@ -516,6 +660,33 @@ export class ReviewWalk {
 
   // ------------------------------------------------------------ keys
 
+  private clearHint(): void {
+    this.escAt = null;
+    if (this.hintTimer) clearTimeout(this.hintTimer);
+    this.hintTimer = null;
+    this.hintEl?.remove();
+    this.hintEl = null;
+  }
+
+  /** The first Esc: say that a second one closes the walk, for a moment. */
+  private armEsc(): void {
+    this.clearHint();
+    this.escAt = Date.now();
+    this.hintEl = el('div', 'xrw-hint', { role: 'status', 'data-role': 'esc-hint' }, 'Esc again to close (or press Q)');
+    this.head.after(this.hintEl);
+    this.hintTimer = setTimeout(() => this.clearHint(), ESC_CLOSE_MS);
+  }
+
+  /** Where the keyboard is, for Esc: on the walk (or the page), in a text field or list of the walk, or on a control elsewhere. */
+  private focusKind(t: HTMLElement | null): EscFocus {
+    if (!t || t === document.body || t.tagName === 'CANVAS') return 'walk';
+    const inside = !!this.root?.contains(t);
+    const tag = t.tagName;
+    const field = tag === 'SELECT' || tag === 'TEXTAREA' || (tag === 'INPUT' && !['checkbox', 'radio'].includes((t as HTMLInputElement).type)) || t.isContentEditable;
+    if (inside) return field ? 'field' : 'walk';
+    return field || tag === 'BUTTON' || tag === 'A' ? 'elsewhere' : 'walk';
+  }
+
   private readonly onKey = (e: KeyboardEvent): void => {
     if (!this.opened || e.defaultPrevented) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -528,9 +699,15 @@ export class ReviewWalk {
     const take = (): void => { e.preventDefault(); e.stopPropagation(); };
     if (e.key === 'Escape') {
       take();
-      if (this.editing) { this.editing = null; this.render(); } else this.close();
+      // Esc leaves a correction, or brings the focus back to the walk; the walk closes with Q or a second Esc
+      const act = escAction({ editing: this.editing !== null, focus: this.focusKind(t), armedAt: this.escAt, now: Date.now() });
+      if (act === 'leave-edit') { this.clearHint(); this.editing = null; this.render(); this.root?.focus(); }
+      else if (act === 'focus-walk') { this.clearHint(); this.root?.focus(); }
+      else if (act === 'arm') this.armEsc();
+      else this.close();
       return;
     }
+    if (this.escAt !== null) this.clearHint(); // another key: the second Esc is not "again" any more
     if (typing || this.tab !== 'walk') return;
     if (onButton && (e.key === 'Enter' || e.key === ' ')) return; // a focused button keeps its own key
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -540,20 +717,28 @@ export class ReviewWalk {
       else if ((k === 'n' || k === 'ArrowRight') && tag !== 'SELECT') { take(); e.shiftKey && k === 'n' ? this.skipOther() : this.skipByScope(); } // a picker keeps its letters and arrows
       return;
     }
-    if (!this.item()) return;
-    switch (k) {
-      case 'Enter': case 'y': take(); this.confirm(); break;
-      case '2': take(); this.useRunnerUp(); break;
-      case 'e': take(); this.startEdit(); break;
-      case 'n': take(); if (e.shiftKey) this.skipOther(); else this.skipByScope(); break;
-      case 'ArrowRight': take(); this.skipByScope(); break;
-      case '?': take(); this.toggleUnsure(); break;
-      case 'ArrowLeft': take(); this.back(); break;
-      case ']': take(); { const it = this.item(); if (it) this.goElement(this.elementIndex + 1); } break;
-      case '[': take(); this.goElement(this.elementIndex - 1); break;
-      case 'a': take(); this.scope = this.scope === 'all' ? 'one' : 'all'; this.render(); this.focus(); break;
-      case 'u': take(); this.undoLast(); break;
-      default: break;
+    if (!this.item()) {
+      if (k === 'q') { take(); this.close(); }
+      return;
+    }
+    const a = walkKeyAction({ key: e.key, shift: e.shiftKey });
+    if (!a) return;
+    take();
+    switch (a.action) {
+      case 'confirm': this.confirm(); break;
+      case 'candidate': this.takeCandidate(a.rank ?? 2); break;
+      case 'correct': this.startEdit(); break;
+      case 'skip': this.skipByScope(); break;
+      case 'skip-other': this.skipOther(); break;
+      case 'unsure': this.toggleUnsure(); break;
+      case 'back': this.back(); break;
+      case 'step-next': this.goElement(this.elementIndex + 1); break;
+      case 'step-prev': this.goElement(this.elementIndex - 1); break;
+      case 'scope': this.scope = this.scope === 'all' ? 'one' : 'all'; this.render(); this.focus(); break;
+      case 'undo': this.undoLast(); break;
+      case 'frame': this.focus(); break;
+      case 'zoom': this.cycleZoom(); break;
+      case 'close': this.close(); break;
     }
   };
 
@@ -562,7 +747,7 @@ export class ReviewWalk {
   private build(): void {
     const inTab = this.host.mount();
     const stage = inTab ?? this.app.canvas.parentElement ?? document.body;
-    const root = el('section', inTab ? 'xrw xrw-in' : 'xrw', { 'aria-label': 'Review walk', role: 'dialog', 'data-testid': 'review-walk' });
+    const root = el('section', inTab ? 'xrw xrw-in' : 'xrw', { 'aria-label': 'Review walk', role: 'dialog', tabindex: '-1', 'data-testid': 'review-walk' });
     this.head = el('div', 'xrw-head');
     this.tabs = el('div', 'xrw-tabs', { role: 'tablist' });
     this.body = el('div', 'xrw-body');
@@ -615,13 +800,13 @@ export class ReviewWalk {
     sk.disabled = n === 0 && !this.filters.onlySkipped;
     sk.addEventListener('click', () => this.toggleOnlySkipped());
     this.head.appendChild(sk);
-    const x = el('button', 'xrw-x', { type: 'button', 'aria-label': 'End the review walk', title: 'End the walk and restore the view (Esc)' }, '×');
+    const x = el('button', 'xrw-x', { type: 'button', 'aria-label': 'End the review walk', title: 'End the walk and restore the view (Q, or Esc twice)' }, '×');
     x.addEventListener('click', () => this.close());
     this.head.appendChild(x);
   }
 
   private renderTabs(): void {
-    const n = this.svc.review.pending().length;
+    const n = this.svc.review.pendingCount();
     const h = this.svc.review.history().length;
     const mk = (id: WalkState['tab'], label: string): HTMLButtonElement => {
       const b = el('button', `xrw-tab${this.tab === id ? ' on' : ''}`, { type: 'button', role: 'tab', 'data-tab': id, 'aria-selected': String(this.tab === id) }, label);
@@ -640,6 +825,8 @@ export class ReviewWalk {
     const b = this.body;
     // order and filters
     const bar = el('div', 'xrw-bar');
+    bar.append(this.select('Show', this.kind, WALK_KINDS.map((k): [string, string] => [k, WALK_KIND_LABEL[k]]), (v) => { this.kind = v as WalkKind; this.itemIndex = 0; this.rebuild(false); this.elementIndex = 0; this.render(); this.focus(); }, 'kind'));
+    bar.append(this.select('Review zoom', this.svc.reviewZoom(), REVIEW_ZOOMS.map((z): [string, string] => [z, REVIEW_ZOOM_LABEL[z]]), (v) => { this.svc.setReviewZoom(v as ReviewZoom); this.render(); this.focus(); }, 'zoom'));
     bar.append(this.select('Order', this.order, WALK_ORDERS.map((o): [string, string] => [o, WALK_ORDER_LABEL[o]]), (v) => { this.order = v as WalkOrder; this.rebuild(false); this.render(); this.focus(); }, 'order'));
     const chk = (label: string, key: 'needsReview' | 'unconfirmed' | 'unsure' | 'onlySkipped', title: string, role: string = key): HTMLElement => {
       const l = el('label');
@@ -655,20 +842,20 @@ export class ReviewWalk {
     bar.append(this.select('Discipline', this.filters.discipline, [['', 'All'], ...discs.map((d): [string, string] => [d.code, `${d.code} ${d.label}`])], (v) => { this.filters.discipline = v; this.rebuild(false); this.render(); this.focus(); }, 'discipline'));
     b.appendChild(bar);
 
-    if (this.elements().filter((e) => this.svc.store.get(e.globalId)).length === 0) {
+    if (this.kind !== 'facets' && this.elements().filter((e) => this.svc.store.get(e.globalId)).length === 0 && !(this.kind === 'both' && this.items.length > 0)) {
       b.append(el('div', 'xrw-warn', undefined, 'There are no results to review yet. The walk visits classified elements.'), this.btn('Classify all', 'classify', () => { void this.svc.classify('all').then(() => { this.rebuild(false); this.render(); this.focus(); }, (e: unknown) => { this.message = { text: e instanceof Error ? e.message : String(e), error: true }; this.render(); }); }, { primary: true }));
       return;
     }
     const it = this.item();
     if (this.items.length === 0) {
-      b.append(el('div', 'xrw-warn', undefined, 'No element matches these filters.'));
+      b.append(el('div', 'xrw-warn', undefined, this.kind === 'facets' ? 'No facet result needs review. Run the facets from the Classification tab, or choose Classification.' : 'No element matches these filters.'));
       return;
     }
     if (!it) {
       const p = this.progress();
       b.append(
         el('div', 'xrw-item', undefined, 'End of the walk'),
-        el('div', 'xrw-meta', undefined, `${p.confirmed} confirmed, ${p.corrected} corrected, ${p.remaining} remaining of ${p.total}. ${this.svc.review.pending().length} pending change(s) wait for a commit.`),
+        el('div', 'xrw-meta', undefined, `${p.confirmed} confirmed, ${p.corrected} corrected, ${p.remaining} remaining of ${p.total}. ${this.svc.review.pendingCount()} pending change(s) wait for a commit.`),
         row(this.btn('Back to the last item', 'back', () => this.back()), this.btn('Review pending changes', 'to-pending', () => { this.tab = 'pending'; this.render(); }), ...(this.svc.review.skips.size > 0 && !this.filters.onlySkipped ? [this.btn(`Revisit skipped (${this.svc.review.skips.size})`, 'revisit-skipped', () => this.toggleOnlySkipped())] : [])),
       );
       const m = this.msgLine();
@@ -676,7 +863,7 @@ export class ReviewWalk {
       return;
     }
     const el0 = this.current()!;
-    const r = this.svc.store.get(el0.globalId)!;
+    const r = it.facet ? undefined : this.svc.store.get(el0.globalId);
     b.appendChild(el('div', 'xrw-item', { 'data-role': 'item' }, `${this.itemIndex + 1} of ${this.items.length}: ${it.title}`));
     const where = [el0.storeyName && `Storey ${el0.storeyName}`, el0.system && `System ${el0.system}`].filter(Boolean).join(', ');
     b.appendChild(el('div', 'xrw-meta', { 'data-role': 'element' }, `${el0.ifcClass}, ${el0.name || '(no name)'}${el0.tag ? `, tag ${el0.tag}` : ''}${where ? `. ${where}` : ''}`));
@@ -699,6 +886,65 @@ export class ReviewWalk {
     }
     b.appendChild(scopeRow);
 
+    if (it.facet) this.renderFacetCard(b, el0);
+    else if (r) this.renderClassCard(b, el0, r);
+
+    // comment and actions
+    const c = el('input', undefined, { type: 'text', placeholder: 'Comment (optional)', 'aria-label': 'Comment', 'data-role': 'comment', maxlength: '300' });
+    c.value = this.comment;
+    c.addEventListener('input', () => { this.comment = c.value; });
+    b.appendChild(c);
+    if (this.editing) {
+      const e = this.editing;
+      const facet = this.curFacet();
+      const box = el('div', 'xrw-box xrw-edit');
+      const filter = el('input', undefined, { type: 'text', placeholder: 'Type to filter the codes', 'aria-label': 'Filter the code list', 'data-role': 'code-filter', autocomplete: 'off', maxlength: '60' });
+      filter.value = e.filter;
+      const lists = el('div');
+      const opts = <T extends { code: string; label: string }>(all: readonly T[], keep: string, head: Array<[string, string]> = []): Array<[string, string]> => {
+        // a list with no match is shown whole: the filter only narrows what it can
+        const use = e.filter.trim() && filterCodes(all, e.filter).length === 0 ? [...all] : filterCodes(all, e.filter, keep);
+        return [...head, ...use.map((x): [string, string] => [x.code, `${x.code} ${x.label}`])];
+      };
+      const fill = (): void => {
+        const kids: HTMLElement[] = [];
+        if (facet) {
+          const codes = this.svc.facetCodesOf(facet.ref) ?? [];
+          kids.push(this.select('Code', e.code, opts(codes, e.code), (v) => { e.code = v; }, 'edit-code'));
+        } else {
+          const d = findDiscipline(this.svc.schema, e.disc);
+          kids.push(
+            this.select('Discipline', e.disc, opts(this.svc.schema.disciplines, e.disc), (v) => { e.disc = v; e.sub = ''; fill(); }, 'edit-discipline'),
+            this.select('Sub-discipline', e.sub, opts(d?.subDisciplines ?? [], e.sub, [['', '(none)']]), (v) => { e.sub = v; }, 'edit-sub'),
+            this.select('Division', e.div, opts(this.svc.schema.masterformat.divisions.map((x) => ({ code: x.division, label: x.title })), e.div, [['', '(none)']]), (v) => { e.div = v; }, 'edit-division'),
+          );
+        }
+        lists.replaceChildren(...kids);
+      };
+      filter.addEventListener('input', () => {
+        e.filter = filter.value;
+        // typing picks the first match of the main list (the discipline, or the facet's code); the other lists only narrow
+        if (e.filter.trim()) {
+          if (facet) { const m = filterCodes(this.svc.facetCodesOf(facet.ref) ?? [], e.filter)[0]; if (m) e.code = m.code; }
+          else { const m = filterCodes(this.svc.schema.disciplines, e.filter)[0]; if (m && m.code !== e.disc) { e.disc = m.code; e.sub = ''; } }
+        }
+        fill();
+      });
+      filter.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); this.applyEdit(); }
+        else if (ev.key === 'ArrowDown') { ev.preventDefault(); lists.querySelector<HTMLElement>('select')?.focus(); }
+      });
+      box.append(el('div', 'xrw-meta', undefined, `Correct ${facet ? `${facet.ref.id} of this element` : this.scope === 'all' && it.elements.length > 1 ? `all ${it.elements.length}` : 'this element'}`), filter, lists);
+      fill();
+      b.appendChild(box);
+    }
+    const m = this.msgLine();
+    if (m) b.appendChild(m);
+    this.renderDock();
+  }
+
+  /** The proposal of a classification item: codes, confidence and source, the runner-up and the candidates, and the states. */
+  private renderClassCard(b: HTMLElement, el0: WalkElement, r: ClassifyResult): void {
     // the proposal
     const tbl = el('table', 'xrw-tbl');
     tbl.appendChild(el('thead')).append(...[el('tr')].map((tr) => { for (const h of ['', 'Proposed', 'Confidence', 'Source']) tr.appendChild(el('th', undefined, undefined, h)); return tr; }));
@@ -718,6 +964,7 @@ export class ReviewWalk {
     if (r.rationale) b.appendChild(el('div', 'xrw-meta', { 'data-role': 'rationale' }, `Why: ${r.rationale}`));
     const up = this.runner();
     b.appendChild(el('div', up ? 'xrw-meta' : 'xrw-dim', { 'data-role': 'runner-up' }, up ? `Runner-up: ${up.code} instead of ${up.proposed} (${up.part === 'subDiscipline' ? 'sub-discipline' : up.part}, ${pct(up.probability)} against ${pct(up.proposedProbability)})` : 'No runner-up: only one option was scored.'));
+    this.renderCandidates(b);
     if (r.needsReview) b.appendChild(el('div', 'xrw-warn', undefined, `Needs review (overall confidence ${pct(overallConfidence(r))}).`));
     if (r.unsure) b.appendChild(el('div', 'xrw-warn', { 'data-role': 'unsure-state' }, `Committed as unsure (a guess, confidence ${pct(r.discipline.confidence)}). It still needs review.`));
     if (this.svc.review.skips.has(el0.globalId)) b.appendChild(el('div', 'xrw-dim', { 'data-role': 'skipped-state' }, 'You skipped this element earlier in this session.'));
@@ -725,30 +972,42 @@ export class ReviewWalk {
     if (dis) b.appendChild(el('div', 'xrw-warn', { 'data-role': 'disagree' }, `The model now disagrees: ${dis.discipline.code}${dis.subDiscipline ? `/${dis.subDiscipline.code}` : ''}${dis.masterformat ? `/${dis.masterformat.division}` : ''} (${dis.source === 'rules' ? 'rule' : dis.model ?? dis.source}), the committed value is ${r.discipline.code}${r.subDiscipline ? `/${r.subDiscipline.code}` : ''}${r.masterformat ? `/${r.masterformat.division}` : ''}.`));
     const pend = this.svc.review.pendingFor(el0.globalId);
     if (pend) b.appendChild(el('div', 'xrw-ok', { 'data-role': 'pending-state' }, `Pending: ${pend.action === 'confirm' ? 'confirmed' : `corrected to ${pend.after.discipline}${pend.after.subDiscipline ? `/${pend.after.subDiscipline}` : ''}${pend.after.division ? `/${pend.after.division}` : ''}`}${pend.unsure ? ' (unsure)' : ''}. It is written when you commit.`));
+  }
 
-    // comment and actions
-    const c = el('input', undefined, { type: 'text', placeholder: 'Comment (optional)', 'aria-label': 'Comment', 'data-role': 'comment', maxlength: '300' });
-    c.value = this.comment;
-    c.addEventListener('input', () => { this.comment = c.value; });
-    b.appendChild(c);
-    if (this.editing) {
-      const e = this.editing;
-      const box = el('div', 'xrw-box xrw-edit');
-      const fill = (): void => {
-        const d = findDiscipline(this.svc.schema, e.disc);
-        box.replaceChildren(
-          el('div', 'xrw-meta', undefined, `Correct ${this.scope === 'all' && it.elements.length > 1 ? `all ${it.elements.length}` : 'this element'}`),
-          this.select('Discipline', e.disc, this.svc.schema.disciplines.map((x): [string, string] => [x.code, `${x.code} ${x.label}`]), (v) => { e.disc = v; e.sub = ''; fill(); }, 'edit-discipline'),
-          this.select('Sub-discipline', e.sub, [['', '(none)'], ...(d?.subDisciplines ?? []).map((s): [string, string] => [s.code, `${s.code} ${s.label}`])], (v) => { e.sub = v; }, 'edit-sub'),
-          this.select('Division', e.div, [['', '(none)'], ...this.svc.schema.masterformat.divisions.map((x): [string, string] => [x.division, `${x.division} ${x.title}`])], (v) => { e.div = v; }, 'edit-division'),
-        );
-      };
-      fill();
-      b.appendChild(box);
-    }
-    const m = this.msgLine();
-    if (m) b.appendChild(m);
-    this.renderDock();
+  /** The numbered candidates: key 1 the proposal, key 2 the runner-up, keys 3 to 9 the next options. Clicking one is the same as the key. */
+  private renderCandidates(b: HTMLElement): void {
+    const list = this.candidates();
+    if (list.length < 2) return;
+    const box = el('div', 'xrw-cands', { 'data-role': 'candidates', role: 'list', 'aria-label': 'Candidates' });
+    list.slice(0, 9).forEach((c, i) => {
+      const rank = i + 1;
+      const row = el('button', `xrw-cand${rank === 1 ? ' cur' : ''}`, { type: 'button', 'data-rank': String(rank), 'data-code': c.code, title: rank === 1 ? 'The proposal: the same as Confirm' : rank === 2 ? 'The runner-up' : `Candidate ${rank}` });
+      row.append(el('kbd', undefined, undefined, String(rank)), el('span', undefined, undefined, `${c.code}${c.label ? ` ${c.label}` : ''}${c.probability === null ? '' : ` ${pct(c.probability)}`}${rank === 1 ? ' (proposed)' : ''}`));
+      row.addEventListener('click', () => this.takeCandidate(rank));
+      box.appendChild(row);
+    });
+    b.appendChild(box);
+  }
+
+  /** The proposal of a facet item: the facet's code, confidence and source, its fields, and the states. */
+  private renderFacetCard(b: HTMLElement, el0: WalkElement): void {
+    const f = this.curFacet();
+    if (!f) { b.appendChild(el('div', 'xrw-warn', undefined, 'This facet has no result any more (it was switched off or the facets ran again).')); return; }
+    const r = f.result;
+    const tbl = el('table', 'xrw-tbl');
+    tbl.appendChild(el('thead')).appendChild(el('tr')).append(...['', 'Proposed', 'Confidence', 'Source'].map((h) => el('th', undefined, undefined, h)));
+    const tb = el('tbody');
+    const src = r.source === 'human' ? `human${r.confidence < 1 ? ' (unsure)' : ''}` : r.source === 'model' ? `model ${r.model ?? ''}` : r.source;
+    tb.appendChild(el('tr')).append(el('td', 'xrw-dim', undefined, f.ref.id.replace('Concrete', 'Concrete ')), el('td', undefined, { 'data-role': 'facet-value' }, `${r.code} ${r.label}`), el('td', undefined, undefined, pct(r.confidence)), el('td', undefined, undefined, src));
+    tbl.appendChild(tb);
+    b.appendChild(tbl);
+    if (r.rationale) b.appendChild(el('div', 'xrw-meta', { 'data-role': 'rationale' }, `Why: ${r.rationale}`));
+    this.renderCandidates(b);
+    if (!this.svc.facetCodesOf(f.ref)) b.appendChild(el('div', 'xrw-dim', { 'data-role': 'no-codes' }, 'This set has no code list: confirm it or skip it.'));
+    if (r.needsReview) b.appendChild(el('div', 'xrw-warn', undefined, `Needs review (confidence ${pct(r.confidence)}).`));
+    if (this.svc.review.skips.has(el0.globalId)) b.appendChild(el('div', 'xrw-dim', { 'data-role': 'skipped-state' }, 'You skipped this element earlier in this session.'));
+    const pend = this.svc.review.pendingFacetFor(el0.globalId, f.ref.id);
+    if (pend) b.appendChild(el('div', 'xrw-ok', { 'data-role': 'pending-state' }, `Pending: ${pend.action === 'confirm' ? 'confirmed' : `corrected to ${pend.after.code}`}${pend.unsure ? ' (unsure)' : ''}. It is written when you commit.`));
   }
 
   /** The decision controls, outside the scrolling part so that they are on screen on a phone: the Unsure switch and the buttons. */
@@ -773,13 +1032,13 @@ export class ReviewWalk {
       this.dock.append(unsureBox, acts);
       return;
     }
-    const r = this.svc.store.get(this.current()!.globalId);
-    const up = r ? this.runner() : null;
+    const cands = this.candidates();
+    const up = cands[1] ?? null;
     const acts = el('div', 'xrw-acts');
     acts.append(
       this.btn('Confirm', 'confirm', () => this.confirm(), { primary: true, key: 'Enter' }),
-      this.btn(up ? `Use ${up.code}` : 'Runner-up', 'runner-up', () => this.useRunnerUp(), { key: '2', disabled: !up, title: up ? `Take the runner-up ${up.code} for the ${up.part}` : 'There is no second option' }),
-      this.btn('Correct…', 'correct', () => this.startEdit(), { key: 'E', title: 'Pick the codes by hand' }),
+      this.btn(up ? `Use ${up.code}` : 'Runner-up', 'runner-up', () => this.useRunnerUp(), { key: '2', disabled: !up, title: up ? `Take the runner-up ${up.code}${up.part ? ` for the ${up.part === 'subDiscipline' ? 'sub-discipline' : up.part}` : ''}` : 'There is no second option' }),
+      this.btn('Correct…', 'correct', () => this.startEdit(), { key: 'E', title: 'Pick the codes by hand (type to filter the list)' }),
     );
     if (n > 1) {
       const first = this.groupSkipFirst();
@@ -792,9 +1051,10 @@ export class ReviewWalk {
     }
     acts.append(
       this.btn('Back', 'back', () => this.back(), { key: '←', disabled: this.itemIndex === 0 && this.elementIndex === 0 }),
-      this.btn('Undo last', 'undo', () => this.undoLast(), { key: 'U', disabled: this.svc.review.pending().length === 0, title: 'Take back the last pending item' }),
+      this.btn('Undo last', 'undo', () => this.undoLast(), { key: 'U', disabled: this.svc.review.pendingCount() === 0, title: 'Take back the last pending item' }),
+      this.btn('Frame', 'frame', () => this.focus(), { key: 'F', title: 'Frame this item again at the review zoom' }),
     );
-    this.dock.append(unsureBox, acts, el('div', 'xrw-dim xrw-keys', undefined, 'Keys: Enter or Y confirm, 2 runner-up, E correct, N or right arrow skip (Shift+N the other skip), ? unsure, left arrow back, [ ] step, A all/one, U undo.'));
+    this.dock.append(unsureBox, acts, el('div', 'xrw-dim xrw-keys', { 'data-role': 'keys' }, `Zoom: ${REVIEW_ZOOM_LABEL[this.svc.reviewZoom()]} (Z). Keys: Enter or Y confirm, 1 to 9 take a candidate (2 runner-up), E correct, N or right arrow skip (Shift+N the other skip), ? unsure, left arrow back, [ ] step, A all/one, U undo, F frame, Z zoom, Esc leave Correct, Q or Esc twice close.`));
   }
 
   private describe(a: { discipline: string; subDiscipline: string | null; division: string | null }): string {
@@ -804,7 +1064,8 @@ export class ReviewWalk {
   private renderPending(): void {
     const b = this.body;
     const pend = this.svc.review.pending();
-    if (pend.length === 0) {
+    const pendF = this.svc.review.pendingFacets();
+    if (pend.length === 0 && pendF.length === 0) {
       b.append(el('div', 'xrw-dim', undefined, 'No pending changes. Confirmations and corrections wait here until you commit them.'));
       const m0 = this.msgLine();
       if (m0) b.appendChild(m0);
@@ -829,6 +1090,18 @@ export class ReviewWalk {
       if (first.comment) r.append(el('div', 'xrw-dim', undefined, `Comment: ${first.comment}`));
       b.appendChild(r);
     }
+    for (const p of pendF) {
+      const e = this.elements().find((x) => x.globalId === p.globalId);
+      const title = this.items.find((i) => i.key === p.item)?.title ?? `${p.facet}: ${e?.ifcClass ?? ''} ${e?.name ?? p.globalId}`;
+      const r = el('div', 'xrw-commit', { 'data-item': p.item });
+      const top = el('div', 'xrw-row');
+      const label = el('div', 'grow', undefined, `${title}: ${p.before.code} to ${p.after.code} (${p.action === 'confirm' ? 'confirm' : 'correct'})`);
+      if (p.unsure) label.appendChild(el('span', 'xrw-tag', { 'data-role': 'unsure-tag', title: 'Flagged as a guess' }, 'unsure'));
+      top.append(label, this.btn('Undo', 'undo-item', () => { this.svc.review.undoPending(p.item); this.message = null; this.render(); }, { title: 'Take this item back out of the pending changes' }));
+      r.appendChild(top);
+      if (p.comment) r.append(el('div', 'xrw-dim', undefined, `Comment: ${p.comment}`));
+      b.appendChild(r);
+    }
     b.appendChild(row(this.btn('Discard all pending changes', 'discard', () => { this.svc.review.discardPending(); this.render(); })));
     const m = this.msgLine();
     if (m) b.appendChild(m);
@@ -844,8 +1117,16 @@ export class ReviewWalk {
     this.ensureImport();
     b.appendChild(row(
       this.btn('Export review log', 'export-log', () => this.exportLog(), { title: 'Save the commits of this model as an xray-classification-review/1 file' }),
+      this.btn('Export manifest…', 'export-manifest', () => { this.manifestOpen = !this.manifestOpen; this.render(); }, { title: 'Save a summary of the classification and the review as an xray-classification-manifest/1 file, or as Markdown' }),
       this.btn('Import review log', 'import-log', () => this.importFile?.click(), { title: 'Replay the commits of a review log file. Commits that are in the log already are skipped.' }),
     ));
+    if (this.manifestOpen) {
+      b.appendChild(buildManifestPanel(this.svc, {
+        cls: { box: 'xrw-box', btn: 'xrw-btn', primary: 'xrw-btn primary', row: 'xrw-row' },
+        modelName: this.app.modelName,
+        done: (r) => { this.manifestOpen = false; this.message = r?.error ? { text: r.error, error: true } : r?.message ? { text: r.message, error: false } : null; this.render(); },
+      }));
+    }
     const m = this.msgLine();
     if (m) b.appendChild(m);
   }
@@ -855,7 +1136,7 @@ export class ReviewWalk {
     const open = this.expanded.has(c.id);
     const top = el('div', 'xrw-row');
     top.append(
-      el('div', 'grow', undefined, `${when(c.time)}, ${c.author}${c.note ? `: ${c.note}` : ''} (${c.changes.length} change${c.changes.length === 1 ? '' : 's'}${c.changes.some((x) => x.unsure) ? `, ${c.changes.filter((x) => x.unsure).length} unsure` : ''}${c.reverts ? `, reverts ${c.reverts}` : ''})`),
+      el('div', 'grow', undefined, `${when(c.time)}, ${c.author}${c.note ? `: ${c.note}` : ''} (${c.changes.length + (c.facetChanges?.length ?? 0)} change${c.changes.length + (c.facetChanges?.length ?? 0) === 1 ? '' : 's'}${c.changes.some((x) => x.unsure) || c.facetChanges?.some((x) => x.unsure) ? `, ${c.changes.filter((x) => x.unsure).length + (c.facetChanges?.filter((x) => x.unsure).length ?? 0)} unsure` : ''}${c.reverts ? `, reverts ${c.reverts}` : ''})`),
       this.btn(open ? 'Close' : 'Open', 'open-commit', () => { if (open) this.expanded.delete(c.id); else this.expanded.add(c.id); this.render(); }),
       this.btn('Revert', 'revert', () => this.revert(c), { disabled: !!c.reverts || this.svc.review.history().some((x) => x.reverts === c.id), title: 'Add a commit that puts the earlier results back. This commit stays in the log.' }),
     );
@@ -868,6 +1149,11 @@ export class ReviewWalk {
         list.appendChild(line);
       }
       if (c.changes.length > 200) list.appendChild(el('div', undefined, undefined, `... and ${c.changes.length - 200} more`));
+      for (const ch of (c.facetChanges ?? []).slice(0, 200)) {
+        const line = el('div', undefined, undefined, `${ch.globalId}: ${ch.facet} ${ch.before.code} (${ch.before.source}) to ${ch.after.code} (${ch.action})${ch.comment ? `, "${ch.comment}"` : ''}`);
+        if (ch.unsure) line.appendChild(el('span', 'xrw-tag', { 'data-role': 'unsure-tag', title: 'Flagged as a guess' }, 'unsure'));
+        list.appendChild(line);
+      }
       r.appendChild(list);
     }
     return r;
@@ -913,7 +1199,7 @@ export class ReviewWalk {
 
   private renderFoot(): void {
     const review = this.svc.review;
-    const n = review.pending().length;
+    const n = review.pendingCount();
     const f = this.foot;
     f.replaceChildren();
     const name = el('input', undefined, { type: 'text', 'data-role': 'reviewer', placeholder: 'Your name or initials', 'aria-label': 'Reviewer name or initials', autocomplete: 'off', maxlength: '80' });

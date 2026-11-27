@@ -35,6 +35,12 @@ export { ReviewLog, parseReviewLog, modelFingerprint, createReviewPersistence, R
 export type { ReviewCommit, ReviewChange, ReviewState, ReviewPersistence } from './reviewLog';
 export { buildWalk, walkElementsOf, walkProgress, chainOrder, sweepOrder, runnerUp, WALK_ORDERS, SkipList } from './reviewWalk';
 export type { WalkElement, WalkItem, WalkOrder } from './reviewWalk';
+export { buildManifest, manifestJson, manifestMarkdown, MANIFEST_SCHEMA } from './manifest';
+export type { ClassificationManifest } from './manifest';
+export { resolveZoom, roomOf, storeyBox, REVIEW_ZOOMS, DEFAULT_REVIEW_ZOOM } from './reviewZoom';
+export type { ReviewZoom } from './reviewZoom';
+export { buildFacetItems, facetCandidates, WALK_KINDS } from './facetWalk';
+export type { WalkKind } from './facetWalk';
 export { ClassifyService, SCHEMA_STORAGE_KEY } from './service';
 export type { RunOptions, ServiceEnv, Target } from './service';
 export * from './types';

@@ -47,6 +47,9 @@ import { FACET_IDS, FACETS_VERSION } from './facets/defs';
 import type { FacetDefs, FacetId, FacetResult, FacetSet } from './facets/defs';
 import { isFacetId } from './facets/defs';
 import type { EffectiveFacet } from './reviewLog';
+import { buildManifest } from './manifest';
+import type { ClassificationManifest } from './manifest';
+import type { FacetLike } from './facetWalk';
 import type { ReviewZoom } from './reviewZoom';
 import { hasTop, measureOrientation } from './facets/orientation';
 import type { OrientationMeasure, OrientationMesh } from './facets/orientation';
@@ -1007,6 +1010,31 @@ export class ClassifyService {
 
   // ------------------------------------------------------------ facets
 
+  /** The classification manifest of the model on screen (see classify/manifest.ts). The reviewer names and the per-element list are opt-in. */
+  manifest(o: { perElement?: boolean; reviewerNames?: boolean; now?: Date } = {}): ClassificationManifest {
+    const m = this.model;
+    const facetResults: Array<{ globalId: string; result: FacetLike }> = [];
+    for (const [globalId, set] of this.facetStore) for (const r of Object.values(set)) if (r) facetResults.push({ globalId, result: r });
+    for (const [globalId, set] of this.concreteStore) for (const r of Object.values(set)) if (r) facetResults.push({ globalId, result: r });
+    return buildManifest({
+      ...(o.now ? { now: o.now } : {}),
+      modelName: this.modelName,
+      reviewFingerprint: this.review.fingerprint(),
+      schema: { id: this.schema.schema, title: this.schema.title, ...(this.schema.version ? { version: this.schema.version } : {}), ...(this.schema.edition ? { edition: this.schema.edition } : {}) },
+      settings: this.settings(),
+      minConfidence: this.minConfidence(),
+      facetsOn: this.facetIds(),
+      concreteOn: this.concreteOn,
+      results: this.store.all(),
+      facetResults,
+      commits: this.review.log?.commits ?? [],
+      activity: this.review.activity,
+      elementInfo: (g) => { const e = m?.elements[m.byGlobalId.get(g) ?? -1]; return e ? { ifcClass: e.ifcClass, name: e.name ?? '' } : undefined; },
+      perElement: o.perElement === true,
+      reviewerNames: o.reviewerNames === true,
+    });
+  }
+
   /** The code list of a facet or concrete set for the review walk, or null when it has none (the measured concrete sets). */
   facetCodesOf(ref: { id: string; family: 'facet' | 'concrete' }): ReadonlyArray<{ code: string; label: string }> | null {
     if (ref.family === 'facet') return isFacetId(ref.id) ? this.facetDefs()[ref.id].codes : null;
@@ -1014,6 +1042,10 @@ export class ClassifyService {
     if (ref.id === 'ConcreteMethod') return METHOD_CODES;
     if (ref.id === 'ConcreteReinforcement') return REINFORCEMENT_CODES;
     return null;
+  }
+
+  reviewZoom(): ReviewZoom {
+    return this.draft.reviewZoom;
   }
 
   /** The review zoom of the walk is a view setting: it changes the draft and nothing is classified again. */
