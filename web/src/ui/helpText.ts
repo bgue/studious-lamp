@@ -4467,15 +4467,27 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Review walk': h(
-    'The button opens a panel that visits the classified elements in a logical order. You confirm, correct or skip each element.',
+    'The button opens a panel that visits the classified elements in a logical order. You confirm, correct or skip each element. The panel can also visit the facet answers that need a check.',
     'Your choices wait as pending changes. A commit writes them to the log, and they then count as the result. A skip is not a change. The Skipped count lets you revisit those elements.',
-    'Click the button after a run. Press Enter to confirm and N to skip. Tick Unsure, or press the question mark, when you only guess. Click Commit when you are done.',
+    'Click the button after a run. Press Enter to confirm and N to skip. Press 1 to 9 to take a numbered candidate. Press F to frame the part and Z to change the zoom. Tick Unsure, or press the question mark, when you only guess. Click Commit when you are done. Press Q to close the walk.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Export review log': h(
     'The button saves every commit of this model as a review log file.',
     'You get a file that records who confirmed what and when. It holds the names of the people.',
     'Click the button to back up your work or to hand it to a colleague.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Review zoom': h(
+    'The list sets how far the walk frames the part in view. Close shows the part alone. With surroundings shows what it is fixed to. Room and Storey show more.',
+    'With Close, the part fills the screen. With the other choices, you see more of the space around it.',
+    'Choose With surroundings to see what a small fitting is fixed to. Press Z in the walk to change the choice.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Export manifest': h(
+    'The button saves a summary of the classification and of the review as a manifest file. It can also write a short Markdown summary.',
+    'You get a small file with counts and a table of corrections. It holds no keys and, by default, no names.',
+    'Click the button and choose the format. Tick a box only when you want the list of corrections or the names of the reviewers.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Import review log': h(

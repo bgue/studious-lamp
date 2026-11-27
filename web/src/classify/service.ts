@@ -45,6 +45,12 @@ import { classifyFacets, estimateFacetCalls, MemoryFacetCache, StorageFacetCache
 import type { FacetCache, FacetElementInfo, FacetRun, FacetStats } from './facets/engine';
 import { FACET_IDS, FACETS_VERSION } from './facets/defs';
 import type { FacetDefs, FacetId, FacetResult, FacetSet } from './facets/defs';
+import { isFacetId } from './facets/defs';
+import type { EffectiveFacet } from './reviewLog';
+import { buildManifest } from './manifest';
+import type { ClassificationManifest } from './manifest';
+import type { FacetLike } from './facetWalk';
+import type { ReviewZoom } from './reviewZoom';
 import { hasTop, measureOrientation } from './facets/orientation';
 import type { OrientationMeasure, OrientationMesh } from './facets/orientation';
 import { createPlacementProbe } from './facets/placementGeometry';
@@ -52,9 +58,9 @@ import type { Box6, PlacementGeo, PlacementProbe, RayHits } from './facets/place
 import { facetSetProperties, isFacetKey, makeManualFacet } from './facets/write';
 import { classifyConcrete } from './concrete/engine';
 import type { ConcreteItem, ConcreteRun, ConcreteStats } from './concrete/engine';
-import { isConcreteKey } from './concrete/defs';
+import { isConcreteKey, METHOD_CODES, REINFORCEMENT_CODES, ROLE_CODES } from './concrete/defs';
 import { mayBeConcrete } from './concrete/rules';
-import type { ConcreteFacetId, ConcreteSet } from './concrete/defs';
+import type { ConcreteFacetId, ConcreteFacetResult, ConcreteSet } from './concrete/defs';
 import { concreteSetProperties, makeManualConcrete } from './concrete/write';
 import { defaultCoverTable, parseCoverTable } from './concrete/spec';
 import type { CoverTable } from './concrete/spec';
@@ -193,6 +199,8 @@ export class ClassifyService {
   lastConcreteStats: ConcreteStats | null = null;
   private writtenConcrete = new Set<number>();
   facetsRunning = false;
+  /** The facet and concrete results that a review decision replaced, by `GlobalId|Facet` (put back when a revert removes the decision). */
+  private humanPrior = new Map<string, FacetResult | ConcreteFacetResult>();
   private measures = new Map<number, OrientationMeasure | null>();
   private placementGeo = new Map<number, PlacementGeo>();
   private probe: PlacementProbe | null = null;
@@ -216,6 +224,9 @@ export class ClassifyService {
           if (results.length) this.writeToModel(results);
         },
         emit: () => this.emit(),
+        facetResult: (gid, ref) => (ref.family === 'facet' ? this.facetStore.get(gid)?.[ref.id as FacetId] : this.concreteStore.get(gid)?.[ref.id as ConcreteFacetId]),
+        facetCodes: (ref) => this.facetCodesOf(ref),
+        applyFacets: (eff) => this.overlayHuman(eff),
       },
       env.storage,
       env.reviewPersistence,
@@ -600,7 +611,7 @@ export class ClassifyService {
   /** The provider for the current settings. It is reused while the settings stay the same (a browser model keeps its engine). */
   provider(): DecisionModel | null {
     // The key leaves out what does not change the provider (the confidence limit, the calibration, the schema): a loaded model is kept.
-    const { calibration: _c, temperatures: _t, minConfidence: _m, writePset: _w, schemaUrl: _s, rulesMode: _r, ...providerSettings } = this.settings();
+    const { calibration: _c, temperatures: _t, minConfidence: _m, writePset: _w, schemaUrl: _s, rulesMode: _r, reviewZoom: _z, ...providerSettings } = this.settings();
     const key = JSON.stringify(providerSettings);
     if (this.providerMemo?.key !== key) {
       this.providerMemo = {
@@ -999,6 +1010,101 @@ export class ClassifyService {
 
   // ------------------------------------------------------------ facets
 
+  /** The classification manifest of the model on screen (see classify/manifest.ts). The reviewer names and the per-element list are opt-in. */
+  manifest(o: { perElement?: boolean; reviewerNames?: boolean; now?: Date } = {}): ClassificationManifest {
+    const m = this.model;
+    const facetResults: Array<{ globalId: string; result: FacetLike }> = [];
+    for (const [globalId, set] of this.facetStore) for (const r of Object.values(set)) if (r) facetResults.push({ globalId, result: r });
+    for (const [globalId, set] of this.concreteStore) for (const r of Object.values(set)) if (r) facetResults.push({ globalId, result: r });
+    return buildManifest({
+      ...(o.now ? { now: o.now } : {}),
+      modelName: this.modelName,
+      reviewFingerprint: this.review.fingerprint(),
+      schema: { id: this.schema.schema, title: this.schema.title, ...(this.schema.version ? { version: this.schema.version } : {}), ...(this.schema.edition ? { edition: this.schema.edition } : {}) },
+      settings: this.settings(),
+      minConfidence: this.minConfidence(),
+      facetsOn: this.facetIds(),
+      concreteOn: this.concreteOn,
+      results: this.store.all(),
+      facetResults,
+      commits: this.review.log?.commits ?? [],
+      activity: this.review.activity,
+      elementInfo: (g) => { const e = m?.elements[m.byGlobalId.get(g) ?? -1]; return e ? { ifcClass: e.ifcClass, name: e.name ?? '' } : undefined; },
+      perElement: o.perElement === true,
+      reviewerNames: o.reviewerNames === true,
+    });
+  }
+
+  /** The code list of a facet or concrete set for the review walk, or null when it has none (the measured concrete sets). */
+  facetCodesOf(ref: { id: string; family: 'facet' | 'concrete' }): ReadonlyArray<{ code: string; label: string }> | null {
+    if (ref.family === 'facet') return isFacetId(ref.id) ? this.facetDefs()[ref.id].codes : null;
+    if (ref.id === 'ConcreteElement') return ROLE_CODES;
+    if (ref.id === 'ConcreteMethod') return METHOD_CODES;
+    if (ref.id === 'ConcreteReinforcement') return REINFORCEMENT_CODES;
+    return null;
+  }
+
+  reviewZoom(): ReviewZoom {
+    return this.draft.reviewZoom;
+  }
+
+  /** The review zoom of the walk is a view setting: it changes the draft and nothing is classified again. */
+  setReviewZoom(z: ReviewZoom): void {
+    if (this.draft.reviewZoom === z) return;
+    this.draft = { ...this.draft, reviewZoom: z };
+    this.emit();
+  }
+
+  /**
+   * Put the facet values that a person decided in the review walk (the log's facet changes) into the facet and concrete results: source
+   * `human`, no review (unsure: review stays), confidence 1 (unsure 0.75). A decision that the log no longer holds (a revert) puts the result
+   * back that was there before. Called when the log changes and after every facet run, which rebuilds the results.
+   */
+  private overlayHuman(eff: ReadonlyMap<string, EffectiveFacet>): void {
+    const touchedF: string[] = [];
+    const touchedC: string[] = [];
+    const setIn = (family: 'facet' | 'concrete', gid: string, facet: string, r: FacetResult | ConcreteFacetResult): void => {
+      if (family === 'facet') {
+        this.facetStore.set(gid, { ...(this.facetStore.get(gid) ?? {}), [facet]: r as FacetResult });
+        touchedF.push(gid);
+      } else {
+        this.concreteStore.set(gid, { ...(this.concreteStore.get(gid) ?? {}), [facet]: r as ConcreteFacetResult });
+        touchedC.push(gid);
+      }
+    };
+    const get = (family: 'facet' | 'concrete', gid: string, facet: string): FacetResult | ConcreteFacetResult | undefined => (family === 'facet' ? this.facetStore.get(gid)?.[facet as FacetId] : this.concreteStore.get(gid)?.[facet as ConcreteFacetId]);
+    for (const [key, prior] of [...this.humanPrior]) {
+      if (eff.has(key)) continue;
+      this.humanPrior.delete(key);
+      const [gid, facet] = key.split('|') as [string, string];
+      const family = isFacetId(facet) ? 'facet' : 'concrete';
+      if (get(family, gid, facet)?.source === 'human') setIn(family, gid, facet, prior);
+    }
+    const m = this.model;
+    for (const [key, e] of eff) {
+      const { globalId: gid, facet } = e.change;
+      const family: 'facet' | 'concrete' = isFacetId(facet) ? 'facet' : 'concrete';
+      const cur = get(family, gid, facet);
+      if (!cur || cur.source === 'manual') continue; // a choice made by hand later wins over a review decision
+      const unsure = e.change.unsure === true;
+      const a = e.change.after;
+      if (cur.source === 'human' && cur.code === a.code && cur.confidence === a.confidence && cur.needsReview === unsure) continue;
+      if (cur.source !== 'human') this.humanPrior.set(key, cur);
+      let base: FacetResult | ConcreteFacetResult = cur;
+      if (cur.code !== a.code) {
+        try {
+          if (family === 'facet') base = makeManualFacet(this.facetDefs(), facet as FacetId, { code: a.code }, cur as FacetResult, m?.elements[m.byGlobalId.get(gid) ?? -1]?.ifcClass);
+          else base = makeManualConcrete(facet as 'ConcreteElement' | 'ConcreteMethod' | 'ConcreteReinforcement', a.code, cur as ConcreteFacetResult);
+        } catch { continue; } // a code that the list does not have any more
+        base = { ...base, ...(cur.probabilities ? { probabilities: cur.probabilities } : {}) };
+      }
+      const { model: _model, ...rest } = base;
+      setIn(family, gid, facet, { ...rest, confidence: a.confidence, source: 'human', needsReview: unsure, rationale: `${e.change.action === 'correct' ? 'corrected' : 'confirmed'} in the review walk${unsure ? ' (unsure)' : ''}` } as FacetResult);
+    }
+    if (touchedF.length && this.draft.writePset) this.writeFacetsToModel([...new Set(touchedF)]);
+    if (touchedC.length && this.draft.writePset) this.writeConcreteToModel([...new Set(touchedC)]);
+  }
+
   /** The facet definitions of the schema in use (code lists, thresholds). */
   facetDefs(): FacetDefs {
     return facetDefs(this.schema);
@@ -1196,6 +1302,7 @@ export class ClassifyService {
         }
         this.lastFacetStats = run.stats;
         if (this.draft.writePset) this.writeFacetsToModel([...run.results.keys()]);
+        this.overlayHuman(this.review.facetEffective()); // the run rebuilt these results: what a person decided stays
       }
       if (this.concreteOn && !signal.aborted) {
         try {
@@ -1380,6 +1487,7 @@ export class ClassifyService {
     this.clearWrittenConcrete();
     this.concreteStore = run.results;
     this.lastConcreteStats = run.stats;
+    this.overlayHuman(this.review.facetEffective());
     if (this.draft.writePset) this.writeConcreteToModel([...run.results.keys()]);
     return run;
   }

@@ -400,7 +400,7 @@ export function moveToBox(app: ViewerApp, box: Box3, opts: FlyOptions & { tag?: 
   if (box.isEmpty()) return;
   pushHistory(app, opts.tag ?? '');
   const { camera, controls } = app.renderer;
-  const fly: FlyOptions = { margin: opts.margin, direction: opts.direction, durationMs: VIEW_MOVE_MS };
+  const fly: FlyOptions = { margin: opts.margin, direction: opts.direction, durationMs: VIEW_MOVE_MS, ...(opts.minDistance !== undefined ? { minDistance: opts.minDistance } : {}) };
   const cin = cinematic();
   if (navSettings.smoothMoves && cin) {
     tween = null;

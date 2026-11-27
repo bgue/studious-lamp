@@ -84,6 +84,7 @@ These choices are not in the generated settings file. They live in the tabs and,
 
 | Where | Choice | Values | Chapter |
 | --- | --- | --- | --- |
+| Classification > Review | **Review zoom** (`Z` in the walk), **Show** (Classification, Facets, Both) | Close, With surroundings (default), Room, Storey; Show is not saved | 18.2 |
 | Classification > Facets | a switch for each facet, and **Concrete** | on (all on by default) | 18A, 18B |
 | Classification > Output | **Colour by** | Off, Discipline, Trade, Placement, Material, Phase, Orientation | 18A.3 |
 | Classification > Output | **Confidence shading** | on, off | 18A.3 |

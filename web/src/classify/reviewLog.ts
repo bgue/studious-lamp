@@ -40,6 +40,34 @@ export interface ReviewChange {
   comment?: string;
   /** Set (true) when the reviewer flagged the change as a guess. Absent means false: older logs and imports have no such field. */
   unsure?: true;
+  /** How the correction was picked, when it was not typed: the runner-up (key 2) or another numbered candidate (keys 3 to 9). Additive, absent in older logs. */
+  via?: ReviewVia;
+}
+
+/** How a correction was picked in the walk, when it was not chosen by hand. */
+export type ReviewVia = 'runner-up' | 'candidate';
+
+/** The part of a facet result that a review records. `source` is the facet source ("rule", "model", "geometry", "manual", ..., and "human" after a review). */
+export interface ReviewFacetState {
+  code: string;
+  source: string;
+  confidence: number;
+}
+
+/**
+ * A confirmation or correction of one facet of one element (XR_Trade, XR_Placement, XR_Concrete..., see classify/facetWalk.ts). It sits in the
+ * commit's optional `facetChanges` list: a reader that does not know the list skips it, and the classification `changes` stay as they were.
+ */
+export interface ReviewFacetChange {
+  globalId: string;
+  /** The facet id: Trade, Placement, Material, Phase, Orientation, ClassRepair, ConcreteGeometry, ConcreteElement, ConcreteMethod, ConcreteSpec or ConcreteReinforcement. */
+  facet: string;
+  before: ReviewFacetState;
+  after: ReviewFacetState;
+  action: ReviewAction;
+  comment?: string;
+  unsure?: true;
+  via?: ReviewVia;
 }
 
 export interface ReviewCommit {
@@ -51,6 +79,8 @@ export interface ReviewCommit {
   modelFingerprint: string;
   schemaEdition: string;
   changes: ReviewChange[];
+  /** Facet confirmations and corrections of the review walk. Additive: absent when the commit has none, and ignored by readers that do not know it. */
+  facetChanges?: ReviewFacetChange[];
   /** Set when this commit reverses another one. */
   reverts?: string;
   /** Set on a commit that the revision walk carried over from another model's log (the base's fingerprint and commit id). */
@@ -113,6 +143,13 @@ export interface Effective {
   commit: ReviewCommit;
 }
 
+export interface EffectiveFacet {
+  change: ReviewFacetChange;
+  commit: ReviewCommit;
+}
+
+export const HUMAN_FACET_SOURCE = 'human';
+
 export interface LogInfo {
   modelName: string;
   modelFingerprint: string;
@@ -159,10 +196,10 @@ export class ReviewLog {
   }
 
   /** Build and append a commit. Throws a plain Error when there is nothing to commit or no author. */
-  commit(o: { author: string; note?: string; changes: readonly ReviewChange[]; reverts?: string; now?: Date; id?: string }): ReviewCommit {
+  commit(o: { author: string; note?: string; changes: readonly ReviewChange[]; facetChanges?: readonly ReviewFacetChange[]; reverts?: string; now?: Date; id?: string }): ReviewCommit {
     const author = o.author.trim();
     if (!author) throw new Error('Enter your name or initials first: a commit records who made it.');
-    if (o.changes.length === 0) throw new Error('There is nothing to commit.');
+    if (o.changes.length === 0 && (o.facetChanges?.length ?? 0) === 0) throw new Error('There is nothing to commit.');
     const now = o.now ?? new Date();
     const c: ReviewCommit = {
       id: o.id ?? newId(now),
@@ -172,7 +209,8 @@ export class ReviewLog {
       modelName: this.info.modelName,
       modelFingerprint: this.info.modelFingerprint,
       schemaEdition: this.info.schemaEdition,
-      changes: o.changes.map((x) => ({ globalId: x.globalId, before: { ...x.before }, after: { ...x.after }, action: x.action, ...(x.comment ? { comment: x.comment } : {}), ...(x.unsure ? { unsure: true as const } : {}) })),
+      changes: o.changes.map((x) => ({ globalId: x.globalId, before: { ...x.before }, after: { ...x.after }, action: x.action, ...(x.comment ? { comment: x.comment } : {}), ...(x.unsure ? { unsure: true as const } : {}), ...(x.via ? { via: x.via } : {}) })),
+      ...(o.facetChanges && o.facetChanges.length ? { facetChanges: o.facetChanges.map((x) => ({ globalId: x.globalId, facet: x.facet, before: { ...x.before }, after: { ...x.after }, action: x.action, ...(x.comment ? { comment: x.comment } : {}), ...(x.unsure ? { unsure: true as const } : {}), ...(x.via ? { via: x.via } : {}) })) } : {}),
       ...(o.reverts ? { reverts: o.reverts } : {}),
     };
     if (!this.add(c)) throw new Error(`A commit with the id ${c.id} exists already.`);
@@ -188,6 +226,15 @@ export class ReviewLog {
     const latest = new Map<string, Effective>();
     for (const { c } of order) for (const change of c.changes) latest.set(change.globalId, { change, commit: c });
     for (const [gid, e] of latest) if (!isCommittedSource(e.change.after.source)) latest.delete(gid);
+    return latest;
+  }
+
+  /** The latest facet change of every element and facet (key `GlobalId|Facet`), in time order. One that ends in a source other than human is not decided any more, and is absent. */
+  effectiveFacets(): Map<string, EffectiveFacet> {
+    const order = this.list.map((c, i) => ({ c, i })).sort((a, b) => (a.c.time < b.c.time ? -1 : a.c.time > b.c.time ? 1 : a.i - b.i));
+    const latest = new Map<string, EffectiveFacet>();
+    for (const { c } of order) for (const change of c.facetChanges ?? []) latest.set(`${change.globalId}|${change.facet}`, { change, commit: c });
+    for (const [k, e] of latest) if (e.change.after.source !== HUMAN_FACET_SOURCE) latest.delete(k);
     return latest;
   }
 
@@ -210,6 +257,17 @@ export class ReviewLog {
     for (const { c } of order) for (const ch of c.changes) eff.set(ch.globalId, { change: ch, commit: c });
     const changes: ReviewChange[] = [];
     const skipped: string[] = [];
+    const effF = new Map<string, EffectiveFacet>();
+    for (const { c } of order) for (const ch of c.facetChanges ?? []) effF.set(`${ch.globalId}|${ch.facet}`, { change: ch, commit: c });
+    const facetChanges: ReviewFacetChange[] = [];
+    for (const ch of target.facetChanges ?? []) {
+      const now = effF.get(`${ch.globalId}|${ch.facet}`);
+      if (!now || now.commit.id !== target.id) {
+        skipped.push(`${ch.globalId}|${ch.facet}`);
+        continue;
+      }
+      facetChanges.push({ globalId: ch.globalId, facet: ch.facet, before: { ...ch.after }, after: { ...ch.before }, action: 'correct', comment: `Reverts ${target.id}` });
+    }
     for (const ch of target.changes) {
       const now = eff.get(ch.globalId);
       if (!now || now.commit.id !== target.id) {
@@ -218,8 +276,8 @@ export class ReviewLog {
       }
       changes.push({ globalId: ch.globalId, before: { ...ch.after }, after: { ...ch.before }, action: 'correct', comment: `Reverts ${target.id}`, ...(isUnsureState(ch.before) ? { unsure: true as const } : {}) });
     }
-    if (changes.length === 0) throw new Error('Every element of that commit was changed again by a later commit, so there is nothing to revert.');
-    const commit = this.commit({ author: o.author, note: o.note ?? `Reverts ${target.id}`, changes, reverts: target.id, ...(o.now ? { now: o.now } : {}), ...(o.id ? { id: o.id } : {}) });
+    if (changes.length === 0 && facetChanges.length === 0) throw new Error('Every element of that commit was changed again by a later commit, so there is nothing to revert.');
+    const commit = this.commit({ author: o.author, note: o.note ?? `Reverts ${target.id}`, changes, facetChanges, reverts: target.id, ...(o.now ? { now: o.now } : {}), ...(o.id ? { id: o.id } : {}) });
     return { commit, skipped };
   }
 
@@ -316,7 +374,23 @@ export function parseReviewLog(input: unknown): { doc: ReviewLogDoc | null; erro
         errors.push(`${at} has an "unsure" that is not true or false.`);
         return;
       }
-      if (before && after) changes.push({ globalId: ch['globalId'], before, after, action: ch['action'], ...(typeof ch['comment'] === 'string' && ch['comment'] ? { comment: ch['comment'] } : {}), ...(u === true ? { unsure: true as const } : {}) });
+      const via = ch['via'] === 'runner-up' || ch['via'] === 'candidate' ? ch['via'] : undefined;
+      if (before && after) changes.push({ globalId: ch['globalId'], before, after, action: ch['action'], ...(via ? { via } : {}), ...(typeof ch['comment'] === 'string' && ch['comment'] ? { comment: ch['comment'] } : {}), ...(u === true ? { unsure: true as const } : {}) });
+    });
+    const facetChanges: ReviewFacetChange[] = [];
+    if (c['facetChanges'] !== undefined && !Array.isArray(c['facetChanges'])) errors.push(`Commit ${c['id']}: "facetChanges" must be a list.`);
+    else (c['facetChanges'] as unknown[] | undefined)?.forEach((ch, j) => {
+      const at = `Commit ${c['id'] as string}, facet change ${j + 1}`;
+      if (!isObj(ch) || typeof ch['globalId'] !== 'string' || typeof ch['facet'] !== 'string' || (ch['action'] !== 'confirm' && ch['action'] !== 'correct')) {
+        errors.push(`${at} needs a globalId, a facet and an action "confirm" or "correct".`);
+        return;
+      }
+      const st = (x: unknown): ReviewFacetState | null => (isObj(x) && typeof x['code'] === 'string' && typeof x['source'] === 'string' && typeof x['confidence'] === 'number' ? { code: x['code'], source: x['source'], confidence: x['confidence'] } : null);
+      const before = st(ch['before']);
+      const after = st(ch['after']);
+      if (!before || !after) { errors.push(`${at} needs "before" and "after" with a code, a source and a confidence.`); return; }
+      const via = ch['via'] === 'runner-up' || ch['via'] === 'candidate' ? ch['via'] : undefined;
+      facetChanges.push({ globalId: ch['globalId'], facet: ch['facet'], before, after, action: ch['action'], ...(typeof ch['comment'] === 'string' && ch['comment'] ? { comment: ch['comment'] } : {}), ...(ch['unsure'] === true ? { unsure: true as const } : {}), ...(via ? { via } : {}) });
     });
     commits.push({
       id: c['id'],
@@ -327,6 +401,7 @@ export function parseReviewLog(input: unknown): { doc: ReviewLogDoc | null; erro
       modelFingerprint: typeof c['modelFingerprint'] === 'string' ? c['modelFingerprint'] : (v['modelFingerprint'] as string),
       schemaEdition: typeof c['schemaEdition'] === 'string' ? c['schemaEdition'] : '',
       changes,
+      ...(facetChanges.length ? { facetChanges } : {}),
       ...(typeof c['reverts'] === 'string' && c['reverts'] ? { reverts: c['reverts'] } : {}),
       ...(isObj(c['carriedFrom']) && typeof c['carriedFrom']['fingerprint'] === 'string' && typeof c['carriedFrom']['commitId'] === 'string' ? { carriedFrom: { fingerprint: c['carriedFrom']['fingerprint'], commitId: c['carriedFrom']['commitId'] } } : {}),
     });

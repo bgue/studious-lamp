@@ -5,6 +5,15 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 
 ## v33 - 2026-11-27
 
+- Classification review walk: a **Review zoom** setting (Close, With surroundings as the default, Room, Storey; `Z` cycles it, `F` frames the
+  current item again) keeps a small fitting in view with what it is fixed to. The card numbers the top candidates and `1` to `9` take one
+  (`2` stays the runner-up); in Correct, typing filters the code list. `Esc` is safer: it leaves Correct or brings the focus back to the
+  walk, and the walk closes with `Q` or a second `Esc` within 1.5 s.
+- The review walk visits facet answers that need review (Trade, Placement, Material, Phase, Orientation, ClassRepair, the concrete sets) with
+  the same keys; a **Show** list chooses Classification, Facets or Both. Decisions go into the review log (still
+  `xray-classification-review/1`, with an optional `facetChanges` list and a `via` field) and make the facet result source `human`.
+- **Export manifest...** next to Export review log saves `xray-classification-manifest/1` (JSON, or a Markdown summary): counts by source,
+  code and confidence, review actions, a from-to table of corrections. A list of human corrections and the reviewer names are opt-in boxes.
 - The 4D film has a colour legend (the trades of the film and what active, built, removed, critical and behind or ahead look like)
   and a schedule strip along the bottom (bars by trade, critical work marked, milestones, a marker for the date). Both are in
   the video and the packed page, and each has a switch in the Film step and an `xray-4d --legend` / `--strip` option.

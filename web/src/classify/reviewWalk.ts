@@ -86,7 +86,15 @@ export class SkipList {
   }
 }
 
+/** Which facet a facet item is about: `family` is `facet` for the six XR_ facets and `concrete` for the XR_Concrete* sets. */
+export interface FacetRef {
+  id: string;
+  family: 'facet' | 'concrete';
+}
+
 export interface WalkItem {
+  /** Set on a facet item (one element, one facet that needs review); absent on a classification item. */
+  facet?: FacetRef;
   /** Stable key: the item's first GlobalId and the order, e.g. "type:2Abc...". */
   key: string;
   /** Short title, e.g. "IfcPipeSegment: Pipe 150". */
@@ -312,6 +320,27 @@ export function runnerUp(r: ClassifyResult, valid: (part: RunnerUp['part'], code
     if (!best || margin < best.margin) best = { margin, up: { part, code: alt[0], probability: alt[1], proposed: c.code, proposedProbability: proposed } };
   }
   return best?.up ?? null;
+}
+
+export interface ClassCandidates {
+  part: RunnerUp['part'];
+  proposed: string;
+  /** Key 1 is the proposal (Confirm); key 2 the runner-up; then the next options of the same part by probability. */
+  list: Array<{ code: string; probability: number }>;
+}
+
+/**
+ * The numbered candidates of a classification result: the part with the narrowest margin (the one the runner-up is about) with its
+ * proposed code first and the other valid codes of that part by probability. Null when only one option was scored.
+ */
+export function classCandidates(r: ClassifyResult, valid: (part: RunnerUp['part'], code: string) => boolean, max = 9): ClassCandidates | null {
+  const up = runnerUp(r, valid);
+  if (!up) return null;
+  const c = up.part === 'discipline' ? r.discipline : up.part === 'subDiscipline' ? r.subDiscipline : r.masterformat ? { code: r.masterformat.division, probabilities: r.masterformat.probabilities } : null;
+  if (!c) return null;
+  const list = [{ code: up.proposed, probability: up.proposedProbability }];
+  for (const [code, probability] of Object.entries(c.probabilities).sort((a, b) => b[1] - a[1])) if (code !== up.proposed && valid(up.part, code) && list.length < max) list.push({ code, probability });
+  return { part: up.part, proposed: up.proposed, list };
 }
 
 /** The walk elements of a loaded model: storey, first system, tag and the classification signature of each element. */

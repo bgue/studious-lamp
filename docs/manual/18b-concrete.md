@@ -22,6 +22,10 @@ name for each element (the **mark**), a local frame to say which way is "along t
 each other, and a guess of how it is reinforced and how heavily. These sets are exactly that. The matcher itself is not built yet; its
 fields (`BarCount`, `MatchedMass`, `RatioCheck` and so on) stay empty.
 
+The review walk (18.2) visits concrete answers that need review when **Show** is set to **Facets** or **Both**. The role, method and
+reinforcement type can be confirmed or corrected from their code lists. The measured geometry and the strength and cover suggestions
+have no list: confirm them or skip them.
+
 ### Try it
 
 Use **FZK-Haus**.

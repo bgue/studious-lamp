@@ -19,6 +19,8 @@ import {
   DEFAULT_EMBED_TEMPERATURE, DEFAULT_HYBRID_MARGIN, WEBLLM_DEFAULT_EMBED_MODEL, WEBLLM_DEFAULT_MODEL, WEBLLM_EMBED_MODELS, WEBLLM_MODELS, WEBLLM_MODES, customModelCheck,
 } from './providers/webllm';
 import type { WebLlmMode } from './providers/webllm';
+import { DEFAULT_REVIEW_ZOOM, isReviewZoom, REVIEW_ZOOMS } from './reviewZoom';
+import type { ReviewZoom } from './reviewZoom';
 
 /** `decision` is the recommended local provider (a small NLI model, WebGPU or WASM), then `webllm` (a chat model), then `jev` (HTTP). */
 export const PROVIDERS = ['off', 'decision', 'd3', 'webllm', 'jev', 'mock'] as const;
@@ -61,6 +63,8 @@ export interface ClassifyShared {
   geometryContext: boolean;
   /** A one-line numeric shape descriptor in the state (src/classify/geometryVector.ts). Every provider can use it. */
   geometryVector: boolean;
+  /** How far the review walk frames the element in view: `close`, `surroundings` (default), `room` or `storey`. A view setting: it is not part of what the classifier decides. */
+  reviewZoom: ReviewZoom;
 }
 export interface JevSettings {
   provider: 'jev';
@@ -140,7 +144,7 @@ export const D3_DEFAULTS = {
   d3Backend: 'browser', d3Repo: D3_REPO_DEFAULT, d3Revision: D3_REVISION_DEFAULT, d3HfEndpoint: D3_HF_ENDPOINT_DEFAULT, d3Device: 'auto',
   d3Endpoint: D3_ENDPOINT_DEFAULT, d3Model: D3_MODEL_DEFAULT, d3MaxStateBytes: D3_STATE_BYTES_DEFAULT,
 } as const;
-export const SHARED_DEFAULTS = { rulesMode: 'final', calibration: 'auto', images: 'off', imageStyle: 'render', imagePlan: false, imageSize: IMAGE_SIZE_DEFAULT, imageMargin: IMAGE_MARGIN_DEFAULT, geometryText: 'off', geometryContext: true, geometryVector: false } as const;
+export const SHARED_DEFAULTS = { rulesMode: 'final', calibration: 'auto', images: 'off', imageStyle: 'render', imagePlan: false, imageSize: IMAGE_SIZE_DEFAULT, imageMargin: IMAGE_MARGIN_DEFAULT, geometryText: 'off', geometryContext: true, geometryVector: false, reviewZoom: DEFAULT_REVIEW_ZOOM } as const;
 
 /** Every field at once: the form behind the union. The drawer edits this; `toSettings` picks the part that the provider uses. */
 export interface ClassifyDraft extends ClassifyShared {
@@ -193,7 +197,7 @@ export const customHypotheses = (h: HypothesisTemplates): boolean => HYPOTHESIS_
 export function toSettings(d: ClassifyDraft): ClassifySettings {
   const shared: ClassifyShared = {
     schemaUrl: d.schemaUrl, minConfidence: d.minConfidence, writePset: d.writePset, rulesMode: d.rulesMode, calibration: d.calibration, temperatures: { ...d.temperatures },
-    images: d.images, imageStyle: d.imageStyle, imagePlan: d.imagePlan, imageSize: d.imageSize, imageMargin: d.imageMargin, geometryText: d.geometryText, geometryContext: d.geometryContext, geometryVector: d.geometryVector,
+    images: d.images, imageStyle: d.imageStyle, imagePlan: d.imagePlan, imageSize: d.imageSize, imageMargin: d.imageMargin, geometryText: d.geometryText, geometryContext: d.geometryContext, geometryVector: d.geometryVector, reviewZoom: d.reviewZoom,
   };
   switch (d.provider) {
     case 'jev':
@@ -220,7 +224,7 @@ export function toSettings(d: ClassifyDraft): ClassifySettings {
 export function toDraft(s: ClassifySettings, base: ClassifyDraft = defaultDraft()): ClassifyDraft {
   const d: ClassifyDraft = {
     ...base, provider: s.provider, schemaUrl: s.schemaUrl, minConfidence: s.minConfidence, writePset: s.writePset, rulesMode: s.rulesMode, calibration: s.calibration, temperatures: { ...s.temperatures },
-    images: s.images, imageStyle: s.imageStyle, imagePlan: s.imagePlan, imageSize: s.imageSize, imageMargin: s.imageMargin, geometryText: s.geometryText, geometryContext: s.geometryContext, geometryVector: s.geometryVector,
+    images: s.images, imageStyle: s.imageStyle, imagePlan: s.imagePlan, imageSize: s.imageSize, imageMargin: s.imageMargin, geometryText: s.geometryText, geometryContext: s.geometryContext, geometryVector: s.geometryVector, reviewZoom: s.reviewZoom,
   };
   if (s.provider === 'jev') Object.assign(d, { endpoint: s.endpoint, model: s.model, timeoutMs: s.timeoutMs, concurrency: s.concurrency, maxStateBytes: s.maxStateBytes, jevImages: s.jevImages });
   if (s.provider === 'd3') {
@@ -254,7 +258,7 @@ const KNOWN = new Set([
   'provider', 'schemaUrl', 'minConfidence', 'writePset', 'endpoint', 'model', 'timeoutMs', 'concurrency', 'maxStateBytes', 'webllmModel',
   'webllmMode', 'webllmEmbedModel', 'embedTemperature', 'hybridMargin', 'webllmCustomModel', 'webllmCustomLib',
   'hfModel', 'decisionMode', 'embedModel', 'device', 'dtype', 'hfEndpoint', 'hypothesis',
-  'rulesMode', 'calibration', 'temperatures', 'images', 'imageStyle', 'imagePlan', 'imageSize', 'imageMargin', 'imageViews', 'geometryText', 'geometryContext', 'geometryVector', 'jevImages',
+  'rulesMode', 'calibration', 'temperatures', 'images', 'imageStyle', 'imagePlan', 'imageSize', 'imageMargin', 'imageViews', 'geometryText', 'geometryContext', 'geometryVector', 'reviewZoom', 'jevImages',
   'd3Backend', 'd3Repo', 'd3Revision', 'd3HfEndpoint', 'd3Device', 'd3Endpoint', 'd3Model', 'd3MaxStateBytes',
 ]);
 
@@ -455,6 +459,10 @@ export function validateSettings(raw: unknown): SettingsCheck {
   if (raw['geometryVector'] !== undefined) {
     if (typeof raw['geometryVector'] === 'boolean') d.geometryVector = raw['geometryVector'];
     else errors.push('geometryVector must be true or false. Using false.');
+  }
+  if (raw['reviewZoom'] !== undefined) {
+    if (isReviewZoom(raw['reviewZoom'])) d.reviewZoom = raw['reviewZoom'];
+    else errors.push(`reviewZoom must be one of ${REVIEW_ZOOMS.join(', ')}. Using "${DEFAULT_REVIEW_ZOOM}".`);
   }
   if (d.geometryText === 'svg' && (d.provider === 'decision' || d.provider === 'webllm')) warnings.push('geometryText is not used by this provider: its premise is short. Use Jev or d3-edge for the SVG.');
   if (raw['jevImages'] !== undefined) {
