@@ -88,10 +88,12 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   tour.check('"The drawer lists at most 500 rows"', (await rowsOf(page).count()) <= 500);
   // scope focus only
   const scopeSel = page.locator('select').filter({ has: page.locator('option', { hasText: 'focus only' }) }).first();
-  const okScope = await scopeSel.selectOption({ label: 'focus only' }, { timeout: 8000 }).then(() => true).catch(() => false);
+  // clearing the selection with Esc also closes the drawer: clear it first, open the drawer again, then change the scope
   await ui.clearSelection(page);
+  if ((await page.locator('.xt-table-wrap').filter({ visible: true }).count()) === 0) await ui.tool(page, 'Penetrations').click();
+  const okScope = await scopeSel.selectOption({ label: 'focus only' }, { timeout: 8000 }).then(() => true).catch(() => false);
   let anErr = '';
-  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).filter({ visible: true }).first().click({ timeout: 90000 }).then(() => true).catch((e) => { anErr = String(e).slice(0, 300); return false; });
+  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).filter({ visible: true }).first().click({ timeout: 15000 }).then(() => true).catch((e) => { anErr = String(e).replace(/\s+/g, " ").slice(0, 1200); return false; });
   tour.check('"Analyse runs it again, for example after you changed the scope"', okScope && okAn, `scope ${okScope}, analyse ${okAn} ${anErr}`);
   await page.waitForFunction((n) => window.__xrayPenetrations.summary.total !== n, totalAll, { timeout: 90000 }).catch(() => {});
   await page.waitForTimeout(1500);
