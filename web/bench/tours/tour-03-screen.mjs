@@ -340,6 +340,8 @@ await tour.step('3.4 Try it: orbit, select a wall, change a slider, then Ctrl+Z 
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.folder(page, 'Display');
   const v0 = Number(await ui.valueOf(page, 'edgeAlpha'));
+  // let the undo list take in the camera moves of the wall click first (a late camera step would sit above the slider step)
+  await page.waitForTimeout(4000);
   await ui.dragSlider(page, 'edgeAlpha', -60);
   await unfocus();
   await page.waitForTimeout(1200);
