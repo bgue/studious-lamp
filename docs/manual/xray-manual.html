@@ -5585,8 +5585,9 @@ configuration, with <code>*</code> as the default. In the sample, external and i
 property set gains <strong>ActivityIds</strong>: the task codes of the element's accepted build links, sorted and comma separated
 (<code>A1010,A1040</code>). Remove links are not written. A task code that contains a comma or semicolon is skipped.</p>
 <p>When you open that IFC again, the viewer reads <code>Xray_4D.ActivityIds</code>. <strong>Link schedule</strong> then gives those links back as
-accepted, confidence 1, source <code>property</code>. You need the schedule loaded and no configuration. The links travel with the
-model.</p>
+accepted, confidence 1, source <code>property</code>. When the file also holds <code>IfcTask</code> assignments for the same elements, those win, as in
+the order of section 26.1, and the source reads <code>native</code>. You need the schedule loaded and no configuration. The links travel with
+the model.</p>
 <p>The full <code>IfcWorkSchedule</code> and <code>IfcTask</code> write-back, so other 4D programs can use the links, comes from the command line
 (<a href="#ch-32">chapter 32</a>).</p>
 <h2 data-num="26.4" id="s-26-4"><span class="num">26.4</span> How it works</h2>

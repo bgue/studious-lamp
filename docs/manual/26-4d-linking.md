@@ -133,8 +133,9 @@ property set gains **ActivityIds**: the task codes of the element's accepted bui
 (`A1010,A1040`). Remove links are not written. A task code that contains a comma or semicolon is skipped.
 
 When you open that IFC again, the viewer reads `Xray_4D.ActivityIds`. **Link schedule** then gives those links back as
-accepted, confidence 1, source `property`. You need the schedule loaded and no configuration. The links travel with the
-model.
+accepted, confidence 1, source `property`. When the file also holds `IfcTask` assignments for the same elements, those win, as in
+the order of section 26.1, and the source reads `native`. You need the schedule loaded and no configuration. The links travel with
+the model.
 
 The full `IfcWorkSchedule` and `IfcTask` write-back, so other 4D programs can use the links, comes from the command line
 (chapter 32).
