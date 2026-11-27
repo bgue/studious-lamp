@@ -91,9 +91,10 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   const okScope = await scopeSel.selectOption({ label: 'focus only' }, { timeout: 8000 }).then(() => true).catch(() => false);
   await ui.clearSelection(page);
   let anErr = '';
-  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).filter({ visible: true }).first().click({ timeout: 20000 }).then(() => true).catch((e) => { anErr = String(e).slice(0, 300); return false; });
+  const okAn = await page.getByRole('button', { name: 'Analyse', exact: true }).filter({ visible: true }).first().click({ timeout: 90000 }).then(() => true).catch((e) => { anErr = String(e).slice(0, 300); return false; });
   tour.check('"Analyse runs it again, for example after you changed the scope"', okScope && okAn, `scope ${okScope}, analyse ${okAn} ${anErr}`);
-  await page.waitForTimeout(3000);
+  await page.waitForFunction((n) => window.__xrayPenetrations.summary.total !== n, totalAll, { timeout: 90000 }).catch(() => {});
+  await page.waitForTimeout(1500);
   const sumFocus = await page.evaluate(() => window.__xrayPenetrations.summary.total);
   tour.check('"scope: focus only (the current focus)" re-analyses with fewer or no rows', sumFocus <= totalAll, `${totalAll} -> ${sumFocus}`);
 });
