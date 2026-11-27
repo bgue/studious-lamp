@@ -240,6 +240,40 @@ await tour.step('3.2 Try it (Walk mode) steps 1-8', async () => {
   const sp2 = await wallSpot();
   await page.keyboard.down('Alt'); await page.mouse.dblclick(sp2.x, sp2.y); await page.keyboard.up('Alt');
   await ui.waitStill(page, 15000);
+  // The headless double click may leave the eye over the roof or looking out of a window, so there is no wall to walk at. Stand a person
+  // inside, on the ground floor at 1.6 m, facing a wall 2.5 to 6 m away (as a drop-in and a turn with the arrow keys would), then walk.
+  const faced = await page.evaluate(async () => {
+    const { blocksWalk } = await import('/src/input/walk.ts');
+    const { storeyFloors } = await import('/src/xr/field.ts');
+    const app = window.__xray.app, r = app.renderer, m = app.loaded.model, els = m.elements;
+    const floors = storeyFloors(m).map((f) => f.floorY).sort((a, b) => a - b);
+    const walls = els.filter((e) => /Wall/.test(e.ifcClass));
+    const bb = walls.reduce((q, e) => [Math.min(q[0], e.bounds[0]), Math.min(q[1], e.bounds[2]), Math.max(q[2], e.bounds[3]), Math.max(q[3], e.bounds[5])], [1e9, 1e9, -1e9, -1e9]);
+    const V = r.camera.position.constructor;
+    const hitAt = (p, d) => r.raycastVisible(p, d, 8, (id) => blocksWalk(els[id]?.ifcClass ?? '', r.state.flags[id] ?? 0, r.state.alpha[id] ?? 1));
+    let best = null;
+    for (const floor of floors) {
+      for (let x = bb[0] + 1; x < bb[2] - 1; x += 1) for (let z = bb[1] + 1; z < bb[3] - 1; z += 1) {
+        const eye = new V(x, floor + 1.6, z);
+        for (let a = 0; a < 360; a += 5) {
+          const d = new V(Math.cos((a * Math.PI) / 180), 0, Math.sin((a * Math.PI) / 180));
+          const waist = hitAt(new V(x, eye.y - 0.72, z), d);
+          if (!waist || Math.abs(waist.normal.y) > 0.3 || waist.distance < 2.5 || waist.distance > 6) continue;
+          // square on: a slanting approach slides along the wall, as it should, and a person walking at a wall faces it
+          if (Math.abs(waist.normal.x * d.x + waist.normal.z * d.z) < 0.97) continue;
+          // nothing near on the other rays, and not inside a wall: the opposite way is free for 0.5 m
+          const others = [0, -1.2].map((dy) => hitAt(new V(x, eye.y + dy, z), d));
+          if (others.some((h) => h && h.distance < 1.5)) continue;
+          const back = hitAt(eye, d.clone().negate());
+          if (back && back.distance < 0.5) continue;
+          if (!best || waist.distance < best.dist) best = { dist: waist.distance, eye, d, floor };
+        }
+      }
+      if (best) break;
+    }
+    if (best) { r.camera.position.copy(best.eye); r.controls.target.copy(best.eye).addScaledVector(best.d, 3); r.camera.lookAt(r.controls.target); r.controls.update(); }
+    return best ? { dist: +best.dist.toFixed(1), floors, eye: [best.eye.x, best.eye.y, best.eye.z].map((v) => +v.toFixed(1)) } : null;
+  });
   // hold W: with collision the eye comes to rest short of a wall while the key is still down
   await page.keyboard.down('w');
   let prev = await ui.cam(page), still = 0, travelled = 0;
@@ -251,7 +285,7 @@ await tour.step('3.2 Try it (Walk mode) steps 1-8', async () => {
     prev = c;
   }
   await page.keyboard.up('w');
-  tour.known('step 7: "Hold W toward a wall. You stop short of it."', still >= 6 && travelled > 0, 'with Walk collision on the eye did not come to rest against a wall within 90 s of holding W', `moved ${travelled.toFixed(1)} m, then stood still while W was held`);
+  tour.check('step 7: "Hold W toward a wall. You stop short of it."', faced !== null && still >= 6 && travelled > 0, `${JSON.stringify(faced)}: wall ahead; moved ${travelled.toFixed(1)} m, then stood still while W was held`);
   await ui.set(page, 'Walk collision', false);
   // step 8
   await page.locator('#c').hover();

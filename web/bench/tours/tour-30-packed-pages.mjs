@@ -78,7 +78,7 @@ await tour.step('30.1 Set the starting look: --params, --select, --camera, --tit
   const sel = await ui.selection(page);
   tour.check('"--select ... class:IfcDuctSegment entries: Select these elements at start"', sel.length === 11 && sel.every((e) => e.cls === 'IfcWindow'), `${sel.length} selected: ${[...new Set(sel.map((e) => e.cls))].join()}`);
   const cam = await ui.cam(page);
-  tour.known('"Order of events ... camera, selection ... A later step wins": --camera together with --select keeps the camera', Math.abs(cam.p[0] - 9) < 1 && Math.abs(cam.p[2] - 11) < 1, 'with --select the camera is moved after the boot camera (the selection frames itself), so --camera is lost', JSON.stringify({ p: cam.p.map((v) => +v.toFixed(1)), t: cam.t.map((v) => +v.toFixed(1)) }));
+  tour.check('"Order of events ... camera, selection ... A later step wins": --camera together with --select keeps the camera', Math.abs(cam.p[0] - 9) < 1 && Math.abs(cam.p[2] - 11) < 1, JSON.stringify({ p: cam.p.map((v) => +v.toFixed(1)), t: cam.t.map((v) => +v.toFixed(1)) }));
   const am = await page.evaluate(() => window.__xrayParams.collect().sightlines?.alphaMin);
   tour.check('"--params file.json: Apply an exported parameters file. A partial file is fine."', Math.abs(am - 0.37) < 1e-6, `${am}`);
   const tools = await page.locator('#xray-toolbar button').evaluateAll((b) => b.map((x) => x.getAttribute('aria-label')));
@@ -117,11 +117,14 @@ await tour.step('30.2 Try it steps 1-2: build a fly-through "Overview" in the vi
   await page.waitForTimeout(400);
   tour.check('step 1: "Build a fly-through in the Views tab. Name it Overview"', (await page.evaluate(() => window.__xrayFlythrough.list().map((f) => f.name))).includes('Overview'));
   const dlp = page.waitForEvent('download', { timeout: 30000 }).catch(() => null);
+  // the Rename item was clicked by script: if its menu is still open, the next click on the ⋯ button would close it
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'More fly-through actions' }).click();
-  await page.getByRole('menuitem', { name: 'Export file' }).click({ force: true, timeout: 20000 }).catch(() => {});
+  if ((await page.getByRole('menuitem', { name: 'Export file' }).count()) === 0) await page.getByRole('button', { name: 'More fly-through actions' }).click();
+  await page.getByRole('menuitem', { name: 'Export file' }).click({ timeout: 20000 });
   const d = await dlp;
   flyFile = at('overview.json');
-  tour.known('step 2: "open the ⋯ menu ... click Export file": the menu item saves the file', !!d, 'the menu item Export file gave no download here (the file was taken from the same data through window.__xrayFlythrough.exportJson)');
+  tour.check('step 2: "open the ⋯ menu ... click Export file": the menu item saves the file', !!d);
   if (d) await d.saveAs(flyFile); else writeFileSync(flyFile, await page.evaluate(() => window.__xrayFlythrough.exportJson()));
   const doc = JSON.parse(readFileSync(flyFile, 'utf8'));
   tour.check('step 2: "Export file. You get an xray-flythroughs/1 file"', /xray-flythroughs\/1/.test(JSON.stringify(doc).slice(0, 300)) && JSON.stringify(doc).includes('Overview'), Object.keys(doc).join());

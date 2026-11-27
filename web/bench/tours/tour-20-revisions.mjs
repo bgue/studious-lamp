@@ -54,7 +54,7 @@ async function waitWalk(page) {
 await tour.step('20.1 The snapshot the viewer stores by itself is enough for the counts', async () => {
   const pa = await open('model=building', { init: noPicker });
   await prepareV1(pa, false);
-  for (let i = 0; i < 40 && !(await pa.evaluate(() => window.__xrayRevision.snapshots().length)); i++) await pa.waitForTimeout(1000);
+  await pa.waitForTimeout(4000); // the viewer saves its snapshot 0.9 s after the commit
   await openIfc(pa, V2, 'file:fzk-v2.ifc');
   await waitBanner(pa, /revision of/);
   await pa.locator('[data-testid=revision-banner] [data-act=review-changes]').click();
@@ -70,11 +70,12 @@ await tour.step('20.1 Try it steps 1-4: version 1 classified and reviewed, versi
   ctxPage = page;
   const n = await prepareV1(page);
   tour.check('step 1: "Open version 1 ... Classify it and review it": 3+ decisions committed', n >= 6, `${n} confirmed`);
-  let snaps = [];
-  for (let i = 0; i < 40 && !snaps.length; i++) { await page.waitForTimeout(1000); snaps = await page.evaluate(() => window.__xrayRevision.snapshots()); }
-  tour.known('step 1: "The viewer keeps a small snapshot in this browser after each classify run and each commit"', snaps.length >= 1, 'window.__xrayRevision.snapshots() stays empty for 40 s after the commit (the banner still finds the earlier model)', JSON.stringify(snaps).slice(0, 160));
+  await page.waitForTimeout(4000); // the viewer saves its snapshot 0.9 s after the commit
   await openIfc(page, V2, 'file:fzk-v2.ifc');
   await waitBanner(page, /revision of/);
+  // snapshots() lists the stored models other than the one on screen, so it shows version 1 only once version 2 is open
+  const snaps = await page.evaluate(() => window.__xrayRevision.snapshots());
+  tour.check('step 1: "The viewer keeps a small snapshot in this browser after each classify run and each commit"', snaps.length >= 1 && /AC20-FZK-Haus/.test(snaps[0].name) && snaps[0].reviewed >= 1, JSON.stringify(snaps).slice(0, 160));
   const bt = (await banner(page).innerText()).replace(/\s+/g, ' ');
   tour.check('step 3: "If it looks like a revision, a banner says: This looks like a revision of <name> (saved <date>, <n> reviewed)"', /This looks like a revision of file:AC20-FZK-Haus\.ifc \(saved .+, \d+ reviewed\)/.test(bt), bt.slice(0, 160));
   tour.check('step 4: the banner offers Review changes, Not a revision and Compare with...', ['Review changes', 'Not a revision', 'Compare with'].every((l) => bt.includes(l)), bt);

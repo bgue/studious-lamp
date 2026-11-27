@@ -80,11 +80,11 @@ await tour.step('27.1 Try it steps 4-6: Window look ahead 6 weeks, the date slid
   const slider = pane(page).locator('input[data-x4=scrub]');
   const box = await slider.boundingBox();
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height / 2);
-  await page.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 40000 }).catch(() => {});
-  let s = await live(page);
+  // the film is made first (the camera director runs), which takes a while on the software renderer
+  await page.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 150000 }).catch(() => {});
+  const s = await live(page);
   const viaSlider = s.playing;
-  if (!viaSlider) { await page.evaluate(() => { const w = window.__xray4dSchedule.plan().window; return window.__xray4dSchedule.seekDate((w.from + w.to) / 2); }); await page.waitForFunction(() => window.__xrayFlythrough.state().playing, null, { timeout: 150000 }); s = await live(page); }
-  tour.known('step 5: "Drag the date slider ... From a stop, it starts the film paused at that date" (a click on the slider)', viaSlider, 'a click on the date slider from a stop did not start the film; seekDate (the same call) did', JSON.stringify({ playing: s.playing, paused: s.paused }));
+  tour.check('step 5: "Drag the date slider ... From a stop, it starts the film paused at that date" (a click on the slider)', viaSlider, JSON.stringify({ playing: s.playing, paused: s.paused }));
   tour.check('"From a stop, it starts the film paused at that date" (seekDate)', s.playing && s.paused, JSON.stringify({ playing: s.playing, paused: s.paused }));
   await page.mouse.click(box.x + box.width * 0.2, box.y + box.height / 2);
   await page.waitForTimeout(800);
@@ -97,7 +97,7 @@ await tour.step('27.1 Try it steps 4-6: Window look ahead 6 weeks, the date slid
   await page.keyboard.press('Escape');
   await page.waitForTimeout(3000);
   const escStopped = !(await live(page)).playing;
-  tour.known('"Esc ... Stop, and put everything back" (the film was paused)', escStopped, 'Esc does not stop a paused 4D film (the Stop button does)');
+  tour.check('"Esc ... Stop, and put everything back" (the film was paused)', escStopped, 'Esc did not stop a paused 4D film');
   if (!escStopped) await pane(page).getByRole('button', { name: 'Stop', exact: true }).click({ timeout: 20000 }).catch(() => {});
   await page.waitForFunction(() => !window.__xrayFlythrough.state().playing, null, { timeout: 150000 });
   await st.getByLabel('Window', { exact: true }).selectOption({ label: 'The whole job' });
