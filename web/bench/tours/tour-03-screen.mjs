@@ -329,6 +329,8 @@ await tour.step('3.3 Try it: hover a wall, click it, read the Properties tab', a
 
 await tour.step('3.4 Try it: orbit, select a wall, change a slider, then Ctrl+Z three times', async () => {
   const page = await tour.open('model=fzk-haus');
+  // the pages of the earlier steps are not needed: each one keeps drawing and slows every frame of this one (the undo list reads the frames)
+  for (const c of page.context().browser().contexts()) if (c !== page.context()) await c.close().catch(() => {});
   const unfocus = () => page.evaluate(() => document.activeElement?.blur?.());
   const box = await page.locator('#c').boundingBox();
   await page.mouse.move(box.x + 700, box.y + 450); await page.mouse.down(); await page.mouse.move(box.x + 820, box.y + 470, { steps: 6 }); await page.mouse.up();
@@ -340,8 +342,10 @@ await tour.step('3.4 Try it: orbit, select a wall, change a slider, then Ctrl+Z 
   await ui.tab(page, 'Parameters'); await ui.topOfPanel(page);
   await ui.folder(page, 'Display');
   const v0 = Number(await ui.valueOf(page, 'edgeAlpha'));
-  // let the undo list take in the camera moves of the wall click first (a late camera step would sit above the slider step)
-  await page.waitForTimeout(4000);
+  // the orbit damping of the first drag runs per frame, so with the slow headless frames it drifts on for a long time; a camera step
+  // that lands between the slider steps would split the drag, so wait until the camera is still
+  await ui.waitStill(page, 120000);
+  await page.waitForTimeout(2500);
   await ui.dragSlider(page, 'edgeAlpha', -60);
   await unfocus();
   await page.waitForTimeout(1200);

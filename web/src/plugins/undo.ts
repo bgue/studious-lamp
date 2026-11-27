@@ -105,14 +105,10 @@ if (typeof window !== 'undefined') {
   for (const ev of ['pointerup', 'pointercancel', 'blur'] as const) window.addEventListener(ev, (e) => { if (ev === 'blur' && e.target !== window) return; pointerHeld = false; }, true);
 }
 
-/** Two frame periods: the setting poll runs once a frame, so on a slow machine the steps of one drag are this much further apart. */
-let frameSlackMs = 0;
-
 const stack = new UndoStack<Entry>({
   cap: 100,
   coalesceMs: 600,
   holding: () => pointerHeld,
-  slackMs: () => frameSlackMs,
   merge(prev, next) {
     if (prev.kind !== 'setting' || next.kind !== 'setting') return next;
     const a = prev.changes[0]!;
@@ -565,7 +561,6 @@ export const undoPlugin: AppPlugin = {
 
   onFrame(app, t) {
     if (!app.controller) return;
-    frameSlackMs = Math.min(3000, app.stats.frameMs * 2);
     const moved = easeFrame(app, t);
     const clock = now();
     if (clock < quietUntil) {

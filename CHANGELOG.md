@@ -19,8 +19,7 @@ What changed in the X-ray viewer, newest first. One section per release; the num
 - `xray-pack --camera` now wins over `--select`: the page opens at the camera you gave, with the elements selected, instead of flying to them.
 - Fly-through cards: after a click on a card the keyboard stays on it, so Alt+Left and Alt+Right move it and Delete removes it.
 - Esc stops a 4D film or fly-through that is playing or paused even when a slider (the date bar) still has the keyboard focus.
-- A slider drag is one undo step also on a slow machine: the steps of a drag join even when the frames are far apart, and a text field or
-  slider losing the focus no longer ends the drag.
+- A slider drag stays one undo step when a text field or the slider itself loses the keyboard focus during the drag.
 - Revisions: the comparison ignores every `XR_` property (the viewer's own classification and facet results), so classifying the
   earlier model no longer marks all its elements as changed and the unchanged decisions carry over again.
 
