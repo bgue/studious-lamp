@@ -121,10 +121,14 @@ one, but you cannot rewrite history.
 3. Click **Accept** if the labels are right. Click **Change...**, pick other values in the three lists and **Apply change** if
    not. Click **Unsure** if you can only guess.
 4. A button **Commit N pending** appears. Click it. The first time, the viewer asks for your name or initials.
-5. Press `Shift+R` to start the **Review walk**. The camera frames one kind of element at a time and ghosts the context.
-   `Enter` or `Y` confirms. `2` takes the runner-up. `E` opens the correction form. `N` or the right arrow skips. The left arrow
-   goes back. `?` flags the next answer as a guess. `A` switches between "all N of this kind" and "this element only". `Esc`
-   ends the walk and puts back your camera and selection.
+5. Press `Shift+R` to start the **Review walk**. The camera frames one kind of element at a time, with its surroundings, and
+   ghosts the context. `Enter` or `Y` confirms. The card numbers the best candidates: `1` is the proposal, `2` the runner-up, `3`
+   to `9` the next ones, and each key takes that one. `E` opens the correction form, where typing filters the code lists. `N` or
+   the right arrow skips. The left arrow goes back. `?` flags the next answer as a guess. `A` switches between "all N of this kind"
+   and "this element only". `F` frames the current item again and `Z` changes how far the camera stands back.
+6. `Q` ends the walk and puts back your camera and selection. `Esc` is safer: it leaves the correction form, or brings the focus
+   back to the walk when it is in a text box. Pressing `Esc` twice within about a second and a half also ends the walk; after the
+   first one the panel says "Esc again to close".
 
 ### How it works
 
@@ -135,6 +139,18 @@ A decision does not touch the results immediately. It goes into a **pending** se
 The newest committed change per element becomes its result: source *confirmed* or *corrected*, confidence 1, no review needed.
 A re-run of the classifier never overwrites it. If a later run disagrees, the table marks it ("the model now disagrees")
 and you decide again.
+
+**Review zoom** sets how far the camera stands back at each item. **Close** frames the element alone. **With surroundings** (the
+default) keeps at least 4 m of distance and a wide margin, so a small fitting shows what it is fixed to. **Room** frames the room
+(the IfcSpace around the element's centre; a wide margin when the model has no room there). **Storey** frames the element's storey.
+`Z` cycles the four, the list on the walk card sets it, and the choice is saved with the classification settings.
+
+The walk can also visit **facet answers** (Trade, Placement, Material, Phase, Orientation, ClassRepair and the concrete sets) that
+need review. The list **Show** on the walk card chooses **Classification** (default), **Facets** or **Both**. A facet item is one
+element and one facet. It has the same keys: `Enter` confirms, `1` to `9` take a candidate, `E` picks another code from the facet's
+list, `N` skips, `?` marks a guess, `U` undoes. A commit writes the change into the review log and sets the facet result to source
+*human*, with no review needed (a guess keeps confidence 0.75 and stays under review). A run of the facets keeps what you decided.
+The concrete sets that have no code list (measured geometry and the strength and cover suggestions) can only be confirmed or skipped.
 
 The order of the walk matters. **By type, then location** (default) shows one item per kind of element and confirms all N at once,
 storey by storey. **Along systems** follows a pipe or duct run from one end. **By location** sweeps storey by storey.
@@ -150,11 +166,25 @@ data. It is never in a share link, saved view, preset, parameters file, packed p
 
 ### Choices and settings
 
-- **Review walk** order and filters, above.
+- **Review walk** order, filters, **Show** and **Review zoom**, above.
+- **Export manifest...**: a summary of the classification and the review, for a report or an audit (see below).
 - **Calibrate on confirmed**: refits the confidence on your committed answers. It needs at least 8 kinds and 4 answers per question.
 - **Export review log** and **Import review log**: a file of commits (`xray-classification-review/1`). Importing the same file
   twice changes nothing, and a file for another model is refused with both fingerprints named.
 - The pencil on a result row opens a manual override. It wins over rules, cache and model, and survives **Clear results**.
+
+### The manifest
+
+**Export manifest...** (History tab of the walk, and the Review section of the Classification tab) saves a high-level record in the
+format `xray-classification-manifest/1` (JSON), or a short Markdown summary of the same numbers. It holds the model's file name and
+review fingerprint, the schema, the provider and model ids, the rules mode and thresholds, the facets that are on, the counts of
+results by source (rule, model, human), by code (the ten most frequent), by confidence band and the number that still need review.
+It also holds the review actions, a table of corrections from one code to another, and the time of the first and last decision. See
+appendix C for the fields.
+
+Two boxes, both off, add detail: **List the corrections element by element** adds one row for each human correction (GlobalId, class,
+name, what changed, before and after, note and time), and **Include reviewer names** adds the names. The file never holds an API key,
+a token or an endpoint. The log does not keep skips and undone items, so the manifest counts those for the current session only.
 
 ### Limits and gotchas
 

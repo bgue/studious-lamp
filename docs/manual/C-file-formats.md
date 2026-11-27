@@ -91,6 +91,7 @@ text. The viewer carries it inside the page, shows the newest release once (3.6)
 | Class styles | `xray-config/1` (`xray.config.json`) | By hand, for an installation | Per-class opacity and colour. |
 | Classification schema | `xray-classification-schema/1` | By hand | The list of allowed disciplines. |
 | Classification review log | `xray-classification-review/1` | Classification tab | Who confirmed what. Contains reviewer names. |
+| Classification manifest | `xray-classification-manifest/1` (JSON), or Markdown | Classification tab and review walk, **Export manifest...** | Counts and review actions of one model. No names unless you tick the box. |
 | Field AR site | `xray-xr-site/1` | **Export site** | Point pairs and the registration (chapter 31). |
 | Field AR notes | `xray-xr-notes/1` | **Download notes** | Snapshots with head poses. |
 | Cleanup report | `xray-cleanup/1` | **Export report** | Elements the cleanup found and why. |
@@ -102,6 +103,39 @@ text. The viewer carries it inside the page, shows the newest release once (3.6)
 - A reader accepts its own version. A newer major version is refused with a message.
 - Unknown fields are dropped. A missing id, time, up vector or field of view is filled in.
 - An entry that cannot be read (a view with no name or camera) is skipped and listed. It is never skipped silently.
+
+## The classification review log and manifest
+
+The review log `xray-classification-review/1` is a list of commits. Each commit has `id`, `author`, `time`, `note`, `modelName`,
+`modelFingerprint`, `schemaEdition` and `changes`, a list of `{ globalId, before, after, action, comment?, unsure?, via? }` for the
+classification (`before` and `after` hold `discipline`, `subDiscipline`, `division`, `source` and `confidence`). Two optional parts
+were added without a new version, and a reader that does not know them skips them:
+
+- `via` on a change: `runner-up` (key 2) or `candidate` (keys 3 to 9), for a correction that was picked from the numbered candidates.
+- `facetChanges` on a commit: the confirmations and corrections of facets in the review walk, each `{ globalId, facet, before, after,
+  action, comment?, unsure?, via? }`. `facet` is `Trade`, `Placement`, `Material`, `Phase`, `Orientation`, `ClassRepair` or one of
+  the five concrete sets. `before` and `after` hold `code`, `source` and `confidence`; a decided facet has `after.source` `human`.
+
+The manifest `xray-classification-manifest/1` is a summary and is not read back. Its fields:
+
+| Field | Holds |
+| --- | --- |
+| `schema`, `exportedAt` | The format id and the time of the export |
+| `model` | `name` (the file name) and `reviewFingerprint` |
+| `classifier` | `schema` (`id`, `title`, `version`, `edition`), `provider`, `modelIds`, `decisionMode`, `rulesMode`, `minConfidence`, `calibration`, `facetsOn`, `concreteOn` |
+| `classification` | `total`, `bySource` (`rule`, `model`, `human`), `bySourceDetail`, `byCode` (the most frequent), `byConfidenceBand`, `needsReview` |
+| `facets` | The same counts for all facets, and `byFacet` with one set of counts for each facet |
+| `review` | `commits`, `reviewers` (a number), `firstDecision`, `lastDecision`, `actions` and `matrix` |
+| `review.actions` | `confirmed`, `corrected`, `runnerUp`, `candidate`, `unsure`, `facetConfirmed`, `facetCorrected`, `commitsReverted`, `skippedThisSession`, `undoneThisSession` |
+| `review.matrix` | `classification` (`from`, `to`, `count`), `facets` (`facet`, `from`, `to`, `count`), `truncated` |
+| `options` | What was switched on: `perElement`, `reviewerNames`, `topN` |
+| `corrections` | Only with **List the corrections element by element**: one row for each human correction and changed part |
+| `reviewerNames` | Only with **Include reviewer names**; the rows then also carry `reviewer` |
+
+Source groups: *rule* is the rules, a measurement or an IFC value; *model* is the decision model and its cache; *human* is a
+confirmation, a correction or a manual choice. Counts of actions cover decisions that stand: a reverted commit and its reversal are
+left out. Skips and undone items are not in the log, so `skippedThisSession` and `undoneThisSession` count the session that made the
+export. The manifest never holds an API key, a token or an endpoint, and no names unless you tick the box.
 
 ## What no file ever holds
 

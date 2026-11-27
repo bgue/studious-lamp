@@ -84,7 +84,9 @@ code: `Trade` is `XR_Trade.Code`. `material` stays the IFC material, so write `X
 - Placement by rays reads the model's geometry. A model with open wall faces or missing roofs gives odd answers; the element is
   then flagged for review.
 - ClassRepair is a suggestion. To change a class in the IFC you need another tool.
-- The disagreement marker and a facet filter in the review walk are not built yet.
+- The disagreement marker is not built yet.
+- The review walk can visit facet answers that need review (chapter 18.2): choose **Facets** or **Both** in its **Show** list. A
+  confirmed or corrected facet gets the source `human`, and the choice is in the review log.
 
 ## 18A.2 The By classification tree
 

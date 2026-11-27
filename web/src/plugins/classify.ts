@@ -34,6 +34,7 @@ import { Vector3 } from 'three';
 import type { CalibrationStatus } from '../classify/calibrationStatus';
 import type { ModelTest, RunOptions, Target } from '../classify/service';
 import { PROVIDERS, RULES_MODES } from '../classify/settings';
+import { REVIEW_ZOOMS, REVIEW_ZOOM_LABEL } from '../classify/reviewZoom';
 import type { ProviderId } from '../classify/settings';
 import { D3_DEFAULTS, JEV_DEFAULTS } from '../classify/settings';
 import { propertyNames } from '../classify/schema';
@@ -64,6 +65,9 @@ import type { WalkHost, WalkState } from './classifyReview';
 import type { PendingChange } from '../classify/reviewService';
 import type { ImportOutcome, ReviewCommit } from '../classify/reviewLog';
 import type { WalkOrder } from '../classify/reviewWalk';
+import type { WalkKind } from '../classify/facetWalk';
+import type { ClassificationManifest } from '../classify/manifest';
+import { buildManifestPanel } from './classifyManifest';
 
 declare global {
   interface Window {
@@ -142,7 +146,9 @@ export interface ClassifyApi {
   calibrateConfirmed(opts?: { maxSignatures?: number; heldOut?: number }): Promise<CalibrationReport>;
   forgetFit(): void;
   /** The review walk panel. */
-  walk: { open(opts?: { order?: WalkOrder }): void; close(): void; state(): WalkState; items(): Array<{ key: string; title: string; elements: number }>; goto(index: number): void };
+  walk: { open(opts?: { order?: WalkOrder; kind?: WalkKind }): void; close(): void; state(): WalkState; items(): Array<{ key: string; title: string; elements: number }>; goto(index: number): void };
+  /** The classification manifest (xray-classification-manifest/1) of the model on screen, as an object. The per-element list and the reviewer names are opt-in. */
+  manifest(opts?: { perElement?: boolean; reviewerNames?: boolean }): ClassificationManifest;
   /** Pending changes, commits and the review log of the model on screen. The reviewer's name is kept on this device only. */
   review: {
     ready(): Promise<void>;
@@ -156,6 +162,8 @@ export interface ClassifyApi {
     revert(commitId: string, note?: string): { commit: ReviewCommit; skipped: string[] };
     history(): ReviewCommit[];
     exportLog(): string;
+    /** The review actions of this session that the log does not keep. */
+    activity(): { skipped: number; undone: number };
     importLog(text: string): ImportOutcome;
     disagreements(): string[];
     storage(): { where: string; error: string };
@@ -1022,14 +1030,28 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     runMsg = r.ok ? null : infoMsg;
     svc.notify();
   });
+  const manifestHost = el('div', undefined, { 'data-role': 'manifest-host' });
+  manifestHost.hidden = true;
+  const paintManifest = (): void => {
+    manifestHost.replaceChildren(buildManifestPanel(svc, {
+      cls: { box: 'xt-note', btn: 'xt-btn', primary: 'xt-btn primary', row: 'xt-row' },
+      modelName: app.modelName,
+      done: (r) => { manifestHost.hidden = true; manifestHost.replaceChildren(); if (r?.error) runMsg = r.error; else if (r?.message) infoMsg = r.message; svc.notify(); },
+    }));
+  };
   const bWalk = button('Review walk', () => api.walk.open(), { primary: true, title: 'Walk the classified elements in a logical order, confirm or correct each, and commit the changes to the review log (Shift+R)' });
+  const zoomPick = add(pick('Review zoom', REVIEW_ZOOMS.map((v) => ({ value: v, text: REVIEW_ZOOM_LABEL[v] })), () => d().reviewZoom, (v) => svc.setReviewZoom(v)));
+  zoomPick.root.title = 'How far the review walk frames the element in view: Close, With surroundings (default), Room or Storey. Z changes it in the walk.';
   box.append(
     reviewLine,
+    zoomPick.root,
     row(
       bWalk,
       button('Export review log', () => { try { downloadText(`classification-review-${app.modelName}.json`, svc.review.exportLog(), 'application/json'); } catch (e) { runMsg = e instanceof Error ? e.message : String(e); svc.notify(); } }, { title: 'Save the commits of this model as an xray-classification-review/1 file' }),
+      button('Export manifest…', () => { manifestHost.hidden = !manifestHost.hidden; if (!manifestHost.hidden) paintManifest(); else manifestHost.replaceChildren(); }, { title: 'Save a summary of the classification and the review as an xray-classification-manifest/1 file, or as Markdown' }),
       button('Import review log', () => reviewFile.click(), { title: 'Replay the commits of a review log file for this model. Commits that are in the log already are skipped.' }),
     ),
+    manifestHost,
     reviewFile,
   );
   const paintReview = (): void => {
@@ -1494,6 +1516,7 @@ export const classifyPlugin: AppPlugin = {
       calibrate: (opts) => service.calibrateOnRules(opts),
       calibrateConfirmed: (opts) => service.calibrateOnConfirmed(opts),
       forgetFit: () => service.forgetFit(),
+      manifest: (o) => service.manifest(o),
       walk: { open: (o) => walk.open(o), close: () => walk.close(), state: () => walk.state(), items: () => walk.list(), goto: (i) => walk.goto(i) },
       review: {
         ready: () => service.review.ready,
@@ -1507,6 +1530,7 @@ export const classifyPlugin: AppPlugin = {
         revert: (id, note) => service.review.revert(id, note),
         history: () => service.review.history(),
         exportLog: () => service.review.exportLog(),
+        activity: () => ({ ...service.review.activity }),
         importLog: (t) => service.review.importLog(t),
         disagreements: () => [...service.review.disagreements().keys()],
         storage: () => ({ where: service.review.storage.where, error: service.review.storage.error }),

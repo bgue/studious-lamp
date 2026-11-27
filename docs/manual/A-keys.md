@@ -167,15 +167,20 @@ While a walk is open it takes its own keys. They are not rebindable here.
 | Key | Classification walk | Revision walk |
 | --- | --- | --- |
 | `Enter`, `y` | Accept | Accept |
-| `2` | Accept with the other classification | Accept with the other classification |
-| `e` | Edit the classification, then accept | Edit the classification, then accept |
+| `1` | Accept the proposal (the first numbered candidate) | |
+| `2` | Accept with the other classification (the runner-up) | Accept with the other classification |
+| `3` to `9` | Take the third to ninth candidate on the card | |
+| `e` | Edit the classification, then accept. In the form, typing filters the code lists and `Enter` applies | Edit the classification, then accept |
 | `n`, `ArrowRight` | Skip (`Shift+n` skips the rest of the item) | Skip (`Shift+n` skips the rest of the item) |
 | `?` | Mark the decision unsure | Mark the decision unsure |
 | `ArrowLeft` | Back | Back |
 | `[`, `]` | Step to another element of the item | Step to another element of the item |
 | `a` | All alike, or this element only | All alike, or this element only |
+| `f` | Frame the current item again (not the whole model) | |
+| `z` | Change the review zoom: Close, With surroundings, Room, Storey | |
 | `u` | Undo the last decision | Undo the last decision or bulk rule |
-| `Escape` | Close | Close |
+| `Escape` | Leave the correction form; or bring the focus back to the walk when it is in a text box or on a control outside it; a second `Escape` within about 1.5 s closes (the panel says "Esc again to close") | Close |
+| `q` | Close | |
 | `r` | | Reject (dispute) |
 | `g` | | Cycle the ghost: both, head only, base only |
 | `b` | | Open the bulk rules |

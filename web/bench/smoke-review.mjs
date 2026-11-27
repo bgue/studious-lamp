@@ -187,6 +187,8 @@ async function runDesktop(browser) {
 
     // ---- ending the walk restores the view
     await page.keyboard.press('Escape');
+    check(`${tag} the first Escape only says "Esc again to close" and keeps the walk`, (await page.locator('.xrw [data-role=esc-hint]').count()) === 1 && (await walkState(page)).open && (await walkState(page)).escArmed);
+    await page.keyboard.press('Escape');
     for (let i = 0; i < 20; i++) { // the camera eases back: wait until it stops
       const p0 = await pose(page);
       await settle(page, 500);
@@ -194,7 +196,7 @@ async function runDesktop(browser) {
       if (JSON.stringify(p0) === JSON.stringify(p1) && JSON.stringify(p1) === JSON.stringify(before)) break;
     }
     const selAfter = await page.evaluate(() => window.__xray.app.selection.slice().sort());
-    check(`${tag} Escape ends the walk, restores the selection and the camera`, (await page.locator('.xrw').count()) === 0 && JSON.stringify(selAfter) === JSON.stringify([3, 4]) && JSON.stringify(await pose(page)) === JSON.stringify(before), `${JSON.stringify(await pose(page))} vs ${JSON.stringify(before)}`);
+    check(`${tag} a second Escape ends the walk, restores the selection and the camera`, (await page.locator('.xrw').count()) === 0 && JSON.stringify(selAfter) === JSON.stringify([3, 4]) && JSON.stringify(await pose(page)) === JSON.stringify(before), `${JSON.stringify(await pose(page))} vs ${JSON.stringify(before)}`);
 
     // ---- 5. reload: the commit and the results persist
     await page.reload();
@@ -563,6 +565,170 @@ async function runPhone(browser) {
   }
 }
 
+// ---------------------------------------------------------------- zoom, candidates, Esc, facets, manifest
+async function runWalkUx(browser) {
+  const tag = '[walk ux]';
+  const { ctx, page, errors } = await open(browser);
+  const items = () => page.evaluate(() => window.__xrayClassify.walk.items());
+  const dist = () => page.evaluate(() => { const r = window.__xray.app.renderer; return r.camera.position.distanceTo(r.controls.target); });
+  const settleCam = async () => { let d = await dist(); for (let i = 0; i < 20; i++) { await settle(page, 400); const n = await dist(); if (Math.abs(n - d) < 1e-4) break; d = n; } return d; };
+  const pending = () => page.evaluate(() => window.__xrayClassify.review.pending());
+  const download = async (action) => {
+    const dl = page.waitForEvent('download');
+    await action();
+    const d = await dl;
+    return { name: d.suggestedFilename(), text: readFileSync(await d.path(), 'utf8') };
+  };
+  try {
+    await page.evaluate(() => window.__xrayClassify.configure({ provider: 'mock', rulesMode: 'off' }));
+    await page.evaluate(() => window.__xrayClassify.classify('all'));
+    const facetN = await page.evaluate(() => window.__xrayClassify.facets.results().size ?? window.__xrayClassify.facets.results().length ?? 0);
+    console.log(tag, 'facet results', facetN);
+    await page.evaluate(() => window.__xrayClassify.review.setReviewer('Rosalind Fanshawe'));
+    await page.keyboard.press('Shift+R');
+    await page.waitForSelector('.xrw:not([hidden])');
+    let st = await walkState(page);
+
+    // ---- zoom
+    check(`${tag} the default review zoom is With surroundings, on the card and in the settings`, st.zoom === 'surroundings' && (await page.locator('.xrw select[data-role=zoom]').inputValue()) === 'surroundings' && /Zoom: With surroundings \(Z\)/.test(await page.locator('.xrw [data-role=keys]').textContent()) && (await page.evaluate(() => window.__xrayClassify.settings().reviewZoom)) === 'surroundings');
+    const dSur = await settleCam();
+    check(`${tag} With surroundings is never nearer than about 4 m`, dSur >= 3.9, `${dSur.toFixed(2)} m`);
+    const seen = [];
+    for (let i = 0; i < 4; i++) { await page.keyboard.press('z'); seen.push((await walkState(page)).zoom); }
+    check(`${tag} Z cycles room, storey, close, with surroundings`, JSON.stringify(seen) === JSON.stringify(['room', 'storey', 'close', 'surroundings']), seen.join(','));
+    await page.keyboard.press('z'); await page.keyboard.press('z'); // storey
+    const dStorey = await settleCam();
+    await page.keyboard.press('z'); // close
+    const dClose = await settleCam();
+    check(`${tag} Storey frames wider than Close`, dStorey > dClose * 1.5, `${dStorey.toFixed(1)} vs ${dClose.toFixed(1)}`);
+    check(`${tag} the zoom is saved with the settings`, (await page.evaluate(() => window.__xrayClassify.settings().reviewZoom)) === 'close');
+    await page.locator('.xrw select[data-role=zoom]').selectOption('surroundings');
+    const dBack = await settleCam();
+    // F frames the current item again
+    await page.evaluate(() => { const r = window.__xray.app.renderer; r.camera.position.x += 80; r.controls.update?.(); });
+    await page.keyboard.press('f');
+    const dF = await settleCam();
+    check(`${tag} F frames the current item again, not the whole model`, Math.abs(dF - dBack) / dBack < 0.05 && dF < 60, `${dF.toFixed(1)} vs ${dBack.toFixed(1)}`);
+
+    // ---- numbered candidates
+    const list = await items();
+    let found = -1;
+    for (let i = 0; i < Math.min(list.length, 80) && found < 0; i++) {
+      await page.evaluate((k) => window.__xrayClassify.walk.goto(k), i);
+      if ((await page.locator('.xrw [data-role=candidates] [data-rank]').count()) >= 3) found = i;
+    }
+    check(`${tag} an item shows numbered candidates`, found >= 0, `${found}`);
+    const codes = await page.locator('.xrw [data-role=candidates] [data-rank]').evaluateAll((b) => b.map((x) => x.getAttribute('data-code')));
+    await page.screenshot({ path: resolve(here, 'review-walk-candidates.png'), timeout: 180000 });
+    const n0 = (await pending()).length;
+    await page.keyboard.press('3');
+    let p = await pending();
+    check(`${tag} key 3 takes the third candidate as a correction (via candidate)`, p.length > n0 && p.at(-1).via === 'candidate' && Object.values(p.at(-1).after).includes(codes[2]), JSON.stringify(p.at(-1)));
+    await page.keyboard.press('u');
+    check(`${tag} U takes it back`, (await pending()).length === n0);
+    await page.evaluate((k) => window.__xrayClassify.walk.goto(k), found);
+    await page.keyboard.press('2');
+    p = await pending();
+    check(`${tag} key 2 still takes the runner-up (via runner-up)`, p.at(-1)?.via === 'runner-up' && p.at(-1).action === 'correct');
+    await page.keyboard.press('1');
+    p = await pending();
+    check(`${tag} key 1 confirms the proposal`, p.at(-1)?.action === 'confirm');
+
+    // ---- Correct: typing filters the code list; Esc leaves it
+    await page.keyboard.press('e');
+    await page.waitForSelector('.xrw-edit');
+    const all = await page.locator('.xrw-edit select[data-role=edit-discipline] option').count();
+    await page.locator('.xrw-edit [data-role=code-filter]').fill('plumb');
+    const some = await page.locator('.xrw-edit select[data-role=edit-discipline] option').count();
+    check(`${tag} in Correct, typing filters the code list`, some < all && some >= 1 && (await page.locator('.xrw-edit select[data-role=edit-discipline] option:checked').textContent()).toLowerCase().includes('plumb'), `${all} -> ${some}`);
+    await page.locator('.xrw-edit [data-role=code-filter]').press('Enter');
+    p = await pending();
+    check(`${tag} Enter in the filter applies the correction`, p.at(-1)?.action === 'correct' && p.at(-1).via === undefined, JSON.stringify(p.at(-1)?.after));
+    await page.keyboard.press('e');
+    await page.waitForSelector('.xrw-edit');
+    await page.keyboard.press('Escape');
+    check(`${tag} Esc leaves Correct and keeps the walk (and no hint)`, (await page.locator('.xrw-edit').count()) === 0 && (await walkState(page)).open && (await page.locator('.xrw [data-role=esc-hint]').count()) === 0);
+
+    // ---- safer Esc
+    await page.locator('.xrw [data-role=comment]').focus();
+    await page.keyboard.press('Escape');
+    check(`${tag} Esc in a text field of the walk brings the focus back to the walk and does not close it`, (await walkState(page)).open && (await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))) === 'review-walk' && !(await walkState(page)).escArmed);
+    await page.keyboard.press('Escape');
+    check(`${tag} a first Esc shows the hint`, (await page.locator('.xrw [data-role=esc-hint]').textContent()).includes('Esc again to close'));
+    await page.waitForTimeout(1800);
+    check(`${tag} the hint goes away after about 1.5 s and the walk is still open`, (await page.locator('.xrw [data-role=esc-hint]').count()) === 0 && (await walkState(page)).open);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(1800);
+    await page.keyboard.press('Escape');
+    check(`${tag} two Escapes more than 1.5 s apart do not close the walk`, (await walkState(page)).open);
+    await page.keyboard.press('q');
+    check(`${tag} Q closes the walk`, (await page.locator('.xrw').count()) === 0);
+
+    // ---- facets in the walk
+    await page.keyboard.press('Shift+R');
+    await page.waitForSelector('.xrw:not([hidden])');
+    await page.locator('.xrw select[data-role=kind]').selectOption('facets');
+    st = await walkState(page);
+    check(`${tag} the Facets filter lists facet items`, st.kind === 'facets' && st.items > 0 && !!st.item?.facet, JSON.stringify({ items: st.items, item: st.item }));
+    if (st.items > 0) {
+      const fi = await items();
+      check(`${tag} facet items are one element each, titled with the facet`, fi.every((i) => i.elements === 1) && /^[A-Z][A-Za-z ]+: /.test(fi[0].title), fi[0].title);
+      await page.screenshot({ path: resolve(here, 'review-walk-facet.png'), timeout: 180000 });
+      const pf0 = (await walkState(page)).pending;
+      await page.keyboard.press('Enter');
+      check(`${tag} Enter confirms a facet item (pending)`, (await walkState(page)).pending === pf0 + 1);
+      let withCand = -1;
+      for (let i = 0; i < Math.min(fi.length, 80) && withCand < 0; i++) {
+        await page.evaluate((k) => window.__xrayClassify.walk.goto(k), i);
+        if ((await page.locator('.xrw [data-role=candidates] [data-rank]').count()) >= 2 && (await walkState(page)).item?.facet) withCand = i;
+      }
+      if (withCand >= 0) {
+        const fcode = await page.locator('.xrw [data-role=candidates] [data-rank="2"]').getAttribute('data-code');
+        const key = (await walkState(page)).item.key;
+        await page.keyboard.press('2');
+        await page.locator('.xrw [data-tab=pending]').click();
+        check(`${tag} key 2 takes the runner-up of a facet; the Pending tab shows it`, new RegExp(`to ${fcode} \\(correct\\)`).test(await page.locator('.xrw [data-item]').last().textContent()), key);
+        await page.locator('.xrw [data-tab=walk]').click();
+      }
+      await page.locator('.xrw [data-act=commit]').click();
+      const hist = await page.evaluate(() => window.__xrayClassify.review.history());
+      check(`${tag} Commit writes the facet changes into the review log (same schema, optional list)`, hist[0].facetChanges?.length >= 1 && hist[0].author === 'Rosalind Fanshawe', `${hist[0].facetChanges?.length}`);
+      const human = await page.evaluate(() => { const r = window.__xrayClassify.facets.results(); const out = []; for (const [g, set] of (r instanceof Map ? r : new Map(Object.entries(r)))) for (const v of Object.values(set)) if (v.source === 'human') out.push(v); return out; });
+      check(`${tag} the committed facet results are source human with no review`, human.length >= 1 && human.every((v) => v.needsReview === false || v.confidence < 1), `${human.length}`);
+      const log = JSON.parse(await page.evaluate(() => window.__xrayClassify.review.exportLog()));
+      check(`${tag} the review log is still xray-classification-review/1`, log.schema === 'xray-classification-review/1');
+    }
+
+    // ---- manifest export
+    await page.locator('.xrw [data-tab=history]').click();
+    await page.locator('.xrw [data-act=export-manifest]').click();
+    await page.waitForSelector('.xrw [data-role=manifest-panel]');
+    check(`${tag} the manifest panel starts with both options off`, !(await page.locator('[data-role=manifest-per-element]').isChecked()) && !(await page.locator('[data-role=manifest-reviewer-names]').isChecked()));
+    await page.screenshot({ path: resolve(here, 'review-walk-manifest.png'), timeout: 180000 });
+    const d1 = await download(() => page.locator('.xrw [data-act=manifest-save]').click());
+    const m1 = JSON.parse(d1.text);
+    check(`${tag} Export manifest saves xray-classification-manifest/1 JSON with counts and the review actions`, d1.name.endsWith('.json') && m1.schema === 'xray-classification-manifest/1' && m1.classification.total > 100 && m1.classifier.provider === 'mock' && m1.review.actions.confirmed >= 1 && m1.facets.total > 0, d1.name);
+    check(`${tag} by default the manifest has no per-element list, no reviewer name and no key`, m1.corrections === undefined && m1.reviewerNames === undefined && !d1.text.includes('Fanshawe') && !/api[-_ ]?key|token|authorization/i.test(d1.text));
+    await page.locator('.xrw [data-act=export-manifest]').click();
+    await page.waitForSelector('.xrw [data-role=manifest-panel]');
+    await page.locator('[data-role=manifest-per-element]').check();
+    await page.locator('[data-role=manifest-reviewer-names]').check();
+    const d2 = await download(() => page.locator('.xrw [data-act=manifest-save]').click());
+    const m2 = JSON.parse(d2.text);
+    check(`${tag} with the two boxes ticked the manifest lists the human corrections and the reviewer names`, Array.isArray(m2.corrections) && m2.corrections.every((r) => r.action === 'correct' && r.reviewer === 'Rosalind Fanshawe') && m2.reviewerNames[0] === 'Rosalind Fanshawe', `${m2.corrections?.length}`);
+    await page.locator('.xrw [data-act=export-manifest]').click();
+    await page.waitForSelector('.xrw [data-role=manifest-panel]');
+    await page.locator('[data-role=manifest-md]').check();
+    const d3 = await download(() => page.locator('.xrw [data-act=manifest-save]').click());
+    check(`${tag} the Markdown summary has the same numbers`, d3.name.endsWith('.md') && d3.text.includes('# Classification manifest') && !d3.text.includes('Fanshawe'), d3.name);
+    await page.locator('.xrw-x').click();
+  } finally {
+    const real = errors.filter((e) => !/favicon/i.test(e));
+    check(`${tag} zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+}
+
 let browser;
 let exitCode = 0;
 try {
@@ -570,6 +736,7 @@ try {
   browser = await chromium.launch({ args: GL });
   await runDesktop(browser);
   await runSkipUnsure(browser);
+  await runWalkUx(browser);
   await runPhone(browser);
   if (checks.some((c) => !c.ok)) exitCode = 1;
   console.log(`\n${checks.filter((c) => c.ok).length}/${checks.length} checks passed`);

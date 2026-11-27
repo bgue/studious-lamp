@@ -245,6 +245,7 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | `imageMargin` | same | 25 | Margin of the context box, 0 to 200 percent of the largest side of the element, never under 0.5 m |
 | `geometryText` | `jev`, `d3` (both backends) | `off` | `off` or `svg`: put the shape of the element into the request state as compact SVG text. Independent of `images`. Not used by `decision` and `webllm` (their premise is short; a warning says so). See [Geometry as SVG text](#geometry-as-svg-text) |
 | `geometryContext` | same | `true` | With `svg`: also the element in its bounding box with the elements around it (the margin is `imageMargin`) |
+| `reviewZoom` | all | `surroundings` | How far the review walk frames the element: `close` (margin 1.6, or 1.15 for a type), `surroundings` (margin 2.5, never nearer than 4 m), `room` (the IfcSpace around the element's centre, else a wide margin) or `storey`. A view setting: it never changes what is classified and is not in the cache identity. Saved with the other settings in the `classify` params section. |
 | `geometryVector` | all | `false` | Put the numeric shape line (`state.shape`, about 50 tokens) into the request. Works with every provider, also `decision` and `webllm`. See [Shape as numbers](#shape-as-numbers-geometryvector) |
 | `imageViews` | none | | Removed. An old value is ignored, with a warning |
 | `endpoint` | `jev` | `https://api.typesafe.ai/v1/systemone` | An https URL, or a same-origin path such as `/api/jev` |
@@ -1308,7 +1309,9 @@ Every order is deterministic. Filters: **Only needs review**, **Only unconfirmed
 ### At each item
 
 The camera frames the element (or all N elements of the type) with the existing fly-to, the elements are the selection, and the
-x-ray machinery ghosts the context. **Esc** ends the walk and restores the camera and the selection you had. The panel shows
+x-ray machinery ghosts the context. **Q** ends the walk and restores the camera and the selection you had; so does a second **Esc**
+within about 1.5 s (the first one only shows "Esc again to close"). **Esc** also leaves the correction form, and it brings the focus
+back to the walk when it is in a text field of the walk or on a control outside it. The panel shows
 class, name, tag, storey and system; the proposed discipline, sub-discipline and division, each with its confidence and its
 source (rule, model id, cached model, manual, or "confirmed by ..."); the rule rationale; the **runner-up** (the second choice
 for the part with the narrowest margin, checked against the schema); "needs review"; and "The model now disagrees" when a later
@@ -1317,8 +1320,11 @@ run says something else than the committed value.
 | Action | Key | Button |
 | --- | --- | --- |
 | Confirm | Enter or Y | **Confirm** |
-| Take the runner-up | 2 | **Use XYZ** |
-| Correct (pickers for the three codes, sub-discipline restricted to the chosen discipline, schema values only) | E, then Enter to apply | **Correct...**, **Apply correction** |
+| Take a numbered candidate (1 is the proposal and confirms, 2 the runner-up, 3 to 9 the next options of the same part, by probability) | 1 to 9 | the numbered rows of the card, **Use XYZ** |
+| Frame this item again | F | **Frame** |
+| Change the review zoom (Close, With surroundings, Room, Storey) | Z | list **Review zoom** |
+| Close the walk | Q, or Esc twice within 1.5 s | **×** |
+| Correct (pickers for the three codes, sub-discipline restricted to the chosen discipline, schema values only; typing in the filter box narrows the lists and picks the first matching discipline) | E, then Enter to apply | **Correct...**, **Apply correction** |
 | Skip (see below) | N or right arrow; Shift+N for the other skip in a type | **Skip**, or **Skip this one** and **Skip all N** in a type |
 | Back | left arrow | **Back** |
 | Flag the next action as a guess | `?` (Shift+/) | checkbox **Unsure (a guess)** |
@@ -1392,6 +1398,31 @@ The reviewer's name or initials are asked once, at the first commit, and kept in
 `xray.classify.reviewer.v1`). **A name is personal data**: it is never in the params, a share link, a saved view, a preset, a packed page
 or the model properties. It is in the review log (and so in its export and in the exports of results), which are files you choose to make.
 
+### Facet items
+
+With **Show** set to **Facets** or **Both** the walk also visits facet results that need review (`XR_Trade`, `XR_Placement`, `XR_Material`,
+`XR_Phase`, `XR_Orientation`, `XR_ClassRepair` and the `XR_Concrete*` sets). `src/classify/facetWalk.ts` builds the items: one element and
+one facet each, facet by facet and in the location sweep inside a facet. A result that a person decided stays in the list (source
+`human`). The keys are the ones above; the candidates come from the result's `probabilities` and the facet's code list; **Correct**
+shows one code list with the filter box. A facet without a code list (`ConcreteGeometry`, `ConcreteSpec`) can only be confirmed.
+
+A decision goes into the pending set (`review.proposeFacet`) and a commit writes it to the commit's optional `facetChanges` list
+(`{ globalId, facet, before: { code, source, confidence }, after: { code, source: "human", confidence }, action, comment?, unsure?, via? }`).
+The log keeps the schema `xray-classification-review/1`: `facetChanges` and the `via` field of a change are optional and readers that do not
+know them skip them. The newest facet change per element and facet becomes the result: source `human`, `NeedsReview` false (an unsure one:
+confidence 0.75, review stays) and the properties are written again. A later run of the facets keeps it; a manual choice made later wins; a
+revert puts the earlier result back.
+
+### Manifest
+
+**Export manifest...** (History tab, and the Review section of the drawer) calls `ClassifyService.manifest()` (`src/classify/manifest.ts`) and saves
+`xray-classification-manifest/1` JSON or a Markdown summary. The fields are in the manual, appendix C. Counts: results by source family
+(`rule`: rules, measurement, IFC; `model`: model and cache; `human`: confirmed, corrected, manual), top codes, confidence band
+(`<0.50`, `0.50-0.74`, `0.75-0.89`, `>=0.90`), needs review; review actions over the decisions that stand (a reverted commit and its reversal
+are left out); a from-to matrix of corrections; first and last decision time. `perElement` adds one row per human correction and changed part;
+`reviewerNames` adds the commit authors. Both default to off. Only the whitelisted settings fields are read, so an endpoint, a key or a token
+cannot get into the file (`tests/classify-manifest.test.ts`).
+
 ### Where the log lives
 
 Per model fingerprint, in IndexedDB (database `xray-classification-review`, store `logs`), with `localStorage`
@@ -1449,7 +1480,7 @@ the leak test (`tests/classify-settings.test.ts`) also checks that the reviewer'
 | decision model | `testModel()` (load, one tiny choice, load time, device, data type, size), `setHfToken(token, remember?)`, `hfTokenState()`, `modelCache()`, `clearModelCache()`, `decisionStats()` (requests, pairs, passes), `webllmStats()` |
 | Throughline | `importThroughline(json)` returns `{ errors, warnings }` |
 | calibration | `calibration()` (mode, what is in use, the numbers of the last fit), `calibrate({ maxSignatures?, heldOut? })` (**Calibrate on rules**), `calibrateConfirmed(...)` (**Calibrate on confirmed**), `forgetFit()` |
-| review walk | `walk.open({ order? })`, `walk.close()`, `walk.state()`, `walk.items()`, `walk.goto(i)`; `review.ready()`, `reviewer()`, `setReviewer(name)`, `fingerprint()`, `pending()`, `propose(ids, { action, codes?, item?, comment?, unsure? })`, `undoPending(item)`, `commit(note?)`, `revert(id, note?)`, `history()`, `exportLog()`, `importLog(text)`, `disagreements()`, `storage()`, `skipped()` |
+| review walk | `walk.open({ order?, kind? })` (`kind`: `classification`, `facets` or `both`), `manifest({ perElement?, reviewerNames? })`, `walk.close()`, `walk.state()`, `walk.items()`, `walk.goto(i)`; `review.ready()`, `reviewer()`, `setReviewer(name)`, `fingerprint()`, `pending()`, `propose(ids, { action, codes?, item?, comment?, unsure? })`, `undoPending(item)`, `commit(note?)`, `revert(id, note?)`, `history()`, `exportLog()`, `importLog(text)`, `disagreements()`, `storage()`, `skipped()` |
 | d3 and pictures | `setD3Key(key, remember?)`, `d3KeyState()`, `confirmD3Download()`, `thumbnails(id)` (the data URLs the model would get) |
 
 Types (`src/classify/types.ts`): `ClassifyInput { id, ifcClass, name, psets, quantities?, type?, hierarchy?: { path, parents? },
