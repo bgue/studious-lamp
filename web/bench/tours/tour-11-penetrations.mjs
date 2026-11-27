@@ -66,7 +66,7 @@ await tour.step('11.1 Try it: the schedule on Synthetic 5k', async () => {
   const other = await page.evaluate((mep0) => window.__xrayPenetrations.rows.findIndex((r, i) => r.mep !== mep0 && i < 500), rowData.mep);
   await rowsOf(page).nth(other).click({ modifiers: ['Control'] });
   for (let i = 0; i < 10 && (await ui.selection(page)).length < 2; i++) await page.waitForTimeout(700);
-  tour.known('step 5: "Ctrl or Shift click selects several rows"', (await ui.selection(page)).length >= 2, 'a Ctrl+click on a second row (a different MEP element) left only one element selected', String((await ui.selection(page)).length));
+  tour.check('step 5: "Ctrl or Shift click selects several rows"', (await ui.selection(page)).length >= 2, String((await ui.selection(page)).length));
   // step 6: markers
   const markersOn = await page.evaluate(() => document.querySelectorAll('svg [data-pen], svg g[data-marker], svg circle').length);
   tour.check('step 6: "Look at the markers in the model"', markersOn > 0, String(markersOn));

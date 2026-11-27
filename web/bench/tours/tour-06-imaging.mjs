@@ -139,7 +139,7 @@ await tour.step('6.3 Try it: bloom and edge glow on a duct, Glow mode, another e
   const other = await ui.clickElement(page, { cls: /Wall|Slab|Column/ });
   await ui.waitMoved(page, cam0, 12000);
   const cam1 = await ui.cam(page);
-  tour.known('"Select another element: the camera glides"', !!other && Math.hypot(...cam1.p.map((v, i) => v - cam0.p[i])) > 0.05, 'Camera fly-to is on, but the camera did not move after selecting a second element', `camera moved ${Math.hypot(...cam1.p.map((v, i) => v - cam0.p[i])).toFixed(2)} m`);
+  tour.check('"Select another element: the camera glides"', !!other && Math.hypot(...cam1.p.map((v, i) => v - cam0.p[i])) > 0.05, `camera moved ${Math.hypot(...cam1.p.map((v, i) => v - cam0.p[i])).toFixed(2)} m`);
   await ui.tool(page, 'Presets').click();
   const card = page.locator('#xray-toolbar-drawer [data-preset=presentation]');
   await card.waitFor({ timeout: 10000 }).catch(() => {});

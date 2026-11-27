@@ -47,12 +47,14 @@ await tour.step('8.1 Try it: save the selection as a static set', async () => {
   await ui.clearSelection(page);
   tour.check('step 5: Escape clears the selection', (await ui.selection(page)).length === 0);
   await ui.tab(page, 'Sets');
+  // the walls were framed when they were selected: move away first, so the glide back to them can be seen
+  await ui.setCam(page, [40, 30, 50], [0, 2, 0]);
   const c0 = await ui.cam(page);
   await row.locator('.set-name').click();
   await ui.waitMoved(page, c0, 25000).catch(() => {});
   tour.check('step 5: "Click the name of the set. The elements are selected again"', (await ui.selection(page)).length === nSel, String((await ui.selection(page)).length));
   const c1 = await ui.cam(page);
-  tour.known('step 5: "and the camera frames them"', Math.hypot(...c1.p.map((v, i) => v - c0.p[i])) > 0.05, 'clicking a set name selected the elements but the camera did not move within 25 s (the Home view was the start; 9 ground floor walls)', `moved ${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(2)} m`);
+  tour.check('step 5: "and the camera frames them"', Math.hypot(...c1.p.map((v, i) => v - c0.p[i])) > 0.05, `moved ${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(2)} m`);
   await ui.clearSelection(page);
   await ui.tab(page, 'Sets');
   await row.locator('[data-act=add]').click();

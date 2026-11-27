@@ -171,7 +171,7 @@ await tour.step('7.1 Hide, isolate, show: h, Shift+H, Alt+H and the eye states',
   await page.waitForFunction(() => [...document.querySelectorAll('#sidebar .tr')].some((r) => /IfcDoor/.test(r.innerText) && r.classList.contains('hid')), null, { timeout: 8000 }).catch(() => {});
   tour.check('"h: hide the selected elements" (5 doors)', (await userHides()) === 5, String(await userHides()));
   tour.check('"h: hide the selected elements" (the doors row shows its eye crossed)', (await doorRow.locator('.eye').getAttribute('title')) === 'Show', await doorRow.getAttribute('class'));
-  tour.known('"Hidden elements ... are removed from the selection"', (await ui.selection(page)).length === 0, 'after h the hidden doors stay in the selection', `${(await ui.selection(page)).length} still selected`);
+  tour.check('"Hidden elements ... are removed from the selection"', (await ui.selection(page)).length === 0, `${(await ui.selection(page)).length} still selected`);
   const egCls = await row(page, 'Erdgeschoss').getAttribute('class');
   tour.check('"A half-dimmed eye on a storey ... means some of its elements are hidden"', /\bpart\b/.test((await row(page, 'Erdgeschoss').locator('.eye').getAttribute('class')) ?? ''), `eye class: ${await row(page, 'Erdgeschoss').locator('.eye').getAttribute('class')} row: ${egCls}`);
   await page.keyboard.press('Alt+h');

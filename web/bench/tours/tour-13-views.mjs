@@ -48,7 +48,7 @@ await tour.step('13.2 Try it: save, restore, rename, reorder', async () => {
   await ui.waitMoved(page, c1, 12000).catch(() => {});
   const c2 = await ui.cam(page);
   const sel2 = await ui.selection(page);
-  tour.known('step 6: "The camera turns back over about 0.4 s"', Math.hypot(...c2.p.map((v, i) => v - c0.p[i])) < 0.5, 'after clicking the row the camera drifted slowly and had not reached the saved pose after 12 s (software renderer; the saved pose itself was read back correctly)', `distance from saved ${Math.hypot(...c2.p.map((v, i) => v - c0.p[i])).toFixed(2)} m, started ${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(2)} m away`);
+  tour.check('step 6: \"The camera turns back over about 0.4 s\"', Math.hypot(...c2.p.map((v, i) => v - c0.p[i])) < 0.5, `distance from saved ${Math.hypot(...c2.p.map((v, i) => v - c0.p[i])).toFixed(2)} m, started ${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(2)} m away`);
   tour.check('step 6: "the hidden wall returns"', (await userHides(page)) === 0, String(await userHides(page)));
   tour.check('step 6: "and the window is selected again"', sel2.length === 1 && sel2[0].cls === 'IfcWindow' && doorSel[0]?.cls === 'IfcDoor', JSON.stringify(sel2));
   tour.check('step 6: "The row is marked as the last view you restored"', await r1.evaluate((r) => r.classList.contains('active')));
@@ -181,9 +181,10 @@ await tour.step('13.2 Update, duplicate, play, export, import, share link', asyn
   await page.locator('.xm-menu [role=menuitem]', { hasText: /click again|Delete/i }).click();
   await page.waitForTimeout(400);
   const nDel = await rowsOf(page).count();
-  await page.locator('#sidebar input[type=file]').first().setInputFiles(path);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#sidebar .vw-top').getByRole('button', { name: 'Import', exact: true }).click()]);
+  await chooser.setFiles(path);
   for (let i = 0; i < 12 && (await rowsOf(page).count()) < nDel + 1; i++) await page.waitForTimeout(700);
-  tour.known('"Import adds the views of such a file": the deleted view is back', (await rowsOf(page).count()) === nDel + 1, 'importing the exported views file did not bring back the view that was deleted after the export', `${nDel} -> ${await rowsOf(page).count()}; ${(await page.locator('#sidebar .vw-top').innerText()).replace(/\s+/g, ' ').slice(0, 80)}`);
+  tour.check('"Import adds the views of such a file": the deleted view is back', (await rowsOf(page).count()) === nDel + 1, `${nDel} -> ${await rowsOf(page).count()}; ${(await page.locator('#sidebar .vw-top').innerText()).replace(/\s+/g, ' ').slice(0, 80)}`);
   // copy link
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
   await rowsOf(page).first().locator('[data-act=menu]').click();

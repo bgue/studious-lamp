@@ -13,7 +13,7 @@ await tour.step('1.1 select one duct segment: the focus is the connected run, th
   const picked = await ui.clickElement(page, { cls: 'IfcDuctSegment' });
   tour.check('a duct segment can be selected by clicking it', !!picked, JSON.stringify(picked));
   const x = await ui.xray(page);
-  tour.known('"the focus is the whole connected duct run": more than the one segment is in focus', x.focus > 1, 'the sample duct belongs to a system with 3 elements ([23,24,25]) but the focus is only the selected segment', `focus ${x.focus}`);
+  tour.check('"the focus is the whole connected duct run": more than the one segment is in focus', x.focus > 1, `focus ${x.focus}`);
   tour.check('the viewer sorts the context into host, near and far', x.host + x.near + x.far > 0, `host ${x.host}, near ${x.near}, far ${x.far}`);
   const ghosted = Object.keys(x.faintByClass);
   tour.check('"the slab above it and one wall are faint": slabs or walls ghost', ghosted.some((c) => /Slab|Wall/.test(c)), JSON.stringify(x.faintByClass));
