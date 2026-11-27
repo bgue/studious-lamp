@@ -16,6 +16,8 @@ What changed in the X-ray viewer, newest first. One section per release; the num
   includes the IFC4 terminals at the ends of duct and pipe runs (air, sanitary, waste and fire-suppression terminals).
 - Hiding the selection (`h`) also clears it, as the manual says; Ctrl or Shift+click in the penetrations table now adds the row's
   element to the viewer selection instead of replacing it.
+- Revisions: the comparison ignores every `XR_` property (the viewer's own classification and facet results), so classifying the
+  earlier model no longer marks all its elements as changed and the unchanged decisions carry over again.
 
 ## v32 - 2026-11-26
 

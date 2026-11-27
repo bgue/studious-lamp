@@ -56,7 +56,7 @@ export const DEFAULT_REVISION_OPTIONS: RevisionOptions = {
   extentTolRel: 0.001,
   elevationTol: 0.01,
   propRelTol: 1e-4,
-  ignoreProps: ['Xray_', 'XR_Classification.'],
+  ignoreProps: ['Xray_', 'XR_'],
   guidPairFloor: 0.05,
   gridCell: 1,
   matchShapeTol: 0.05,

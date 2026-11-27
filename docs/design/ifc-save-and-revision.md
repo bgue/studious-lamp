@@ -339,7 +339,7 @@ else if |Δcentroid| > 0.001 m          → flag placement, move = |Δcentroid|
 | `attributes` | `name`, `Attr.Tag`, `Attr.Description` |
 | `storey` | storey name, or elevation differing by > 1 cm |
 | `material` | `material` |
-| `properties` | every other key of `props`: added, removed, changed (numbers: rel > 1e-4). Keys under `schema.psetName.` and `Xray_` are ignored |
+| `properties` | every other key of `props`: added, removed, changed (numbers: rel > 1e-4). Keys under `Xray_` and `XR_` (the viewer's own classification and facet results) are ignored |
 | `systems` | sorted system names |
 
 Limit (F6): only the loaded properties are compared (mode `common`: attributes, `Pset_*Common`, base quantities, 24 per element). The card says "compared: loaded properties" (open question Q4).
