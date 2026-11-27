@@ -135,9 +135,17 @@ await tour.step('18.2 Try it: the selected element, Accept, Change, Unsure, Comm
   await page.waitForTimeout(1500);
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(1000);
+  await page.keyboard.press('z');
+  await page.waitForTimeout(600);
+  tour.check('step 5: "Z changes how far the camera stands back"', /Zoom: (Close|Room|Storey)/.test(await page.locator('.xrw').first().innerText()), '');
+  await page.keyboard.press('f');
+  await page.waitForTimeout(600);
   await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  tour.check('step 6: "after the first Esc the panel says Esc again to close"', /Esc again to close/.test(await page.locator('.xrw').first().innerText()), '');
+  await page.keyboard.press('q');
   await page.waitForTimeout(2500);
-  tour.check('step 5: "Esc ends the walk and puts back your camera and selection"', !(await page.locator('.xc-walk').isVisible()), '');
+  tour.check('step 6: "Q ends the walk and puts back your camera and selection"', !(await page.locator('.xc-walk').isVisible()), '');
   const c1 = await ui.cam(page);
   tour.check('step 5: the camera is put back', Math.hypot(...c1.p.map((v, i) => v - c0.p[i])) < 1, `${Math.hypot(...c1.p.map((v, i) => v - c0.p[i])).toFixed(2)} m off`);
 });
